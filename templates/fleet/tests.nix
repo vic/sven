@@ -4,7 +4,7 @@
 let
   inputs = (builtins.getFlake "path:${toString ../..}?dir=templates/fleet").inputs;
   inherit (inputs.nixpkgs) lib;
-  sven = (import inputs.sven).lib;
+  sven = inputs.sven.lib;
   b = builtins;
   # the shared-pkgs comparison hosts (environment lab) stay out of checks that list the original fleet
   noApps =

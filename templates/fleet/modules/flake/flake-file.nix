@@ -39,7 +39,7 @@ in
       description = "A sven fleet: Ren's fleet, sini's and Den's patterns, as queries";
       outputs = ''
         inputs:
-        (import inputs.sven).lib.mkFlake {
+        inputs.sven.lib.mkFlake {
           imports = [ (inputs.import-tree ./modules) ];
           _module.args = {
             inherit inputs;
@@ -52,10 +52,7 @@ in
         # Regenerate: nix run .#write-flake
       '';
       inputs = {
-        sven = {
-          url = "path:../..";
-          flake = false;
-        };
+        sven.url = "path:../..";
         import-tree.url = "github:denful/import-tree";
         flake-file.url = "github:vic/flake-file";
         nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";

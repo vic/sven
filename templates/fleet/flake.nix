@@ -5,7 +5,7 @@
 
   outputs =
     inputs:
-    (import inputs.sven).lib.mkFlake {
+    inputs.sven.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -36,10 +36,7 @@
     nix-on-droid.url = "github:nix-community/nix-on-droid";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    sven = {
-      url = "path:../..";
-      flake = false;
-    };
+    sven.url = "path:../..";
     terranix.url = "github:terranix/terranix";
   };
 }

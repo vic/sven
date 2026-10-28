@@ -13,10 +13,10 @@ This fleet is the reference example. It models the [Ren](https://github.com/vic/
 ```nix
 # flake.nix
 {
-  inputs.sven = { url = "github:vic/sven"; flake = false; };
+  inputs.sven.url = "github:vic/sven";
   inputs.import-tree.url = "github:denful/import-tree";
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
-  outputs = inputs: (import inputs.sven).lib.mkFlake {
+  outputs = inputs: inputs.sven.lib.mkFlake {
     imports = [ (inputs.import-tree ./modules) ];
     _module.args = { inherit inputs; inherit (inputs.nixpkgs) lib; };
   };
