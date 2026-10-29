@@ -837,6 +837,15 @@ let
       isAttrsFn = f: functionArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
       fill =
         s: v:
+        let
+          fa = functionArgs v;
+          mine = filter isRen (attrNames fa);
+          asked = genAttrs mine (argAt s);
+          none = filter (n: asked.${n} == [ ]) mine;
+          missing = filter (n: !fa.${n}) none;
+          got = mapAttrs (_: head) (removeAttrs asked none);
+          rest = removeAttrs fa mine;
+        in
         if !isFunction v then
           { ok = v; }
         else if !isAttrsFn v then
@@ -844,31 +853,21 @@ let
             code = "bare-function";
             fix = "write `{ ... }:` so yen knows which args to fill";
           }
+        else if missing != [ ] then
+          errWith s.id "arg `${head missing}` has no answer" {
+            code = "arg";
+            want = head missing;
+            fix = "give `${head missing}` a default (`${head missing} ? null`) or make the element active only where it has an answer";
+          } # Cycle: no source, no emission
+        else if rest == { } then
+          { ok = v got; }
         else
-          let
-            fa = functionArgs v;
-            mine = filter isRen (attrNames fa);
-            asked = genAttrs mine (argAt s);
-            none = filter (n: asked.${n} == [ ]) mine;
-            missing = filter (n: !fa.${n}) none;
-            got = mapAttrs (_: head) (removeAttrs asked none);
-            rest = b.removeAttrs fa mine;
-          in
-          if missing != [ ] then
-            errWith s.id "arg `${head missing}` has no answer" {
-              code = "arg";
-              want = head missing;
-              fix = "give `${head missing}` a default (`${head missing} ? null`) or make the element active only where it has an answer";
-            } # Cycle: no source, no emission
-          else if rest == { } then
-            { ok = v got; }
-          else
-            {
-              ok = {
-                __functor = _: m: v (m // got);
-                __functionArgs = rest;
-              };
+          {
+            ok = {
+              __functor = _: m: v (m // got);
+              __functionArgs = rest;
             };
+          };
 
       # ── the drivers ──
       idOf =
