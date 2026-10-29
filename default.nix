@@ -636,28 +636,25 @@ let
           scope = s.id;
         }) (filter (n: tainted.${n} && s.__here.${n} == null) aspectNames)
       ) unsorted;
+      isPredicate =
+        p:
+        isFunction p || isList p || isAttrs p && (p ? __functor || p ? __kind || p ? __aspect || isRef p);
+      # a typo must not read as false
       atErrors = concatMap (
         n:
-        map
-          (
-            p:
-            errWith "aspect ${n}" "`at` holds a ${b.typeOf p}, not a predicate" {
-              code = "at";
-              path = [
-                "aspects"
-                n
-                "at"
-              ];
-              got = b.typeOf p;
-              want = "a predicate: a function, a kind, instance or aspect ref, or a list";
-            }
-          ) # a typo must not read as false
-          (
-            filter (
-              p:
-              !(isFunction p || isList p || isAttrs p && (p ? __functor || p ? __kind || p ? __aspect || isRef p))
-            ) (toList (aspects.${n}.at or [ ]))
-          )
+        map (
+          p:
+          errWith "aspect ${n}" "`at` holds a ${b.typeOf p}, not a predicate" {
+            code = "at";
+            path = [
+              "aspects"
+              n
+              "at"
+            ];
+            got = b.typeOf p;
+            want = "a predicate: a function, a kind, instance or aspect ref, or a list";
+          }
+        ) (filter (p: !isPredicate p) (toList (aspects.${n}.at or [ ])))
       ) aspectNames;
 
       # ── components: one cycle per (aspect, scope). Its own tree requests feed its sources ──
@@ -926,25 +923,23 @@ let
               }
             ) red.errors;
         }; # a strategy cannot know its receiver: the engine names it
-      emitted =
-        concatMap
-          (
-            e:
-            let
-              x = fill e.from e.value;
-            in
-            if x ? ok then
-              map (
-                m:
-                if isAttrs m then
-                  errWith e.from.id (m.error or "error") (removeAttrs m [ "from" ])
-                else
-                  err e.from.id m
-              ) (toList x.ok)
+      # a record or a message; `from` is always the giver
+      emitted = concatMap (
+        e:
+        let
+          x = fill e.from e.value;
+        in
+        if x ? ok then
+          map (
+            m:
+            if isAttrs m then
+              errWith e.from.id (m.error or "error") (removeAttrs m [ "from" ])
             else
-              [ (err x.from "${e.origin}: ${x.error}") ]
-          ) # a record or a message; `from` is always the giver
-          (filter (e: e.key == "errors") given);
+              err e.from.id m
+          ) (toList x.ok)
+        else
+          [ (err x.from "${e.origin}: ${x.error}") ]
+      ) (filter (e: e.key == "errors") given);
 
       # ── run: sinks feed drivers, drivers feed sources, Nix laziness closes the loop. Every output is a query ──
       receivers = k: filter (s: byTo ? "${k}@${s.id}") scopes;
