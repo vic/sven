@@ -16,18 +16,27 @@ The codes below are read from the engine source when the docs are written.
 | `bare-function` | an element is a function without named args (`x: …`): wrap it as `{ ... }:` |
 | `check` | a field value fails its type |
 | `cycle` | an instance appears twice on its own scope path: `spawns` loops |
-| `error` | a message from an aspect's `errors` key, a failed `of`, or a component |
+| `error` | a message from an aspect's `errors` key |
 | `merge` | `merge`: two different leaves at one path |
 | `missing` | a required field has no value |
 | `missing-param` | a stored query is asked without a required parameter |
+| `module` | a module asks for an arg that has no answer |
+| `of` | a sink element fails the sink's `of` type |
 | `one` | `one`: 0 or 2+ elements |
+| `order` | an `order` answer is not a number |
 | `outside-grant` | a staged change gives an element outside its grant |
 | `program` | a change program op is not valid |
 | `ref` | a field wants an instance ref and got something else |
 | `rejected` | a staged change was rejected before (its sha is in `rejected`) |
+| `spawns` | a `spawns` function gives no attrset, or an instance in it is no attrset |
+| `tree-request` | a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds) |
 | `two-answers` | one declaration leaf has two different values |
+| `unknown-aspect` | a query names an aspect that does not exist |
 | `unknown-field` | an instance sets a field its kind does not declare |
 | `unknown-param` | a stored query is asked with a parameter it does not take |
+| `unknown-query` | `r.ask` names a stored query that does not exist |
+| `unknown-scope` | a query names a scope id that does not exist |
+| `unknown-sink` | a query names a sink that does not exist |
 
 <CardGrid>
 <LinkCard title="Errors as data" href="/concepts/errors/" description="Records, your own checks, and warnings." />

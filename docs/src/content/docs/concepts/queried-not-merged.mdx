@@ -80,7 +80,7 @@ A cascade is a list in your order. `yen.lib.cascade path xs` gives the first non
       {
         ${host.name} = {
           arcMax = yen.lib.cascade [ "settings" "zfs" "arcMax" ] [ host host.environment ];
-          k3s = host.settings.k3s.role;
+          k3s = yen.helpers.k3sRole host;
         };
       };
   };
@@ -98,6 +98,45 @@ A cascade is a list in your order. `yen.lib.cascade path xs` gives the first non
     k3s = "server";
   };
 }
+```
+
+## Helpers
+
+`yen.helpers` holds shared values and functions. It is an open namespace: any file declares a key, and any
+module reads it from its `yen` arg. Above, `report.nix` reads `yen.helpers.k3sRole`:
+
+
+```nix title="modules/helpers.nix"
+# `yen.helpers`: shared values and functions. Any file declares a key; any module reads it from `yen`.
+{ yen, ... }:
+{
+  yen.helpers.k3sRole = host: host.settings.k3s.role;
+}
+```
+
+A fleet chooses its own helpers, so yen does not document them and `schema` does not list them.
+A helper is a declaration like any other: one answer per key. A second file that gives the same key is
+two answers, because two functions are never equal:
+
+
+```nix title="variants/helper-twice.nix"
+# A second file gives the same helper. Functions are never equal, so this is two answers, not an override.
+{ yen, ... }:
+{
+  yen.helpers.k3sRole = host: "server";
+}
+```
+
+```nix title="result"
+[
+  {
+    code = "two-answers";
+    path = [
+      "helpers"
+      "k3sRole"
+    ];
+  }
+]
 ```
 
 ## Two answers are an error
@@ -153,9 +192,11 @@ nix flake init -t github:vic/yen#queried-not-merged
     - k3s.nix
     - zfs.nix
   - fleet.nix
+  - helpers.nix
   - hosts.nix
   - report.nix
 - variants/
+  - helper-twice.nix
   - override.nix
 
 </FileTree>

@@ -132,10 +132,12 @@ is not given, and `errors` says why:
 [
   {
     class = "fixable";
-    code = "error";
+    code = "arg";
     error = "aspect cluster-name: arg `cluster` has no answer";
+    fix = "give `cluster` a default (`cluster ? null`) or make the element active only where it has an answer";
     from = "fleet:main/environment:prod/host:lb";
     path = [ ];
+    want = "cluster";
   }
 ]
 ```

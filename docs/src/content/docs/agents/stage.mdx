@@ -124,6 +124,16 @@ Pass the `sha` of changes refused before in `rejected`. The same change is refus
 ]
 ```
 
+## A change from Nix
+
+`yen.lib.change.set path value` writes the same data from Nix: one declaration path gets one value.
+This gives the change in `desktop-on-web.json`:
+
+
+```nix
+yen.lib.change.set [ "aspects" "desktop" "at" ] [ { kind = "host"; name = "web"; } ]
+```
+
 :::tip[Safe places for an aspect]
 A stored query can stage an aspect on each machine and return where it is safe, and why the others are refused.
 See `safeHostsFor` in the reference fleet's [agent/synthesis.nix](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/synthesis.nix).

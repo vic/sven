@@ -52,6 +52,20 @@
       (docs.fileWith "{10}" "modules/report.nix")
       (docs.value r.flake.report)
       ''
+        ## Helpers
+
+        `yen.helpers` holds shared values and functions. It is an open namespace: any file declares a key, and any
+        module reads it from its `yen` arg. Above, `report.nix` reads `yen.helpers.k3sRole`:
+      ''
+      (docs.file "modules/helpers.nix")
+      ''
+        A fleet chooses its own helpers, so yen does not document them and `schema` does not list them.
+        A helper is a declaration like any other: one answer per key. A second file that gives the same key is
+        two answers, because two functions are never equal:
+      ''
+      (docs.file "variants/helper-twice.nix")
+      (docs.value (map (e: { inherit (e) code path; }) (variant "variants/helper-twice.nix").errors))
+      ''
         ## Two answers are an error
 
         One leaf with two different values is not an override. It is an error record, and you keep one answer:
@@ -91,5 +105,15 @@
           "zfs.nix"
         ];
       two-answers = map (e: e.code) (variant "variants/override.nix").errors == [ "two-answers" ];
+      helper-twice =
+        map (e: { inherit (e) code path; }) (variant "variants/helper-twice.nix").errors == [
+          {
+            code = "two-answers";
+            path = [
+              "helpers"
+              "k3sRole"
+            ];
+          }
+        ];
     };
 }
