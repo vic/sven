@@ -215,6 +215,47 @@ let
       sven.aspects.server.at = sven.host.a;
     }
   );
+  # a function element that reads a sink: two givers whose sink values differ are two elements, not one
+  sinkArgs = sven.eval (
+    { sven, ... }:
+    {
+      sven.kinds.fleet = {
+        spawns.environment = _: sven.environment;
+        sinks.seen = { };
+      };
+      sven.kinds.environment = {
+        spawns.host =
+          s:
+          b.listToAttrs (
+            map (n: {
+              name = n;
+              value = sven.host.${n};
+            }) (b.filter (n: sven.host.${n}.environment.name == s.name) (b.attrNames sven.host))
+          );
+        sinks.tag.reduce = sven.lib.reduce.one;
+      };
+      sven.kinds.host.fields.environment = sven.kinds.environment;
+      sven.fleet.main = { };
+      sven.environment = {
+        prod = { };
+        staging = { };
+      };
+      sven.host = {
+        a.environment = sven.environment.prod;
+        b.environment = sven.environment.staging;
+        c.environment = sven.environment.prod;
+      };
+      sven.aspects.envtag = {
+        at = sven.kinds.environment;
+        tag = { environment, ... }: environment.name;
+      };
+      sven.aspects.report = {
+        at = sven.kinds.host;
+        seen = { tag, ... }: tag;
+      };
+    }
+  );
+
   # Den CI gaps closed: derived defaults, bad `at`, one key from many files, static once per receiver
   gaps = sven.eval (
     { sven, ... }:
@@ -1815,6 +1856,12 @@ let
         "marker"
       ]
       && !(has gaps "two answers for aspects.multi.nixos");
+    sink-arg-element-per-receiver =
+      sinkArgs.reduced.seen."fleet:main" == [
+        "prod"
+        "staging"
+      ]
+      && msgs sinkArgs == [ ]; # a and c read one tag: once
     gap-static-once-per-receiver =
       b.length (b.filter (v: v == "marker") gaps.reduced.nixos."fleet:main/host:h1") == 1;
     gap-bad-at = has gaps "`at` holds a string, not a predicate";

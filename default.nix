@@ -1111,6 +1111,8 @@ let
                 e.from.id
               else if kinds ? ${n} then
                 ((nearest n e.from).id or "")
+              else if elem n sinkNames then
+                ((receiverIn n (nearestFirst e.from)).id or "") # a sink arg: the receiver it reads from
               else
                 ""
             ) (attrNames (functionArgs e.value))
