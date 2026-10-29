@@ -9,7 +9,7 @@ A guest is a machine that runs inside a host: a NixOS container here, a microvm 
 It is a scope under its host, with its own `nixos` sink. That sink forwards its modules up, into the host.
 
 
-```nix title="modules/kinds.nix" {16-18}
+```nix title="modules/kinds.nix" {23-24}
 # A guest lives under its host. Its own `nixos` sink forwards up, into the host's containers.
 {
   yen,

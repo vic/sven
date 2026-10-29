@@ -40,7 +40,7 @@
         A load balancer reads the addresses that its environment collects:
       ''
       (docs.file "modules/fleet.nix")
-      (docs.fileWith "{5,10}" "modules/aspects.nix")
+      (docs.fileWith "{8,17}" "modules/aspects.nix")
       (docs.value r.flake.proxy)
       ''
         ## Optional and missing args

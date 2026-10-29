@@ -49,7 +49,7 @@
         `nas` sets its own `arcMax`; `node` falls back to its environment:
       ''
       (docs.file "modules/hosts.nix")
-      (docs.fileWith "{8}" "modules/report.nix")
+      (docs.fileWith "{10}" "modules/report.nix")
       (docs.value r.flake.report)
       ''
         ## Two answers are an error

@@ -17,7 +17,7 @@ and `yen.lib.is` makes a type from any function.
 | `yen.lib.derive type (self: …)` | computed from the instance itself |
 | `yen.lib.is (v: …)` | none: a type from a check function |
 
-```nix title="modules/host.nix" {9-14}
+```nix title="modules/host.nix" {13-14}
 # A type is anything with `check = value: bool`. yen adds defaults on top of it.
 { yen, lib, ... }:
 let

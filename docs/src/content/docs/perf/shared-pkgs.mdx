@@ -11,7 +11,7 @@ With `sharedPkgs = true`, a host reuses the `pkgs` of the first sharing host on 
 through nixpkgs' `readOnlyPkgs` module. The `out` arg gives the leader's built `pkgs`, lazily.
 
 
-```nix title="modules/fleet.nix" {15-23}
+```nix title="modules/fleet.nix" {32,34,36}
 # Hosts with `sharedPkgs` reuse the pkgs of the first sharing host (the leader): nixpkgs is imported once.
 {
   yen,

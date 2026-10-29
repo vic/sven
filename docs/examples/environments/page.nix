@@ -11,7 +11,7 @@
         An environment owns its hosts. It gives them a domain and default settings, and it decides which people
         may log in. staging inherits from prod what it does not set.
       ''
-      (docs.fileWith "{17,23}" "modules/kinds.nix")
+      (docs.fileWith "{23,28}" "modules/kinds.nix")
       (docs.file "modules/data.nix")
       ''
         Users are not listed per host. A user lives on a host when one of their groups is in the environment's `grants`:
@@ -22,7 +22,7 @@
 
         `yen.lib.cascade` takes the first value along host, environment, base environment:
       ''
-      (docs.fileWith "{4}" "modules/base.nix")
+      (docs.fileWith "{6-9}" "modules/base.nix")
       (docs.value r.flake.timeZones)
       (docs.tip "Promote a host" ''
         Move `web-next` to prod with one edit: `environment = yen.environment.prod`. Its domain, its time zone default

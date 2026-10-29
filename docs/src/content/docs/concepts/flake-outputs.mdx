@@ -8,7 +8,7 @@ yen does not know what a flake is. The root kind declares an `out` sink with `me
 gives the flake's outputs. Each sink with an `out` key gives its part.
 
 
-```nix title="modules/fleet.nix" {6,12}
+```nix title="modules/fleet.nix" {6,8-11}
 # The `out` sink of the root is the flake: `yen.flake` gives it.
 { yen, ... }:
 {
@@ -33,7 +33,7 @@ gives the flake's outputs. Each sink with an `out` key gives its part.
 The `out` arg is the flake itself, read lazily. An element can build on other outputs without `inputs.self`:
 
 
-```nix title="modules/aspects.nix" {7}
+```nix title="modules/aspects.nix" {12-18}
 { yen, lib, ... }:
 {
   yen.aspects.nginx = {

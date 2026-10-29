@@ -8,7 +8,7 @@ An environment owns its hosts. It gives them a domain and default settings, and 
 may log in. staging inherits from prod what it does not set.
 
 
-```nix title="modules/kinds.nix" {17,23}
+```nix title="modules/kinds.nix" {23,28}
 # fleet > environment > host > user. Groups are data: an environment grants groups, a user is in groups.
 {
   yen,
@@ -128,7 +128,7 @@ flowchart TD
 `yen.lib.cascade` takes the first value along host, environment, base environment:
 
 
-```nix title="modules/base.nix" {4}
+```nix title="modules/base.nix" {6-9}
 # Settings cascade: the host, then its environment, then the environment's base.
 { yen, ... }:
 let

@@ -14,7 +14,7 @@
         With `sharedPkgs = true`, a host reuses the `pkgs` of the first sharing host on its system (the leader),
         through nixpkgs' `readOnlyPkgs` module. The `out` arg gives the leader's built `pkgs`, lazily.
       ''
-      (docs.fileWith "{15-23}" "modules/fleet.nix")
+      (docs.fileWith "{32,34,36}" "modules/fleet.nix")
       (docs.file "modules/hosts.nix")
       ''
         ## The oracle

@@ -40,7 +40,7 @@
         `mkHost` knew how to build a host. In yen, the `host` kind knows it: its `nixos` sink builds the system.
         A user's `homeManager` sink forwards to `nixos` on each host the user lives under.
       ''
-      (docs.fileWith "{10,16}" "modules/fleet.nix")
+      (docs.fileWith "{15-19,23-27}" "modules/fleet.nix")
       ''
         ## Shared modules become aspects
 
