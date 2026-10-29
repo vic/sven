@@ -29,29 +29,30 @@ let
 
   # ── tiny helpers (no nixpkgs) ──
   toList = v: if isList v then v else [ v ];
-  reverse = xs: b.genList (i: b.elemAt xs (length xs - 1 - i)) (length xs);
-  first =
-    p: xs:
-    foldl' (
-      a: x:
-      if a != null then
-        a
-      else if p x then
-        x
-      else
-        null
-    ) null xs;
+  first = p: foldl' (a: x: if a == null && p x then x else a) null; # stops calling p at the first hit
   uniq = foldl' (acc: x: if elem x acc then acc else acc ++ [ x ]) [ ];
-  names =
-    xs:
-    attrNames (
-      listToAttrs (
-        map (n: {
-          name = n;
-          value = null;
-        }) xs
-      )
+  genAttrs =
+    xs: f:
+    listToAttrs (
+      map (n: {
+        name = n;
+        value = f n;
+      }) xs
     );
+  keySet = xs: genAttrs xs (_: true);
+  names = xs: attrNames (keySet xs); # sorted, no duplicates
+  nest = path: v: if path == [ ] then v else { ${head path} = nest (b.tail path) v; };
+  orNull = x: if x == null then [ ] else [ x ];
+  optional = c: x: if c then [ x ] else [ ];
+  words = s: filter isString (b.split " " s); # "a b" is [ "a" "b" ]
+  isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
+  combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
+  # keys the engine reads; the other keys of a sink, an aspect, a cycle output or a scope are data
+  sinkMeta = words "at reduce of";
+  aspectMeta = words "at cycle order __aspect";
+  outMeta = words "tree order";
+  scopeMeta = words "kind name key parent path id up rup __here";
+  requestKinds = words "nearest parent children scopesOf holds";
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -74,6 +75,12 @@ let
       class = "fixable";
     }
     // x;
+  unknown =
+    from: what: x: known:
+    errWith from "no ${what} ${x}" {
+      code = "unknown-${what}";
+      near = near x known;
+    };
   # edit distance (Levenshtein), for `near`: the known names a typo was probably meant to be
   dist =
     a: c:
@@ -81,25 +88,21 @@ let
       n = b.stringLength c;
       ch = s: i: b.substring i 1 s;
       min = x: y: if x < y then x else y;
-      row =
-        prev: i:
-        foldl' (
-          r: j:
-          r
-          ++ [
-            (b.foldl' min (b.elemAt prev (j + 1) + 1) [
-              (b.elemAt r j + 1)
-              (b.elemAt prev j + (if ch a i == ch c j then 0 else 1))
-            ])
-          ]
-        ) [ (i + 1) ] (b.genList (j: j) n);
+      range = b.genList (x: x);
+      # deletion or insertion (+1), else substitution (+1 unless the characters match)
+      cell =
+        prev: r: i: j:
+        min (min (b.elemAt prev (j + 1)) (b.elemAt r j) + 1) (
+          b.elemAt prev j + (if ch a i == ch c j then 0 else 1)
+        );
+      row = prev: i: foldl' (r: j: r ++ [ (cell prev r i j) ]) [ (i + 1) ] (range n);
     in
-    b.elemAt (foldl' row (b.genList (j: j) (n + 1)) (b.genList (i: i) (b.stringLength a))) n;
+    b.elemAt (foldl' row (range (n + 1)) (range (b.stringLength a))) n;
   near =
     x: cs:
     map (p: p.c) (
       b.sort (p: q: p.d < q.d || p.d == q.d && p.c < q.c) (
-        b.filter (p: p.d <= 2 && p.d < b.stringLength x) (
+        filter (p: p.d <= 2 && p.d < b.stringLength x) (
           map (c: {
             inherit c;
             d = dist x c;
@@ -126,75 +129,56 @@ let
   mergeAt =
     path: a: bv:
     let
-      common = filter (n: a ? ${n}) (attrNames bv);
-      sub =
-        n:
-        if isLeaf a.${n} || isLeaf bv.${n} then
+      subs = mapAttrs (
+        n: v:
+        let
+          p = path ++ [ n ];
+        in
+        if !(a ? ${n}) then
+          pure v
+        else if isLeaf a.${n} || isLeaf v then
           {
             value = a.${n};
-            errors =
-              if a.${n} == bv.${n} then
-                [ ]
-              else
-                [
-                  (errWith "merge" "merge conflict at ${concatStringsSep "." (path ++ [ n ])}" {
-                    code = "merge";
-                    path = path ++ [ n ];
-                  })
-                ];
+            errors = optional (a.${n} != v) (
+              errWith "merge" "merge conflict at ${concatStringsSep "." p}" {
+                code = "merge";
+                path = p;
+              }
+            );
           }
         else
-          mergeAt (path ++ [ n ]) a.${n} bv.${n};
+          mergeAt p a.${n} v
+      ) bv;
     in
     {
-      value = a // mapAttrs (n: v: if a ? ${n} then (sub n).value else v) bv;
-      errors = concatMap (n: (sub n).errors) common;
+      value = a // mapAttrs (_: x: x.value) subs;
+      errors = concatMap (x: x.errors) (b.attrValues subs);
     };
+  pure = value: {
+    inherit value;
+    errors = [ ];
+  };
   reduce = {
-    list = es: {
-      value = map (e: e.value) es;
-      errors = [ ];
-    };
-    set = es: {
-      value = uniq (map (e: e.value) es);
-      errors = [ ];
-    };
+    list = es: pure (map (e: e.value) es);
+    set = es: pure (uniq (map (e: e.value) es));
     one = es: {
       value = if es == [ ] then null else (head es).value;
-      errors =
-        if length es == 1 then
-          [ ]
-        else
-          [
-            (errWith "one" "one: got ${toString (length es)} elements" {
-              code = "one";
-              got = length es;
-              want = 1;
-            })
-          ];
-    };
-    merge =
-      es:
-      foldl'
-        (
-          acc: e:
-          let
-            m = mergeAt [ ] acc.value e.value;
-          in
-          {
-            value = m.value;
-            errors = acc.errors ++ m.errors;
-          }
-        )
-        {
-          value = { };
-          errors = [ ];
+      errors = optional (length es != 1) (
+        errWith "one" "one: got ${toString (length es)} elements" {
+          code = "one";
+          got = length es;
+          want = 1;
         }
-        es;
-    entries = es: {
-      value = es;
-      errors = [ ];
+      );
     };
+    merge = foldl' (
+      acc: e:
+      let
+        m = mergeAt [ ] acc.value e.value;
+      in
+      m // { errors = acc.errors ++ m.errors; }
+    ) (pure { });
+    entries = pure;
   };
   # each built-in reduce is callable and carries its name, so `schema` can say which strategy a sink uses
   reduceNamed = mapAttrs (n: f: {
@@ -216,21 +200,16 @@ let
     # JSON-safe: functions and derivations become strings; toJSON then never fails
     jsonSafe =
       v:
-      if b.isFunction v then
+      if isAttrs v && (v.type or null) == "derivation" then
+        "<derivation ${v.name or "?"}>"
+      else if isFunction v || isAttrs v && v ? __functor then
         "<function>"
-      else if b.isPath v then
+      else if isPath v then
         toString v
-      else if b.isList v then
+      else if isList v then
         map static.jsonSafe v
-      else if b.isAttrs v then
-        (
-          if (v.type or null) == "derivation" then
-            "<derivation ${v.name or "?"}>"
-          else if v ? __functor then
-            "<function>"
-          else
-            b.mapAttrs (_: static.jsonSafe) v
-        )
+      else if isAttrs v then
+        mapAttrs (_: static.jsonSafe) v
       else
         v;
     agent = r: r.agent;
@@ -273,13 +252,9 @@ let
         startSet = [ (node { inherit yen; } "root" root) ];
         operator =
           n:
-          let
-            imps = n.mod.imports or [ ];
-          in
-          if n ? mod then
-            b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt imps i)) (length imps)
-          else
-            [ ];
+          b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt n.mod.imports i)) (
+            length (n.mod.imports or [ ])
+          );
       };
       defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
@@ -294,6 +269,12 @@ let
               != null
           ) loaded
         );
+      filesOf =
+        n:
+        declaredIn [
+          "aspects"
+          n
+        ];
       loadErrors = map (n: err "module" n.error) (filter (n: n ? error) loaded);
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
@@ -324,12 +305,7 @@ let
         else if hs == [ ] then
           null
         else if isAttrs (head hs) && !isLeaf (head hs) then
-          listToAttrs (
-            map (n: {
-              name = n;
-              value = decl (path ++ [ n ]);
-            }) (names (attrsIn hs))
-          )
+          genAttrs (names (attrsIn hs)) (n: decl (path ++ [ n ]))
         else
           head hs;
       declErrors =
@@ -353,25 +329,17 @@ let
             })
           ];
       top = decl [ ];
-      kindNames = attrNames (top.kinds or { });
-      aspectNames = attrNames (top.aspects or { });
-      kinds = listToAttrs (
-        map (k: {
-          name = k;
-          value = top.kinds.${k} // {
-            __kind = k;
-            check = v: isAttrs v && (v.kind or null) == k;
-          };
-        }) kindNames
-      ); # a kind is a type: its instances pass
-      aspects = listToAttrs (
-        map (n: {
-          name = n;
-          value = top.aspects.${n} // {
-            __aspect = n;
-          };
-        }) aspectNames
-      );
+      kinds = mapAttrs (
+        k: d:
+        d
+        // {
+          __kind = k;
+          check = checkOf { __kind = k; };
+        }
+      ) (top.kinds or { }); # a kind is a type: its instances pass
+      aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
+      kindNames = attrNames kinds;
+      aspectNames = attrNames aspects;
 
       # ── instance data: typed paths. Answers first, then the type defaults; a failed check reads as null ──
       typesAt =
@@ -384,9 +352,12 @@ let
           ]
           ++ path
         );
-      dataAt =
+      # one walk per instance path gives its value and its errors
+      inst =
         k: n: path:
         let
+          ts = typesAt k path;
+          tys = filter isType ts;
           hits = answers (
             [
               k
@@ -394,130 +365,69 @@ let
             ]
             ++ path
           );
-          d = first (t: isAttrs t && (t ? default || t ? defaultFrom)) (typesAt k path);
-        in
-        if hits != [ ] then
-          { ok = head hits; }
-        else if d != null then
-          { ok = if d ? defaultFrom then d.defaultFrom instances.${k}.${n} else d.default; }
-        else
-          { };
-      view =
-        k: n: path:
-        let
-          ts = typesAt k path;
-          tys = filter isType ts;
-          r = dataAt k n path;
-        in
-        if tys != [ ] then
-          (if r ? ok && all (t: checkOf t r.ok) tys then r.ok else null)
-        else if path != [ ] && ts == [ ] then
-          null
-        else
-          listToAttrs (
-            map
-              (f: {
-                name = f;
-                value = view k n (path ++ [ f ]);
-              })
-              (
-                names (
-                  attrsIn (
-                    answers (
-                      [
-                        k
-                        n
-                      ]
-                      ++ path
-                    )
-                    ++ ts
-                  )
-                )
-              )
-          );
-      instErrors =
-        k: n: path:
-        let
-          ts = typesAt k path;
-          tys = filter isType ts;
-          r = dataAt k n path;
+          d = first (t: isAttrs t && (t ? default || t ? defaultFrom)) ts;
+          r =
+            if hits != [ ] then
+              { ok = head hits; }
+            else if d != null then
+              { ok = if d ? defaultFrom then d.defaultFrom instances.${k}.${n} else d.default; }
+            else
+              { };
           id = "${k}:${n}";
           p = concatStringsSep "." path;
+          bad = first (t: !checkOf t r.ok) tys;
+          kr = first (t: t ? __kind) tys;
+          fail = e: {
+            value = null;
+            errors = [ (errWith id e.error (removeAttrs e [ "error" ] // { inherit path; })) ];
+          };
+          sub = genAttrs (names (attrsIn (hits ++ ts))) (f: inst k n (path ++ [ f ]));
         in
-        if tys != [ ] then
-          (
-            if !(r ? ok) then
-              [
-                (errWith id "missing ${p}" {
-                  code = "missing";
-                  inherit path;
-                  want = typeName (head tys);
-                  fix = "set ${id}.${p}";
-                })
-              ]
-            else if all (t: checkOf t r.ok) tys then
-              [ ]
-            else
-              [
-                (
-                  let
-                    bad = first (t: !checkOf t r.ok) tys;
-                    kr = first (t: t ? __kind) tys;
-                  in
-                  errWith id (if kr != null then "${p} wants a ${kr.__kind} ref" else "${p} fails its check") {
-                    code = if kr != null then "ref" else "check";
-                    inherit path;
-                    got = if isFunction r.ok then "<function>" else r.ok;
-                    want = typeName bad;
-                    fix =
-                      if kr != null then
-                        "use yen.${kr.__kind}.<name>, not a string"
-                      else
-                        "give ${p} a value of type ${typeName bad}";
-                  }
-                )
-              ]
-          )
+        if tys != [ ] && !(r ? ok) then
+          fail {
+            error = "missing ${p}";
+            code = "missing";
+            want = typeName (head tys);
+            fix = "set ${id}.${p}";
+          }
+        else if tys != [ ] && bad != null then
+          fail {
+            error = if kr != null then "${p} wants a ${kr.__kind} ref" else "${p} fails its check";
+            code = if kr != null then "ref" else "check";
+            got = if isFunction r.ok then "<function>" else r.ok;
+            want = typeName bad;
+            fix =
+              if kr != null then
+                "use yen.${kr.__kind}.<name>, not a string"
+              else
+                "give ${p} a value of type ${typeName bad}";
+          }
+        else if tys != [ ] then
+          pure r.ok
         else if path != [ ] && ts == [ ] then
-          [
-            (
-              let
-                known = (attrsIn (typesAt k (b.genList (i: b.elemAt path i) (length path - 1))));
-              in
-              errWith id "unknown field ${p}" {
-                code = "unknown-field";
-                inherit path;
-                near = near (b.elemAt path (length path - 1)) (names known);
-                fix = "declare yen.kinds.${k}.fields.${p}, or use a declared field";
-              }
-            )
-          ]
+          fail {
+            error = "unknown field ${p}";
+            code = "unknown-field";
+            near = near (b.elemAt path (length path - 1)) (
+              names (attrsIn (typesAt k (b.genList (b.elemAt path) (length path - 1))))
+            );
+            fix = "declare yen.kinds.${k}.fields.${p}, or use a declared field";
+          }
         else
-          concatMap (f: instErrors k n (path ++ [ f ])) (
-            names (
-              attrsIn (
-                answers (
-                  [
-                    k
-                    n
-                  ]
-                  ++ path
-                )
-                ++ ts
-              )
-            )
-          );
+          {
+            value = mapAttrs (_: x: x.value) sub;
+            errors = concatMap (x: x.errors) (b.attrValues sub);
+          };
       instNames = k: attrNames (top.${k} or { });
       instances = mapAttrs (
         k: _:
-        listToAttrs (
-          map (n: {
+        genAttrs (instNames k) (
+          n:
+          (inst k n [ ]).value
+          // {
+            kind = k;
             name = n;
-            value = view k n [ ] // {
-              kind = k;
-              name = n;
-            };
-          }) (instNames k)
+          }
         )
       ) kinds;
       yen = instances // {
@@ -525,7 +435,7 @@ let
         helpers = top.helpers or { };
         queries = top.queries or { };
         invariants = top.invariants or { };
-        labelTable = top.labels or { };
+        inherit labelTable;
       }; # declarations an agent or the docs read
 
       # ── the scope tree: nested cycles. key = what the parent spawned; identity = keys from the root ──
@@ -577,34 +487,28 @@ let
                 mkScope s c n made.${n}
             ) (attrNames made)
         ) (attrNames (spawnsOf s.kind));
+      item =
+        c:
+        if c ? error then
+          {
+            key = "error:${c.from}:${c.error}";
+            e = c;
+          }
+        else
+          {
+            key = c.id;
+            s = c;
+          };
       tree = genericClosure {
         # C-level loop, breadth first: a parent comes before its children
-        startSet = map (s: {
-          key = s.id;
-          inherit s;
-        }) roots;
-        operator =
-          i:
-          if i ? s then
-            map (
-              c:
-              if c ? error then
-                {
-                  key = "error:${c.from}:${c.error}";
-                  e = c;
-                }
-              else
-                {
-                  key = c.id;
-                  s = c;
-                }
-            ) (childrenOf i.s)
-          else
-            [ ];
+        startSet = map item roots;
+        operator = i: if i ? s then map item (childrenOf i.s) else [ ];
       };
       unsorted = map (i: i.s) (filter (i: i ? s) tree);
       treeErrors = map (i: i.e) (filter (i: i ? e) tree);
-      byParent = groupBy (s: if s.parent == null then "" else s.parent.id) unsorted;
+      parentId = s: if s.parent == null then "" else s.parent.id;
+      byParent = groupBy parentId unsorted;
+      below = s: byParent.${s.id} or [ ];
 
       # ── filter: every predicate is a function; refs, lists and the combinators are data the engine reads ──
       # Three values: true, false, null (undefined). An aspect ref is memoised per scope (`__here`), so nested refs cost
@@ -616,40 +520,33 @@ let
           concatMap refsOf p
         else if !isAttrs p then
           [ ]
-        else if p ? __all then
-          concatMap refsOf p.__all
-        else if p ? __not then
-          refsOf p.__not
-        else if p ? __within then
-          refsOf p.__within
-        else if p ? __has then
-          refsOf p.__has
         else if p ? __aspect then
           [ p.__aspect ]
         else
-          [ ];
+          concatMap (k: refsOf p."__${k}") (filter (k: p ? "__${k}") combinators);
+      refs = mapAttrs (_: a: map (r: { key = r; }) (refsOf (a.at or [ ]))) aspects; # once per aspect
       reach = mapAttrs (
-        n: a:
+        n: _:
         map (x: x.key) (genericClosure {
-          startSet = map (r: { key = r; }) (refsOf (a.at or [ ]));
-          operator = x: map (r: { key = r; }) (refsOf (aspects.${x.key}.at or [ ]));
+          startSet = refs.${n};
+          operator = x: refs.${x.key};
         })
       ) aspects;
       cyclic = mapAttrs (n: rs: elem n rs) reach;
       tainted = mapAttrs (n: rs: cyclic.${n} || any (r: cyclic.${r}) rs) reach; # can be undefined: it reaches a cycle
       or3 =
         vs:
-        if any (v: v == true) vs then
+        if elem true vs then
           true
-        else if any (v: v == null) vs then
+        else if elem null vs then
           null
         else
           false;
       and3 =
         vs:
-        if any (v: v == false) vs then
+        if elem false vs then
           false
-        else if any (v: v == null) vs then
+        else if elem null vs then
           null
         else
           true;
@@ -659,56 +556,42 @@ let
           p s
         else if isList p then
           (if length p == 1 then eval3 stack (head p) s else or3 (map (q: eval3 stack q s) p)) # `at` is always a list (a union over files): one entry is the common case
-        else if isAttrs p && p ? __all then
+        else if p ? __all then
           and3 (map (q: eval3 stack q s) p.__all)
-        else if isAttrs p && p ? __not then
+        else if p ? __not then
           (
             let
               v = eval3 (map (x: x // { neg = true; }) stack) p.__not s;
             in
             if v == null then null else !v
           )
-        else if isAttrs p && p ? __within then
+        else if p ? __within then
           or3 (map (eval3 stack p.__within) (above s))
-        else if isAttrs p && p ? __has then
-          or3 (map (eval3 stack p.__has) (byParent.${s.id} or [ ]))
-        else if isFunction p || p ? __functor then
+        else if p ? __has then
+          or3 (map (eval3 stack p.__has) (below s))
+        else if p ? __functor then
           p s
         else if p ? __kind then
           s.kind == p.__kind
         else if p ? __aspect then
           let
             q = p.__aspect;
-            key = "${q}@${s.id}";
-            hit = first (x: x.key == key) stack;
+            f = frame q s;
+            hit = first (x: x.key == f.key) stack;
           in
           if hit != null then
             (if hit.neg then null else false)
           else if stack == [ ] || !cyclic.${q} then
             s.__here.${q} # per scope: structure may depend on presence (Den #525) without the whole tree
           else
-            eval3 (
-              stack
-              ++ [
-                {
-                  inherit key;
-                  neg = false;
-                }
-              ]
-            ) (aspects.${q}.at or [ ]) s
+            eval3 (stack ++ [ f ]) (aspects.${q}.at or [ ]) s
         else
-          p ? kind && p ? name && s.kind == p.kind && s.name == p.name;
-      here =
-        s:
-        mapAttrs (
-          q: a:
-          eval3 [
-            {
-              key = "${q}@${s.id}";
-              neg = false;
-            }
-          ] (a.at or [ ]) s
-        ) aspects;
+          isRef p && s.kind == p.kind && s.name == p.name;
+      frame = q: s: {
+        key = "${q}@${s.id}";
+        neg = false;
+      };
+      here = s: mapAttrs (q: a: eval3 [ (frame q s) ] (a.at or [ ]) s) aspects;
       holds =
         p: s:
         if isFunction p then
@@ -720,72 +603,56 @@ let
         else
           eval3 [ ] p s == true; # fast paths: most predicates are functions, most sinks have no `at`
       # an aspect in the ref graph (it reads refs, or something reads it) goes through the memo; the others run directly
-      inRefs = listToAttrs (
-        map (n: {
-          name = n;
-          value = true;
-        }) (concatMap (n: if reach.${n} == [ ] then [ ] else [ n ] ++ reach.${n}) aspectNames)
-      );
-      active = mapAttrs (
-        n: a:
-        let
-          at = if inRefs ? ${n} then (s: s.__here.${n} == true) else holds (a.at or [ ]);
-        in
+      inRefs = keySet (concatMap (n: if reach.${n} == [ ] then [ ] else [ n ] ++ reach.${n}) aspectNames);
+      byScope =
+        f: ss:
         listToAttrs (
           map (s: {
             name = s.id;
-            value = at s;
-          }) unsorted
-        )
+            value = f s;
+          }) ss
+        );
+      active = mapAttrs (
+        n: a: byScope (if inRefs ? ${n} then (s: s.__here.${n} == true) else holds (a.at or [ ])) unsorted
       ) aspects;
       undefined = concatMap (
         s:
         map (n: {
           aspect = n;
           scope = s.id;
-        }) (filter (n: s.__here.${n} == null) (filter (n: tainted.${n}) aspectNames))
+        }) (filter (n: tainted.${n} && s.__here.${n} == null) aspectNames)
       ) unsorted;
+      isPredicate =
+        p:
+        isFunction p || isList p || isAttrs p && (p ? __functor || p ? __kind || p ? __aspect || isRef p);
+      # a typo must not read as false
       atErrors = concatMap (
         n:
-        map
-          (
-            p:
-            errWith "aspect ${n}" "`at` holds a ${b.typeOf p}, not a predicate" {
-              code = "at";
-              path = [
-                "aspects"
-                n
-                "at"
-              ];
-              got = b.typeOf p;
-              want = "a predicate: a function, a kind, instance or aspect ref, or a list";
-            }
-          ) # a typo must not read as false
-          (
-            filter (
-              p:
-              !(
-                isFunction p
-                || isList p
-                || isAttrs p && (p ? __functor || p ? __kind || p ? __aspect || p ? kind && p ? name)
-              )
-            ) (toList (aspects.${n}.at or [ ]))
-          )
+        map (
+          p:
+          errWith "aspect ${n}" "`at` holds a ${b.typeOf p}, not a predicate" {
+            code = "at";
+            path = [
+              "aspects"
+              n
+              "at"
+            ];
+            got = b.typeOf p;
+            want = "a predicate: a function, a kind, instance or aspect ref, or a list";
+          }
+        ) (filter (p: !isPredicate p) (toList (aspects.${n}.at or [ ])))
       ) aspectNames;
 
       # ── components: one cycle per (aspect, scope). Its own tree requests feed its sources ──
       cycleOuts = mapAttrs (
         n: a:
-        listToAttrs (
-          map (s: {
-            name = s.id;
-            value =
-              let
-                o = a.cycle (sourcesAt s (o.tree or [ ]));
-              in
-              o;
-          }) (filter (s: active.${n}.${s.id}) unsorted)
-        )
+        byScope (
+          s:
+          let
+            o = a.cycle (sourcesAt s (o.tree or [ ]));
+          in
+          o
+        ) (filter (s: active.${n}.${s.id}) unsorted)
       ) (b.removeAttrs aspects (filter (n: !(aspects.${n} ? cycle)) aspectNames));
       outAt = n: s: cycleOuts.${n}.${s.id} or { };
 
@@ -800,50 +667,30 @@ let
           else
             toList (aspects.${n}.order or [ ]) ++ toList ((outAt n s).order or [ ])
         ) orderNames;
-      orderOf =
-        s:
-        let
-          os = filter (o: b.isInt o || b.isFloat o) (ordersAt s);
-        in
-        if os == [ ] then 0 else head os;
-      orderErrors = concatMap (
-        s:
-        if all (o: b.isInt o || b.isFloat o) (ordersAt s) then
-          [ ]
-        else
-          [ (err s.id "order is not a number") ]
-      ) unsorted;
-      sortKeys = listToAttrs (
-        map (s: {
-          name = s.id;
-          value = (if s.parent == null then [ ] else sortKeys.${s.parent.id}) ++ [
-            [
-              (orderOf s)
-              s.key
-            ]
-          ];
-        }) unsorted
+      isNum = o: b.isInt o || b.isFloat o;
+      orderErrors = map (s: err s.id "order is not a number") (
+        filter (s: !all isNum (ordersAt s)) unsorted
       );
+      sortKeys = byScope (
+        s:
+        (if s.parent == null then [ ] else sortKeys.${s.parent.id})
+        ++ [
+          [
+            (b.head (filter isNum (ordersAt s) ++ [ 0 ]))
+            s.key
+          ]
+        ]
+      ) unsorted;
       scopes =
         b.seq (foldl' (_: s: sortKeys.${s.id}) null unsorted) # force keys breadth first: no deep thunk chain
           (b.sort (x: y: sortKeys.${x.id} < sortKeys.${y.id}) unsorted);
-      childrenAt = groupBy (s: if s.parent == null then "" else s.parent.id) scopes;
+      childrenAt = groupBy parentId scopes;
 
       # ── routing: nearest ancestor-or-self receiver (Cycle isolateSink tags the identity) ──
       sinkOf = s: k: (kinds.${s.kind}.sinks or { }).${k} or null;
-      sinkKeys =
-        d:
-        filter (
-          k:
-          !elem k [
-            "at"
-            "reduce"
-            "of"
-          ]
-        ) (attrNames d);
+      sinkKeys = d: attrNames (removeAttrs d sinkMeta);
       sinkNames = uniq (concatMap (k: attrNames (k.sinks or { })) (b.attrValues kinds));
-      nearestFirst = s: s.rup;
-      above = s: if s.parent == null then [ ] else reverse s.parent.up;
+      above = s: if s.parent == null then [ ] else s.parent.rup;
       receiverIn = k: first (r: sinkOf r k != null && holds ((sinkOf r k).at or (_: true)) r);
       given = concatMap (
         s:
@@ -856,144 +703,88 @@ let
           if !active.${n}.${s.id} then
             [ ]
           else
-            concatMap
-              (
-                k:
-                let
-                  hs = answers [
-                    "aspects"
-                    n
-                    k
-                  ];
-                  one = length hs < 2 || all (x: isAttrs x && !isLeaf x) hs;
-                in
-                # data merges; functions from several files each apply
-                b.genList (i: {
-                  origin = "aspect ${n}" + (if one then "" else "#${toString i}");
-                  key = k;
-                  from = s;
-                  value = if one then a.${k} else b.elemAt hs i;
-                }) (if one then 1 else length hs)
-              )
-              (
-                filter (
-                  k:
-                  !elem k [
-                    "at"
-                    "cycle"
-                    "order"
-                    "__aspect"
-                  ]
-                ) (attrNames a)
-              )
-            ++
-              concatMap
-                (
-                  k:
-                  let
-                    vs = toList o.${k};
-                  in
-                  b.genList (i: {
-                    origin = "aspect ${n}";
-                    key = k;
-                    from = s;
-                    value = b.elemAt vs i;
-                    raw = i;
-                  }) (length vs)
-                ) # raw = position: a cycle may emit many
-                (
-                  filter (
-                    k:
-                    !elem k [
-                      "tree"
-                      "order"
-                    ]
-                  ) (attrNames o)
-                )
+            concatMap (
+              k:
+              let
+                hs = answers [
+                  "aspects"
+                  n
+                  k
+                ];
+                one = length hs < 2 || all (x: isAttrs x && !isLeaf x) hs;
+              in
+              # data merges; functions from several files each apply
+              b.genList (i: {
+                origin = "aspect ${n}" + (if one then "" else "#${toString i}");
+                key = k;
+                from = s;
+                value = if one then a.${k} else b.elemAt hs i;
+              }) (if one then 1 else length hs)
+            ) (attrNames (removeAttrs a aspectMeta))
+            ++ concatMap (
+              k:
+              let
+                vs = toList o.${k};
+              in
+              b.genList (i: {
+                origin = "aspect ${n}";
+                key = k;
+                from = s;
+                value = b.elemAt vs i;
+                raw = i; # position: a cycle may emit many
+              }) (length vs)
+            ) (attrNames (removeAttrs o outMeta))
         ) aspectNames
       ) scopes;
-      direct = concatMap (
-        e:
-        let
-          to = receiverIn e.key (nearestFirst e.from);
-        in
-        if to == null then [ ] else [ (e // { inherit to; }) ]
-      ) (filter (e: e.key != "errors") given); # nobody reads it: nothing happens
+      direct = concatMap (e: map (to: e // { inherit to; }) (orNull (receiverIn e.key e.from.rup))) (
+        filter (e: e.key != "errors") given
+      ); # nobody reads it: nothing happens
+      fire = sink: r: {
+        key = "${sink}@${r.id}";
+        inherit sink r;
+      };
+      # what a fired sink gives on: each of its keys to that key's receiver (above it, for its own key)
+      feeds =
+        f:
+        concatMap (
+          k: map (to: { inherit k to; }) (orNull (receiverIn k (if k == f.sink then above f.r else f.r.rup)))
+        ) (sinkKeys (sinkOf f.r f.sink));
       fired = genericClosure {
         # which (sink, receiver) pairs fire: existence only
-        startSet = map (e: {
-          key = "${e.key}@${e.to.id}";
-          sink = e.key;
-          r = e.to;
-        }) direct;
-        operator =
-          f:
-          concatMap (
-            k:
-            let
-              t = receiverIn k (if k == f.sink then above f.r else nearestFirst f.r);
-            in
-            if t == null then
-              [ ]
-            else
-              [
-                {
-                  key = "${k}@${t.id}";
-                  sink = k;
-                  r = t;
-                }
-              ]
-          ) (sinkKeys (sinkOf f.r f.sink));
+        startSet = map (e: fire e.key e.to) direct;
+        operator = f: map (x: fire x.k x.to) (feeds f);
       };
       fromSinks = concatMap (
         f:
-        let
-          d = sinkOf f.r f.sink;
-        in
-        concatMap (
-          k:
-          let
-            to = receiverIn k (if k == f.sink then above f.r else nearestFirst f.r);
-          in
-          if to == null then
-            [ ]
-          else
-            [
-              {
-                origin = "sink ${f.sink}";
-                key = k;
-                from = f.r;
-                inherit to;
-                value = d.${k};
-              }
-            ]
-        ) (sinkKeys d)
+        map (x: {
+          origin = "sink ${f.sink}";
+          key = x.k;
+          from = f.r;
+          inherit (x) to;
+          value = (sinkOf f.r f.sink).${x.k};
+        }) (feeds f)
       ) fired;
       routed = direct ++ fromSinks;
       byTo = groupBy (e: "${e.key}@${e.to.id}") routed;
 
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
       isRen = n: n == "scope" || n == "tree" || kinds ? ${n} || elem n sinkNames;
-      nearest = k: s: first (x: x.kind == k) (nearestFirst s);
+      nearest = k: s: first (x: x.kind == k) s.rup;
       answer =
         s: q:
+        let
+          x = nearest q.nearest.__kind s;
+        in
         if q ? nearest then
-          (
-            let
-              x = nearest q.nearest.__kind s;
-            in
-            if x == null then err s.id "no ${q.nearest.__kind} above" else { ok = x; }
-          )
+          (if x == null then err s.id "no ${q.nearest.__kind} above" else { ok = x; })
         else if q ? parent then
           (if s.parent == null then err s.id "no parent" else { ok = s.parent; })
         else if q ? children then
           { ok = filter (holds q.children) (childrenAt.${s.id} or [ ]); }
         else if q ? scopesOf then
-          { ok = filter (x: x.kind == q.scopesOf.kind && x.name == q.scopesOf.name) scopes; }
-        else if q ? holds then
-          { ok = holds q.holds s; }
+          { ok = lib.scopesOf q.scopesOf; }
         else
-          err s.id "unknown tree request";
+          { ok = holds q.holds s; };
       sourcesAt =
         s: requests:
         {
@@ -1006,47 +797,52 @@ let
                 r = answer s q;
               in
               if q.category or null == c && r ? ok then [ r.ok ] else [ ]
-            ) requests;
+            ) (filter known requests);
         }
-        // listToAttrs (
-          map (n: {
-            name = n;
-            value =
-              let
-                r = receiverIn n (nearestFirst s);
-              in
-              if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ];
-          }) sinkNames
+        // genAttrs sinkNames (
+          n:
+          let
+            r = receiverIn n s.rup;
+          in
+          if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ]
         ); # a receiver with no element yet reduces to its empty value
+      known = q: any (k: q ? ${k}) requestKinds;
       requestErrors = concatMap (
         s:
         concatMap (
           n:
           map (_: err s.id "aspect ${n}: unknown tree request") (
-            filter (q: !(q ? nearest || q ? parent || q ? children || q ? scopesOf || q ? holds)) (
-              toList ((outAt n s).tree or [ ])
-            )
+            filter (q: !known q) (toList ((outAt n s).tree or [ ]))
           )
         ) (attrNames cycleOuts)
       ) unsorted;
 
       # ── map: fill the args yen answers; other args stay open (`__functionArgs`) ──
-      argAt =
+      # the scope an arg reads: the scope itself, the nearest instance of a kind, or a sink's receiver
+      argScope =
         s: n:
         if n == "scope" then
-          [ s ]
+          s
         else if kinds ? ${n} then
-          (
-            let
-              x = nearest n s;
-            in
-            if x == null then [ ] else [ x ]
-          )
+          nearest n s
+        else if elem n sinkNames then
+          receiverIn n s.rup
         else
-          (sourcesAt s [ ]).${n} or [ ];
+          null;
+      argAt =
+        s: n: if n == "scope" || kinds ? ${n} then orNull (argScope s n) else (sourcesAt s [ ]).${n} or [ ];
       isAttrsFn = f: functionArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
       fill =
         s: v:
+        let
+          fa = functionArgs v;
+          mine = filter isRen (attrNames fa);
+          asked = genAttrs mine (argAt s);
+          none = filter (n: asked.${n} == [ ]) mine;
+          missing = filter (n: !fa.${n}) none;
+          got = mapAttrs (_: head) (removeAttrs asked none);
+          rest = removeAttrs fa mine;
+        in
         if !isFunction v then
           { ok = v; }
         else if !isAttrsFn v then
@@ -1054,48 +850,21 @@ let
             code = "bare-function";
             fix = "write `{ ... }:` so yen knows which args to fill";
           }
+        else if missing != [ ] then
+          errWith s.id "arg `${head missing}` has no answer" {
+            code = "arg";
+            want = head missing;
+            fix = "give `${head missing}` a default (`${head missing} ? null`) or make the element active only where it has an answer";
+          } # Cycle: no source, no emission
+        else if rest == { } then
+          { ok = v got; }
         else
-          let
-            fa = functionArgs v;
-            mine = filter isRen (attrNames fa);
-            asked = listToAttrs (
-              map (n: {
-                name = n;
-                value = argAt s n;
-              }) mine
-            );
-            missing = filter (n: asked.${n} == [ ] && !fa.${n}) mine;
-            got = listToAttrs (
-              concatMap (
-                n:
-                if asked.${n} == [ ] then
-                  [ ]
-                else
-                  [
-                    {
-                      name = n;
-                      value = head asked.${n};
-                    }
-                  ]
-              ) mine
-            );
-            rest = b.removeAttrs fa mine;
-          in
-          if missing != [ ] then
-            errWith s.id "arg `${head missing}` has no answer" {
-              code = "arg";
-              want = head missing;
-              fix = "give `${head missing}` a default (`${head missing} ? null`) or make the element active only where it has an answer";
-            } # Cycle: no source, no emission
-          else if rest == { } then
-            { ok = v got; }
-          else
-            {
-              ok = {
-                __functor = _: m: v (m // got);
-                __functionArgs = rest;
-              };
+          {
+            ok = {
+              __functor = _: m: v (m // got);
+              __functionArgs = rest;
             };
+          };
 
       # ── the drivers ──
       idOf =
@@ -1104,19 +873,7 @@ let
           (if e ? raw then "${e.origin}|raw${toString e.raw}|${e.from.id}" else e.origin) # static content: once per receiver (Ren r13 rule 9)
         else
           "${e.origin}|"
-          + concatStringsSep "," (
-            map (
-              n:
-              if n == "scope" then
-                e.from.id
-              else if kinds ? ${n} then
-                ((nearest n e.from).id or "")
-              else if elem n sinkNames then
-                ((receiverIn n (nearestFirst e.from)).id or "") # a sink arg: the receiver it reads from
-              else
-                ""
-            ) (attrNames (functionArgs e.value))
-          );
+          + concatStringsSep "," (map (n: (argScope e.from n).id or "") (attrNames (functionArgs e.value)));
       reduceAt =
         k: r:
         let
@@ -1151,40 +908,28 @@ let
               }
             ) red.errors;
         }; # a strategy cannot know its receiver: the engine names it
-      emitted =
-        concatMap
-          (
-            e:
-            let
-              x = fill e.from e.value;
-            in
-            if x ? ok then
-              map (
-                m:
-                if isAttrs m then
-                  errWith e.from.id (m.error or "error") (removeAttrs m [ "from" ])
-                else
-                  err e.from.id m
-              ) (toList x.ok)
+      # a record or a message; `from` is always the giver
+      emitted = concatMap (
+        e:
+        let
+          x = fill e.from e.value;
+        in
+        if x ? ok then
+          map (
+            m:
+            if isAttrs m then
+              errWith e.from.id (m.error or "error") (removeAttrs m [ "from" ])
             else
-              [ (err x.from "${e.origin}: ${x.error}") ]
-          ) # a record or a message; `from` is always the giver
-          (filter (e: e.key == "errors") given);
+              err e.from.id m
+          ) (toList x.ok)
+        else
+          [ (err x.from "${e.origin}: ${x.error}") ]
+      ) (filter (e: e.key == "errors") given);
 
       # ── run: sinks feed drivers, drivers feed sources, Nix laziness closes the loop. Every output is a query ──
       receivers = k: filter (s: byTo ? "${k}@${s.id}") scopes;
       # one reduction per (sink, receiver), shared by the `reduced` query, the errors and every arg that reads the sink
-      memo = listToAttrs (
-        map (k: {
-          name = k;
-          value = listToAttrs (
-            map (r: {
-              name = r.id;
-              value = reduceAt k r;
-            }) (receivers k)
-          );
-        }) sinkNames
-      );
+      memo = genAttrs sinkNames (k: byScope (reduceAt k) (receivers k));
       reduced = mapAttrs (_: mapAttrs (_: x: x.value)) memo;
       reduceErrors = concatMap (k: concatMap (r: memo.${k}.${r.id}.errors) (receivers k)) sinkNames;
       graph = {
@@ -1207,52 +952,31 @@ let
         # field values of each scope's instance: `ref:FIELD:ID:KIND:NAME` for a ref, `val:FIELD:ID:VALUE` for a string, int or bool
         ++ concatMap (
           s:
-          concatMap
-            (
-              f:
-              let
-                v = s.${f};
-              in
-              if isAttrs v && v ? kind && v ? name && b.isString v.kind then
-                [ "ref:${f}:${s.id}:${v.kind}:${v.name}" ]
-              else if isList v then
-                concatMap (
-                  x:
-                  if isAttrs x && x ? kind && x ? name && b.isString x.kind then
-                    [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
-                  else if b.isString x || b.isInt x then
-                    [ "val:${f}:${s.id}:${toString x}" ]
-                  else
-                    [ ]
-                ) v
-              else if b.isString v || b.isInt v then
-                [ "val:${f}:${s.id}:${toString v}" ]
-              else if b.isBool v then
-                [ "val:${f}:${s.id}:${if v then "true" else "false"}" ]
-              else
-                [ ]
-            )
-            (
-              filter (
-                f:
-                !elem f [
-                  "kind"
-                  "name"
-                  "key"
-                  "parent"
-                  "path"
-                  "id"
-                  "up"
-                  "rup"
-                  "__here"
-                ]
-              ) (attrNames s)
-            )
+          concatMap (
+            f:
+            let
+              v = s.${f};
+              atom =
+                x:
+                if isRef x && isString x.kind then
+                  [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
+                else if isString x || b.isInt x then
+                  [ "val:${f}:${s.id}:${toString x}" ]
+                else
+                  [ ];
+            in
+            if isList v then
+              concatMap atom v
+            else if b.isBool v then
+              [ "val:${f}:${s.id}:${b.toJSON v}" ]
+            else
+              atom v
+          ) (attrNames (removeAttrs s scopeMeta))
         ) unsorted;
       check =
         let
           D = static.datalog;
-          invs = top.invariants or { };
+          invs = yen.invariants;
           rulesOf =
             n:
             let
@@ -1265,71 +989,49 @@ let
                   graph
                   active
                   facts
+                  yen
                   ;
-                yen = yen;
               }
             else
               f;
           rules = concatMap rulesOf (attrNames invs);
-          mentioned = listToAttrs (
-            map (a: {
-              name = a;
-              value = true;
-            }) (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules)
-          );
+          mentioned = keySet (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules);
           m = D.wfs (rules ++ D.facts (filter (a: mentioned ? ${a}) facts));
           isBad = a: b.substring 0 4 a == "bad:";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
+          ground = rules ++ D.facts facts;
         in
         {
           inherit violations incomplete;
           ok = violations == [ ] && incomplete == [ ];
-          why = a: D.why (rules ++ D.facts facts) m a;
-          whyNot = a: D.whyNot (rules ++ D.facts facts) m a;
-          proof = a: D.proof (rules ++ D.facts facts) m a;
+          why = D.why ground m;
+          whyNot = D.whyNot ground m;
+          proof = D.proof ground m;
           invariants = attrNames invs;
         };
-      lib = static // {
-        inherit
-          holds
-          graph
-          declaredIn
-          labels
-          floor
-          schema
-          ; # queries readable inside the fleet (docs); `check` and `context` read errors, so not here
-        inherit
-          stage
-          change
-          program
-          grants
-          diffData
-          without
-          ;
-        inherit (grants) grant narrow allowed; # agent tools, inside the fleet too
-        all = ps: {
-          __all = ps;
-          __functor = self: holds self;
+      lib =
+        tools
+        // genAttrs combinators (
+          c: p: {
+            "__${c}" = p;
+            __functor = self: holds self;
+          }
+        )
+        // {
+          inherit
+            holds
+            graph
+            declaredIn
+            labels
+            floor
+            schema
+            ; # queries readable inside the fleet (docs); `check` and `context` read errors, so not here
+          same = x: y: isRef x && isRef y && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
+          nearest = k: nearest k.__kind;
+          scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
+          cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
         };
-        not = p: {
-          __not = p;
-          __functor = self: holds self;
-        };
-        within = p: {
-          __within = p;
-          __functor = self: holds self;
-        };
-        has = p: {
-          __has = p;
-          __functor = self: holds self;
-        };
-        same =
-          x: y: isAttrs x && isAttrs y && x ? kind && y ? kind && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
-        nearest = k: nearest k.__kind;
-        scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
-        cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
-      };
       # ── schema: what a fleet declares, as JSON-safe data (no functions): for agents and docs ──
       fieldsOf =
         t:
@@ -1339,16 +1041,7 @@ let
           }
           // (if t ? __kind then { ref = t.__kind; } else { })
           // (
-            if
-              t ? default
-              && (
-                b.isString t.default
-                || b.isInt t.default
-                || b.isBool t.default
-                || t.default == null
-                || isList t.default
-              )
-            then
+            if t ? default && elem (b.typeOf t.default) (words "string int bool null list") then
               { default = t.default; }
             else
               { }
@@ -1358,7 +1051,7 @@ let
           mapAttrs (_: fieldsOf) t
         else
           { type = b.typeOf t; };
-      sinkOf' =
+      sinkSchema =
         v:
         let
           d = if isAttrs v then v else { };
@@ -1366,15 +1059,7 @@ let
         {
           reduce = if d ? reduce then d.reduce.name or "custom" else "list";
           of = if d ? of then typeName d.of else null;
-          feeds = filter (
-            k:
-            !elem k [
-              "reduce"
-              "of"
-              "at"
-              "out"
-            ]
-          ) (attrNames d);
+          feeds = attrNames (removeAttrs d (words "reduce of at out"));
           out = d ? out;
           conditional = d ? at;
         };
@@ -1382,48 +1067,22 @@ let
         kinds = mapAttrs (k: d: {
           fields = fieldsOf (d.fields or { });
           spawns = attrNames (d.spawns or { });
-          sinks = mapAttrs (_: sinkOf') (d.sinks or { });
+          sinks = mapAttrs (_: sinkSchema) (d.sinks or { });
           instances = length (instNames k);
           scopes = length (filter (s: s.kind == k) scopes);
         }) (top.kinds or { });
         aspects = mapAttrs (n: a: {
-          keys = filter (
-            k:
-            !elem k [
-              "at"
-              "order"
-              "__aspect"
-            ]
-          ) (attrNames a);
+          keys = attrNames (removeAttrs a (words "at order __aspect"));
           cycle = a ? cycle;
-          files = declaredIn [
-            "aspects"
-            n
-          ];
+          files = filesOf n;
           activeAt = length (filter (s: active.${n}.${s.id}) unsorted);
         }) aspects;
-        invariants = attrNames (top.invariants or { });
-        queries = [
-          "errors"
-          "graph"
-          "scopes"
-          "active"
-          "reduced"
-          "undefined"
-          "declaredIn"
-          "facts"
-          "check"
-          "schema"
-          "flake"
-        ];
+        invariants = attrNames yen.invariants;
+        queries = words "errors graph scopes active reduced undefined declaredIn facts check schema flake";
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
-      byId = listToAttrs (
-        map (s: {
-          name = s.id;
-          value = s;
-        }) unsorted
-      );
+      byId = byScope (s: s) unsorted;
+      noScope = from: id: unknown from "scope" id (attrNames byId);
       trace =
         d: p: s:
         let
@@ -1436,91 +1095,80 @@ let
             }
             // x;
           kids = f: if d == 0 then "cut" else f (d - 1);
+          sub = ps: { kids = kids (d': map (q: trace d' q s) ps); }; # the same scope
+          at = ss: q: { kids = kids (d': map (x: { scope = x.id; } // trace d' q x) ss); }; # other scopes
         in
         if isFunction p then
           node "function" { }
         else if isList p then
-          node "any" { kids = kids (d': map (q: trace d' q s) p); }
+          node "any" (sub p)
         else if p ? __all then
-          node "all" { kids = kids (d': map (q: trace d' q s) p.__all); }
+          node "all" (sub p.__all)
         else if p ? __not then
-          node "not" { kids = kids (d': [ (trace d' p.__not s) ]); }
+          node "not" (sub [ p.__not ])
         else if p ? __within then
-          node "within" { kids = kids (d': map (x: { scope = x.id; } // trace d' p.__within x) (above s)); }
+          node "within" (at (above s) p.__within)
         else if p ? __has then
-          node "has" {
-            kids = kids (d': map (x: { scope = x.id; } // trace d' p.__has x) (byParent.${s.id} or [ ]));
-          }
+          node "has" (at (below s) p.__has)
         else if p ? __functor then
           node "function" { }
         else if p ? __kind then
           node "kind" { kind = p.__kind; }
         else if p ? __aspect then
-          node "aspect" {
-            aspect = p.__aspect;
-            kids = kids (d': [ (trace d' (aspects.${p.__aspect}.at or [ ]) s) ]);
-          }
+          node "aspect" ({ aspect = p.__aspect; } // sub [ (aspects.${p.__aspect}.at or [ ]) ])
         else
           node "instance" { instance = "${p.kind or "?"}:${p.name or "?"}"; };
       explain =
         n: id: depth:
+        let
+          s = byId.${id};
+          v = s.__here.${n};
+        in
         if !(aspects ? ${n}) then
-          errWith "explain" "no aspect ${n}" {
-            code = "unknown-aspect";
-            near = near n aspectNames;
-          }
+          unknown "explain" "aspect" n aspectNames
         else if !(byId ? ${id}) then
-          errWith "explain" "no scope ${id}" {
-            code = "unknown-scope";
-            near = near id (attrNames byId);
-          }
+          noScope "explain" id
         else
-          let
-            s = byId.${id};
-            v = s.__here.${n};
-          in
           {
             aspect = n;
             scope = id;
             active = if v == null then "undefined" else v;
             at = trace depth (aspects.${n}.at or [ ]) s;
-            gives = map (e: {
-              inherit (e) sink;
-              to = e.to;
-            }) (filter (e: e.origin == "aspect ${n}" && e.from == id) graph.edges);
-            files = declaredIn [
-              "aspects"
-              n
-            ];
+            gives = map (e: { inherit (e) sink to; }) (
+              filter (e: e.origin == "aspect ${n}" && e.from == id) graph.edges
+            );
+            files = filesOf n;
           };
       # ── the agent surface: JSON-safe answers, every list says when it was cut ──
-      cut = max: xs: {
-        items = b.genList (i: b.elemAt xs i) (if length xs < max then length xs else max);
-        truncated = {
+      cut =
+        max: xs:
+        let
           shown = if length xs < max then length xs else max;
-          of = length xs;
+        in
+        {
+          items = b.genList (b.elemAt xs) shown;
+          truncated = {
+            inherit shown;
+            of = length xs;
+          };
         };
-      };
       context =
         id:
         {
           maxEdges ? 20,
           maxAspects ? 50,
         }:
+        let
+          s = byId.${id};
+        in
         if !(byId ? ${id}) then
-          errWith "context" "no scope ${id}" {
-            code = "unknown-scope";
-            near = near id (attrNames byId);
-          }
+          noScope "context" id
         else
-          let
-            s = byId.${id};
-          in
           static.jsonSafe {
             scope = id;
             inherit (s) kind name;
             parent = if s.parent == null then null else s.parent.id;
-            children = map (c: c.id) (byParent.${id} or [ ]);
+            children = map (c: c.id) (below s);
             aspects = cut maxAspects (filter (n: active.${n}.${id}) aspectNames);
             undefined = map (x: x.aspect) (filter (x: x.scope == id) undefined);
             given = cut maxEdges (filter (e: e.from == id) graph.edges);
@@ -1528,10 +1176,9 @@ let
             errors = filter (e: e.from == id) errorsAll;
           };
       agent = static.jsonSafe {
-        inherit schema;
+        inherit schema undefined;
         errors = errorsAll;
         check = { inherit (check) violations incomplete ok; };
-        undefined = undefined;
         counts = {
           scopes = length scopes;
           edges = length graph.edges;
@@ -1568,29 +1215,24 @@ let
                   via = e.sink;
                 }) (step x.key);
           };
-          hits = b.sort (p: q: p.depth < q.depth || p.depth == q.depth && p.key < q.key) (
-            filter (x: x.key != id) reached
+          c = cut max (
+            map
+              (x: {
+                scope = x.key;
+                inherit (x) depth via;
+              })
+              (
+                b.sort (p: q: p.depth < q.depth || p.depth == q.depth && p.key < q.key) (
+                  filter (x: x.key != id) reached
+                )
+              )
           );
         in
         if !(byId ? ${id}) then
-          errWith "impact" "no scope ${id}" {
-            code = "unknown-scope";
-            near = near id (attrNames byId);
-          }
+          noScope "impact" id
         else if bad != [ ] then
-          errWith "impact" "no sink ${head bad}" {
-            code = "unknown-sink";
-            near = near (head bad) sinkNames;
-          }
+          unknown "impact" "sink" (head bad) sinkNames
         else
-          let
-            c = cut max (
-              map (x: {
-                scope = x.key;
-                inherit (x) depth via;
-              }) hits
-            );
-          in
           {
             reached = c.items;
             inherit (c) truncated;
@@ -1601,12 +1243,8 @@ let
       labelTable = top.labels or { };
       labelOf =
         n:
-        let
-          files = declaredIn [
-            "aspects"
-            n
-          ];
-          ms = concatMap (
+        foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null (
+          concatMap (
             f:
             map (
               p:
@@ -1616,56 +1254,31 @@ let
                 file = f;
               }
             ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
-          ) files;
+          ) (filesOf n)
+        );
+      labels =
+        let
+          ls = mapAttrs (n: _: labelOf n) aspects;
         in
-        if ms == [ ] then
-          null
-        else
-          foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null ms;
-      labels = listToAttrs (
-        concatMap (
-          n:
-          let
-            l = labelOf n;
-          in
-          if l == null then
-            [ ]
-          else
-            [
-              {
-                name = n;
-                value = l;
-              }
-            ]
-        ) aspectNames
-      );
+        removeAttrs ls (filter (n: ls.${n} == null) aspectNames);
       floor =
         t:
-        map
-          (
-            e:
-            let
-              n = b.substring 7 (b.stringLength e.origin) e.origin;
-            in
-            {
-              edge = e;
-              aspect = n;
-              inherit (labels.${n}) trust file prefix;
-            }
-          )
-          (
-            filter (
-              e:
-              let
-                n = b.substring 7 (b.stringLength e.origin) e.origin;
-              in
-              b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (labels.${n}.trust or 0) < t
-            ) graph.edges
-          );
+        concatMap (
+          e:
+          let
+            n = b.substring 7 (b.stringLength e.origin) e.origin;
+            l = labels.${n};
+          in
+          optional (b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t) {
+            edge = e;
+            aspect = n;
+            inherit (l) trust file prefix;
+          }
+        ) graph.edges;
       errorsAll =
         loadErrors
         ++ declErrors [ ]
-        ++ concatMap (k: concatMap (n: instErrors k n [ ]) (instNames k)) kindNames
+        ++ concatMap (k: concatMap (n: (inst k n [ ]).errors) (instNames k)) kindNames
         ++ treeErrors
         ++ atErrors
         ++ orderErrors
@@ -1697,12 +1310,7 @@ let
           mapAttrs (
             n: i:
             static.jsonSafe (
-              mapAttrs (_: v: if isAttrs v && v ? kind && v ? name then "${v.kind}:${v.name}" else v) (
-                removeAttrs i [
-                  "kind"
-                  "name"
-                ]
-              )
+              mapAttrs (_: v: if isRef v then "${v.kind}:${v.name}" else v) (removeAttrs i (words "kind name"))
             )
           ) instances.${k}
         ) kinds;
@@ -1721,14 +1329,11 @@ let
             required = filter (a: !fa.${a}) ps;
             optional = filter (a: fa.${a}) ps;
           }
-        ) (top.queries or { });
+        ) yen.queries;
         ask =
           n: args:
-          if !((top.queries or { }) ? ${n}) then
-            errWith "ask" "no query ${n}" {
-              code = "unknown-query";
-              near = near n (attrNames (top.queries or { }));
-            }
+          if !(yen.queries ? ${n}) then
+            unknown "ask" "query" n (attrNames yen.queries)
           else
             let
               q = self.queries.${n};
@@ -1747,14 +1352,14 @@ let
                 near = near (head extra) (q.required ++ q.optional);
               }
             else
-              static.jsonSafe (top.queries.${n} (args // { r = self; }));
+              static.jsonSafe (yen.queries.${n} (args // { r = self; }));
       };
     in
     self;
   # grants that only narrow: a grant names scope id prefixes and sinks (null: every sink). Two grants meet: a scope
   # stays when one prefix holds the other (the longer is kept), sinks intersect. There is no way to widen.
   hasPrefix = p: s: b.substring 0 (b.stringLength p) s == p;
-  grants = rec {
+  grants = {
     grant =
       {
         scopes,
@@ -1791,14 +1396,12 @@ let
   # data with no functions: it can be hashed, rendered as JSON and read back
   isData =
     v:
-    if isFunction v then
-      false
-    else if isList v then
+    if isList v then
       all isData v
     else if isAttrs v then
-      (if v ? __functor then false else all (k: isData v.${k}) (attrNames v))
+      !(v ? __functor) && all isData (b.attrValues v)
     else
-      true;
+      !isFunction v;
   # stage: an agent's change, in quarantine. Nothing changes; two evals compare. `ok` only when nothing new is wrong.
   stage =
     {
@@ -1822,14 +1425,13 @@ let
       minus =
         k: xs: ys:
         let
-          has = listToAttrs (
-            map (y: {
-              name = k y;
-              value = true;
-            }) ys
-          );
+          has = keySet (map k ys);
         in
         filter (x: !(has ? ${k x})) xs;
+      delta = k: f: {
+        added = minus k (f r1) (f r0);
+        removed = minus k (f r0) (f r1);
+      };
       ids = r: map (s: s.id) r.scopes;
       activeList =
         r:
@@ -1843,54 +1445,41 @@ let
           b.hashString "sha256" (b.toJSON change)
         else
           null;
-      newEdges = minus keyG r1.graph.edges r0.graph.edges;
+      diff = {
+        scopes = delta (x: x) ids;
+        edges = delta keyG (r: r.graph.edges);
+        active = delta (x: x) activeList;
+      };
       errors = minus keyE r1.errors r0.errors;
-      bad = if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
+      violations =
+        if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
       refused =
-        (
-          if sha != null && elem sha rejected then
-            [
-              (errWith "stage" "this change was rejected before" {
-                code = "rejected";
-                class = "authority";
-                got = sha;
-              })
-            ]
-          else
-            [ ]
+        optional (sha != null && elem sha rejected) (
+          errWith "stage" "this change was rejected before" {
+            code = "rejected";
+            class = "authority";
+            got = sha;
+          }
         )
-        ++ (
-          if grant == null then
-            [ ]
-          else
-            map (
-              e:
-              errWith e.from "the change gives ${e.sink} to ${e.to}, outside the grant" {
-                code = "outside-grant";
-                class = "authority";
-                got = e;
-              }
-            ) (filter (e: !grants.allowed grant e) newEdges)
-        );
+        ++ map (
+          e:
+          errWith e.from "the change gives ${e.sink} to ${e.to}, outside the grant" {
+            code = "outside-grant";
+            class = "authority";
+            got = e;
+          }
+        ) (filter (e: grant != null && !grants.allowed grant e) diff.edges.added);
     in
     {
-      inherit errors refused sha;
-      violations = bad;
-      ok = errors == [ ] && bad == [ ] && refused == [ ];
-      diff = {
-        scopes = {
-          added = minus (x: x) (ids r1) (ids r0);
-          removed = minus (x: x) (ids r0) (ids r1);
-        };
-        edges = {
-          added = newEdges;
-          removed = minus keyG r0.graph.edges r1.graph.edges;
-        };
-        active = {
-          added = minus (x: x) (activeList r1) (activeList r0);
-          removed = minus (x: x) (activeList r0) (activeList r1);
-        };
-      };
+      inherit
+        errors
+        refused
+        sha
+        violations
+        diff
+        ;
+
+      ok = errors == [ ] && violations == [ ] && refused == [ ];
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
   # field changes between two `data` answers: [ { path; old; new; } ], sorted by path
@@ -1929,23 +1518,14 @@ let
       module,
     }:
     let
-      rs = map (rev: {
-        inherit rev;
-        r = asOf { inherit url rev module; };
-      }) revs;
+      r = b.elemAt (map (rev: asOf { inherit url rev module; }) revs); # one eval per revision
     in
-    b.genList (
-      i:
-      let
-        x = b.elemAt rs i;
-      in
-      {
-        inherit (x) rev;
-        errors = length x.r.errors;
-        scopes = length x.r.scopes;
-        changes = if i == 0 then [ ] else diffData (b.elemAt rs (i - 1)).r.data x.r.data;
-      }
-    ) (length rs);
+    b.genList (i: {
+      rev = b.elemAt revs i;
+      errors = length (r i).errors;
+      scopes = length (r i).scopes;
+      changes = if i == 0 then [ ] else diffData (r (i - 1)).data (r i).data;
+    }) (length revs);
   # without: the fleet with the files that declare `path` removed (coarse: a whole file goes; no engine hook)
   without =
     {
@@ -1974,81 +1554,43 @@ let
     opErrors =
       r: i: o:
       let
-        at = "program[${toString i}]";
         kinds = r.schema.kinds;
+        k = head o.path;
+        f = b.elemAt o.path 2;
+        fs = attrNames (kinds.${k}.fields or { });
+        fail = msg: x: [ (errWith "program[${toString i}]" msg ({ code = "program"; } // x)) ];
+        noKind = if kinds ? ${o.kind or ""} then [ ] else fail "no kind ${o.kind or "?"}" { };
       in
       if !isAttrs o || !(o ? op) then
-        [
-          (errWith at "not an op" {
-            code = "program";
-            want = "{ op = …; }";
-          })
-        ]
+        fail "not an op" { want = "{ op = …; }"; }
       else if o.op == "set" || o.op == "ref" then
-        (
-          if !(isList (o.path or null)) || o.path == [ ] then
-            [ (errWith at "path must be a non-empty list" { code = "program"; }) ]
-          else
-            let
-              k = head o.path;
-            in
-            if !(kinds ? ${k}) then
-              [
-                (errWith at "no kind ${k}" {
-                  code = "program";
-                  near = near k (attrNames kinds);
-                })
-              ]
-            else if length o.path > 2 && !((kinds.${k}.fields or { }) ? ${b.elemAt o.path 2}) then
-              [
-                (errWith at "kind ${k} has no field ${b.elemAt o.path 2}" {
-                  code = "program";
-                  near = near (b.elemAt o.path 2) (attrNames (kinds.${k}.fields or { }));
-                })
-              ]
-            else if o.op == "ref" && !(kinds ? ${o.kind or ""}) then
-              [ (errWith at "no kind ${o.kind or "?"}" { code = "program"; }) ]
-            else
-              [ ]
-        )
+        if !(isList (o.path or null)) || o.path == [ ] then
+          fail "path must be a non-empty list" { }
+        else if !(kinds ? ${k}) then
+          fail "no kind ${k}" { near = near k (attrNames kinds); }
+        else if length o.path > 2 && !elem f fs then
+          fail "kind ${k} has no field ${f}" { near = near f fs; }
+        else if o.op == "ref" then
+          noKind
+        else
+          [ ]
       else if o.op == "place" then
-        (
-          if !(r.schema.aspects ? ${o.aspect or ""}) then
-            [
-              (errWith at "no aspect ${o.aspect or "?"}" {
-                code = "program";
-                near = near (o.aspect or "") (attrNames r.schema.aspects);
-              })
-            ]
-          else
-            [ ]
-        )
+        if r.schema.aspects ? ${o.aspect or ""} then
+          [ ]
+        else
+          fail "no aspect ${o.aspect or "?"}" { near = near (o.aspect or "") (attrNames r.schema.aspects); }
       else if o.op == "new" then
-        (
-          if !(kinds ? ${o.kind or ""}) then
-            [ (errWith at "no kind ${o.kind or "?"}" { code = "program"; }) ]
-          else
-            [ ]
-        )
+        noKind
       else
-        [
-          (errWith at "unknown op ${toString o.op}" {
-            code = "program";
-            near = near (toString o.op) [
-              "set"
-              "ref"
-              "place"
-              "new"
-            ];
-          })
-        ];
+        fail "unknown op ${toString o.op}" {
+          near = near (toString o.op) (words "set ref place new");
+        };
     validate = r: prog: b.concatLists (b.genList (i: opErrors r i (b.elemAt prog i)) (length prog));
     # the program as one yen module (a function: refs need `yen`)
     toModule =
       prog:
       { yen, ... }:
       let
-        nest = path: v: b.foldl' (acc: k: { ${k} = acc; }) v (reverse path);
         refOf = x: if isAttrs x && x ? ref then yen.${x.ref.kind}.${x.ref.name} else x;
         one =
           o:
@@ -2074,6 +1616,11 @@ let
       }:
       let
         errs = validate r prog;
+        s = stage {
+          inherit base grant rejected;
+          r0 = r;
+          change = toModule prog;
+        };
       in
       if errs != [ ] then
         {
@@ -2082,17 +1629,7 @@ let
           errors = errs;
         }
       else
-        let
-          s = stage {
-            inherit base grant rejected;
-            r0 = r;
-            change = toModule prog;
-          };
-        in
-        removeAttrs s [
-          "render"
-          "sha"
-        ]
+        removeAttrs s [ "render" ]
         // {
           valid = true;
           sha = b.hashString "sha256" (b.toJSON prog);
@@ -2101,23 +1638,24 @@ let
   };
   # a change as data: set one declaration path (`change.set [ "host" "web-1" "port" ] 8080`)
   change = {
-    set = path: value: { yen = b.foldl' (acc: k: { ${k} = acc; }) value (reverse path); };
+    set = path: value: { yen = nest path value; };
+  };
+  # agent tools: the engine library outside an eval, and inside the fleet too
+  tools = static // {
+    inherit
+      stage
+      change
+      program
+      grants
+      diffData
+      without
+      ;
+    inherit (grants) grant narrow allowed;
   };
 in
 {
-  lib = static // {
-    inherit
-      eval
-      stage
-      change
-      grants
-      diffData
-      asOf
-      history
-      without
-      program
-      ;
-    inherit (grants) grant narrow allowed;
+  lib = tools // {
+    inherit eval asOf history;
     mkFlake = m: (eval m).flake;
   };
 }
