@@ -858,7 +858,7 @@ let
         else if q ? children then
           { ok = filter (holds q.children) (childrenAt.${s.id} or [ ]); }
         else if q ? scopesOf then
-          { ok = filter (x: x.kind == q.scopesOf.kind && x.name == q.scopesOf.name) scopes; }
+          { ok = lib.scopesOf q.scopesOf; }
         else
           { ok = holds q.holds s; };
       sourcesAt =
@@ -1047,30 +1047,25 @@ let
               f:
               let
                 v = s.${f};
-              in
-              if isAttrs v && v ? kind && v ? name && b.isString v.kind then
-                [ "ref:${f}:${s.id}:${v.kind}:${v.name}" ]
-              else if isList v then
-                concatMap (
+                atom =
                   x:
-                  if isAttrs x && x ? kind && x ? name && b.isString x.kind then
+                  if isAttrs x && x ? kind && x ? name && isString x.kind then
                     [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
-                  else if b.isString x || b.isInt x then
+                  else if isString x || b.isInt x then
                     [ "val:${f}:${s.id}:${toString x}" ]
                   else
-                    [ ]
-                ) v
-              else if b.isString v || b.isInt v then
-                [ "val:${f}:${s.id}:${toString v}" ]
+                    [ ];
+              in
+              if isList v then
+                concatMap atom v
               else if b.isBool v then
-                [ "val:${f}:${s.id}:${if v then "true" else "false"}" ]
+                [ "val:${f}:${s.id}:${b.toJSON v}" ]
               else
-                [ ]
+                atom v
             )
             (
-              filter (
-                f:
-                !elem f [
+              attrNames (
+                removeAttrs s [
                   "kind"
                   "name"
                   "key"
@@ -1081,7 +1076,7 @@ let
                   "rup"
                   "__here"
                 ]
-              ) (attrNames s)
+              )
             )
         ) unsorted;
       check =
@@ -1100,71 +1095,50 @@ let
                   graph
                   active
                   facts
+                  yen
                   ;
-                yen = yen;
               }
             else
               f;
           rules = concatMap rulesOf (attrNames invs);
-          mentioned = listToAttrs (
-            map (a: {
-              name = a;
-              value = true;
-            }) (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules)
-          );
+          mentioned = keySet (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules);
           m = D.wfs (rules ++ D.facts (filter (a: mentioned ? ${a}) facts));
           isBad = a: b.substring 0 4 a == "bad:";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
+          ground = rules ++ D.facts facts;
         in
         {
           inherit violations incomplete;
           ok = violations == [ ] && incomplete == [ ];
-          why = a: D.why (rules ++ D.facts facts) m a;
-          whyNot = a: D.whyNot (rules ++ D.facts facts) m a;
-          proof = a: D.proof (rules ++ D.facts facts) m a;
+          why = D.why ground m;
+          whyNot = D.whyNot ground m;
+          proof = D.proof ground m;
           invariants = attrNames invs;
         };
-      lib = static // {
-        inherit
-          holds
-          graph
-          declaredIn
-          labels
-          floor
-          schema
-          ; # queries readable inside the fleet (docs); `check` and `context` read errors, so not here
-        inherit
-          stage
-          change
-          program
-          grants
-          diffData
-          without
-          ;
-        inherit (grants) grant narrow allowed; # agent tools, inside the fleet too
-        all = ps: {
-          __all = ps;
-          __functor = self: holds self;
+      lib =
+        tools
+        // genAttrs combinators (
+          c: p: {
+            "__${c}" = p;
+            __functor = self: holds self;
+          }
+        )
+        // {
+          inherit
+            holds
+            graph
+            declaredIn
+            labels
+            floor
+            schema
+            ; # queries readable inside the fleet (docs); `check` and `context` read errors, so not here
+          same =
+            x: y: isAttrs x && isAttrs y && x ? kind && y ? kind && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
+          nearest = k: nearest k.__kind;
+          scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
+          cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
         };
-        not = p: {
-          __not = p;
-          __functor = self: holds self;
-        };
-        within = p: {
-          __within = p;
-          __functor = self: holds self;
-        };
-        has = p: {
-          __has = p;
-          __functor = self: holds self;
-        };
-        same =
-          x: y: isAttrs x && isAttrs y && x ? kind && y ? kind && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
-        nearest = k: nearest k.__kind;
-        scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
-        cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
-      };
       # ── schema: what a fleet declares, as JSON-safe data (no functions): for agents and docs ──
       fieldsOf =
         t:
@@ -1933,21 +1907,22 @@ let
   change = {
     set = path: value: { yen = nest path value; };
   };
-in
-{
-  lib = static // {
+  # agent tools: the engine library outside an eval, and inside the fleet too
+  tools = static // {
     inherit
-      eval
       stage
       change
+      program
       grants
       diffData
-      asOf
-      history
       without
-      program
       ;
     inherit (grants) grant narrow allowed;
+  };
+in
+{
+  lib = tools // {
+    inherit eval asOf history;
     mkFlake = m: (eval m).flake;
   };
 }
