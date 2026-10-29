@@ -56,6 +56,15 @@ let
     )
   ];
   reserved = run [ { yen.kinds.box.sinks.sinks = { }; } ];
+  # a field with the name of a scope key would be shadowed by it: an error, never a silent wrong value
+  reservedField = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.fields.key = yen.lib.opt (yen.lib.is builtins.isString) "k";
+      }
+    )
+  ];
   # the engine rule: a functor with `__functionArgs` is a function
   functorR = run [
     (
@@ -296,6 +305,15 @@ let
           }
         ];
     sink-named-sinks = b.any (e: (e.code or null) == "reserved") reserved.errors;
+    field-named-key = b.any (
+      e:
+      (e.code or null) == "reserved"
+      &&
+        e.path or null == [
+          "box"
+          "key"
+        ]
+    ) reservedField.errors;
     functor = functorR.flake.sys.c == [ "at c" ];
     users =
       usersR.errors == [ ]

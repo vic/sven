@@ -49,6 +49,7 @@ let
   combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
   # keys the engine reads; the other keys of a sink, an aspect, a cycle output or a scope are data
   sinkMeta = words "at reduce of __sink";
+  scopeKeys = words "kind name key parent path id up rup"; # the scope record sets these over the instance fields
   aspectMeta = words "at cycle order __aspect";
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
@@ -1344,7 +1345,23 @@ let
               "scope"
               "sinks"
             ]
-          );
+          )
+        # a field named like a key of the scope record would read as that key, never as the field
+        ++ concatMap (
+          k:
+          map (
+            n:
+            errWith "declarations" "field `${n}` of kind ${k}: the name is a key of every scope" {
+              code = "reserved";
+              path = [
+                k
+                n
+              ];
+              want = scopeKeys;
+              fix = "rename the field; a scope already has ${concatStringsSep ", " scopeKeys}";
+            }
+          ) (filter (n: elem n scopeKeys) (attrNames (kinds.${k}.fields or { })))
+        ) kindNames;
       errorsAll =
         loadErrors
         ++ reservedErrors
