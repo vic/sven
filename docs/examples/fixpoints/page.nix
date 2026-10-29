@@ -2,7 +2,7 @@
   title = "Fixpoints and dependencies";
   description = "Like NixOS `config`, a yen fleet is a fixpoint. Unlike `config`, every dependency is a routed edge you can query.";
   section = "concepts";
-  order = 15;
+  order = 16;
 
   body =
     {
