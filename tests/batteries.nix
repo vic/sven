@@ -1,9 +1,9 @@
-# Battery and pack oracles. Run: nix-instantiate --eval --strict tests -A failed   (expect [ ])
+# Battery oracles. Run: nix-instantiate --eval --strict tests -A failed   (expect [ ])
 let
   yen = (import ../default.nix).lib;
   b = builtins;
   bat = yen.batteries;
-  nixos = yen.packs.nixos;
+  nixos = yen.batteries.nixos;
   # the words of this fleet: no battery knows them
   fleet =
     { yen, ... }:
@@ -106,7 +106,7 @@ let
       }
     )
   ];
-  # a NixOS module given by the unfree pack, applied to a minimal lib
+  # a NixOS module given by the unfree battery, applied to a minimal lib
   unfreeMod =
     b.head
       (run [
@@ -135,7 +135,45 @@ let
       };
     }).nixpkgs.config.allowUnfreePredicate;
 
+  # a person's account lands in its box's `sys`: the person has no `sys` sink
+  usersR = run [
+    sysOut
+    (
+      { yen, ... }:
+      {
+        imports = [
+          (nixos.define-user {
+            name = "account";
+            at = yen.kinds.person;
+            into = "sys";
+          })
+          (nixos.primary-user {
+            name = "admin";
+            at = yen.person.p;
+            into = "sys";
+          })
+        ];
+      }
+    )
+  ];
+
   checks = {
+    users =
+      usersR.flake.sys.a == [
+        {
+          users.users.p = {
+            isNormalUser = true;
+            home = "/home/p";
+          };
+        }
+        {
+          users.users.p.extraGroups = [
+            "wheel"
+            "networkmanager"
+          ];
+        }
+      ]
+      && !(usersR.flake.sys ? c);
     pool =
       pooled.errors == [ ]
       &&

@@ -199,8 +199,7 @@ let
     graphs = import ./lib/graphs.nix; # reach, transpose, topo, layers, sccs, cycles, paths, shortest over succ attrsets
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
     datalog = import ./lib/datalog.nix; # ground rules with negation: wfs (three values), stable, why
-    batteries = import ./lib/batteries.nix; # pool, gated, system: roles in, a yen module out; no names of their own
-    packs.nixos = import ./lib/packs/nixos.nix; # batteries filled with NixOS option paths
+    batteries = import ./lib/batteries; # roles in, a yen module out: pool, gated, system; nixos.*
     # JSON-safe: functions and derivations become strings; toJSON then never fails
     jsonSafe =
       v:

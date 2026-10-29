@@ -1,7 +1,7 @@
-# The NixOS pack: batteries filled with NixOS option paths. NixOS is the target domain, not a yen word:
+# NixOS batteries: generic batteries filled with NixOS option paths. NixOS is the target domain, not a yen word:
 # every yen name (kind, sink, aspect) still comes from the user.
 let
-  bat = import ../batteries.nix;
+  bat = import ./generic.nix;
 in
 {
   # nixosConfigurations.<scope name> from the modules of sink `as`
@@ -26,6 +26,40 @@ in
     bat.gated {
       inherit name at into;
       body = s: { networking.hostName = s.name; };
+    };
+
+  # an account named after the scope (Den's define-user)
+  define-user =
+    {
+      name,
+      at,
+      into,
+    }:
+    bat.gated {
+      inherit name at into;
+      body = s: {
+        users.users.${s.name} = {
+          isNormalUser = true;
+          home = "/home/${s.name}";
+        };
+      };
+    };
+
+  # the scope's account administers the machine (Den's primary-user)
+  primary-user =
+    {
+      name,
+      at,
+      into,
+    }:
+    bat.gated {
+      inherit name at into;
+      body = s: {
+        users.users.${s.name}.extraGroups = [
+          "wheel"
+          "networkmanager"
+        ];
+      };
     };
 
   # nixpkgs.config does not merge: allowUnfreePredicate is a function, permittedInsecurePackages loses lists.

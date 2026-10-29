@@ -51,10 +51,15 @@ So: kinds say what exists, scopes say where it lives, aspects say what to do, an
 Sinks also build the outputs: the sink of a host can call `nixosSystem` on the modules it collected.
 
 
-:::note[No batteries, no vocabulary]
-yen knows no nouns. It has no `host`, no `user`, no `nixos` class, no NixOS or flake-parts options, and no
-batteries such as Den's `define-user`. It is agnostic: you define the kinds, fields and sinks of what you configure,
-in your own language. A fleet of NixOS hosts, a set of dev shells and a printer inventory use the same four words.
+:::note[Domain independent, with batteries]
+The yen engine knows no nouns. It has no `host`, no `user`, no `nixos` class and no NixOS or flake-parts options.
+You define the kinds, fields and sinks of what you configure, in your own language. A fleet of NixOS hosts, a set
+of dev shells and a printer inventory use the same four words.
+
+For reuse, `yen.lib.batteries` are functions from roles to a yen module: you pass every name, so a battery never
+adds a word to your fleet. Domain batteries, such as `yen.lib.batteries.nixos`, fill the roles with one domain's
+options. Den's `define-user` is `yen.lib.batteries.nixos.define-user` here, not part of the engine.
+
 Every example in these docs declares its own kinds, so you can read each one top to bottom.
 :::
 

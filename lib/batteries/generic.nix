@@ -1,4 +1,4 @@
-# Batteries: functions from roles to a yen module. A battery names no kind, sink, aspect or field: the user passes
+# Generic batteries: functions from roles to a yen module. A battery names no kind, sink, aspect or field: the user passes
 # each name, in its own words. Builtins only.
 #   imports = [ (yen.lib.batteries.pool { on = "box"; as = "unfree"; into = "nixos"; set = names: …; }) ];
 let

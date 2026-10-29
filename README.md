@@ -6,8 +6,10 @@
 no fixpoint, and no `throw`. You describe a fleet as data and behavior. yen answers queries on it: the systems to build,
 the errors, the graph of who gives what to whom, and whether your rules hold across machines.
 
-yen has no batteries and no vocabulary. It does not know what a host, a user or NixOS is. You name your own nouns,
+yen is domain independent. Its engine does not know what a host, a user or NixOS is. You name your own nouns,
 so it configures NixOS, nix-darwin, home-manager, clusters, terraform or anything else you can model as Nix values.
+For reuse, `yen.lib.batteries` are functions from roles to a yen module: you give every name. Domain batteries,
+such as `yen.lib.batteries.nixos`, fill those roles with one domain's options.
 
 [Documentation](https://yen.oeiuwq.com/) · [Getting started](https://yen.oeiuwq.com/start/getting-started/) · [Reference fully-featured fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [vic/vix on yen](https://github.com/vic/vix/tree/yen) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
 

@@ -34,7 +34,6 @@
         "grants"
         "change"
         "batteries"
-        "packs"
       ];
     in
     [
