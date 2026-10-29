@@ -16,14 +16,14 @@
         p:
         import (dir + "/dry-run.nix") {
           program = p;
-          sven = inputs.sven.outPath;
+          yen = inputs.yen.outPath;
           inherit (inputs) nixpkgs import-tree;
         };
     in
     [
       ''
         Writing Nix is a poor interface for an agent: it can write anything, and a typo is a parse error.
-        `sven.lib.program` writes a change as data. Four ops cover a fleet change:
+        `yen.lib.program` writes a change as data. Four ops cover a fleet change:
       ''
       (docs.table
         [ "Op" "Effect" ]
@@ -66,7 +66,7 @@
           ]
           [
             "`toModule prog`"
-            "the program as a sven module, to import"
+            "the program as a yen module, to import"
           ]
           [
             "`dryRun { base; prog; grant; rejected; }`"
@@ -87,7 +87,7 @@
         p:
         import (dir + "/dry-run.nix") {
           program = p;
-          sven = inputs.sven.outPath;
+          yen = inputs.yen.outPath;
           inherit (inputs) nixpkgs import-tree;
         };
     in

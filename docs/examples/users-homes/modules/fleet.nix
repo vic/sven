@@ -1,30 +1,30 @@
 # Hosts build NixOS and hold their users. Homes are standalone home-manager configurations.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) same is;
+  inherit (yen.lib) same is;
 in
 {
-  sven.kinds.fleet = {
+  yen.kinds.fleet = {
     spawns = {
-      host = _: sven.host;
-      home = _: sven.home;
+      host = _: yen.host;
+      home = _: yen.home;
     };
-    sinks.out.reduce = sven.lib.reduce.merge;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) sven.user;
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) yen.user;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.user = {
+  yen.kinds.user = {
     fields.hosts = is lib.isList;
     sinks.homeManager.nixos =
       { user, homeManager, ... }:
@@ -32,9 +32,9 @@ in
         home-manager.users.${user.name}.imports = homeManager;
       };
   };
-  sven.kinds.home = {
+  yen.kinds.home = {
     fields = {
-      user = sven.kinds.user;
+      user = yen.kinds.user;
       system = lib.types.str;
     };
     sinks.homeManager.out =
@@ -46,14 +46,14 @@ in
         };
       };
   };
-  sven.aspects.home-manager = {
-    at = sven.lib.has sven.kinds.user;
+  yen.aspects.home-manager = {
+    at = yen.lib.has yen.kinds.user;
     nixos = {
       imports = [ inputs.home-manager.nixosModules.home-manager ];
       home-manager.useGlobalPkgs = true;
     };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

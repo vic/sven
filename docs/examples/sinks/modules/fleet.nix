@@ -1,10 +1,10 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.fleet.main = { };
-  sven.host.web = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.web = { };
+  yen.flake = { out, ... }: out;
 }

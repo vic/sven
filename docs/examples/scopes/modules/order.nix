@@ -1,8 +1,8 @@
 # Siblings sort by the `order` sink (default 0), then by name. A parent comes before its children.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.web-first = {
-    at = sven.host.web;
+  yen.aspects.web-first = {
+    at = yen.host.web;
     order = -1;
   };
 }

@@ -81,21 +81,21 @@
         "import-tree": "import-tree",
         "nixpkgs": "nixpkgs",
         "nixpkgs-unstable": "nixpkgs-unstable",
-        "sven": "sven"
+        "yen": "yen"
       }
     },
-    "sven": {
+    "yen": {
       "locked": {
         "lastModified": 1793251918,
         "narHash": "sha256-ePmU2yXyV6g98Dx8avuQpNCaZl9NjVi6z9rI3keWgK0=",
         "owner": "vic",
-        "repo": "sven",
+        "repo": "yen",
         "rev": "4875ea5cdb35083d35af4db92ada88b0d9d7a681",
         "type": "github"
       },
       "original": {
         "owner": "vic",
-        "repo": "sven",
+        "repo": "yen",
         "type": "github"
       }
     }

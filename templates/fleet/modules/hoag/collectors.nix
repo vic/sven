@@ -1,11 +1,11 @@
 # den-hoag collectors: an aggregate is an entity. A hive has its own content (its `meta` sink) and selects its members
 # with a predicate. It reads the fleet's colmena pool; it never re-evaluates a member.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet.spawns.hive = _: sven.hive;
-  sven.kinds.hive = {
-    fields.environment = sven.kinds.environment;
-    sinks.meta.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet.spawns.hive = _: yen.hive;
+  yen.kinds.hive = {
+    fields.environment = yen.kinds.environment;
+    sinks.meta.reduce = yen.lib.reduce.merge;
     sinks.meta.out =
       {
         hive,
@@ -18,16 +18,16 @@
           inherit meta;
         }
         // lib.filterAttrs (
-          n: _: sven.host ? ${n} && sven.lib.same sven.host.${n}.environment hive.environment
+          n: _: yen.host ? ${n} && yen.lib.same yen.host.${n}.environment hive.environment
         ) colmena;
       };
   };
-  sven.hive = {
-    prod.environment = sven.environment.prod;
-    staging.environment = sven.environment.staging;
+  yen.hive = {
+    prod.environment = yen.environment.prod;
+    staging.environment = yen.environment.staging;
   };
-  sven.aspects.hive-meta = {
-    at = sven.kinds.hive;
+  yen.aspects.hive-meta = {
+    at = yen.kinds.hive;
     meta =
       { hive, ... }:
       {

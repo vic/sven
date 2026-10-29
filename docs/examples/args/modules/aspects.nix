@@ -1,14 +1,14 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.backend = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.backend = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.name != "lb")
     ];
     backends = { host, ... }: host.addr; # a kind arg: the nearest host
   };
-  sven.aspects.balancer = {
-    at = sven.host.lb;
+  yen.aspects.balancer = {
+    at = yen.host.lb;
     # a sink arg: the reduced value at its nearest receiver (the environment);
     # `scope` is the scope itself; `cluster ? null` is optional, and this fleet has no cluster
     proxy =

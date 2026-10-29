@@ -1,8 +1,8 @@
 # Each user gives its account. A user has no `nixos` sink, so the account goes up to the host.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.account = {
-    at = sven.kinds.user;
+  yen.aspects.account = {
+    at = yen.kinds.user;
     nixos =
       { user, ... }:
       {

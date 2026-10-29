@@ -14,7 +14,7 @@
     [
       ''
         An invariant is a rule about the whole fleet: "no server runs a desktop", "no two hosts share an address".
-        `sven.invariants.<name>` gives [Datalog](/query/datalog/) rules over the fleet's facts. A true `bad:` atom is a violation.
+        `yen.invariants.<name>` gives [Datalog](/query/datalog/) rules over the fleet's facts. A true `bad:` atom is a violation.
       ''
       (docs.file "modules/fleet.nix")
       (docs.fileWith "{5-7,9-12}" "modules/invariants.nix")

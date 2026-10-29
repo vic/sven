@@ -1,9 +1,9 @@
 {
-  description = "sven: osConfig in home-manager modules";
+  description = "yen: osConfig in home-manager modules";
 
   outputs =
     inputs:
-    (import inputs.sven).lib.mkFlake {
+    (import inputs.yen).lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -12,8 +12,8 @@
     };
 
   inputs = {
-    sven = {
-      url = "github:vic/sven";
+    yen = {
+      url = "github:vic/yen";
       flake = false;
     };
     import-tree.url = "github:denful/import-tree";

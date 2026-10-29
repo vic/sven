@@ -1,30 +1,30 @@
 ---
-{"description":"The root's `out` sink is the flake. Any element can read the outputs with the `out` arg.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/flake-outputs/page.nix","title":"Flake outputs"}
+{"description":"The root's `out` sink is the flake. Any element can read the outputs with the `out` arg.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/flake-outputs/page.nix","title":"Flake outputs"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-sven does not know what a flake is. The root kind declares an `out` sink with `merge`, and `sven.flake`
+yen does not know what a flake is. The root kind declares an `out` sink with `merge`, and `yen.flake`
 gives the flake's outputs. Each sink with an `out` key gives its part.
 
 
 ```nix title="modules/fleet.nix" {6,12}
-# The `out` sink of the root is the flake: `sven.flake` gives it.
-{ sven, ... }:
+# The `out` sink of the root is the flake: `yen.flake` gives it.
+{ yen, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.sinks.services.out =
+  yen.kinds.host.sinks.services.out =
     { host, services, ... }:
     {
       services.${host.name} = services;
     };
-  sven.fleet.main = { };
-  sven.host.web = { };
-  sven.host.db = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.web = { };
+  yen.host.db = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -34,19 +34,19 @@ The `out` arg is the flake itself, read lazily. An element can build on other ou
 
 
 ```nix title="modules/aspects.nix" {7}
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     services = "nginx";
   };
-  sven.aspects.postgres = {
-    at = sven.host.db;
+  yen.aspects.postgres = {
+    at = yen.host.db;
     services = "postgres";
   };
   # the `out` arg: an element reads the flake outputs, lazily. No `inputs.self`.
-  sven.aspects.inventory = {
-    at = sven.kinds.fleet;
+  yen.aspects.inventory = {
+    at = yen.kinds.fleet;
     out =
       { out, ... }:
       {
@@ -75,7 +75,7 @@ The `out` arg is the flake itself, read lazily. An element can build on other ou
 
 ## With or without flakes
 
-`(import sven).lib.mkFlake module` gives the flake outputs. `(import sven).lib.eval module` gives every query,
+`(import yen).lib.mkFlake module` gives the flake outputs. `(import yen).lib.eval module` gives every query,
 and `flake` is one of them. `mkFlake m` is `(eval m).flake`.
 
 
@@ -88,7 +88,7 @@ and `inventory` never reads itself.
 Every block on this page is a file of the template `flake-outputs`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#flake-outputs
+nix flake init -t github:vic/yen#flake-outputs
 ```
 
 <FileTree>

@@ -1,12 +1,12 @@
 # A user: an account on each of her hosts, and her home.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.user.alice.hosts = [
-    sven.host.web
-    sven.host.desk
+  yen.user.alice.hosts = [
+    yen.host.web
+    yen.host.desk
   ];
-  sven.aspects.alice = {
-    at = sven.user.alice;
+  yen.aspects.alice = {
+    at = yen.user.alice;
     nixos =
       { user, ... }:
       {

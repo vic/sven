@@ -1,18 +1,18 @@
 ---
-{"description":"Every function of sven.lib, and every query of an eval result. Generated from the engine.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/lib/page.nix","title":"Library index"}
+{"description":"Every function of yen.lib, and every query of an eval result. Generated from the engine.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/lib/page.nix","title":"Library index"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-This page is computed from the engine when the docs are written. A function added to sven appears here
+This page is computed from the engine when the docs are written. A function added to yen appears here
 without a docs edit.
 
-## Outside a fleet: `(import sven).lib`
+## Outside a fleet: `(import yen).lib`
 
 
 `agent`, `allowed`, `asOf`, `derive`, `diffData`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `maybe`, `mkFlake`, `narrow`, `opt`, `stage`, `validAt`, `without`
 
-## Inside a fleet: `sven.lib`
+## Inside a fleet: `yen.lib`
 
 Modules get the same lib, plus predicates and queries bound to the fleet:
 
@@ -24,21 +24,21 @@ Modules get the same lib, plus predicates and queries bound to the fleet:
 
 | Library | Functions |
 |---|---|
-| `sven.lib.reduce` | `entries`, `list`, `merge`, `one`, `set` |
-| `sven.lib.graphs` | `cycles`, `fromEdges`, `layers`, `nodesOf`, `paths`, `reach`, `reachers`, `sccs`, `shortest`, `topo`, `transpose`, `uniq'` |
-| `sven.lib.datalog` | `facts`, `judge`, `proof`, `stable`, `wfs`, `why`, `whyNot` |
-| `sven.lib.krn` | `appendo`, `conde`, `conj`, `cons`, `disj`, `distinctfd`, `dom`, `eq`, `facto`, `fail`, `fdBound`, `fresh`, `freshNamed`, `fromList`, `infd`, `label`, `lefd`, `ltfd`, `maxOf`, `maximize`, `membero`, `minOf`, `neq`, `neqfd`, `nil`, `plusfd`, `project`, `propagator`, `run`, `runAll`, `runAllFuel`, `runC`, `runFuel`, `succeed`, `toList`, `unify`, `var`, `walkStar` |
-| `sven.lib.rdf` | `ntriples`, `shacl`, `share`, `triples` |
-| `sven.lib.program` | `dryRun`, `opErrors`, `render`, `toModule`, `validate` |
-| `sven.lib.grants` | `allowed`, `grant`, `narrow` |
-| `sven.lib.change` | `set` |
+| `yen.lib.reduce` | `entries`, `list`, `merge`, `one`, `set` |
+| `yen.lib.graphs` | `cycles`, `fromEdges`, `layers`, `nodesOf`, `paths`, `reach`, `reachers`, `sccs`, `shortest`, `topo`, `transpose`, `uniq'` |
+| `yen.lib.datalog` | `facts`, `judge`, `proof`, `stable`, `wfs`, `why`, `whyNot` |
+| `yen.lib.krn` | `appendo`, `conde`, `conj`, `cons`, `disj`, `distinctfd`, `dom`, `eq`, `facto`, `fail`, `fdBound`, `fresh`, `freshNamed`, `fromList`, `infd`, `label`, `lefd`, `ltfd`, `maxOf`, `maximize`, `membero`, `minOf`, `neq`, `neqfd`, `nil`, `plusfd`, `project`, `propagator`, `run`, `runAll`, `runAllFuel`, `runC`, `runFuel`, `succeed`, `toList`, `unify`, `var`, `walkStar` |
+| `yen.lib.rdf` | `ntriples`, `shacl`, `share`, `triples` |
+| `yen.lib.program` | `dryRun`, `opErrors`, `render`, `toModule`, `validate` |
+| `yen.lib.grants` | `allowed`, `grant`, `narrow` |
+| `yen.lib.change` | `set` |
 
-## Queries of an eval result: `r = sven.lib.eval module`
+## Queries of an eval result: `r = yen.lib.eval module`
 
 
 `active`, `agent`, `ask`, `check`, `context`, `data`, `declaredIn`, `errors`, `explain`, `facts`, `flake`, `floor`, `graph`, `impact`, `labels`, `queries`, `reduced`, `root`, `schema`, `scopes`, `undefined`
 
 <CardGrid>
 <LinkCard title="Queries" href="/query/queries/" description="What each query answers." />
-<LinkCard title="Error codes" href="/reference/errors/" description="Every error record sven can give." />
+<LinkCard title="Error codes" href="/reference/errors/" description="Every error record yen can give." />
 </CardGrid>

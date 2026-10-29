@@ -1,8 +1,8 @@
 # Ground rules { head; pos; neg; }, one set per host. You ground them with Nix.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  D = sven.lib.datalog;
-  hosts = lib.attrValues sven.host;
+  D = yen.lib.datalog;
+  hosts = lib.attrValues yen.host;
   rules =
     lib.concatMap (
       h:
@@ -37,8 +37,8 @@ let
   model = D.wfs rules;
 in
 {
-  sven.aspects.serving = {
-    at = sven.kinds.fleet;
+  yen.aspects.serving = {
+    at = yen.kinds.fleet;
     out.serving = {
       serves = map (lib.removePrefix "serves:") (lib.filter (lib.hasPrefix "serves:") model.true);
       undefined = model.undefined; # well-founded: the choice stays open

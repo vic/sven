@@ -1,6 +1,6 @@
 {
   title = "Graphs";
-  description = "Reachability, layers, cycles and paths over fleet data with `sven.lib.graphs`: deploy waves and impact.";
+  description = "Reachability, layers, cycles and paths over fleet data with `yen.lib.graphs`: deploy waves and impact.";
   section = "query";
   order = 2;
 
@@ -13,7 +13,7 @@
     }:
     [
       ''
-        Fleet data is plain Nix, so a question about it is a function. `sven.lib.graphs` answers graph questions.
+        Fleet data is plain Nix, so a question about it is a function. `yen.lib.graphs` answers graph questions.
         It works on `succ`, an attrset from a node to its successors. Every function sorts, so the order the data is
         written in never changes an answer.
       ''

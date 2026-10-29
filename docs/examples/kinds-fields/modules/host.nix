@@ -1,7 +1,7 @@
 # A kind declares the fields of its instances. Every field has a type.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str;
     cores = lib.types.int;
   };

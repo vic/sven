@@ -1,5 +1,5 @@
 {
-  title = "What sven costs";
+  title = "What yen costs";
   description = "The engine is linear in aspect refs and receivers, and its cost oracles keep it so.";
   section = "perf";
   order = 3;
@@ -8,7 +8,7 @@
     { docs, ... }:
     [
       ''
-        sven is one file of Nix builtins. Its own cost is small next to nixpkgs and the module system, and it stays
+        yen is one file of Nix builtins. Its own cost is small next to nixpkgs and the module system, and it stays
         small as a fleet grows:
 
         - Each scope computes each aspect ref once, so aspects that read aspects cost linear time, however deep they nest.

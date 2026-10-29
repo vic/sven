@@ -1,8 +1,8 @@
 # A desktop on a server, and a new host with a copied address.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.desktop.at = sven.host.web;
-  sven.host.spare = {
+  yen.aspects.desktop.at = yen.host.web;
+  yen.host.spare = {
     addr = "10.0.0.2";
     form = "server";
   };

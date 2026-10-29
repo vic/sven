@@ -1,53 +1,53 @@
 ---
-{"description":"A kind is a type: a field can hold a ref to another instance. Kinds that nothing spawns are data.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/instances-refs/page.nix","title":"Instances and refs"}
+{"description":"A kind is a type: a field can hold a ref to another instance. Kinds that nothing spawns are data.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/instances-refs/page.nix","title":"Instances and refs"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-A kind is also a type. A field of type `sven.kinds.environment` holds a ref to an environment instance:
-`sven.environment.prod`, never the string `"prod"`.
+A kind is also a type. A field of type `yen.kinds.environment` holds a ref to an environment instance:
+`yen.environment.prod`, never the string `"prod"`.
 
 
 ```nix title="modules/kinds.nix"
 # A kind is a type too: a field of kind `environment` holds a ref to an environment instance.
 # Nothing spawns `environment`, so it is a data kind: its instances have no scope.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.environment.fields.domain = lib.types.str;
-  sven.kinds.host.fields = {
-    environment = sven.kinds.environment;
-    backup = sven.lib.maybe sven.kinds.host; # a ref to another host, or null
+  yen.kinds.environment.fields.domain = lib.types.str;
+  yen.kinds.host.fields = {
+    environment = yen.kinds.environment;
+    backup = yen.lib.maybe yen.kinds.host; # a ref to another host, or null
   };
 }
 ```
 
 ```nix title="modules/instances.nix" {6-7}
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod.domain = "example.com";
-  sven.environment.lab.domain = "lab.example.com";
+  yen.environment.prod.domain = "example.com";
+  yen.environment.lab.domain = "lab.example.com";
 
-  sven.host.web = {
-    environment = sven.environment.prod;
-    backup = sven.host.db;
+  yen.host.web = {
+    environment = yen.environment.prod;
+    backup = yen.host.db;
   };
-  sven.host.db = {
-    environment = sven.environment.prod;
-    backup = sven.host.web;
+  yen.host.db = {
+    environment = yen.environment.prod;
+    backup = yen.host.web;
   }; # refs can point both ways
-  sven.host.test.environment = sven.environment.lab;
+  yen.host.test.environment = yen.environment.lab;
 }
 ```
 
 Refs are lazy, so two hosts can point at each other. There is no cycle error.
-Follow a ref like an attrset, and compare two instances with `sven.lib.same`:
+Follow a ref like an attrset, and compare two instances with `yen.lib.same`:
 
 
 ```nix title="modules/report.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.aspects.report = {
-    at = sven.kinds.host;
+  yen.aspects.report = {
+    at = yen.kinds.host;
     report =
       { host, ... }:
       {
@@ -56,7 +56,7 @@ Follow a ref like an attrset, and compare two instances with `sven.lib.same`:
           backup = if host.backup == null then null else host.backup.name;
           # `same` compares two instances by kind and name
           peers = lib.attrNames (
-            lib.filterAttrs (n: h: n != host.name && sven.lib.same h.environment host.environment) sven.host
+            lib.filterAttrs (n: h: n != host.name && yen.lib.same h.environment host.environment) yen.host
           );
         };
       };
@@ -114,9 +114,9 @@ A name where a ref goes is an error record, with the fix:
 
 ```nix title="variants/string-ref.nix"
 # A name where a ref goes.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.cache.environment = "prod";
+  yen.host.cache.environment = "prod";
 }
 ```
 
@@ -126,7 +126,7 @@ A name where a ref goes is an error record, with the fix:
     class = "fixable";
     code = "ref";
     error = "environment wants a environment ref";
-    fix = "use sven.environment.<name>, not a string";
+    fix = "use yen.environment.<name>, not a string";
     from = "host:cache";
     got = "prod";
     path = [
@@ -141,7 +141,7 @@ A name where a ref goes is an error record, with the fix:
 Every block on this page is a file of the template `instances-refs`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#instances-refs
+nix flake init -t github:vic/yen#instances-refs
 ```
 
 <FileTree>

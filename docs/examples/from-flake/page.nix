@@ -1,6 +1,6 @@
 {
   title = "From a flake";
-  description = "Move a flake with a mkHost helper, shared modules and home-manager to sven. Same systems, no helper.";
+  description = "Move a flake with a mkHost helper, shared modules and home-manager to yen. Same systems, no helper.";
   section = "migrate";
   order = 2;
 
@@ -9,7 +9,7 @@
     [
       ''
         Most flakes grow the same shape: a `mkHost` helper, a `common.nix`, one file per host, and home-manager
-        as a NixOS module. This page moves that shape to sven. The docs check that each host gives the same toplevel
+        as a NixOS module. This page moves that shape to yen. The docs check that each host gives the same toplevel
         `drvPath` before and after.
       ''
       (docs.tabs [
@@ -37,7 +37,7 @@
       ''
         ## The helper becomes a kind
 
-        `mkHost` knew how to build a host. In sven, the `host` kind knows it: its `nixos` sink builds the system.
+        `mkHost` knew how to build a host. In yen, the `host` kind knows it: its `nixos` sink builds the system.
         A user's `homeManager` sink forwards to `nixos` on each host the user lives under.
       ''
       (docs.fileWith "{10,16}" "modules/fleet.nix")
@@ -76,7 +76,7 @@
       ''
       (docs.file "modules/alice.nix")
       (docs.note "Adding a host" ''
-        Before: add a line to the flake, and maybe a parameter to `mkHost`. After: add `sven.host.<name>` in its own file,
+        Before: add a line to the flake, and maybe a parameter to `mkHost`. After: add `yen.host.<name>` in its own file,
         and add it to the `hosts` of its users. Nothing else changes.
       '')
       (docs.links [

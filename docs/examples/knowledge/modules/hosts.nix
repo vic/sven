@@ -1,10 +1,10 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod.domain = "example.com";
-  sven.host.web.environment = sven.environment.prod;
-  sven.host.db.environment = sven.environment.prod;
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.environment.prod.domain = "example.com";
+  yen.host.web.environment = yen.environment.prod;
+  yen.host.db.environment = yen.environment.prod;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     services = "nginx";
   };
 }

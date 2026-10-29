@@ -1,8 +1,8 @@
 # Written by an agent.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.metrics = {
-    at = sven.kinds.host;
+  yen.aspects.metrics = {
+    at = yen.kinds.host;
     services = "prometheus-node-exporter";
   };
 }

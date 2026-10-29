@@ -1,5 +1,5 @@
 {
-  title = "sven";
+  title = "yen";
   description = "Nix configurations you can ask questions about, and prove things about, before you deploy.";
   section = "start";
   order = 0;
@@ -8,7 +8,7 @@
     template = "splash";
     hero = {
       tagline = "Nix configurations you can ask questions about,\nand prove things about, before you deploy.";
-      image.html = ''<img src="/sven.png" style="max-width: 80%" />'';
+      image.html = ''<img src="/yen.png" style="max-width: 80%" />'';
       actions = [
         {
           text = "Overview";
@@ -29,7 +29,7 @@
         }
         {
           text = "Source code";
-          link = "https://github.com/vic/sven";
+          link = "https://github.com/vic/yen";
           icon = "github";
           variant = "minimal";
         }
@@ -41,8 +41,8 @@
     { docs, ... }:
     [
       ''
-        **sven is a query language for Nix configurations.** You write plain Nix data and behavior.
-        sven answers queries on it: the NixOS, nix-darwin and home-manager systems to build, the errors,
+        **yen is a query language for Nix configurations.** You write plain Nix data and behavior.
+        yen answers queries on it: the NixOS, nix-darwin and home-manager systems to build, the errors,
         the graph of who gives what to whom, and whether your rules hold.
       ''
       (docs.cards [

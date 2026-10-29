@@ -1,6 +1,6 @@
 {
-  title = "About sven";
-  description = "Where sven comes from, and what it is for: complete fleets that people understand and agents can work on.";
+  title = "About yen";
+  description = "Where yen comes from, and what it is for: complete fleets that people understand and agents can work on.";
   section = "project";
   order = 1;
 
@@ -10,10 +10,10 @@
       ''
         ## The goal
 
-        sven is for complete fleets: many machines, many people, services that span hosts, environments with their own rules.
+        yen is for complete fleets: many machines, many people, services that span hosts, environments with their own rules.
         Advanced and complex fleets, that a person can still read and understand.
 
-        sven also treats agents as first-class members of the team that runs the infrastructure. An agent reads the same
+        yen also treats agents as first-class members of the team that runs the infrastructure. An agent reads the same
         queries as a person: the schema, the errors, why an aspect is active. It proposes a change as data, the fleet
         stages it, checks the rules across machines, and refuses it with the reason. Nothing reaches a machine unchecked.
       ''
@@ -32,7 +32,7 @@
       ''
         ## Lineage
 
-        sven is the latest step of a line of projects, each one a lesson for the next.
+        yen is the latest step of a line of projects, each one a lesson for the next.
       ''
       (docs.mermaid ''
         flowchart LR
@@ -41,14 +41,14 @@
           den --> exp["vic's experiments: denful/nest, ned, dnzl"]
           gen --> ren["vic/ren"]
           exp --> ren
-          ren --> sven["vic/sven"]
+          ren --> yen["vic/yen"]
       '')
       (docs.table
         [ "Project" "What it gave" ]
         [
           [
             "[vic/vix](https://github.com/vic/vix)"
-            "a real fleet: vic's machines, homes and dev environments. Today it runs on sven."
+            "a real fleet: vic's machines, homes and dev environments. Today it runs on yen."
           ]
           [
             "[denful/den](https://github.com/denful/den)"
@@ -64,10 +64,10 @@
           ]
           [
             "[vic/ren](https://github.com/vic/ren)"
-            "the fleet template that sven's reference fleet models"
+            "the fleet template that yen's reference fleet models"
           ]
           [
-            "vic/sven"
+            "vic/yen"
             "queries instead of merges, Cycle.js sources and sinks, Nix builtins only"
           ]
         ]

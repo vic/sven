@@ -1,13 +1,13 @@
 # Den: deterministic ids from sorted names (no state). Each host gets its own ssh port.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.ssh-port = {
-    at = sven.kinds.host;
+  yen.aspects.ssh-port = {
+    at = yen.kinds.host;
     nixos =
       { host, ... }:
       {
         services.openssh.enable = true;
-        services.openssh.ports = [ (2200 + sven.helpers.ids.${host.name}) ];
+        services.openssh.ports = [ (2200 + yen.helpers.ids.${host.name}) ];
       };
   };
 }

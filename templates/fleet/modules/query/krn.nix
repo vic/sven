@@ -4,9 +4,9 @@
 #    may ask to come before another (`ltfd`). Run backward, the same relation answers "which apps can take 8081".
 # 2. Memory: a host's guests share its memory; each guest asks for a range; the host keeps a reserve (`plusfd`).
 # 3. Placement: each host gets the database hosts of its own environment, a join over host records by unification.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  K = sven.lib.krn;
+  K = yen.lib.krn;
   inherit (K)
     run
     runAll
@@ -39,7 +39,7 @@ let
     );
   # guest memory in GiB: each guest in its range, the running sums s1 … sk, and sk + the host's reserve within its ram
   guestsOf =
-    h: lib.attrNames (lib.filterAttrs (_: g: g.on.name == h.name && g.ramRange != [ ]) sven.guest);
+    h: lib.attrNames (lib.filterAttrs (_: g: g.on.name == h.name && g.ramRange != [ ]) yen.guest);
   memRel =
     h: q:
     let
@@ -50,7 +50,7 @@ let
     in
     freshNamed (gs ++ sums) (
       vs:
-      map (g: infd [ vs.${g} ] (lo sven.guest.${g}.ramRange) (hi sven.guest.${g}.ramRange)) gs
+      map (g: infd [ vs.${g} ] (lo yen.guest.${g}.ramRange) (hi yen.guest.${g}.ramRange)) gs
       ++ map (s: infd [ vs.${s} ] 0 h.ram) sums
       ++ lib.genList (i: plusfd (if i == 0 then 0 else v vs (i - 1)) vs.${lib.elemAt gs i} (v vs i)) n
       ++ lib.optional (n > 0) (lefd (v vs (n - 1)) (h.ram - h.ramReserve))
@@ -73,20 +73,20 @@ let
     name = n;
     env = h.environment.name;
     db = h.dbRole;
-  }) (lib.filterAttrs (_: h: h ? addr) sven.host);
+  }) (lib.filterAttrs (_: h: h ? addr) yen.host);
 in
 {
-  sven.kinds.machine.fields = {
-    apps = sven.lib.opt (sven.helpers.listOf lib.types.str) [ ];
-    portRange = sven.lib.opt (sven.helpers.listOf lib.types.int) [ ];
-    portBefore = sven.lib.opt (sven.lib.is lib.isAttrs) { };
-    dbRole = sven.lib.opt lib.types.bool false;
-    ram = sven.lib.opt lib.types.int 0;
-    ramReserve = sven.lib.opt lib.types.int 0;
-    ramRange = sven.lib.opt (sven.helpers.listOf lib.types.int) [ ];
-    ramFuel = sven.lib.opt lib.types.int 100000; # krn search steps for the memory allocation
+  yen.kinds.machine.fields = {
+    apps = yen.lib.opt (yen.helpers.listOf lib.types.str) [ ];
+    portRange = yen.lib.opt (yen.helpers.listOf lib.types.int) [ ];
+    portBefore = yen.lib.opt (yen.lib.is lib.isAttrs) { };
+    dbRole = yen.lib.opt lib.types.bool false;
+    ram = yen.lib.opt lib.types.int 0;
+    ramReserve = yen.lib.opt lib.types.int 0;
+    ramRange = yen.lib.opt (yen.helpers.listOf lib.types.int) [ ];
+    ramFuel = yen.lib.opt lib.types.int 100000; # krn search steps for the memory allocation
   };
-  sven.host.lb = {
+  yen.host.lb = {
     apps = [
       "grafana"
       "loki"
@@ -99,19 +99,19 @@ in
     portBefore.prometheus = "grafana";
     dbRole = true;
   };
-  sven.host.stage = {
+  yen.host.stage = {
     dbRole = true;
     ram = 16;
     ramReserve = 6;
   };
-  sven.guest.ci.ramRange = [
+  yen.guest.ci.ramRange = [
     2
     8
   ];
 
-  sven.aspects.memory-synthesis = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.memory-synthesis = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: guestsOf s != [ ])
     ];
     nixos =
@@ -132,9 +132,9 @@ in
       ) "memory: the search for ${host.name} ran out of fuel after ${toString s.count} answers";
   };
 
-  sven.aspects.port-synthesis = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.port-synthesis = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.apps != [ ])
     ];
     nixos =
@@ -148,8 +148,8 @@ in
       lib.optional (run 1 (portsRel host) == [ ])
         "ports: no allocation for ${host.name}: ${toString (lib.length host.apps)} apps, ports ${toString host.portRange}";
   };
-  sven.aspects.db-placement = {
-    at = sven.fleet.main;
+  yen.aspects.db-placement = {
+    at = yen.fleet.main;
     out =
       { ... }:
       {
@@ -182,7 +182,7 @@ in
         # backward: which apps can take port 8081 in some allocation of lb
         takes8081 = lib.unique (
           lib.concatMap (m: lib.attrNames (lib.filterAttrs (_: p: p == 8081) m)) (
-            runAll (portsRel sven.host.lb)
+            runAll (portsRel yen.host.lb)
           )
         );
       };

@@ -13,12 +13,12 @@
     }:
     [
       ''
-        A kind is a type of thing: `host`, `user`, `environment`. sven has no built-in kinds. You declare each one.
+        A kind is a type of thing: `host`, `user`, `environment`. yen has no built-in kinds. You declare each one.
         The `fields` of a kind are the data of each of its instances.
       ''
       (docs.file "modules/host.nix")
       ''
-        An instance is `sven.<kind>.<name>`. The attribute name is the instance name. Any file can declare instances.
+        An instance is `yen.<kind>.<name>`. The attribute name is the instance name. Any file can declare instances.
       ''
       (docs.file "modules/hosts.nix")
       ''

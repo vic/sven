@@ -46,12 +46,12 @@
       (docs.links [
         {
           title = "platforms/nixos.nix";
-          href = "https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/nixos.nix";
+          href = "https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/nixos.nix";
           description = "The host sink: trimmed, full and own-pkgs builds.";
         }
         {
           title = "modlist research";
-          href = "https://github.com/vic/sven/blob/main/vic/modlist-research.md";
+          href = "https://github.com/vic/yen/blob/main/vic/modlist-research.md";
           description = "How the lists are computed.";
         }
       ])

@@ -7,16 +7,16 @@
 }:
 let
   b = builtins;
-  sven = (import ../default.nix).lib;
+  yen = (import ../default.nix).lib;
   hosts = if hostCount == null then n / 10 else hostCount;
   base =
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.kinds.fleet = {
-        spawns.env = _: sven.env;
-        sinks.out.reduce = sven.lib.reduce.merge;
+      yen.kinds.fleet = {
+        spawns.env = _: yen.env;
+        sinks.out.reduce = yen.lib.reduce.merge;
       };
-      sven.kinds.env.spawns.host =
+      yen.kinds.env.spawns.host =
         s:
         b.listToAttrs (
           b.filter (x: x.value.env == s.name) (
@@ -24,14 +24,14 @@ let
               b.mapAttrs (k: v: {
                 name = k;
                 value = v;
-              }) sven.host
+              }) yen.host
             )
           )
         );
-      sven.kinds.host = {
+      yen.kinds.host = {
         fields = {
-          env = sven.lib.is b.isString;
-          tier = sven.lib.is b.isInt;
+          env = yen.lib.is b.isString;
+          tier = yen.lib.is b.isInt;
         };
         spawns.user = _: {
           u1 = { };
@@ -39,18 +39,18 @@ let
         };
         sinks = {
           nixos = { };
-          persist.reduce = sven.lib.reduce.set;
+          persist.reduce = yen.lib.reduce.set;
         };
       };
-      sven.kinds.user = { };
-      sven.fleet.main = { };
-      sven.env = b.listToAttrs (
+      yen.kinds.user = { };
+      yen.fleet.main = { };
+      yen.env = b.listToAttrs (
         b.genList (i: {
           name = "e${toString i}";
           value = { };
         }) 10
       );
-      sven.host = b.listToAttrs (
+      yen.host = b.listToAttrs (
         b.genList (i: {
           name = "h${toString i}";
           value = {
@@ -62,9 +62,9 @@ let
     };
   aspect =
     i:
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.aspects."a${toString i}" = {
+      yen.aspects."a${toString i}" = {
         at = s: s.kind == "host" && s.tier == i - i / 7 * 7;
         nixos =
           { host, ... }:
@@ -74,7 +74,7 @@ let
         persist = "/var/lib/a${toString (i - i / 50 * 50)}";
       };
     };
-  r = sven.eval { imports = [ base ] ++ b.genList aspect n; };
+  r = yen.eval { imports = [ base ] ++ b.genList aspect n; };
 in
 {
   inherit r;

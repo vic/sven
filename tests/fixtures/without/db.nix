@@ -1,8 +1,8 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.db = { };
-  sven.aspects.postgres = {
-    at = sven.host.db;
+  yen.host.db = { };
+  yen.aspects.postgres = {
+    at = yen.host.db;
     nixos.services.postgresql.enable = true;
   };
 }

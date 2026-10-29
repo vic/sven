@@ -8,7 +8,7 @@
     { docs, r, ... }:
     [
       ''
-        sven does not know what a flake is. The root kind declares an `out` sink with `merge`, and `sven.flake`
+        yen does not know what a flake is. The root kind declares an `out` sink with `merge`, and `yen.flake`
         gives the flake's outputs. Each sink with an `out` key gives its part.
       ''
       (docs.fileWith "{6,12}" "modules/fleet.nix")
@@ -22,7 +22,7 @@
       ''
         ## With or without flakes
 
-        `(import sven).lib.mkFlake module` gives the flake outputs. `(import sven).lib.eval module` gives every query,
+        `(import yen).lib.mkFlake module` gives the flake outputs. `(import yen).lib.eval module` gives every query,
         and `flake` is one of them. `mkFlake m` is `(eval m).flake`.
       ''
       (docs.note "Laziness closes the loop" ''

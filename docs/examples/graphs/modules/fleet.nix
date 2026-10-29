@@ -1,25 +1,25 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields.dependsOn = sven.lib.opt (sven.lib.is lib.isList) [ ]; # host refs
+  yen.kinds.host.fields.dependsOn = yen.lib.opt (yen.lib.is lib.isList) [ ]; # host refs
 
-  sven.fleet.main = { };
-  sven.host.db = { };
-  sven.host.cache = { };
-  sven.host.api = {
+  yen.fleet.main = { };
+  yen.host.db = { };
+  yen.host.cache = { };
+  yen.host.api = {
     dependsOn = [
-      sven.host.db
-      sven.host.cache
+      yen.host.db
+      yen.host.cache
     ];
   };
-  sven.host.web = {
-    dependsOn = [ sven.host.api ];
+  yen.host.web = {
+    dependsOn = [ yen.host.api ];
   };
-  sven.host.lb = {
-    dependsOn = [ sven.host.web ];
+  yen.host.lb = {
+    dependsOn = [ yen.host.web ];
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }

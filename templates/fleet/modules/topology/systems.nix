@@ -1,16 +1,16 @@
 # One system scope per platform: per-system flake outputs.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib.reduce) merge;
+  inherit (yen.lib.reduce) merge;
   pkgs = s: inputs.nixpkgs.legacyPackages.${s.name};
 in
 {
-  sven.kinds.system.sinks = {
+  yen.kinds.system.sinks = {
     packages = {
       reduce = merge;
       out =
@@ -51,10 +51,10 @@ in
         {
           checks.${system.name} = lib.mapAttrs' (
             h: bad:
-            lib.nameValuePair "${h}-no-gui" (sven.helpers.noGui system h out.nixosConfigurations.${h} bad)
+            lib.nameValuePair "${h}-no-gui" (yen.helpers.noGui system h out.nixosConfigurations.${h} bad)
           ) no-gui;
         };
     };
   };
-  sven.system = lib.genAttrs [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ] (_: { });
+  yen.system = lib.genAttrs [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ] (_: { });
 }

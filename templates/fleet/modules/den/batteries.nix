@@ -1,20 +1,20 @@
 # Den batteries are ordinary aspects here: hostname is in features/base.nix, define-user in user-account, primary-user in sini/users.nix.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) all within has;
+  inherit (yen.lib) all within has;
 in
 {
-  sven.kinds.user.fields.shell = sven.lib.opt (sven.helpers.enum [
+  yen.kinds.user.fields.shell = yen.lib.opt (yen.helpers.enum [
     "bash"
     "zsh"
     "fish"
   ]) "bash";
-  sven.user.bob.shell = "fish";
-  sven.aspects.user-shell = {
+  yen.user.bob.shell = "fish";
+  yen.aspects.user-shell = {
     # user-shell: the user's shell, enabled on the machine
     at = all [
-      sven.kinds.user
-      (within sven.helpers.linux)
+      yen.kinds.user
+      (within yen.helpers.linux)
     ];
     os =
       { user, pkgs, ... }:
@@ -23,14 +23,14 @@ in
         users.users.${user.name}.shell = pkgs.${user.shell};
       };
   };
-  sven.aspects.insecure = {
-    at = sven.host.stage;
+  yen.aspects.insecure = {
+    at = yen.host.stage;
     os.nixpkgs.config.permittedInsecurePackages = [ "olm-3.2.16" ];
   };
-  sven.aspects.tty-autologin = {
+  yen.aspects.tty-autologin = {
     at = all [
-      sven.user.bob
-      (within sven.kinds.guest)
+      yen.user.bob
+      (within yen.kinds.guest)
     ];
     os =
       { user, ... }:
@@ -38,11 +38,11 @@ in
         services.getty.autologinUser = user.name;
       };
   };
-  sven.aspects.global-pkgs = {
+  yen.aspects.global-pkgs = {
     # use-global-pkgs: only where home-manager has users
     at = all [
-      sven.helpers.machines
-      (has sven.kinds.user)
+      yen.helpers.machines
+      (has yen.kinds.user)
     ];
     os.home-manager = {
       useGlobalPkgs = true;

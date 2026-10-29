@@ -1,6 +1,6 @@
 {
   title = "Errors as data";
-  description = "sven never throws. Errors are records you query; your own checks add to them.";
+  description = "yen never throws. Errors are records you query; your own checks add to them.";
   section = "concepts";
   order = 13;
 
@@ -13,7 +13,7 @@
     }:
     [
       ''
-        sven never calls `throw`. When something is wrong, the read gives `null`, evaluation continues,
+        yen never calls `throw`. When something is wrong, the read gives `null`, evaluation continues,
         and the `errors` query lists a record. An empty list means the fleet is valid.
 
         ## Error records
@@ -27,7 +27,7 @@
       ''
         ## Your own checks
 
-        An aspect key `errors` gives records, or plain messages. sven sets `from` to the scope that gave it: an aspect cannot
+        An aspect key `errors` gives records, or plain messages. yen sets `from` to the scope that gave it: an aspect cannot
         report for another scope. A record without `class` is `fixable`.
         This fleet has two hosts with one address:
       ''

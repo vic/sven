@@ -49,7 +49,7 @@ let
 in
 {
   title = "Error codes";
-  description = "Every error code sven gives, read from the engine source, with what it means.";
+  description = "Every error code yen gives, read from the engine source, with what it means.";
   section = "reference";
   order = 2;
   route = "reference/errors";
@@ -57,7 +57,7 @@ in
   body =
     { docs, inputs, ... }:
     let
-      codes = codesOf (builtins.readFile (inputs.sven + "/default.nix"));
+      codes = codesOf (builtins.readFile (inputs.yen + "/default.nix"));
     in
     [
       ''
@@ -85,7 +85,7 @@ in
     { inputs, ... }:
     {
       every-code-explained = builtins.all (c: meaning ? ${c}) (
-        codesOf (builtins.readFile (inputs.sven + "/default.nix"))
+        codesOf (builtins.readFile (inputs.yen + "/default.nix"))
       );
     };
 }

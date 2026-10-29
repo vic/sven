@@ -1,10 +1,10 @@
-# One sven-mcp tool call. Inputs come from the environment, never from string interpolation:
-# SVEN_FLAKE (the fleet flake ref), SVEN_FLEET (fleet dir), SVEN_TOOL, SVEN_ARGS (path of the arguments JSON).
+# One yen-mcp tool call. Inputs come from the environment, never from string interpolation:
+# YEN_FLAKE (the fleet flake ref), YEN_FLEET (fleet dir), YEN_TOOL, YEN_ARGS (path of the arguments JSON).
 let
   env = builtins.getEnv;
-  fleet = /. + env "SVEN_FLEET";
-  inputs = (builtins.getFlake (env "SVEN_FLAKE")).inputs;
-  sven = inputs.sven;
+  fleet = /. + env "YEN_FLEET";
+  inputs = (builtins.getFlake (env "YEN_FLAKE")).inputs;
+  yen = inputs.yen;
   base = {
     imports = [ (inputs.import-tree (fleet + "/modules")) ];
     _module.args = {
@@ -12,9 +12,9 @@ let
       inherit (inputs.nixpkgs) lib;
     };
   };
-  r = sven.lib.eval base;
-  safe = sven.lib.jsonSafe;
-  args = builtins.fromJSON (builtins.readFile (env "SVEN_ARGS"));
+  r = yen.lib.eval base;
+  safe = yen.lib.jsonSafe;
+  args = builtins.fromJSON (builtins.readFile (env "YEN_ARGS"));
   opt =
     names:
     builtins.intersectAttrs (builtins.listToAttrs (
@@ -40,8 +40,8 @@ let
     explain = r.explain args.aspect args.scope (args.depth or 3);
     errors = builtins.filter (e: !(args ? code) || (e.code or null) == args.code) r.agent.errors;
     declared_in = r.declaredIn args.path;
-    export = sven.lib.rdf.share r;
-    stage = removeAttrs (sven.lib.stage {
+    export = yen.lib.rdf.share r;
+    stage = removeAttrs (yen.lib.stage {
       inherit base;
       change = args.change;
     }) [ "render" ];
@@ -68,10 +68,10 @@ let
       whyNot = r.check.whyNot args.atom;
       why = r.check.why args.atom;
     };
-    program = sven.lib.program.dryRun {
+    program = yen.lib.program.dryRun {
       inherit base r;
       prog = args.program;
     };
   };
 in
-safe tools.${env "SVEN_TOOL"}
+safe tools.${env "YEN_TOOL"}

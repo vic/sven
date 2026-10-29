@@ -1,16 +1,16 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.top = {
-    spawns.host = _: sven.host;
+  yen.kinds.top = {
+    spawns.host = _: yen.host;
     sinks.peers = { };
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     sinks.nixos = { };
   };
-  sven.top.t = { };
-  sven.host.web = { };
-  sven.aspects.peer = {
-    at = sven.kinds.host;
+  yen.top.t = { };
+  yen.host.web = { };
+  yen.aspects.peer = {
+    at = yen.kinds.host;
     peers = { host, ... }: host.name;
   };
 }

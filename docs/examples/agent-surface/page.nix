@@ -28,7 +28,7 @@
 
         ## Trust labels
 
-        `sven.labels."<path part>" = { trust = n; }` labels the content of files whose path contains that part.
+        `yen.labels."<path part>" = { trust = n; }` labels the content of files whose path contains that part.
         An aspect declared in several files takes the lowest trust of them.
       ''
       (docs.file "modules/labels.nix")

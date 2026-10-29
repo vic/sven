@@ -1,11 +1,11 @@
 ---
-{"description":"Move a flake with a mkHost helper, shared modules and home-manager to sven. Same systems, no helper.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/from-flake/page.nix","title":"From a flake"}
+{"description":"Move a flake with a mkHost helper, shared modules and home-manager to yen. Same systems, no helper.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/from-flake/page.nix","title":"From a flake"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 Most flakes grow the same shape: a `mkHost` helper, a `common.nix`, one file per host, and home-manager
-as a NixOS module. This page moves that shape to sven. The docs check that each host gives the same toplevel
+as a NixOS module. This page moves that shape to yen. The docs check that each host gives the same toplevel
 `drvPath` before and after.
 
 
@@ -111,33 +111,33 @@ as a NixOS module. This page moves that shape to sven. The docs check that each 
 
 ## The helper becomes a kind
 
-`mkHost` knew how to build a host. In sven, the `host` kind knows it: its `nixos` sink builds the system.
+`mkHost` knew how to build a host. In yen, the `host` kind knows it: its `nixos` sink builds the system.
 A user's `homeManager` sink forwards to `nixos` on each host the user lives under.
 
 
 ```nix title="modules/fleet.nix" {10,16}
 # Hosts build NixOS. Users live under their hosts; a user's home-manager content goes into each host.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (sven.lib.same s) u.hosts) sven.user;
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.user = {
-    fields.hosts = sven.lib.is lib.isList;
+  yen.kinds.user = {
+    fields.hosts = yen.lib.is lib.isList;
     sinks.homeManager.nixos =
       { user, homeManager, ... }:
       {
@@ -145,8 +145,8 @@ A user's `homeManager` sink forwards to `nixos` on each host the user lives unde
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -158,10 +158,10 @@ where a user lives:
 
 ```nix title="modules/features/common.nix" {5,17}
 # The old common.nix and the mkHost helper, as aspects at every host.
-{ sven, inputs, ... }:
+{ yen, inputs, ... }:
 {
-  sven.aspects.common = {
-    at = sven.kinds.host;
+  yen.aspects.common = {
+    at = yen.kinds.host;
     nixos =
       { host, pkgs, ... }:
       {
@@ -173,8 +173,8 @@ where a user lives:
         system.stateVersion = "25.05";
       };
   };
-  sven.aspects.home-manager = {
-    at = sven.lib.has sven.kinds.user; # only hosts with users
+  yen.aspects.home-manager = {
+    at = yen.lib.has yen.kinds.user; # only hosts with users
     nixos = {
       imports = [ inputs.home-manager.nixosModules.home-manager ];
       home-manager.useGlobalPkgs = true;
@@ -193,11 +193,11 @@ aspects with that host in `at`:
 <TabItem label="hosts/web.nix">
 
 ```nix title="modules/hosts/web.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.web = { };
-  sven.aspects.web-hardware = {
-    at = sven.host.web;
+  yen.host.web = { };
+  yen.aspects.web-hardware = {
+    at = yen.host.web;
     nixos = {
       fileSystems."/" = {
         device = "/dev/sda1";
@@ -213,11 +213,11 @@ aspects with that host in `at`:
 <TabItem label="hosts/desk.nix">
 
 ```nix title="modules/hosts/desk.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.desk = { };
-  sven.aspects.desk-hardware = {
-    at = sven.host.desk;
+  yen.host.desk = { };
+  yen.aspects.desk-hardware = {
+    at = yen.host.desk;
     nixos = {
       fileSystems."/" = {
         device = "/dev/nvme0n1p2";
@@ -233,17 +233,17 @@ aspects with that host in `at`:
 <TabItem label="features/roles.nix">
 
 ```nix title="modules/features/roles.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     nixos = {
       services.nginx.enable = true;
       networking.firewall.allowedTCPPorts = [ 80 ];
     };
   };
-  sven.aspects.printing = {
-    at = sven.host.desk;
+  yen.aspects.printing = {
+    at = yen.host.desk;
     nixos.services.printing.enable = true;
   };
 }
@@ -260,14 +260,14 @@ she uses, and her aspect gives her account and her home:
 
 ```nix title="modules/alice.nix"
 # A user: an account on each of her hosts, and her home.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.user.alice.hosts = [
-    sven.host.web
-    sven.host.desk
+  yen.user.alice.hosts = [
+    yen.host.web
+    yen.host.desk
   ];
-  sven.aspects.alice = {
-    at = sven.user.alice;
+  yen.aspects.alice = {
+    at = yen.user.alice;
     nixos =
       { user, ... }:
       {
@@ -288,7 +288,7 @@ she uses, and her aspect gives her account and her home:
 ```
 
 :::note[Adding a host]
-Before: add a line to the flake, and maybe a parameter to `mkHost`. After: add `sven.host.<name>` in its own file,
+Before: add a line to the flake, and maybe a parameter to `mkHost`. After: add `yen.host.<name>` in its own file,
 and add it to the `hosts` of its users. Nothing else changes.
 :::
 
@@ -301,7 +301,7 @@ and add it to the `hosts` of its users. Nothing else changes.
 Every block on this page is a file of the template `from-flake`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#from-flake
+nix flake init -t github:vic/yen#from-flake
 ```
 
 <FileTree>

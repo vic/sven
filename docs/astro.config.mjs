@@ -29,9 +29,9 @@ export default defineConfig({
 			autoTheme: true
 		}),
 		starlight({
-			title: '{sven}',
+			title: '{yen}',
 			social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/vic/sven' }
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/vic/yen' }
       ],
 			sidebar,
 			components: {
@@ -49,7 +49,7 @@ export default defineConfig({
 				}),
 			],
 			editLink: {
-				baseUrl: 'https://github.com/vic/sven/edit/main/docs/',
+				baseUrl: 'https://github.com/vic/yen/edit/main/docs/',
 			},
 			customCss: [
 				'./src/styles/custom.css'

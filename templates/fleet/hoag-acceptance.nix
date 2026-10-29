@@ -1,31 +1,31 @@
-# den-hoag's acceptance fleet (`ci/tests/_fixtures/fleet.nix` `acceptance`) in sven, with the assertions of its
+# den-hoag's acceptance fleet (`ci/tests/_fixtures/fleet.nix` `acceptance`) in yen, with the assertions of its
 # `ci/tests/end-to-end.nix`. Copies: vic/ref/den-hoag/acceptance-fleet.nix, vic/ref/den-hoag/tests/end-to-end.nix.
 # Run: nix eval --offline --impure --file hoag-acceptance.nix failed        (expect [ ])
 let
   inputs = (builtins.getFlake "path:${toString ../..}?dir=templates/fleet").inputs;
   inherit (inputs.nixpkgs) lib;
-  sven = inputs.sven.lib;
+  yen = inputs.yen.lib;
 
   # ── the fleet ──
   schema =
-    { sven, ... }:
+    { yen, ... }:
     {
-      # den-hoag has two roots (env, cluster). In sven one root holds both, so data has a common ancestor.
-      sven.kinds.fleet = {
+      # den-hoag has two roots (env, cluster). In yen one root holds both, so data has a common ancestor.
+      yen.kinds.fleet = {
         spawns = {
-          env = _: sven.env;
-          cluster = _: sven.cluster;
+          env = _: yen.env;
+          cluster = _: yen.cluster;
         };
         sinks = {
-          out.reduce = sven.lib.reduce.merge;
-          ssh-peers.reduce = sven.lib.reduce.entries;
-          demands.reduce = sven.lib.reduce.entries;
+          out.reduce = yen.lib.reduce.merge;
+          ssh-peers.reduce = yen.lib.reduce.entries;
+          demands.reduce = yen.lib.reduce.entries;
         };
       };
-      sven.kinds.env.spawns.host = s: lib.filterAttrs (_: h: sven.lib.same h.env s) sven.host;
-      sven.kinds.host = {
-        fields.env = sven.kinds.env;
-        spawns.user = s: lib.filterAttrs (_: u: lib.any (sven.lib.same s) u.on) sven.user; # membership tuples
+      yen.kinds.env.spawns.host = s: lib.filterAttrs (_: h: yen.lib.same h.env s) yen.host;
+      yen.kinds.host = {
+        fields.env = yen.kinds.env;
+        spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.on) yen.user; # membership tuples
         sinks = {
           nixos.out =
             { host, nixos, ... }:
@@ -36,33 +36,33 @@ let
           probe = { };
         };
       };
-      sven.kinds.user = {
-        fields.on = sven.helpers.listOf sven.kinds.host;
+      yen.kinds.user = {
+        fields.on = yen.helpers.listOf yen.kinds.host;
         sinks.settings.reduce = layers;
       };
-      sven.kinds.cluster = {
-        fields.hosts = sven.helpers.listOf sven.kinds.host;
+      yen.kinds.cluster = {
+        fields.hosts = yen.helpers.listOf yen.kinds.host;
         spawns = { };
       }; # a link: refs, not containment
-      sven.helpers.listOf = t: sven.lib.is (v: lib.isList v && lib.all t.check v);
-      sven.fleet.main = { };
-      sven.env.prod = { };
-      sven.host = {
-        igloo.env = sven.env.prod;
-        web-1.env = sven.env.prod;
+      yen.helpers.listOf = t: yen.lib.is (v: lib.isList v && lib.all t.check v);
+      yen.fleet.main = { };
+      yen.env.prod = { };
+      yen.host = {
+        igloo.env = yen.env.prod;
+        web-1.env = yen.env.prod;
       };
-      sven.user = {
+      yen.user = {
         tux.on = [
-          sven.host.igloo
-          sven.host.web-1
+          yen.host.igloo
+          yen.host.web-1
         ];
-        admin.on = [ sven.host.igloo ];
+        admin.on = [ yen.host.igloo ];
       };
-      sven.cluster.k3s.hosts = [
-        sven.host.igloo
-        sven.host.web-1
+      yen.cluster.k3s.hosts = [
+        yen.host.igloo
+        yen.host.web-1
       ];
-      sven.flake = { out, ... }: out;
+      yen.flake = { out, ... }: out;
     };
 
   # settings layers with provenance: { rank; set; via ? null }, ordered by rank (authority), last wins
@@ -86,13 +86,13 @@ let
     };
 
   aspects =
-    { sven, ... }:
+    { yen, ... }:
     {
       # `system`: each host's nixos binds its own name
-      sven.aspects.system = {
+      yen.aspects.system = {
         at = [
-          sven.host.igloo
-          sven.host.web-1
+          yen.host.igloo
+          yen.host.web-1
         ];
         nixos =
           { host, ... }:
@@ -105,10 +105,10 @@ let
           };
       };
       # `app`: radiates to every user under prod (neededBy user), never to the hosts
-      sven.aspects.app = {
-        at = sven.lib.all [
-          sven.kinds.user
-          (sven.lib.within sven.env.prod)
+      yen.aspects.app = {
+        at = yen.lib.all [
+          yen.kinds.user
+          (yen.lib.within yen.env.prod)
         ];
         settings = {
           rank = 0;
@@ -116,66 +116,66 @@ let
         };
       };
       # `gruvbox-theme`: the projector at env:prod, onto every aspect that declares `colorScheme`
-      sven.aspects.gruvbox-theme = {
-        at = sven.lib.all [
-          sven.kinds.user
-          (sven.lib.within sven.env.prod)
+      yen.aspects.gruvbox-theme = {
+        at = yen.lib.all [
+          yen.kinds.user
+          (yen.lib.within yen.env.prod)
         ];
         settings = {
           rank = 1;
           via = "gruvbox-theme";
           set = lib.optionalAttrs (lib.any (
             n:
-            (sven.aspects.${n}.settings.set or { }) ? colorScheme
-            && (sven.aspects.${n}.settings.rank or null) == 0
-          ) (lib.attrNames sven.aspects)) { colorScheme = "fleet-gruvbox"; };
+            (yen.aspects.${n}.settings.set or { }) ? colorScheme
+            && (yen.aspects.${n}.settings.rank or null) == 0
+          ) (lib.attrNames yen.aspects)) { colorScheme = "fleet-gruvbox"; };
         };
       };
-      sven.aspects.igloo-override = {
-        at = sven.lib.all [
-          sven.kinds.user
-          (sven.lib.within sven.host.igloo)
+      yen.aspects.igloo-override = {
+        at = yen.lib.all [
+          yen.kinds.user
+          (yen.lib.within yen.host.igloo)
         ];
         settings = {
           rank = 2;
           set.colorScheme = "igloo-host";
         };
       };
-      sven.aspects.setColor = {
-        at = sven.kinds.user;
+      yen.aspects.setColor = {
+        at = yen.kinds.user;
         settings = {
           rank = 3;
           set.colorScheme = "prod-policy";
         };
       }; # the configure policy: terminal slot
       # guard-activated neededBy: guardG holds where `system` holds; needT holds where guardG holds
-      sven.aspects.guardG.at = sven.aspects.system;
-      sven.aspects.needT.at = sven.aspects.guardG;
+      yen.aspects.guardG.at = yen.aspects.system;
+      yen.aspects.needT.at = yen.aspects.guardG;
       # quirks
-      sven.aspects.peerIgloo = {
-        at = sven.host.igloo;
+      yen.aspects.peerIgloo = {
+        at = yen.host.igloo;
         ssh-peers = "igloo-ip";
       };
-      sven.aspects.peerWeb = {
-        at = sven.host.web-1;
+      yen.aspects.peerWeb = {
+        at = yen.host.web-1;
         ssh-peers = "web1-ip";
       };
-      sven.aspects.backendA = {
-        at = sven.host.igloo;
+      yen.aspects.backendA = {
+        at = yen.host.igloo;
         http-backends = "backend-a";
       };
-      sven.aspects.backendB = {
-        at = sven.host.igloo;
+      yen.aspects.backendB = {
+        at = yen.host.igloo;
         http-backends = "backend-b";
       };
-      sven.aspects.cluster-peers = {
+      yen.aspects.cluster-peers = {
         # the cluster gathers ssh-peers through its link (a reader filter)
-        at = sven.kinds.cluster;
+        at = yen.kinds.cluster;
         out =
           { cluster, ssh-peers, ... }:
           {
             clusterPeers.${cluster.name} = map (e: e.value) (
-              lib.filter (e: lib.any (sven.lib.same e.from) cluster.hosts) ssh-peers
+              lib.filter (e: lib.any (yen.lib.same e.from) cluster.hosts) ssh-peers
             );
           };
       };
@@ -200,17 +200,17 @@ let
     };
   };
   demands =
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.aspects.provisionDb = {
-        at = sven.cluster.k3s;
+      yen.aspects.provisionDb = {
+        at = yen.cluster.k3s;
         demands = {
           kind = "database";
           subject = "igloo";
         };
       };
-      sven.aspects.demand-cascade = {
-        at = sven.fleet.main;
+      yen.aspects.demand-cascade = {
+        at = yen.fleet.main;
         out =
           { demands, ... }:
           let
@@ -237,9 +237,9 @@ let
             wiring = lib.foldl' lib.recursiveUpdate { } (map (d: { ${d.subject} = d.r.wiring or { }; }) res); # consumers, by subject
           };
       };
-      sven.aspects.demand-wiring = {
+      yen.aspects.demand-wiring = {
         # the consumer side lands in the subject's own config
-        at = sven.kinds.host;
+        at = yen.kinds.host;
         nixos =
           { host, out, ... }:
           {
@@ -250,10 +250,10 @@ let
 
   # unrelated policy modules (den-hoag permutes them; order must not matter)
   link =
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.aspects.link-note = {
-        at = sven.cluster.k3s;
+      yen.aspects.link-note = {
+        at = yen.cluster.k3s;
         out =
           { cluster, ... }:
           {
@@ -269,7 +269,7 @@ let
   ];
   mk =
     ms:
-    sven.eval {
+    yen.eval {
       imports = ms;
       _module.args = { inherit lib; };
     };
@@ -286,10 +286,10 @@ let
     modules
     ++ [
       (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.aspects.deferredProbe = {
-            at = sven.host.igloo;
+          yen.aspects.deferredProbe = {
+            at = yen.host.igloo;
             probe = { config, ... }: "host-is-${config.networking.hostName}"; # a value that reads the producer's config
             nixos =
               { probe, config, ... }:
@@ -305,10 +305,10 @@ let
     modules
     ++ [
       (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.aspects.saboteur = {
-            at = sven.host.web-1;
+          yen.aspects.saboteur = {
+            at = yen.host.web-1;
             http-backends = builtins.throw "web-1 sibling content boom";
           };
         }
@@ -367,7 +367,7 @@ let
       r.reduced.http-backends.${igloo} == [
         "backend-a"
         "backend-b"
-      ]; # sven's canonical order: aspect name (den-hoag: id_hash)
+      ]; # yen's canonical order: aspect name (den-hoag: id_hash)
     settings-provenance-order =
       map (e: e.value) rs.provenance.colorScheme == [
         "base"

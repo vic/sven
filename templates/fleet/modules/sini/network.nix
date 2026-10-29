@@ -1,23 +1,23 @@
 # Conditional environment receivers fed by hosts (terranix, unifi port-forwards).
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) maybe;
+  inherit (yen.lib) maybe;
 in
 {
-  sven.kinds.environment.fields = {
+  yen.kinds.environment.fields = {
     dns.publicIPv4 = maybe lib.types.str;
     unifi = maybe lib.types.attrs;
   };
-  sven.environment.prod = {
+  yen.environment.prod = {
     dns.publicIPv4 = "203.0.113.1";
     unifi.site = "default";
   };
-  sven.kinds.environment.sinks = {
+  yen.kinds.environment.sinks = {
     terranix = {
       at = s: s.dns.publicIPv4 != null;
       out =
@@ -39,8 +39,8 @@ in
     };
     port-forwards = { };
   };
-  sven.aspects.headscale = {
-    at = sven.host.lb;
+  yen.aspects.headscale = {
+    at = yen.host.lb;
     port-forwards =
       { host, ... }:
       {
@@ -49,9 +49,9 @@ in
         forward = host.addr;
       };
   };
-  sven.aspects.unifi-forwards = {
-    at = sven.lib.all [
-      sven.kinds.environment
+  yen.aspects.unifi-forwards = {
+    at = yen.lib.all [
+      yen.kinds.environment
       (s: s.unifi != null)
     ];
     unifi =
@@ -68,8 +68,8 @@ in
         );
       };
   };
-  sven.aspects.public-dns = {
-    at = sven.environment.prod;
+  yen.aspects.public-dns = {
+    at = yen.environment.prod;
     terranix =
       { environment, ... }:
       {

@@ -1,11 +1,11 @@
-# clan vars, the configuration half: services declare generators; generation itself is a tool, not sven.
+# clan vars, the configuration half: services declare generators; generation itself is a tool, not yen.
 # A shared generator is one for all machines that use it; a per-machine one is keyed by machine. A dependency must
 # name a generator the same machine has (or a shared one). A null element gives nothing. The plan per machine
 # (paths by `neededFor`, generation order) is data. Public values are read at eval time from the repo, with a
 # default; a read of a secret file is an error. Machines come from directories too (clan autoincludes).
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     all
     has
     opt
@@ -24,10 +24,10 @@ let
     "/run/${
       if f.neededFor or "services" == "users" then "secrets-for-users" else "secrets"
     }/vars/${gen}/${file}";
-  machineNames = lib.attrNames sven.host ++ lib.attrNames sven.mac;
+  machineNames = lib.attrNames yen.host ++ lib.attrNames yen.mac;
 in
 {
-  sven.kinds.fleet.sinks.generators = {
+  yen.kinds.fleet.sinks.generators = {
     reduce =
       es:
       let
@@ -72,7 +72,7 @@ in
             ); # deploy = false: never on the machine (a root CA key)
             recipients =
               let
-                r = sven.fleet.main.recipients;
+                r = yen.fleet.main.recipients;
               in
               r.hosts.${m} or r.default; # a host list replaces the default, never adds to it
             order =
@@ -81,32 +81,32 @@ in
         );
       };
   };
-  sven.kinds.fleet.sinks.public-reads.reduce = sven.lib.reduce.entries;
-  sven.kinds.fleet.fields.secretStore = opt (sven.helpers.enum [
+  yen.kinds.fleet.sinks.public-reads.reduce = yen.lib.reduce.entries;
+  yen.kinds.fleet.fields.secretStore = opt (yen.helpers.enum [
     "sops"
     "age"
     "password-store"
   ]) "sops";
-  sven.kinds.fleet.fields.recipients = opt (sven.lib.is lib.isAttrs) {
+  yen.kinds.fleet.fields.recipients = opt (yen.lib.is lib.isAttrs) {
     default = [ ];
     hosts = { };
   };
-  sven.fleet.main.recipients = {
+  yen.fleet.main.recipients = {
     default = [ "age1admin" ];
     hosts.lb = [
       "age1lb"
       "age1admin"
     ];
   };
-  sven.kinds.machine.fields.secretStore = maybe (
-    sven.helpers.enum [
+  yen.kinds.machine.fields.secretStore = maybe (
+    yen.helpers.enum [
       "sops"
       "age"
       "password-store"
     ]
   );
-  sven.aspects.vars-guard = {
-    at = sven.kinds.fleet;
+  yen.aspects.vars-guard = {
+    at = yen.kinds.fleet;
     errors =
       {
         fleet,
@@ -129,21 +129,21 @@ in
         map (m: "vars: ${m.name} uses secret store ${m.secretStore}, the fleet uses ${fleet.secretStore}")
           (
             lib.filter (m: m.secretStore != null && m.secretStore != fleet.secretStore) (
-              lib.attrValues sven.host ++ lib.attrValues sven.mac
+              lib.attrValues yen.host ++ lib.attrValues yen.mac
             )
           )
       ++ lib.concatMap (
         g:
         lib.optional (
-          lib.any (m: sven.mac ? ${m}) g.machines
+          lib.any (m: yen.mac ? ${m}) g.machines
           && lib.any (d: d ? restartUnits) (lib.attrValues (g.files or { }))
         ) "vars: ${g.name}: restartUnits is NixOS only, a darwin machine uses it"
       ) (lib.attrValues generators);
   };
 
-  sven.aspects.vars-openssh = {
+  yen.aspects.vars-openssh = {
     at = all [
-      sven.helpers.machines
+      yen.helpers.machines
       (has (s: s.service or null == "sshd"))
     ];
     generators =
@@ -170,9 +170,9 @@ in
             "absent";
       };
   };
-  sven.aspects.vars-wifi = {
+  yen.aspects.vars-wifi = {
     at = all [
-      sven.kinds.member
+      yen.kinds.member
       (s: s.service == "wifi")
     ];
     generators = {
@@ -187,9 +187,9 @@ in
       };
     };
   };
-  sven.aspects.vars-borg = {
+  yen.aspects.vars-borg = {
     at = all [
-      sven.kinds.member
+      yen.kinds.member
       (s: s.service == "borg" && s.role == "client")
     ];
     generators =
@@ -205,8 +205,8 @@ in
       };
   };
   # generators carried by an export: each machine in an export's `deploy` list gets them
-  sven.aspects.vars-from-exports = {
-    at = sven.helpers.machines;
+  yen.aspects.vars-from-exports = {
+    at = yen.helpers.machines;
     generators =
       { scope, exports, ... }:
       let
@@ -224,12 +224,12 @@ in
   };
 
   # machines from directories: every directory under machines/ is a host; its configuration.nix joins the config
-  sven.host = lib.mapAttrs (_: _: { labels = [ "from-dir" ]; }) (
+  yen.host = lib.mapAttrs (_: _: { labels = [ "from-dir" ]; }) (
     lib.filterAttrs (_: t: t == "directory") (builtins.readDir ../../machines)
   );
-  sven.aspects.autoinclude = {
+  yen.aspects.autoinclude = {
     at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: builtins.pathExists (../../machines + "/${s.name}/configuration.nix"))
     ];
     nixos =

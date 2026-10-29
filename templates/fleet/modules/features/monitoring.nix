@@ -1,8 +1,8 @@
 # Typed elements (`of`): each replica gives one scrape job; lb reads the pool.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.replica-scrape = {
-    at = sven.kinds.replica;
+  yen.aspects.replica-scrape = {
+    at = yen.kinds.replica;
     scrape =
       { replica, ... }:
       {
@@ -10,8 +10,8 @@
         target = "${replica.db.zone}.${replica.region.zone}:9090";
       };
   };
-  sven.aspects.monitoring = {
-    at = sven.host.lb;
+  yen.aspects.monitoring = {
+    at = yen.host.lb;
     nixos =
       { scrape, ... }:
       {

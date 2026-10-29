@@ -1,8 +1,8 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.phone.pixel = {
-    environment = sven.environment.staging;
-    channel = sven.channel.stable;
-    system = sven.system.aarch64-linux;
+  yen.phone.pixel = {
+    environment = yen.environment.staging;
+    channel = yen.channel.stable;
+    system = yen.system.aarch64-linux;
   };
 }

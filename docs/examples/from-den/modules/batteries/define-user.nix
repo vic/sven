@@ -1,7 +1,7 @@
 # den.batteries.define-user: an aspect. Who includes it is its `at`, from any file.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.define-user = {
+  yen.aspects.define-user = {
     nixos =
       { user, ... }:
       {

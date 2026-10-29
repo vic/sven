@@ -1,19 +1,19 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.web = { };
-  sven.host.db = { };
-  sven.secret.tls = {
+  yen.host.web = { };
+  yen.host.db = { };
+  yen.secret.tls = {
     file = "secrets/tls.age";
-    owners = [ sven.host.web ];
+    owners = [ yen.host.web ];
   };
-  sven.secret.db-password = {
+  yen.secret.db-password = {
     file = "secrets/db-password.age";
     owners = [
-      sven.host.web
-      sven.host.db
+      yen.host.web
+      yen.host.db
     ];
   };
-  sven.secret.old-token = {
+  yen.secret.old-token = {
     file = "secrets/old-token.age";
     owners = [ ];
   };

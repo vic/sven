@@ -1,5 +1,5 @@
 ---
-{"description":"NixOS hosts and macs in one fleet. Aspects write `os` once; each platform forwards it.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/darwin/page.nix","title":"nix-darwin machines"}
+{"description":"NixOS hosts and macs in one fleet. Aspects write `os` once; each platform forwards it.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/darwin/page.nix","title":"nix-darwin machines"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -10,16 +10,16 @@ Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `envi
 
 ```nix title="modules/platforms.nix" {9,13}
 # Two kinds of machine, one `os` sink: an aspect writes `os` once, and each platform forwards it.
-{ sven, inputs, ... }:
+{ yen, inputs, ... }:
 {
-  sven.kinds.fleet = {
+  yen.kinds.fleet = {
     spawns = {
-      host = _: sven.host;
-      mac = _: sven.mac;
+      host = _: yen.host;
+      mac = _: yen.mac;
     };
-    sinks.out.reduce = sven.lib.reduce.merge;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.sinks = {
+  yen.kinds.host.sinks = {
     os.nixos =
       { os, ... }:
       {
@@ -31,7 +31,7 @@ Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `envi
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.mac.sinks = {
+  yen.kinds.mac.sinks = {
     os.darwin =
       { os, ... }:
       {
@@ -44,19 +44,19 @@ Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `envi
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/shared.nix"
 # Written once, for every machine: options that NixOS and nix-darwin share.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.shared = {
+  yen.aspects.shared = {
     at = [
-      sven.kinds.host
-      sven.kinds.mac
+      yen.kinds.host
+      yen.kinds.mac
     ];
     os =
       { scope, pkgs, ... }:
@@ -73,13 +73,13 @@ Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `envi
 ```
 
 ```nix title="modules/machines.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.server = { };
-  sven.mac.studio = { };
+  yen.host.server = { };
+  yen.mac.studio = { };
 
-  sven.aspects.server = {
-    at = sven.host.server;
+  yen.aspects.server = {
+    at = yen.host.server;
     nixos = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {
@@ -90,8 +90,8 @@ Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `envi
       system.stateVersion = "25.05";
     };
   };
-  sven.aspects.studio = {
-    at = sven.mac.studio;
+  yen.aspects.studio = {
+    at = yen.mac.studio;
     darwin = {
       nixpkgs.hostPlatform = "aarch64-darwin";
       system.stateVersion = 6;
@@ -126,7 +126,7 @@ kinds can give `os`, `nixos` and `darwin` at the same time; each element goes wh
 Every block on this page is a file of the template `darwin`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#darwin
+nix flake init -t github:vic/yen#darwin
 ```
 
 <FileTree>

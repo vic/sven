@@ -1,10 +1,10 @@
 ---
-{"description":"Every module of templates/fleet, the running specification of sven, with what it shows.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/fleet-map/page.nix","title":"The reference fleet"}
+{"description":"Every module of templates/fleet, the running specification of yen, with what it shows.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/fleet-map/page.nix","title":"The reference fleet"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-[`templates/fleet`](https://github.com/vic/sven/tree/main/templates/fleet) is a complete running specification of sven.
+[`templates/fleet`](https://github.com/vic/yen/tree/main/templates/fleet) is a complete running specification of yen.
 It models every capability of Den, den-hoag and clan, and the advanced cases of several real fleets. Each pattern has a check.
 It is big on purpose: read these docs first, then use the fleet to look up how a pattern looks at scale.
 
@@ -12,7 +12,7 @@ This index is read from the fleet's files: each row is a module and its first co
 
 
 ```sh frame="terminal"
-git clone https://github.com/vic/sven && cd sven/templates/fleet
+git clone https://github.com/vic/yen && cd yen/templates/fleet
 nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 ```
 
@@ -20,162 +20,162 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 
 | Module | What it shows |
 |---|---|
-| [`adda/services.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/adda/services.nix) | adda: service aspects give their domains; the caddy host reads them as virtual hosts. The fleet also exports flake templates. |
+| [`adda/services.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/adda/services.nix) | adda: service aspects give their domains; the caddy host reads them as virtual hosts. The fleet also exports flake templates. |
 
 ## agent
 
 | Module | What it shows |
 |---|---|
-| [`agent/invariants.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/agent/invariants.nix) | Fleet invariants: Datalog rules over the fleet's facts (`kind:K:ID`, `has:ASPECT:ID`, `edge:SINK:FROM:TO`, |
-| [`agent/mcp.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/agent/mcp.nix) | The MCP server as a flake app: `nix run .#sven-mcp` from the fleet directory serves the fleet in $PWD on stdio. |
-| [`agent/queries.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/agent/queries.nix) | Stored queries, labels and valid time for agents. |
-| [`agent/rdf.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/agent/rdf.nix) | The fleet as a knowledge pack: sorted N-Triples and their sha256 (sven.lib.rdf). The same fleet gives the same hash |
-| [`agent/synthesis.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/agent/synthesis.nix) | Synthesis an agent can call (stored queries, so `ask` and the MCP server reach them). Each answer is checked |
+| [`agent/invariants.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/invariants.nix) | Fleet invariants: Datalog rules over the fleet's facts (`kind:K:ID`, `has:ASPECT:ID`, `edge:SINK:FROM:TO`, |
+| [`agent/mcp.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/mcp.nix) | The MCP server as a flake app: `nix run .#yen-mcp` from the fleet directory serves the fleet in $PWD on stdio. |
+| [`agent/queries.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/queries.nix) | Stored queries, labels and valid time for agents. |
+| [`agent/rdf.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/rdf.nix) | The fleet as a knowledge pack: sorted N-Triples and their sha256 (yen.lib.rdf). The same fleet gives the same hash |
+| [`agent/synthesis.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/synthesis.nix) | Synthesis an agent can call (stored queries, so `ask` and the MCP server reach them). Each answer is checked |
 
 ## clan
 
 | Module | What it shows |
 |---|---|
-| [`clan/inventory.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/clan/inventory.nix) | clan's inventory in sven: a service instance is data. Each machine spawns one `member` scope per (instance, role) |
-| [`clan/services.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/clan/services.nix) | clan services written in sven. A service is data (roles, typed interface, constraints, nested instances) plus |
-| [`clan/vars.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/clan/vars.nix) | clan vars, the configuration half: services declare generators; generation itself is a tool, not sven. |
+| [`clan/inventory.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) | clan's inventory in yen: a service instance is data. Each machine spawns one `member` scope per (instance, role) |
+| [`clan/services.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/services.nix) | clan services written in yen. A service is data (roles, typed interface, constraints, nested instances) plus |
+| [`clan/vars.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/vars.nix) | clan vars, the configuration half: services declare generators; generation itself is a tool, not yen. |
 
 ## den
 
 | Module | What it shows |
 |---|---|
-| [`den/batteries.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/batteries.nix) | Den batteries are ordinary aspects here: hostname is in features/base.nix, define-user in user-account, primary-user in sini/users.nix. |
-| [`den/custom-classes.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/custom-classes.nix) | Den custom classes and chained forwards: a user `git` sink forwards into homeManager, which forwards into the machine's os. |
-| [`den/ids.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/ids.nix) | Den: deterministic ids from sorted names (no state). Each host gets its own ssh port. |
-| [`den/os-config.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/os-config.nix) | Den/home-manager `osConfig`: each host gives its realized config to an `osConfig` sink. A homeManager module |
-| [`den/patterns.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/patterns.nix) | Den CI usage patterns not shown elsewhere in the fleet (vic/den-patterns.md #22 #23 #26 #48 #63 #67 #77 #103 #115 #116). |
-| [`den/presence-structure.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/presence-structure.nix) | Den #525 (a policy gated on hasAspect that creates structure): a backup job scope exists under every host where the |
-| [`den/standalone-home-on-host.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/standalone-home-on-host.nix) | den#739: Den cannot pipe host data (a quirk) to a standalone home `tux@igloo`, only to a home-manager module home. |
+| [`den/batteries.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/batteries.nix) | Den batteries are ordinary aspects here: hostname is in features/base.nix, define-user in user-account, primary-user in sini/users.nix. |
+| [`den/custom-classes.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/custom-classes.nix) | Den custom classes and chained forwards: a user `git` sink forwards into homeManager, which forwards into the machine's os. |
+| [`den/ids.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/ids.nix) | Den: deterministic ids from sorted names (no state). Each host gets its own ssh port. |
+| [`den/os-config.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/os-config.nix) | Den/home-manager `osConfig`: each host gives its realized config to an `osConfig` sink. A homeManager module |
+| [`den/patterns.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/patterns.nix) | Den CI usage patterns not shown elsewhere in the fleet (vic/den-patterns.md #22 #23 #26 #48 #63 #67 #77 #103 #115 #116). |
+| [`den/presence-structure.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/presence-structure.nix) | Den #525 (a policy gated on hasAspect that creates structure): a backup job scope exists under every host where the |
+| [`den/standalone-home-on-host.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/standalone-home-on-host.nix) | den#739: Den cannot pipe host data (a quirk) to a standalone home `tux@igloo`, only to a home-manager module home. |
 
 ## docs
 
 | Module | What it shows |
 |---|---|
-| [`docs/readme.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/docs/readme.nix) | README.md: the guide (`_guide.md`) plus live tables and diagrams computed from the fleet's own queries. |
+| [`docs/readme.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/docs/readme.nix) | README.md: the guide (`_guide.md`) plus live tables and diagrams computed from the fleet's own queries. |
 
 ## features
 
 | Module | What it shows |
 |---|---|
-| [`features/base.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/base.nix) | base: every machine. Its `records` key lives in dns.nix: one aspect, two files. |
-| [`features/deploy.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/deploy.nix) | deploy is `one` per host; tags are a set; vars are generated-value plans, never values. |
-| [`features/dns.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/dns.nix) | base's second file: every machine's A record. dns reads the pool at the edge environment. |
-| [`features/home-manager.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/home-manager.nix) | One aspect, two platform keys: each key lands where its sink is. |
-| [`features/impermanence.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/impermanence.nix) | A set collector with a per-host filter (sini cortex-cuda `unpersist`). |
-| [`features/kernel.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/kernel.nix) | A cascade: host, then its environment, then the environment's base. Data queries, no merge. |
-| [`features/monitoring.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/monitoring.nix) | Typed elements (`of`): each replica gives one scrape job; lb reads the pool. |
-| [`features/motd.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/motd.nix) | substitute: motd-short replaces motd on web-2 through `not`. |
-| [`features/overlays.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/overlays.nix) | A root emission: the overlay goes to the fleet's `overlays` pool; every machine reads it. A wrapped `final: prev:`. |
-| [`features/packages.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/packages.nix) | Per-system outputs, a VM check, and a check on a realized config (#60). |
-| [`features/secrets.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/secrets.nix) | Per-aspect flake inputs (flake-file) and module imports. vm-host: a host that has a guest. |
-| [`features/sync.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/sync.nix) | `parent`: alice's syncthing devices are her other parents. `holds` inside content: the tray on desktops. |
-| [`features/web.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/features/web.nix) | The diamond: nginx is reached directly and through `status` (web-1, stage). It lands once per scope. |
+| [`features/base.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/base.nix) | base: every machine. Its `records` key lives in dns.nix: one aspect, two files. |
+| [`features/deploy.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/deploy.nix) | deploy is `one` per host; tags are a set; vars are generated-value plans, never values. |
+| [`features/dns.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/dns.nix) | base's second file: every machine's A record. dns reads the pool at the edge environment. |
+| [`features/home-manager.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/home-manager.nix) | One aspect, two platform keys: each key lands where its sink is. |
+| [`features/impermanence.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/impermanence.nix) | A set collector with a per-host filter (sini cortex-cuda `unpersist`). |
+| [`features/kernel.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/kernel.nix) | A cascade: host, then its environment, then the environment's base. Data queries, no merge. |
+| [`features/monitoring.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/monitoring.nix) | Typed elements (`of`): each replica gives one scrape job; lb reads the pool. |
+| [`features/motd.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/motd.nix) | substitute: motd-short replaces motd on web-2 through `not`. |
+| [`features/overlays.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/overlays.nix) | A root emission: the overlay goes to the fleet's `overlays` pool; every machine reads it. A wrapped `final: prev:`. |
+| [`features/packages.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/packages.nix) | Per-system outputs, a VM check, and a check on a realized config (#60). |
+| [`features/secrets.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/secrets.nix) | Per-aspect flake inputs (flake-file) and module imports. vm-host: a host that has a guest. |
+| [`features/sync.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/sync.nix) | `parent`: alice's syncthing devices are her other parents. `holds` inside content: the tray on desktops. |
+| [`features/web.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/features/web.nix) | The diamond: nginx is reached directly and through `status` (web-1, stage). It lands once per scope. |
 
 ## flake
 
 | Module | What it shows |
 |---|---|
-| [`flake/ci.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/flake/ci.nix) | CI from the fleet itself: every buildable config gives one job. `ci.json` is a generated file, so its check fails when the infra changes and nobody regenerated it. |
-| [`flake/files.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/flake/files.nix) | Repo files (README.md, ci.json) generated by github:sini/files. Each file gets a check: the committed file must match. |
-| [`flake/flake-file.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/flake/flake-file.nix) | flake.nix is generated: each aspect declares the inputs it uses on the `flake-file` sink (github:vic/flake-file). |
-| [`flake/infra.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/flake/infra.nix) | Checks derived from the infra: aspects state facts from fleet data; `checks.x86_64-linux.infra-<host>` compares each fact with the realized NixOS config. |
+| [`flake/ci.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/flake/ci.nix) | CI from the fleet itself: every buildable config gives one job. `ci.json` is a generated file, so its check fails when the infra changes and nobody regenerated it. |
+| [`flake/files.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/flake/files.nix) | Repo files (README.md, ci.json) generated by github:sini/files. Each file gets a check: the committed file must match. |
+| [`flake/flake-file.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/flake/flake-file.nix) | flake.nix is generated: each aspect declares the inputs it uses on the `flake-file` sink (github:vic/flake-file). |
+| [`flake/infra.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/flake/infra.nix) | Checks derived from the infra: aspects state facts from fleet data; `checks.x86_64-linux.infra-<host>` compares each fact with the realized NixOS config. |
 
 ## hoag
 
 | Module | What it shows |
 |---|---|
-| [`hoag/ci.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hoag/ci.nix) | den-hoag CI capabilities, each as plain data and plain Nix: merge strategies with provenance, setting refs, |
-| [`hoag/claims.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hoag/claims.nix) | den-hoag productions: claim / provide with the reverse read (who claims me). Apps claim databases; the database host |
-| [`hoag/class-share.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hoag/class-share.nix) | den-hoag class-share (A18) as a capability: the config every member of a class shares is computed ONCE (the core), |
-| [`hoag/collectors.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hoag/collectors.nix) | den-hoag collectors: an aggregate is an entity. A hive has its own content (its `meta` sink) and selects its members |
-| [`hoag/relations.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hoag/relations.nix) | den-hoag relations + query calculus: a relation is a ref field; queries are sven.lib.graphs over it. |
-| [`hoag/settings.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hoag/settings.nix) | den-hoag A8/A14/A10: aspect settings in layers with authority, and an aspect that projects settings onto other aspects. |
+| [`hoag/ci.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/ci.nix) | den-hoag CI capabilities, each as plain data and plain Nix: merge strategies with provenance, setting refs, |
+| [`hoag/claims.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/claims.nix) | den-hoag productions: claim / provide with the reverse read (who claims me). Apps claim databases; the database host |
+| [`hoag/class-share.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/class-share.nix) | den-hoag class-share (A18) as a capability: the config every member of a class shares is computed ONCE (the core), |
+| [`hoag/collectors.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/collectors.nix) | den-hoag collectors: an aggregate is an entity. A hive has its own content (its `meta` sink) and selects its members |
+| [`hoag/relations.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/relations.nix) | den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it. |
+| [`hoag/settings.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/settings.nix) | den-hoag A8/A14/A10: aspect settings in layers with authority, and an aspect that projects settings onto other aspects. |
 
 ## hosts
 
 | Module | What it shows |
 |---|---|
-| [`hosts/alice-laptop.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/alice-laptop.nix) | A standalone home: alice on the edge channel, no machine above. |
-| [`hosts/apps.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/apps.nix) | Four app hosts to compare shared pkgs: app-1..3 reuse one pkgs (app-1 leads), app-4 builds its own. |
-| [`hosts/ci.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/ci.nix) | ci is a guest on stage, built with the stable channel while stage uses edge. |
-| [`hosts/inventory.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/inventory.nix) | web-1 and web-2 come from JSON: their names become refs. |
-| [`hosts/lb.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/lb.nix) |  |
-| [`hosts/pixel.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/pixel.nix) |  |
-| [`hosts/stage.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/stage.nix) |  |
-| [`hosts/studio.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/hosts/studio.nix) |  |
+| [`hosts/alice-laptop.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/alice-laptop.nix) | A standalone home: alice on the edge channel, no machine above. |
+| [`hosts/apps.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/apps.nix) | Four app hosts to compare shared pkgs: app-1..3 reuse one pkgs (app-1 leads), app-4 builds its own. |
+| [`hosts/ci.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/ci.nix) | ci is a guest on stage, built with the stable channel while stage uses edge. |
+| [`hosts/inventory.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/inventory.nix) | web-1 and web-2 come from JSON: their names become refs. |
+| [`hosts/lb.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/lb.nix) |  |
+| [`hosts/pixel.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/pixel.nix) |  |
+| [`hosts/stage.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/stage.nix) |  |
+| [`hosts/studio.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/studio.nix) |  |
 
 ## platforms
 
 | Module | What it shows |
 |---|---|
-| [`platforms/darwin.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/darwin.nix) | macOS: the darwin sink; os fans out to darwin. |
-| [`platforms/droid.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/droid.nix) | Phones: nix-on-droid. Only phone users live here; their homes go to the droid config. |
-| [`platforms/home-manager.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/home-manager.nix) | Users and standalone homes. A user's homeManager goes to its machine's os, or up to a phone or home. |
-| [`platforms/microvm.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/microvm.nix) | Guests: a microvm on a host. Its nixos forwards to the host (a key with the sink's own name goes up). |
-| [`platforms/nixos.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/nixos.nix) | NixOS hosts: the nixos sink builds the system; os fans out to nixos (#76). |
-| [`platforms/variants.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/variants.nix) | Den specialisations: a variant scope under a host; its nixos forwards into the host's specialisation. |
+| [`platforms/darwin.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/darwin.nix) | macOS: the darwin sink; os fans out to darwin. |
+| [`platforms/droid.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/droid.nix) | Phones: nix-on-droid. Only phone users live here; their homes go to the droid config. |
+| [`platforms/home-manager.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/home-manager.nix) | Users and standalone homes. A user's homeManager goes to its machine's os, or up to a phone or home. |
+| [`platforms/microvm.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/microvm.nix) | Guests: a microvm on a host. Its nixos forwards to the host (a key with the sink's own name goes up). |
+| [`platforms/nixos.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/nixos.nix) | NixOS hosts: the nixos sink builds the system; os fans out to nixos (#76). |
+| [`platforms/variants.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/variants.nix) | Den specialisations: a variant scope under a host; its nixos forwards into the host's specialisation. |
 
 ## query
 
 | Module | What it shows |
 |---|---|
-| [`query/datalog.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/query/datalog.nix) | A serving policy in Datalog with negation. Nix grounds the rules from fleet data (one per host); the well-founded |
-| [`query/krn.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/query/krn.nix) | Configuration synthesis with krn (µKanren with =/= and finite domains). The fleet states constraints; krn finds |
+| [`query/datalog.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/query/datalog.nix) | A serving policy in Datalog with negation. Nix grounds the rules from fleet data (one per host); the well-founded |
+| [`query/krn.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/query/krn.nix) | Configuration synthesis with krn (µKanren with =/= and finite domains). The fleet states constraints; krn finds |
 
 ## sini
 
 | Module | What it shows |
 |---|---|
-| [`sini/clusters.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/clusters.nix) | Clusters under an environment. Discovery (den collect): k3s nodes reduce at the environment; the reader filters. |
-| [`sini/domains.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/domains.nix) | Recursive kinds: domains under domains. `parent` is a scope key, so the field is `under`. |
-| [`sini/flake-level.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/flake-level.nix) | Flake level: sink -> sink chains, and elements that read one `out` path and write another. |
-| [`sini/joins.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/joins.nix) | sini joins and data-shaped aspects: two pools joined by host, a guest's intent read by its parent, |
-| [`sini/mesh.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/mesh.nix) | sini mesh family (vault, thunderbolt, ollama, nix-builders): every host in an environment gives one record; |
-| [`sini/network.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/network.nix) | Conditional environment receivers fed by hosts (terranix, unifi port-forwards). |
-| [`sini/roles.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/roles.nix) | Tags: a set per host; nixos.colmena adds the environment and the active role aspects. A host profile does not reach the host's guests (#67). |
-| [`sini/secrets.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/secrets.nix) | age-secrets: one sink name on three kinds. A body that reads `config` is a module element. Unfree names collapse in a set. |
-| [`sini/services.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/services.nix) | sini services: SSO identities per environment, a provider allow-list joined from fleet pools, |
-| [`sini/settings.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/settings.nix) | Per-feature settings: two files declare types at two paths of one field. Cascade with delegation. |
-| [`sini/syncthing.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/syncthing.nix) | Broadcast to the same user elsewhere, and to a hub, with a transform (syncthing-peers, replicateHome). |
-| [`sini/users.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/users.nix) | homeLinux: a user sink that only users on linux machines have. Primary user: a user element that goes up to the host. |
-| [`sini/xmsg.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/xmsg.nix) | Trust graph: the filter lives with the reader. |
+| [`sini/clusters.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/clusters.nix) | Clusters under an environment. Discovery (den collect): k3s nodes reduce at the environment; the reader filters. |
+| [`sini/domains.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/domains.nix) | Recursive kinds: domains under domains. `parent` is a scope key, so the field is `under`. |
+| [`sini/flake-level.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/flake-level.nix) | Flake level: sink -> sink chains, and elements that read one `out` path and write another. |
+| [`sini/joins.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/joins.nix) | sini joins and data-shaped aspects: two pools joined by host, a guest's intent read by its parent, |
+| [`sini/mesh.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/mesh.nix) | sini mesh family (vault, thunderbolt, ollama, nix-builders): every host in an environment gives one record; |
+| [`sini/network.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/network.nix) | Conditional environment receivers fed by hosts (terranix, unifi port-forwards). |
+| [`sini/roles.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/roles.nix) | Tags: a set per host; nixos.colmena adds the environment and the active role aspects. A host profile does not reach the host's guests (#67). |
+| [`sini/secrets.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/secrets.nix) | age-secrets: one sink name on three kinds. A body that reads `config` is a module element. Unfree names collapse in a set. |
+| [`sini/services.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/services.nix) | sini services: SSO identities per environment, a provider allow-list joined from fleet pools, |
+| [`sini/settings.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/settings.nix) | Per-feature settings: two files declare types at two paths of one field. Cascade with delegation. |
+| [`sini/syncthing.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/syncthing.nix) | Broadcast to the same user elsewhere, and to a hub, with a transform (syncthing-peers, replicateHome). |
+| [`sini/users.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/users.nix) | homeLinux: a user sink that only users on linux machines have. Primary user: a user element that goes up to the host. |
+| [`sini/xmsg.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/sini/xmsg.nix) | Trust graph: the filter lives with the reader. |
 
 ## swarsel
 
 | Module | What it shows |
 |---|---|
-| [`swarsel/distributed.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/swarsel/distributed.nix) | swarsel (after oddlama): distributed config. One machine writes NixOS config into another (old `nodes.<name>`), |
-| [`swarsel/exports.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/swarsel/exports.nix) | swarsel exports: aspects used outside sven. An export scope never builds a machine; |
-| [`swarsel/variants.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/swarsel/variants.nix) | swarsel: one machine, two builds. lb-minimal is a host scope under lb: same data, its own nixosConfiguration. |
+| [`swarsel/distributed.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/swarsel/distributed.nix) | swarsel (after oddlama): distributed config. One machine writes NixOS config into another (old `nodes.<name>`), |
+| [`swarsel/exports.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/swarsel/exports.nix) | swarsel exports: aspects used outside yen. An export scope never builds a machine; |
+| [`swarsel/variants.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/swarsel/variants.nix) | swarsel: one machine, two builds. lb-minimal is a host scope under lb: same data, its own nixosConfiguration. |
 
 ## topology
 
 | Module | What it shows |
 |---|---|
-| [`topology/access.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/access.nix) | Groups are data: nothing spawns them, so they have no scopes. Groups nest through `members`. |
-| [`topology/channel.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/channel.nix) | Channels: which nixpkgs and home-manager a machine builds with. |
-| [`topology/environments.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/environments.nix) | Environments own hosts, macs and phones (parent-side spawns) and two pools. |
-| [`topology/fleet.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/fleet.nix) | The root kind: nothing spawns it. Its sinks are the flake outputs and the fleet-wide pools. |
-| [`topology/machines.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/machines.nix) | machine is data only (nothing spawns it): host, guest and mac copy its fields. |
-| [`topology/replicas.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/replicas.nix) | A relation kind: a replica is a (db, region) pair; the fleet spawns only matching pairs. |
-| [`topology/systems.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/topology/systems.nix) | One system scope per platform: per-system flake outputs. |
+| [`topology/access.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/access.nix) | Groups are data: nothing spawns them, so they have no scopes. Groups nest through `members`. |
+| [`topology/channel.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/channel.nix) | Channels: which nixpkgs and home-manager a machine builds with. |
+| [`topology/environments.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/environments.nix) | Environments own hosts, macs and phones (parent-side spawns) and two pools. |
+| [`topology/fleet.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/fleet.nix) | The root kind: nothing spawns it. Its sinks are the flake outputs and the fleet-wide pools. |
+| [`topology/machines.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/machines.nix) | machine is data only (nothing spawns it): host, guest and mac copy its fields. |
+| [`topology/replicas.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/replicas.nix) | A relation kind: a replica is a (db, region) pair; the fleet spawns only matching pairs. |
+| [`topology/systems.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/topology/systems.nix) | One system scope per platform: per-system flake outputs. |
 
 ## users
 
 | Module | What it shows |
 |---|---|
-| [`users/alice.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/users/alice.nix) |  |
-| [`users/bob.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/users/bob.nix) |  |
-| [`users/dana.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/users/dana.nix) |  |
+| [`users/alice.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/users/alice.nix) |  |
+| [`users/bob.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/users/bob.nix) |  |
+| [`users/dana.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/users/dana.nix) |  |
 
 ## vix
 
 | Module | What it shows |
 |---|---|
-| [`vix/editors.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/vix/editors.nix) | vix: a child kind declared in another file. Each system gets editor profiles; `features` gate aspects; |
-| [`vix/secrets.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/vix/secrets.nix) | vix: secrets are a data kind (no scopes). Features give the secrets they need on the user's `secrets` sink. |
+| [`vix/editors.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/vix/editors.nix) | vix: a child kind declared in another file. Each system gets editor profiles; `features` gate aspects; |
+| [`vix/secrets.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/vix/secrets.nix) | vix: secrets are a data kind (no scopes). Features give the secrets they need on the user's `secrets` sink. |

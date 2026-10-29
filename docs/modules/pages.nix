@@ -1,7 +1,7 @@
 # One page per directory of examples/. A directory is a flake template: flake.nix and modules/ (when the page has code),
 # and page.nix (the prose). The docs evaluate the example's own flake.nix with the docs inputs, so the page shows what runs.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -12,21 +12,21 @@ let
   metaOf = slug: import (root + "/${slug}/page.nix");
 in
 {
-  sven.page = lib.genAttrs slugs (
+  yen.page = lib.genAttrs slugs (
     slug:
     let
       p = metaOf slug;
     in
     {
       inherit (p) title description order;
-      section = sven.section.${p.section};
+      section = yen.section.${p.section};
       dir = root + "/${slug}";
     }
     // lib.optionalAttrs (p ? badge) { inherit (p) badge; }
     // lib.optionalAttrs (p ? route) { inherit (p) route; }
   );
 
-  sven.helpers.example =
+  yen.helpers.example =
     dir:
     let
       has = f: builtins.pathExists (dir + "/${f}");
@@ -40,14 +40,14 @@ in
     in
     {
       inherit dir inputs module;
-      engine = inputs.sven.lib; # stage, program, without: functions of a module
+      engine = inputs.yen.lib; # stage, program, without: functions of a module
       page = import (dir + "/page.nix");
       # the eval result: every query of the example fleet
-      r = if has "modules" then inputs.sven.lib.eval module else null;
+      r = if has "modules" then inputs.yen.lib.eval module else null;
       # the example with one more file (a `variants/` file, outside `modules/`): what a change does
       variant =
         f:
-        inputs.sven.lib.eval {
+        inputs.yen.lib.eval {
           imports = [
             module
             (dir + "/${f}")
@@ -56,7 +56,7 @@ in
       # only some files of the example: an early step of a migration
       only =
         fs:
-        inputs.sven.lib.eval {
+        inputs.yen.lib.eval {
           imports = map (f: dir + "/${f}") fs;
           _module.args = module._module.args;
         };

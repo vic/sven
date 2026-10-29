@@ -1,19 +1,19 @@
 # Broadcast to the same user elsewhere, and to a hub, with a transform (syncthing-peers, replicateHome).
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) all within same;
+  inherit (yen.lib) all within same;
 in
 {
-  sven.kinds.fleet.sinks = {
-    syncthing-peers.reduce = sven.lib.reduce.entries;
-    replicate-home.reduce = sven.lib.reduce.entries;
+  yen.kinds.fleet.sinks = {
+    syncthing-peers.reduce = yen.lib.reduce.entries;
+    replicate-home.reduce = yen.lib.reduce.entries;
   };
-  sven.kinds.machine.fields.settings.syncthing.isHub = sven.lib.opt lib.types.bool false;
-  sven.host.stage.settings.syncthing.isHub = true;
-  sven.aspects.syncthing-peer = {
+  yen.kinds.machine.fields.settings.syncthing.isHub = yen.lib.opt lib.types.bool false;
+  yen.host.stage.settings.syncthing.isHub = true;
+  yen.aspects.syncthing-peer = {
     at = all [
-      sven.kinds.user
-      (within sven.helpers.linux)
+      yen.kinds.user
+      (within yen.helpers.linux)
     ];
     syncthing-peers =
       { scope, ... }:
@@ -41,9 +41,9 @@ in
         );
       };
   };
-  sven.aspects.syncthing-hub = {
+  yen.aspects.syncthing-hub = {
     at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: s.settings.syncthing.isHub)
     ];
     nixos =

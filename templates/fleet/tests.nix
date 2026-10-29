@@ -4,7 +4,7 @@
 let
   inputs = (builtins.getFlake "path:${toString ../..}?dir=templates/fleet").inputs;
   inherit (inputs.nixpkgs) lib;
-  sven = inputs.sven.lib;
+  yen = inputs.yen.lib;
   b = builtins;
   # the shared-pkgs comparison hosts (environment lab) stay out of checks that list the original fleet
   noApps =
@@ -23,8 +23,8 @@ let
     imports = [ (inputs.import-tree ./modules) ] ++ extra;
     _module.args = { inherit inputs lib; };
   };
-  r = sven.eval (fleet [ ]);
-  with' = m: sven.eval (fleet [ m ]);
+  r = yen.eval (fleet [ ]);
+  with' = m: yen.eval (fleet [ m ]);
   msgs = q: map (e: e.error) q.errors;
   hasMsg = q: re: lib.any (m: builtins.match re m != null) (msgs q);
   out = r.flake;
@@ -67,10 +67,10 @@ let
     docs-mermaid = lib.hasInfix "-->|nixos|" out.docs.mermaid && edge "nixos" ci stage;
     fold-one = out.deploy.nodes.lb.hostname == "10.0.1.1";
     fold-one-two-emitters = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.deploy2 = {
-          at = sven.host.lb;
+        yen.aspects.deploy2 = {
+          at = yen.host.lb;
           deploy = {
             address = "x";
             user = "y";
@@ -154,37 +154,37 @@ let
     output-merge-equal =
       msgs (
         with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.same-hello = {
-              at = sven.system.x86_64-linux;
+            yen.aspects.same-hello = {
+              at = yen.system.x86_64-linux;
               packages.greeting = "hi";
             };
-            sven.aspects.same-hello2 = {
-              at = sven.system.x86_64-linux;
+            yen.aspects.same-hello2 = {
+              at = yen.system.x86_64-linux;
               packages.greeting = "hi";
             };
           }
         )
       ) == [ ];
     output-merge-conflict = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.c1 = {
-          at = sven.system.x86_64-linux;
+        yen.aspects.c1 = {
+          at = yen.system.x86_64-linux;
           packages.greeting = "a";
         };
-        sven.aspects.c2 = {
-          at = sven.system.x86_64-linux;
+        yen.aspects.c2 = {
+          at = yen.system.x86_64-linux;
           packages.greeting = "b";
         };
       }
     )) "merge conflict at greeting";
     bare-overlay-refused = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.bare = {
-          at = sven.fleet.main;
+        yen.aspects.bare = {
+          at = yen.fleet.main;
           overlays = final: prev: { };
         };
       }
@@ -198,10 +198,10 @@ let
     flake-file-inputs =
       lib.attrNames (red "flake-file" "fleet:main").inputs == lib.attrNames (import ./flake.nix).inputs; # the generated flake.nix has exactly the declared inputs
     flake-file-conflict = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.agenix2 = {
-          at = sven.fleet.main;
+        yen.aspects.agenix2 = {
+          at = yen.fleet.main;
           flake-file.inputs.agenix.url = "github:other/agenix";
         };
       }
@@ -261,7 +261,7 @@ let
       out ? colmenaHive && out ? ageManifest && out ? packages && out ? terraformConfigurations;
     inventory-json = (scope web1) != null && (scope web2).buildHost == "10.0.1.1";
     inventory-string-ref-refused = hasMsg (with' {
-      sven.host.bad = {
+      yen.host.bad = {
         environment = "prod";
         addr = "x";
       };
@@ -316,10 +316,10 @@ let
         }
       ];
     typed-scrape-bad = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.bad-scrape = {
-          at = sven.host.lb;
+        yen.aspects.bad-scrape = {
+          at = yen.host.lb;
           scrape.job = 1;
         };
       }
@@ -355,10 +355,10 @@ let
     recursive-kinds =
       scope "fleet:main/domain:example.org/domain:api.example.org/domain:v1.api.example.org" != null;
     twice-on-path = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.kinds.fleet.spawns.ring = _: { r = { }; };
-        sven.kinds.ring.spawns.ring = s: { r = { }; };
+        yen.kinds.fleet.spawns.ring = _: { r = { }; };
+        yen.kinds.ring.spawns.ring = s: { r = { }; };
       }
     )) ".*instance ring:r twice on path.*";
     nearest-bob-ci =
@@ -404,18 +404,18 @@ let
       &&
         lib.any (s: s.id == "${web2}/user:bob")
           (with' (
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.host.web-2.grants = [ sven.group.deploy ];
+              yen.host.web-2.grants = [ yen.group.deploy ];
             }
           )).scopes;
     acl-host-gates =
       scope "${lb}/user:alice" != null
       && !lib.any (s: s.id == "${lb}/user:alice")
         (with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.host.lb.gates = [ sven.group.deploy ];
+            yen.host.lb.gates = [ yen.group.deploy ];
           }
         )).scopes;
     inference-allow =
@@ -426,19 +426,19 @@ let
         "text"
       ] == [ "10.0.1.10\n10.0.2.10\n" ];
     inference-no-address = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.host.web-2.settings.inference.clients = [ "ghost" ];
+        yen.host.web-2.settings.inference.clients = [ "ghost" ];
       }
     )) ".*client ghost has no address.*";
     guard-named-host = out.k8sManifests.axon.applications.guard.hub == "alice@lb";
     join-upstreams = out.k8sManifests.axon.applications.gateway.listeners == [ "web-1.example.org" ];
     join-env-scoped =
       (with' (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.aspects.stage-up = {
-            at = sven.host.stage;
+          yen.aspects.stage-up = {
+            at = yen.host.stage;
             served-domains = [ "stage.example.org" ];
             gateway-upstreams = {
               address = "10.0.2.10";
@@ -458,14 +458,14 @@ let
       && (
         let
           r2 = with' (
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.guest.gpu = {
-                environment = sven.environment.prod;
-                channel = sven.channel.stable;
-                system = sven.system.x86_64-linux;
+              yen.guest.gpu = {
+                environment = yen.environment.prod;
+                channel = yen.channel.stable;
+                system = yen.system.x86_64-linux;
                 addr = "10.0.1.30";
-                on = sven.host.lb;
+                on = yen.host.lb;
                 passthrough = [ "1002:744c" ];
               };
             }
@@ -493,9 +493,9 @@ let
     unit-check-stand-in =
       out.checks.x86_64-linux ? guard-pod && red "unit-checks" "fleet:main" == { guard-pod = true; };
     one-edge = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.environment.staging.dns.publicIPv4 = "198.51.100.1";
+        yen.environment.staging.dns.publicIPv4 = "198.51.100.1";
       }
     )) "dns: 2 environments set dns.publicIPv4.*";
     ingest-across-envs =
@@ -724,7 +724,7 @@ let
         "grafana.example.org"
         "status.example.org"
       ];
-    adda-templates = out.templates.default.description == "A sven fleet";
+    adda-templates = out.templates.default.description == "A yen fleet";
     vix-vim-features =
       red "vimrc" "${"fleet:main/system:x86_64-linux"}/vim:dev" == [
         "vim.o.number = true"
@@ -803,10 +803,10 @@ let
     den-609-host-hm-no-leak =
       msgs (
         with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.host-hm = {
-              at = sven.host.lb;
+            yen.aspects.host-hm = {
+              at = yen.host.lb;
               homeManager.programs.htop.enable = true;
             };
           }
@@ -814,10 +814,10 @@ let
       ) == [ ]
       && !(lib.any (e: e.origin == "aspect host-hm")
         (with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.host-hm = {
-              at = sven.host.lb;
+            yen.aspects.host-hm = {
+              at = yen.host.lb;
               homeManager.programs.htop.enable = true;
             };
           }
@@ -849,7 +849,7 @@ let
     den-instance-side-include = r.active.desktop.${stage} && r.active.motd."fleet:main/export:base";
     den-permutation-stable =
       let
-        rev = sven.eval {
+        rev = yen.eval {
           imports = lib.reverseList (import ./_modules-list.nix);
           _module.args = { inherit inputs lib; };
         };
@@ -871,10 +871,10 @@ let
     den-sibling-laziness =
       let
         p = with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.poison = {
-              at = sven.host.web-2;
+            yen.aspects.poison = {
+              at = yen.host.web-2;
               nixos = throw "poisoned web-2";
             };
           }
@@ -967,10 +967,10 @@ let
           workers = 1;
         };
     hoag-settings-conflict = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.t2 = {
-          at = sven.host.web-1;
+        yen.aspects.t2 = {
+          at = yen.host.web-1;
           aspect-settings = {
             rank = 2;
             set.nginx.workers = 9;
@@ -1108,7 +1108,7 @@ let
         "etc"
         "banner"
         "text"
-      ] == [ "managed by sven" ];
+      ] == [ "managed by yen" ];
     clan-multi-instance =
       lib.sort (a: b: a < b) (
         lib.concatMap lib.attrNames (
@@ -1160,11 +1160,11 @@ let
         lib.sort (a: b: a < b) (
           map (e: e.service) (
             (with' (
-              { sven, ... }:
+              { yen, ... }:
               {
-                sven.aspects.forge = {
-                  at = sven.lib.all [
-                    sven.kinds.member
+                yen.aspects.forge = {
+                  at = yen.lib.all [
+                    yen.kinds.member
                     (s: s.service == "sshd")
                   ];
                   exports = {
@@ -1184,7 +1184,7 @@ let
         x = with' (
           { ... }:
           {
-            sven.instance.offsite = {
+            yen.instance.offsite = {
               module = "borg";
               roles = {
                 client.machines.web-1 = { };
@@ -1203,7 +1203,7 @@ let
         x = with' (
           { ... }:
           {
-            sven.instance.mix = {
+            yen.instance.mix = {
               module = "banner";
               roles.default = {
                 tags = [ "darwin" ];
@@ -1220,11 +1220,11 @@ let
         "web-1"
       ];
     clan-export-allowlist = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.leak = {
-          at = sven.lib.all [
-            sven.kinds.member
+        yen.aspects.leak = {
+          at = yen.lib.all [
+            yen.kinds.member
             (s: s.service == "borg" && s.role == "server")
           ];
           exports =
@@ -1238,10 +1238,10 @@ let
     clan-export-override =
       let
         x = with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.owner-pin = {
-              at = sven.kinds.fleet;
+            yen.aspects.owner-pin = {
+              at = yen.kinds.fleet;
               exports = {
                 service = "borg";
                 instance = "backup";
@@ -1282,10 +1282,10 @@ let
       }
       && !((red "generators" "fleet:main") ? "from-exports@web-2");
     clan-secret-read = hasMsg (with' (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.peek = {
-          at = sven.host.web-1;
+        yen.aspects.peek = {
+          at = yen.host.web-1;
           public-reads = {
             machine = "web-1";
             generator = "openssh";
@@ -1297,13 +1297,13 @@ let
     clan-store-consistency = hasMsg (with' (
       { ... }:
       {
-        sven.host.web-2.secretStore = "age";
+        yen.host.web-2.secretStore = "age";
       }
     )) ".*web-2 uses secret store age, the fleet uses sops.*";
     clan-darwin-restart = hasMsg (with' (
       { ... }:
       {
-        sven.instance.backup-mac = {
+        yen.instance.backup-mac = {
           module = "borg";
           roles = {
             client.machines.studio = { };
@@ -1321,7 +1321,7 @@ let
           x = with' (
             { ... }:
             {
-              sven.instance.ghost = {
+              yen.instance.ghost = {
                 module = "banner";
                 roles.default.tags = [ "nobody" ];
               };
@@ -1360,9 +1360,9 @@ let
         web-2 = [ ];
       }
       && hasMsg (with' (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.host.lb.dependsOn = [ sven.host.stage ];
+          yen.host.lb.dependsOn = [ yen.host.stage ];
         }
       )) "deploy: hosts depend on each other in a cycle: lb -> stage -> web-1";
     datalog-serving =
@@ -1379,14 +1379,14 @@ let
         etc (with' (
           { ... }:
           {
-            sven.host.web-2.maintenance = true;
+            yen.host.web-2.maintenance = true;
           }
         )) "lb/serving" == [ "stage web-1" ]
       &&
         etc (with' (
           { ... }:
           {
-            sven.host.web-1.maintenance = true;
+            yen.host.web-1.maintenance = true;
           }
         )) "lb/serving" == [ "web-2" ] # stage depends on web-1: drained too
       && lib.hasInfix "web:web-1" (lib.head (etc r "lb/why-web-1"));
@@ -1410,7 +1410,7 @@ let
       && hasMsg (with' (
         { ... }:
         {
-          sven.host.web-2 = {
+          yen.host.web-2 = {
             apps = [
               "a"
               "b"
@@ -1431,14 +1431,14 @@ let
           );
         guest =
           n: r:
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.guest.${n} = {
-              environment = sven.environment.staging;
-              channel = sven.channel.stable;
-              system = sven.system.x86_64-linux;
+            yen.guest.${n} = {
+              environment = yen.environment.staging;
+              channel = yen.channel.stable;
+              system = yen.system.x86_64-linux;
               addr = "10.0.2.3${toString (lib.length r)}";
-              on = sven.host.stage;
+              on = yen.host.stage;
               ramRange = r;
             };
           };
@@ -1469,7 +1469,7 @@ let
           x = with' (
             { ... }:
             {
-              sven.host.stage.ramFuel = 3;
+              yen.host.stage.ramFuel = 3;
             }
           );
         in
@@ -1502,10 +1502,10 @@ let
       && r.check.violations == [ ];
     agent-stage =
       let
-        s = sven.stage {
+        s = yen.stage {
           base = fleet [ ];
           change = {
-            sven.aspects.attic.at = [
+            yen.aspects.attic.at = [
               {
                 kind = "mac";
                 name = "studio";
@@ -1520,13 +1520,13 @@ let
       && b.isString s.render;
     agent-grant =
       let
-        g = sven.grant { scopes = [ S ]; };
+        g = yen.grant { scopes = [ S ]; };
         st =
           to:
-          sven.stage {
+          yen.stage {
             base = fleet [ ];
             change = {
-              sven.aspects.attic.at = [ to ];
+              yen.aspects.attic.at = [ to ];
             };
             grant = g;
             invariants = false;
@@ -1577,14 +1577,14 @@ let
       );
     agent-rdf =
       let
-        p = sven.rdf.share r;
-        q = sven.rdf.share (
-          sven.eval (fleet [
+        p = yen.rdf.share r;
+        q = yen.rdf.share (
+          yen.eval (fleet [
             (
-              { sven, ... }:
+              { yen, ... }:
               {
-                sven.aspects.extra = {
-                  at = sven.host.lb;
+                yen.aspects.extra = {
+                  at = yen.host.lb;
                   persist = "/var/lib/extra";
                 };
               }
@@ -1613,8 +1613,8 @@ let
       && (r.ask "hostsIn" { }).code == "missing-param"
       && r.ask "errorsBy" { } == [ ];
     agent-mcp-app =
-      out.apps.x86_64-linux.sven-mcp.type == "app"
-      && lib.hasSuffix "/bin/sven-mcp" out.apps.x86_64-linux.sven-mcp.program;
+      out.apps.x86_64-linux.yen-mcp.type == "app"
+      && lib.hasSuffix "/bin/yen-mcp" out.apps.x86_64-linux.yen-mcp.program;
     agent-labels =
       r.labels.rdf-pack.trust == 1
       && r.labels.attic.trust == 3
@@ -1640,7 +1640,7 @@ let
         files = lib.filter (f: lib.hasSuffix ".nix" (toString f) && !lib.hasPrefix "_" (baseNameOf f)) (
           lib.filesystem.listFilesRecursive ./modules
         );
-        w = sven.without {
+        w = yen.without {
           inherit files;
           path = [
             "aspects"
@@ -1652,7 +1652,7 @@ let
       map baseNameOf w.dropped == [ "secrets.nix" ] && !(w.r.active ? attic);
     krn-fuel =
       let
-        K = sven.krn;
+        K = yen.krn;
         fives =
           x:
           K.disj [
@@ -1664,23 +1664,23 @@ let
       !s.complete && s.answers != [ ] && lib.all (x: x == 5) s.answers;
     agent-shacl =
       let
-        t = sven.rdf.shacl r;
+        t = yen.rdf.shacl r;
       in
-      lib.hasInfix "sh:targetClass <https://sven.dev/fleet/kind/host>" t
-      && lib.hasInfix "<https://sven.dev/fleet/field/environment> ; sh:maxCount 1 ; sh:class <https://sven.dev/fleet/kind/environment>" t
+      lib.hasInfix "sh:targetClass <https://yen.dev/fleet/kind/host>" t
+      && lib.hasInfix "<https://yen.dev/fleet/field/environment> ; sh:maxCount 1 ; sh:class <https://yen.dev/fleet/kind/environment>" t
       # a line of the pack, not a regex over 700 KB: `.*` regexes recurse per character and overflow the stack (nix 2.35)
-      && lib.elem "<https://sven.dev/fleet/instance/environment/lab> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://sven.dev/fleet/kind/environment> ." (
-        lib.splitString "\n" (sven.rdf.ntriples r)
+      && lib.elem "<https://yen.dev/fleet/instance/environment/lab> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://yen.dev/fleet/kind/environment> ." (
+        lib.splitString "\n" (yen.rdf.ntriples r)
       );
     # an agent's change between machines is refused BEFORE deploy, with the reason
     safety-db-cross-env =
       let
-        s = sven.stage {
+        s = yen.stage {
           base = fleet [ ];
           change =
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.host.app-4.dbOn = sven.host.stage;
+              yen.host.app-4.dbOn = yen.host.stage;
             };
         };
       in
@@ -1695,15 +1695,15 @@ let
         ]; # not even a candidate today
     safety-addr-clash =
       let
-        s = sven.stage {
+        s = yen.stage {
           base = fleet [ ];
           change =
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.host.rogue = {
-                environment = sven.environment.lab;
-                channel = sven.channel.stable;
-                system = sven.system.x86_64-linux;
+              yen.host.rogue = {
+                environment = yen.environment.lab;
+                channel = yen.channel.stable;
+                system = yen.system.x86_64-linux;
                 addr = "10.0.1.1";
               };
             };
@@ -1712,24 +1712,24 @@ let
       !s.ok && s.violations == [ "bad:addr-clash:10.0.1.1" ];
     safety-trust-order =
       let
-        s = sven.stage {
+        s = yen.stage {
           base = fleet [ ];
           change =
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.host.app-4.dependsOn = [ sven.host.stage ];
+              yen.host.app-4.dependsOn = [ yen.host.stage ];
             };
         };
       in
       !s.ok
       && s.violations == [ "bad:trust-down:fleet:main/environment:lab/host:app-4:stage" ]
       &&
-        (sven.stage {
+        (yen.stage {
           base = fleet [ ];
           change =
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.host.app-4.dependsOn = [ sven.host.lb ];
+              yen.host.app-4.dependsOn = [ yen.host.lb ];
             };
         }).violations == [ ];
     synth-free-port =
@@ -1769,9 +1769,9 @@ let
     clan-contract =
       let
         e = with' (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.instance = {
+            yen.instance = {
               bad-role.roles.nope.machines.lb = { };
               empty = {
                 module = "sshd";
@@ -1827,10 +1827,10 @@ let
         "wifi.home"
       ]
       && hasMsg (with' (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.aspects.dep-bad = {
-            at = sven.host.web-1;
+          yen.aspects.dep-bad = {
+            at = yen.host.web-1;
             generators =
               { scope, ... }:
               {
@@ -2003,9 +2003,9 @@ let
         && lbCfg.environment.etc.extra.text == "svc-a"
         && out.nixosConfigurations.web-2.config.environment.etc.autoinclude.text == "web-2"
         && out.nixosConfigurations.stage.config.environment.etc."wifi/networks".text == "home office"
-        && out.darwinConfigurations.studio.config.environment.etc.banner.text == "managed by sven";
+        && out.darwinConfigurations.studio.config.environment.etc.banner.text == "managed by yen";
       lb-haproxy-order = lib.hasInfix "10.0.1.10:80 check\n  server 10.0.1.11" lbCfg.services.haproxy.config;
-      lb-motd = lbCfg.environment.etc.motd.text == "managed by sven" && lbCfg.networking.hostName == "lb";
+      lb-motd = lbCfg.environment.etc.motd.text == "managed by yen" && lbCfg.networking.hostName == "lb";
       lb-overlay = lib.length lbCfg.nixpkgs.overlays == 1;
       lb-flatten-class-lib =
         lbCfg.users.users.alice.description == "Alice" && lbCfg.users.users.alice.isNormalUser;
@@ -2024,7 +2024,7 @@ let
               ...
             }:
             {
-              sven.aspects.firefox = {
+              yen.aspects.firefox = {
                 at = {
                   kind = "host";
                   name = "lb";
@@ -2055,7 +2055,7 @@ let
       infra-lb-drift-fails =
         lib.hasInfix "networking.hostName"
           (with' {
-            sven.aspects.drift = {
+            yen.aspects.drift = {
               at = {
                 kind = "host";
                 name = "lb";
@@ -2120,7 +2120,7 @@ let
               system.stateVersion = "25.05";
             }
           ];
-        }).config.environment.etc.motd.text == "managed by sven";
+        }).config.environment.etc.motd.text == "managed by yen";
     };
     failed = lib.filter (n: !checks.${n}) (lib.attrNames checks);
   };

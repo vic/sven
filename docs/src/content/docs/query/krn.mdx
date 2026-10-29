@@ -1,38 +1,38 @@
 ---
-{"description":"µKanren with finite domains in pure Nix: values that meet your rules, relations that run backward.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/krn/page.nix","title":"krn: synthesis with constraints"}
+{"description":"µKanren with finite domains in pure Nix: values that meet your rules, relations that run backward.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/krn/page.nix","title":"krn: synthesis with constraints"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 Some values are not written but found: a port no other app uses, memory that fits a host, a database host in the
-right environment. `sven.lib.krn` is µKanren with constraints. It has logic variables, unification over attrsets,
+right environment. `yen.lib.krn` is µKanren with constraints. It has logic variables, unification over attrsets,
 lists and scalars, and goals that run in both directions.
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields.apps = sven.lib.is (v: lib.isList v && lib.all lib.isString v);
+  yen.kinds.host.fields.apps = yen.lib.is (v: lib.isList v && lib.all lib.isString v);
 
-  sven.fleet.main = { };
-  sven.host.lb.apps = [
+  yen.fleet.main = { };
+  yen.host.lb.apps = [
     "grafana"
     "loki"
     "prometheus"
   ];
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/ports.nix" {6-12}
 # µKanren with finite domains: give each app a port in 8080..8083, all different, prometheus before grafana.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib.krn)
+  inherit (yen.lib.krn)
     run
     runAll
     freshNamed
@@ -52,11 +52,11 @@ let
       (eq q vs)
       (label (lib.attrValues vs))
     ]);
-  lb = sven.host.lb;
+  lb = yen.host.lb;
 in
 {
-  sven.aspects.ports = {
-    at = sven.kinds.fleet;
+  yen.aspects.ports = {
+    at = yen.kinds.fleet;
     out.ports = {
       first = run 1 (ports lb.apps); # one answer
       count = lib.length (runAll (ports lb.apps)); # every answer
@@ -113,7 +113,7 @@ A search with no answer gives `[ ]`: turn that into an error record. A search an
 :::
 
 :::tip[More]
-The reference fleet's [query/krn.nix](https://github.com/vic/sven/blob/main/templates/fleet/modules/query/krn.nix) also sums guest memory under a host's RAM
+The reference fleet's [query/krn.nix](https://github.com/vic/yen/blob/main/templates/fleet/modules/query/krn.nix) also sums guest memory under a host's RAM
 and joins host records to place a database.
 :::
 
@@ -121,7 +121,7 @@ and joins host records to place a database.
 Every block on this page is a file of the template `krn`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#krn
+nix flake init -t github:vic/yen#krn
 ```
 
 <FileTree>

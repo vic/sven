@@ -23,15 +23,15 @@
             "the function gives `true`"
           ]
           [
-            "`sven.kinds.host`"
+            "`yen.kinds.host`"
             "the scope is a host"
           ]
           [
-            "`sven.host.web`"
+            "`yen.host.web`"
             "the scope is the instance `web`"
           ]
           [
-            "`sven.aspects.cuda`"
+            "`yen.aspects.cuda`"
             "the aspect `cuda` is active there"
           ]
           [
@@ -66,7 +66,7 @@
       ''
       (docs.value r.flake.active)
       ''
-        Ask any predicate at a scope with `sven.lib.holds p scope`. A `spawns` function can use it too:
+        Ask any predicate at a scope with `yen.lib.holds p scope`. A `spawns` function can use it too:
         structure can depend on which aspects are active at the parent.
 
         ## Cycles and mistakes

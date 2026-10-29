@@ -1,25 +1,25 @@
 # The service: an aspect per role, at member scopes. Clients export their address; the server reads them.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
   role =
     r:
-    sven.lib.all [
-      sven.kinds.member
+    yen.lib.all [
+      yen.kinds.member
       (s: s.instance == "backup" && s.role == r)
     ];
 in
 {
-  sven.aspects.backup-client = {
+  yen.aspects.backup-client = {
     at = role "client";
     exports = { host, ... }: host.addr; # published by the member scope: the engine sets `from`
     config =
       { host, ... }:
       {
-        backup.target = sven.host.nas.addr;
+        backup.target = yen.host.nas.addr;
         backup.name = host.name;
       };
   };
-  sven.aspects.backup-server = {
+  yen.aspects.backup-server = {
     at = role "server";
     config =
       { exports, ... }:
@@ -30,8 +30,8 @@ in
       };
   };
   # once per machine that takes part in any role of the service
-  sven.aspects.backup-tools = {
-    at = sven.lib.has (s: s.kind == "member" && s.instance == "backup");
+  yen.aspects.backup-tools = {
+    at = yen.lib.has (s: s.kind == "member" && s.instance == "backup");
     config.packages = [ "borgbackup" ];
   };
 }

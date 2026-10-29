@@ -1,4 +1,4 @@
-# Every example with a flake.nix is a flake template. Pure and cheap: no inputs, no sven evaluation.
+# Every example with a flake.nix is a flake template. Pure and cheap: no inputs, no yen evaluation.
 # Both flakes use it: docs/flake.nix and the repository root flake.nix.
 let
   root = ./examples;

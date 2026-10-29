@@ -1,18 +1,18 @@
 # Den specialisations: a variant scope under a host; its nixos forwards into the host's specialisation.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.host.spawns.variant = s: lib.filterAttrs (_: v: sven.lib.same v.of s) sven.variant;
-  sven.kinds.variant = {
-    fields.of = sven.kinds.host;
+  yen.kinds.host.spawns.variant = s: lib.filterAttrs (_: v: yen.lib.same v.of s) yen.variant;
+  yen.kinds.variant = {
+    fields.of = yen.kinds.host;
     sinks.nixos.nixos =
       { variant, nixos, ... }:
       {
         specialisation.${variant.name}.configuration.imports = nixos;
       };
   };
-  sven.variant.debug.of = sven.host.lb;
-  sven.aspects.debug-kernel = {
-    at = sven.kinds.variant;
+  yen.variant.debug.of = yen.host.lb;
+  yen.aspects.debug-kernel = {
+    at = yen.kinds.variant;
     nixos.boot.kernelParams = [ "debug" ];
   };
 }

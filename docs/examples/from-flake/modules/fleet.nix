@@ -1,25 +1,25 @@
 # Hosts build NixOS. Users live under their hosts; a user's home-manager content goes into each host.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (sven.lib.same s) u.hosts) sven.user;
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.user = {
-    fields.hosts = sven.lib.is lib.isList;
+  yen.kinds.user = {
+    fields.hosts = yen.lib.is lib.isList;
     sinks.homeManager.nixos =
       { user, homeManager, ... }:
       {
@@ -27,6 +27,6 @@
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

@@ -1,12 +1,12 @@
 # Without flakes: every query of the fleet. Pin the sources with npins, niv or fetchTarball.
 {
-  sven ? builtins.fetchTarball "https://github.com/vic/sven/archive/main.tar.gz",
+  yen ? builtins.fetchTarball "https://github.com/vic/yen/archive/main.tar.gz",
   nixpkgs ? builtins.fetchTarball "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz",
   import-tree ? import (
     builtins.fetchTarball "https://github.com/denful/import-tree/archive/main.tar.gz"
   ),
 }:
-(import sven).lib.eval {
+(import yen).lib.eval {
   imports = [ (import-tree ./modules) ];
   _module.args = {
     inputs = { inherit nixpkgs; };

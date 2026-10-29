@@ -1,13 +1,13 @@
 # Users and standalone homes. A user's homeManager goes to its machine's os, or up to a phone or home.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     within
     opt
     all
     not
     ;
-  inherit (sven.helpers)
+  inherit (yen.helpers)
     machines
     pkgsOf
     flatten
@@ -15,11 +15,11 @@ let
     ;
 in
 {
-  sven.kinds.home = {
+  yen.kinds.home = {
     fields = {
-      user = sven.kinds.user;
-      channel = sven.kinds.channel;
-      system = sven.kinds.system;
+      user = yen.kinds.user;
+      channel = yen.kinds.channel;
+      system = yen.kinds.system;
     };
     spawns.user = s: { ${s.user.name} = s.user; };
     sinks.homeManager.out =
@@ -31,16 +31,16 @@ in
         };
       };
   };
-  sven.kinds.user = {
+  yen.kinds.user = {
     fields = {
-      groups = listOf sven.kinds.group;
+      groups = listOf yen.kinds.group;
       phone = opt lib.types.bool false;
     };
     sinks = {
       homeManager = {
         at = all [
           (within machines)
-          (not (within sven.kinds.home))
+          (not (within yen.kinds.home))
         ];
         os =
           { user, homeManager, ... }:
@@ -49,7 +49,7 @@ in
           };
       };
       homeDarwin = {
-        at = within sven.kinds.mac;
+        at = within yen.kinds.mac;
         homeManager =
           { homeDarwin, ... }:
           {

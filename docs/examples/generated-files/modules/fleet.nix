@@ -1,7 +1,7 @@
 # The fleet writes its own repo files. `flake-file` collects github:denful/flake-file options (flake.nix);
 # `files` collects github:sini/files modules (README.md, CI workflow).
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -10,12 +10,12 @@ let
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
     sinks = {
-      out.reduce = sven.lib.reduce.merge;
+      out.reduce = yen.lib.reduce.merge;
       flake-file = {
-        reduce = sven.lib.reduce.merge; # flake inputs, declared by the aspects that use them
+        reduce = yen.lib.reduce.merge; # flake inputs, declared by the aspects that use them
         out =
           { flake-file, ... }:
           let
@@ -55,13 +55,13 @@ in
         };
     };
   };
-  sven.kinds.host.sinks.nixos.out =
+  yen.kinds.host.sinks.nixos.out =
     { host, nixos, ... }:
     {
       nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
     };
 
-  sven.fleet.main = { };
-  sven.host.web = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.web = { };
+  yen.flake = { out, ... }: out;
 }

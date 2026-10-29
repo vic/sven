@@ -1,25 +1,25 @@
 # A guest lives under its host. Its own `nixos` sink forwards up, into the host's containers.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.guest = s: lib.filterAttrs (_: g: sven.lib.same g.on s) sven.guest;
+  yen.kinds.host = {
+    spawns.guest = s: lib.filterAttrs (_: g: yen.lib.same g.on s) yen.guest;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.guest = {
-    fields.on = sven.kinds.host;
+  yen.kinds.guest = {
+    fields.on = yen.kinds.host;
     sinks.nixos.nixos =
       { guest, nixos, ... }:
       {
@@ -30,6 +30,6 @@
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

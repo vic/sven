@@ -41,7 +41,7 @@
       ''
         ## Read the tree inside the fleet
 
-        `sven.lib.graph` is readable by any module. This example gives its scope ids as a flake output:
+        `yen.lib.graph` is readable by any module. This example gives its scope ids as a flake output:
       ''
       (docs.file "modules/outputs.nix")
     ];

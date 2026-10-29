@@ -1,36 +1,36 @@
 ---
-{"description":"A kind is a type of thing. Its fields are the data of each instance.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/kinds-fields/page.nix","title":"Kinds and fields"}
+{"description":"A kind is a type of thing. Its fields are the data of each instance.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/kinds-fields/page.nix","title":"Kinds and fields"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-A kind is a type of thing: `host`, `user`, `environment`. sven has no built-in kinds. You declare each one.
+A kind is a type of thing: `host`, `user`, `environment`. yen has no built-in kinds. You declare each one.
 The `fields` of a kind are the data of each of its instances.
 
 
 ```nix title="modules/host.nix"
 # A kind declares the fields of its instances. Every field has a type.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str;
     cores = lib.types.int;
   };
 }
 ```
 
-An instance is `sven.<kind>.<name>`. The attribute name is the instance name. Any file can declare instances.
+An instance is `yen.<kind>.<name>`. The attribute name is the instance name. Any file can declare instances.
 
 
 ```nix title="modules/hosts.nix"
-# Instances: `sven.<kind>.<name>`. The name is the attribute name.
-{ sven, ... }:
+# Instances: `yen.<kind>.<name>`. The name is the attribute name.
+{ yen, ... }:
 {
-  sven.host.web = {
+  yen.host.web = {
     addr = "10.0.0.1";
     cores = 4;
   };
-  sven.host.db = {
+  yen.host.db = {
     addr = "10.0.0.2";
     cores = 16;
   };
@@ -43,10 +43,10 @@ An aspect reads the fields. Here, each host gives one line to a `report` sink on
 
 ```nix title="modules/report.nix"
 # An aspect reads the fields of the nearest host.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.report = {
-    at = sven.kinds.host;
+  yen.aspects.report = {
+    at = yen.kinds.host;
     report =
       { host, ... }:
       {
@@ -72,9 +72,9 @@ Add this file to the example:
 
 ```nix title="variants/typo.nix"
 # A typo in a field name, and a string where an int goes.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.cache = {
+  yen.host.cache = {
     adr = "10.0.0.3";
     cores = "8";
   };
@@ -101,7 +101,7 @@ Add this file to the example:
     class = "fixable";
     code = "unknown-field";
     error = "unknown field adr";
-    fix = "declare sven.kinds.host.fields.adr, or use a declared field";
+    fix = "declare yen.kinds.host.fields.adr, or use a declared field";
     from = "host:cache";
     near = [
       "addr"
@@ -145,7 +145,7 @@ Add this file to the example:
 Every block on this page is a file of the template `kinds-fields`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#kinds-fields
+nix flake init -t github:vic/yen#kinds-fields
 ```
 
 <FileTree>

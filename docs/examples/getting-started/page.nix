@@ -8,17 +8,17 @@
     { docs, r, ... }:
     [
       ''
-        This page builds one NixOS host with sven. You write four small files. At the end you have a
+        This page builds one NixOS host with yen. You write four small files. At the end you have a
         `nixosConfigurations.laptop` that `nixos-rebuild` can use.
       ''
       (docs.steps [
         ''
           Get the template. It has a `flake.nix` and a `modules/` directory.
 
-          ${docs.sh "nix flake init -t github:vic/sven#getting-started"}
+          ${docs.sh "nix flake init -t github:vic/yen#getting-started"}
         ''
         ''
-          Read `flake.nix`. The `sven` input is a normal flake input.
+          Read `flake.nix`. The `yen` input is a normal flake input.
           [import-tree](https://github.com/denful/import-tree) loads every file in `modules/`.
 
           ${docs.file "flake.nix"}
@@ -32,7 +32,7 @@
       ''
         ## The fleet
 
-        sven has no built-in kinds. You say what a fleet is. The root kind is the one that nothing spawns.
+        yen has no built-in kinds. You say what a fleet is. The root kind is the one that nothing spawns.
         Here the root `fleet` spawns every host, and its `out` sink is the flake.
       ''
       (docs.file "modules/fleet.nix")
@@ -51,12 +51,12 @@
       ''
       (docs.file "modules/aspects.nix")
       (docs.note "Args are filled for you" ''
-        `{ host, ... }:` asks sven for the nearest host. sven fills it, and the rest of the function stays a normal NixOS module.
+        `{ host, ... }:` asks yen for the nearest host. yen fills it, and the rest of the function stays a normal NixOS module.
       '')
       ''
         ## Ask it
 
-        sven answers queries on the fleet. This is the scope tree of this example, generated from `r.graph`:
+        yen answers queries on the fleet. This is the scope tree of this example, generated from `r.graph`:
       ''
       (docs.scopes r)
       ''
@@ -72,7 +72,7 @@
         {
           title = "Kinds and fields";
           href = "/concepts/kinds-fields/";
-          description = "Typed data, the first of sven's four words.";
+          description = "Typed data, the first of yen's four words.";
         }
       ])
     ];
@@ -92,6 +92,6 @@
     { flake, ... }:
     {
       hostname = flake.nixosConfigurations.laptop.config.networking.hostName == "laptop";
-      motd = flake.nixosConfigurations.laptop.config.environment.etc.motd.text == "managed by sven";
+      motd = flake.nixosConfigurations.laptop.config.environment.etc.motd.text == "managed by yen";
     };
 }

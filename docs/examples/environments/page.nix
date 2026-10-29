@@ -20,12 +20,12 @@
       ''
         ## Settings cascade
 
-        `sven.lib.cascade` takes the first value along host, environment, base environment:
+        `yen.lib.cascade` takes the first value along host, environment, base environment:
       ''
       (docs.fileWith "{4}" "modules/base.nix")
       (docs.value r.flake.timeZones)
       (docs.tip "Promote a host" ''
-        Move `web-next` to prod with one edit: `environment = sven.environment.prod`. Its domain, its time zone default
+        Move `web-next` to prod with one edit: `environment = yen.environment.prod`. Its domain, its time zone default
         and its users follow from the data.
       '')
     ];

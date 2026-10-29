@@ -1,16 +1,16 @@
 # sini mesh family (vault, thunderbolt, ollama, nix-builders): every host in an environment gives one record;
 # each host reads its environment's records and drops its own. The filter lives with the reader.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  peersOf = host: es: lib.filter (e: !(sven.lib.same e.from host)) es;
+  peersOf = host: es: lib.filter (e: !(yen.lib.same e.from host)) es;
 in
 {
-  sven.kinds.environment.sinks.mesh-peers.reduce = sven.lib.reduce.entries;
-  sven.kinds.machine.fields.builder = sven.lib.opt lib.types.bool false;
-  sven.host.web-1.builder = true;
-  sven.aspects.mesh = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.kinds.environment.sinks.mesh-peers.reduce = yen.lib.reduce.entries;
+  yen.kinds.machine.fields.builder = yen.lib.opt lib.types.bool false;
+  yen.host.web-1.builder = true;
+  yen.aspects.mesh = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: !s.minimal)
     ];
     mesh-peers =

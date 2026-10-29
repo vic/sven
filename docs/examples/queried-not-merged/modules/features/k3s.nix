@@ -1,4 +1,4 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.host.fields.settings.k3s.role = sven.lib.opt lib.types.str "agent";
+  yen.kinds.host.fields.settings.k3s.role = yen.lib.opt lib.types.str "agent";
 }

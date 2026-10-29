@@ -1,13 +1,13 @@
 ---
-{"description":"What sven is, in four words: kinds, scopes, aspects, sinks.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/overview/page.nix","title":"Overview"}
+{"description":"What yen is, in four words: kinds, scopes, aspects, sinks.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/overview/page.nix","title":"Overview"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-sven is a query language for Nix configurations. You declare data and behavior in plain Nix files.
-sven answers queries on them: the systems to build, the errors, and the graph of who gives what to whom.
+yen is a query language for Nix configurations. You declare data and behavior in plain Nix files.
+yen answers queries on them: the systems to build, the errors, and the graph of who gives what to whom.
 
-sven is one small Nix file. It uses Nix builtins only: no nixpkgs, no module system, no flakes.
+yen is one small Nix file. It uses Nix builtins only: no nixpkgs, no module system, no flakes.
 It never calls `throw`. An error is data that you can query.
 
 
@@ -36,10 +36,10 @@ Where elements go. An element goes up to the nearest scope that collects it, and
 
 ## The four words
 
-Everything in sven is one of four words. Read them once, in order, before any code:
+Everything in yen is one of four words. Read them once, in order, before any code:
 
 1. **Kind.** A type of thing you configure, and the fields each one has. You name your kinds: `host`, `user`,
-   `cluster`, `printer`, `editor`. An **instance** is one thing of a kind: `sven.host.web`.
+   `cluster`, `printer`, `editor`. An **instance** is one thing of a kind: `yen.host.web`.
 2. **Scope.** One instance at one place in a tree. A kind's `spawns` says which instances live under it: a user
    under each host it logs in to, a host under its environment. The kind that nothing spawns is the root.
 3. **Aspect.** One feature: "ssh on", "nginx with these sites". Its `at` is a predicate that says at which scopes
@@ -52,7 +52,7 @@ Sinks also build the outputs: the sink of a host can call `nixosSystem` on the m
 
 
 :::note[No batteries, no vocabulary]
-sven knows no nouns. It has no `host`, no `user`, no `nixos` class, no NixOS or flake-parts options, and no
+yen knows no nouns. It has no `host`, no `user`, no `nixos` class, no NixOS or flake-parts options, and no
 batteries such as Den's `define-user`. It is agnostic: you define the kinds, fields and sinks of what you configure,
 in your own language. A fleet of NixOS hosts, a set of dev shells and a printer inventory use the same four words.
 Every example in these docs declares its own kinds, so you can read each one top to bottom.
@@ -68,15 +68,15 @@ A machine has an `owner` field and a `packages` sink.
 
 ```nix title="modules/kinds.nix"
 # Kinds: typed data. `office` is the root: nothing spawns it.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.office = {
-    spawns.machine = _: sven.machine; # scopes: every machine lives in the office
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.office = {
+    spawns.machine = _: yen.machine; # scopes: every machine lives in the office
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.machine = {
+  yen.kinds.machine = {
     fields.owner = lib.types.str;
-    sinks.packages.reduce = sven.lib.reduce.set; # sinks: where elements go
+    sinks.packages.reduce = yen.lib.reduce.set; # sinks: where elements go
     sinks.packages.out =
       { machine, packages, ... }:
       {
@@ -84,10 +84,10 @@ A machine has an `owner` field and a `packages` sink.
       };
   };
 
-  sven.office.main = { };
-  sven.machine.reception.owner = "ana";
-  sven.machine.studio.owner = "bo";
-  sven.flake = { out, ... }: out;
+  yen.office.main = { };
+  yen.machine.reception.owner = "ana";
+  yen.machine.studio.owner = "bo";
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -97,18 +97,18 @@ A machine has an `owner` field and a `packages` sink.
 
 ```nix title="modules/aspects.nix"
 # Aspects: behavior, active where `at` holds. Each key gives one element to the sink of that name.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.basics = {
-    at = sven.kinds.machine; # every machine
+  yen.aspects.basics = {
+    at = yen.kinds.machine; # every machine
     packages = "git";
   };
-  sven.aspects.design = {
-    at = sven.machine.studio; # one machine
+  yen.aspects.design = {
+    at = yen.machine.studio; # one machine
     packages = "gimp";
   };
-  sven.aspects.versioned-assets = {
-    at = sven.aspects.design; # wherever `design` is active
+  yen.aspects.versioned-assets = {
+    at = yen.aspects.design; # wherever `design` is active
     packages = "git"; # `set` keeps one copy
   };
 }
@@ -163,12 +163,12 @@ flowchart BT
 ## Data is queried, not merged
 
 There is no `evalModules` fixpoint and no merge step. Each read of a declaration is a query on the files
-that answer it. A value is computed only when something reads it. sven follows
+that answer it. A value is computed only when something reads it. yen follows
 [Cycle.js](https://cycle.js.org): a component reads sources and writes sinks, and Nix laziness closes the loop.
 
 
 :::note[Why another configuration language?]
-sven covers every capability of [Den](https://github.com/denful/den), den-hoag and [clan](https://clan.lol)
+yen covers every capability of [Den](https://github.com/denful/den), den-hoag and [clan](https://clan.lol)
 with these four words. On top, it answers questions: graph queries, Datalog with a well-founded semantics,
 and µKanren with constraints, all in pure Nix. An agent can stage a change and get it refused with the reason,
 before you deploy.
@@ -176,14 +176,14 @@ before you deploy.
 
 <CardGrid>
 <LinkCard title="Getting started" href="/start/getting-started/" description="One NixOS host, in four files." />
-<LinkCard title="The reference fleet" href="https://github.com/vic/sven/tree/main/templates/fleet" description="Every capability, in one running specification." />
+<LinkCard title="The reference fleet" href="https://github.com/vic/yen/tree/main/templates/fleet" description="Every capability, in one running specification." />
 </CardGrid>
 
 :::tip[Run this example]
 Every block on this page is a file of the template `overview`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#overview
+nix flake init -t github:vic/yen#overview
 ```
 
 <FileTree>

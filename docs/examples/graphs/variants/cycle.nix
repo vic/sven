@@ -1,5 +1,5 @@
 # db now depends on lb: a cycle.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.db.dependsOn = [ sven.host.lb ];
+  yen.host.db.dependsOn = [ yen.host.lb ];
 }

@@ -44,7 +44,7 @@
       ''
         ## What if it were gone?
 
-        `sven.lib.without { files; path; args; }` evaluates the fleet without the files that declare `path`.
+        `yen.lib.without { files; path; args; }` evaluates the fleet without the files that declare `path`.
         A whole file goes: there is no hook to remove part of one.
       ''
       (docs.value {
@@ -56,16 +56,16 @@
         ## Valid time
 
         Pure evaluation has no clock, so the date is data. An instance with `validFrom` and `validTo` holds at the date
-        the caller passes: `sven.lib.validAt date scope`. Here the environment spawns only the hosts valid today,
+        the caller passes: `yen.lib.validAt date scope`. Here the environment spawns only the hosts valid today,
         so `web-old` and `web-next` have no scope:
       ''
       (docs.value (map (s: s.id) r.scopes))
       ''
         ## Transaction time
 
-        `sven.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision. `sven.lib.history { url; revs; module; }`
+        `yen.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision. `yen.lib.history { url; revs; module; }`
         lists each revision with the field changes from the one before (`diffData` over `r.data`). The engine's own tests
-        run both on this repository: see [tests/default.nix](https://github.com/vic/sven/blob/main/tests/default.nix).
+        run both on this repository: see [tests/default.nix](https://github.com/vic/yen/blob/main/tests/default.nix).
       ''
     ];
 

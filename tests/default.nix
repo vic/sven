@@ -1,6 +1,6 @@
-# sven oracles. Run: nix-instantiate --eval --strict vic/tests -A failed   (expect [ ])
+# yen oracles. Run: nix-instantiate --eval --strict vic/tests -A failed   (expect [ ])
 let
-  sven = (import ../default.nix).lib;
+  yen = (import ../default.nix).lib;
   b = builtins;
   msgs = r: map (e: e.error) r.errors;
   has = r: m: b.elem m (msgs r);
@@ -8,25 +8,25 @@ let
   # the design §1 fleet; nixosSystem replaced by the module list
   fleet =
     extra:
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.kinds.fleet = {
-        spawns.host = _: sven.host;
-        sinks.out.reduce = sven.lib.reduce.merge;
+      yen.kinds.fleet = {
+        spawns.host = _: yen.host;
+        sinks.out.reduce = yen.lib.reduce.merge;
       };
-      sven.kinds.host = {
-        fields.addr = sven.lib.is b.isString;
-        sinks.persist.reduce = sven.lib.reduce.set;
+      yen.kinds.host = {
+        fields.addr = yen.lib.is b.isString;
+        sinks.persist.reduce = yen.lib.reduce.set;
         sinks.nixos.out =
           { host, nixos, ... }:
           {
             nixosConfigurations.${host.name} = nixos;
           };
       };
-      sven.fleet.main = { };
-      sven.host.lb = extra;
-      sven.aspects.motd = {
-        at = sven.kinds.host;
+      yen.fleet.main = { };
+      yen.host.lb = extra;
+      yen.aspects.motd = {
+        at = yen.kinds.host;
         persist = "/var/lib/motd";
         nixos =
           { persist, ... }:
@@ -34,36 +34,36 @@ let
             environment.etc.motd.text = b.concatStringsSep "\n" persist;
           };
       };
-      sven.flake = { out, ... }: out;
+      yen.flake = { out, ... }: out;
     };
-  good = sven.eval (fleet {
+  good = yen.eval (fleet {
     addr = "10.0.1.1";
   });
-  noAddr = sven.eval (fleet { });
+  noAddr = yen.eval (fleet { });
 
   # §4: two feature files, types at two paths of one field; no merge
   settings = [
     (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.kinds.host.fields.settings.zfs.arcMax = sven.lib.maybe (sven.lib.is b.isInt);
+        yen.kinds.host.fields.settings.zfs.arcMax = yen.lib.maybe (yen.lib.is b.isInt);
       }
     )
     (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.kinds.host.fields.settings.k3s.role = sven.lib.opt (sven.lib.is b.isString) "agent";
+        yen.kinds.host.fields.settings.k3s.role = yen.lib.opt (yen.lib.is b.isString) "agent";
       }
     )
   ];
-  feat = data: sven.eval { imports = [ (fleet ({ addr = "a"; } // data)) ] ++ settings; };
-  featLazy = sven.eval {
+  feat = data: yen.eval { imports = [ (fleet ({ addr = "a"; } // data)) ] ++ settings; };
+  featLazy = yen.eval {
     imports = [
       (fleet { addr = "a"; })
       (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.kinds.host.fields.settings.lazy = sven.lib.opt (sven.lib.is b.isString) (throw "touched");
+          yen.kinds.host.fields.settings.lazy = yen.lib.opt (yen.lib.is b.isString) (throw "touched");
         }
       )
     ]
@@ -74,19 +74,19 @@ let
   # §5: order is a sink; siblings by (order, key), parent first
   ordered =
     o:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
-        sven.kinds.fleet.spawns.host = _: sven.host;
-        sven.kinds.host = { };
-        sven.fleet.main = { };
-        sven.host = {
+        yen.kinds.fleet.spawns.host = _: yen.host;
+        yen.kinds.host = { };
+        yen.fleet.main = { };
+        yen.host = {
           a = { };
           b = { };
           c = { };
         };
-        sven.aspects.c-first = {
-          at = sven.host.c;
+        yen.aspects.c-first = {
+          at = yen.host.c;
           order = o;
         };
       }
@@ -96,24 +96,24 @@ let
   # Q5: an arg nobody answers; the component may emit on `errors`
   q5 =
     arg:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
         imports = [ (fleet { addr = "a"; }) ];
-        sven.kinds.cluster = { };
-        sven.aspects.k3s = {
-          at = sven.kinds.host;
+        yen.kinds.cluster = { };
+        yen.aspects.k3s = {
+          at = yen.kinds.host;
           nixos = arg;
         };
-        sven.aspects.warn = {
-          at = sven.kinds.host;
+        yen.aspects.warn = {
+          at = yen.kinds.host;
           cycle =
             { tree, ... }:
             {
               tree = [
                 {
                   category = "c";
-                  nearest = sven.kinds.cluster;
+                  nearest = yen.kinds.cluster;
                 }
               ];
               errors = if tree.select "c" == [ ] then [ "no cluster: k3s off" ] else [ ];
@@ -123,13 +123,13 @@ let
     );
 
   # imports nest; `_module.args` flow down to them
-  argsDown = sven.eval {
+  argsDown = yen.eval {
     _module.args.greeting = "hi";
     imports = [
       {
         imports = [
           (
-            { sven, greeting, ... }:
+            { yen, greeting, ... }:
             {
               imports = [ (fleet { addr = greeting; }) ];
             }
@@ -138,30 +138,30 @@ let
       }
     ];
   };
-  argsMissing = sven.eval { imports = [ ({ nope, ... }: { }) ]; };
+  argsMissing = yen.eval { imports = [ ({ nope, ... }: { }) ]; };
 
   # stack safety: a chain 3000 deep, a fan-out of 3000
   deep =
     n:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
-        sven.kinds.node.spawns.node =
+        yen.kinds.node.spawns.node =
           s:
           let
             i = b.fromJSON (b.substring 5 9 s.key);
           in
           if i < n then { "${toString (i + 1)}" = { }; } else { };
-        sven.kinds.top.spawns.node = _: { "0" = { }; };
-        sven.top.t = { };
+        yen.kinds.top.spawns.node = _: { "0" = { }; };
+        yen.top.t = { };
       }
     );
   wide =
     n:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
-        sven.kinds.root.spawns.leaf =
+        yen.kinds.root.spawns.leaf =
           _:
           b.listToAttrs (
             b.genList (i: {
@@ -169,29 +169,29 @@ let
               value = { };
             }) n
           );
-        sven.kinds.leaf = { };
-        sven.root.r = { };
+        yen.kinds.leaf = { };
+        yen.root.r = { };
       }
     );
 
   # tree driver, positive: a node reads its nearest cluster
-  treeHit = sven.eval (
-    { sven, ... }:
+  treeHit = yen.eval (
+    { yen, ... }:
     {
-      sven.kinds.top.spawns.cluster = _: sven.cluster;
-      sven.kinds.cluster.spawns.node = _: { n1 = { }; };
-      sven.kinds.node.sinks.seen = { };
-      sven.top.t = { };
-      sven.cluster.c1 = { };
-      sven.aspects.see = {
-        at = sven.kinds.node;
+      yen.kinds.top.spawns.cluster = _: yen.cluster;
+      yen.kinds.cluster.spawns.node = _: { n1 = { }; };
+      yen.kinds.node.sinks.seen = { };
+      yen.top.t = { };
+      yen.cluster.c1 = { };
+      yen.aspects.see = {
+        at = yen.kinds.node;
         cycle =
           { tree, ... }:
           {
             tree = [
               {
                 category = "c";
-                nearest = sven.kinds.cluster;
+                nearest = yen.kinds.cluster;
               }
             ];
             seen = map (c: c.name) (tree.select "c");
@@ -200,112 +200,111 @@ let
     }
   );
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
-  presence = sven.eval (
-    { sven, ... }:
+  presence = yen.eval (
+    { yen, ... }:
     {
-      sven.kinds.top.spawns.host = _: sven.host;
-      sven.kinds.host.spawns.svc =
-        p: if sven.lib.holds sven.aspects.server p then { web = { }; } else { };
-      sven.kinds.svc = { };
-      sven.top.t = { };
-      sven.host = {
+      yen.kinds.top.spawns.host = _: yen.host;
+      yen.kinds.host.spawns.svc = p: if yen.lib.holds yen.aspects.server p then { web = { }; } else { };
+      yen.kinds.svc = { };
+      yen.top.t = { };
+      yen.host = {
         a = { };
         b = { };
       };
-      sven.aspects.server.at = sven.host.a;
+      yen.aspects.server.at = yen.host.a;
     }
   );
   # a function element that reads a sink: two givers whose sink values differ are two elements, not one
-  sinkArgs = sven.eval (
-    { sven, ... }:
+  sinkArgs = yen.eval (
+    { yen, ... }:
     {
-      sven.kinds.fleet = {
-        spawns.environment = _: sven.environment;
+      yen.kinds.fleet = {
+        spawns.environment = _: yen.environment;
         sinks.seen = { };
       };
-      sven.kinds.environment = {
+      yen.kinds.environment = {
         spawns.host =
           s:
           b.listToAttrs (
             map (n: {
               name = n;
-              value = sven.host.${n};
-            }) (b.filter (n: sven.host.${n}.environment.name == s.name) (b.attrNames sven.host))
+              value = yen.host.${n};
+            }) (b.filter (n: yen.host.${n}.environment.name == s.name) (b.attrNames yen.host))
           );
-        sinks.tag.reduce = sven.lib.reduce.one;
+        sinks.tag.reduce = yen.lib.reduce.one;
       };
-      sven.kinds.host.fields.environment = sven.kinds.environment;
-      sven.fleet.main = { };
-      sven.environment = {
+      yen.kinds.host.fields.environment = yen.kinds.environment;
+      yen.fleet.main = { };
+      yen.environment = {
         prod = { };
         staging = { };
       };
-      sven.host = {
-        a.environment = sven.environment.prod;
-        b.environment = sven.environment.staging;
-        c.environment = sven.environment.prod;
+      yen.host = {
+        a.environment = yen.environment.prod;
+        b.environment = yen.environment.staging;
+        c.environment = yen.environment.prod;
       };
-      sven.aspects.envtag = {
-        at = sven.kinds.environment;
+      yen.aspects.envtag = {
+        at = yen.kinds.environment;
         tag = { environment, ... }: environment.name;
       };
-      sven.aspects.report = {
-        at = sven.kinds.host;
+      yen.aspects.report = {
+        at = yen.kinds.host;
         seen = { tag, ... }: tag;
       };
     }
   );
 
   # Den CI gaps closed: derived defaults, bad `at`, one key from many files, static once per receiver
-  gaps = sven.eval (
-    { sven, ... }:
+  gaps = yen.eval (
+    { yen, ... }:
     {
       imports = [
-        { sven.aspects.multi.nixos = { scope, ... }: [ "a-${scope.name}" ]; }
-        { sven.aspects.multi.nixos = { scope, ... }: [ "b-${scope.name}" ]; }
+        { yen.aspects.multi.nixos = { scope, ... }: [ "a-${scope.name}" ]; }
+        { yen.aspects.multi.nixos = { scope, ... }: [ "b-${scope.name}" ]; }
       ];
-      sven.kinds.fleet = {
-        spawns.host = _: sven.host;
+      yen.kinds.fleet = {
+        spawns.host = _: yen.host;
       };
-      sven.kinds.host = {
-        fields.vpn = sven.lib.derive (sven.lib.is b.isString) (self: "vpn-${self.name}");
+      yen.kinds.host = {
+        fields.vpn = yen.lib.derive (yen.lib.is b.isString) (self: "vpn-${self.name}");
         spawns.user = _: {
           u1 = { };
           u2 = { };
         };
         sinks.nixos = { };
       };
-      sven.kinds.user = { };
-      sven.fleet.main = { };
-      sven.host = {
+      yen.kinds.user = { };
+      yen.fleet.main = { };
+      yen.host = {
         h1 = { };
         h2.vpn = "custom";
       };
-      sven.aspects.multi.at = sven.kinds.host;
-      sven.aspects.shared = {
+      yen.aspects.multi.at = yen.kinds.host;
+      yen.aspects.shared = {
         at = [
-          sven.kinds.host
-          sven.kinds.user
+          yen.kinds.host
+          yen.kinds.user
         ];
         nixos = "marker";
       };
-      sven.aspects.typo.at = "host";
+      yen.aspects.typo.at = "host";
     }
   );
   # aspect refs on cycles: three values (well-founded semantics)
   logic =
     cyclic:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
-        sven.kinds.top.spawns.host = _: sven.host;
-        sven.kinds.host.spawns.user = _: { u = { }; };
-        sven.kinds.user = { };
-        sven.top.t = { };
-        sven.host.h = { };
-        sven.aspects =
+        yen.kinds.top.spawns.host = _: yen.host;
+        yen.kinds.host.spawns.user = _: { u = { }; };
+        yen.kinds.user = { };
+        yen.top.t = { };
+        yen.host.h = { };
+        yen.aspects =
           let
-            inherit (sven.lib)
+            inherit (yen.lib)
               all
               not
               within
@@ -314,45 +313,45 @@ let
           in
           {
             a.at = all [
-              sven.kinds.host
-              (not sven.aspects.b)
+              yen.kinds.host
+              (not yen.aspects.b)
             ];
             b.at =
               if cyclic then
                 all [
-                  sven.kinds.host
-                  (not sven.aspects.a)
+                  yen.kinds.host
+                  (not yen.aspects.a)
                 ]
               else
-                sven.kinds.host;
+                yen.kinds.host;
             c.at = all [
-              sven.kinds.host
-              (not sven.aspects.a)
+              yen.kinds.host
+              (not yen.aspects.a)
             ]; # reads an undefined: undefined too
-            p.at = sven.aspects.q;
-            q.at = sven.aspects.p; # a positive cycle: unfounded, false
+            p.at = yen.aspects.q;
+            q.at = yen.aspects.p; # a positive cycle: unfounded, false
             w.at = all [
-              sven.kinds.user
-              (within sven.aspects.b)
+              yen.kinds.user
+              (within yen.aspects.b)
             ]; # within crosses scopes: no cycle
             v.at = all [
-              sven.kinds.host
-              (has sven.aspects.w)
+              yen.kinds.host
+              (has yen.aspects.w)
             ];
           };
       }
     );
   diamond =
     k:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
-        sven.kinds.top.spawns.host = _: sven.host;
-        sven.kinds.host = { };
-        sven.top.t = { };
-        sven.host.h = { };
-        sven.aspects = {
-          x0.at = sven.kinds.host;
+        yen.kinds.top.spawns.host = _: yen.host;
+        yen.kinds.host = { };
+        yen.top.t = { };
+        yen.host.h = { };
+        yen.aspects = {
+          x0.at = yen.kinds.host;
         }
         // b.listToAttrs (
           b.concatMap (
@@ -363,17 +362,17 @@ let
             [
               {
                 name = "l${toString i}";
-                value.at = sven.aspects.${p};
+                value.at = yen.aspects.${p};
               }
               {
                 name = "r${toString i}";
-                value.at = sven.aspects.${p};
+                value.at = yen.aspects.${p};
               }
               {
                 name = "x${toString i}";
-                value.at = sven.lib.all [
-                  sven.aspects."l${toString i}"
-                  sven.aspects."r${toString i}"
+                value.at = yen.lib.all [
+                  yen.aspects."l${toString i}"
+                  yen.aspects."r${toString i}"
                 ];
               }
             ]
@@ -382,9 +381,9 @@ let
       }
     );
 
-  G = sven.graphs;
-  D = sven.datalog;
-  K = sven.krn;
+  G = yen.graphs;
+  D = yen.datalog;
+  K = yen.krn;
   ring = {
     a = [ "b" ];
     b = [ "c" ];
@@ -422,26 +421,26 @@ let
 
   # agent surface fixtures
   portsBase =
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.kinds.top.spawns.host = _: sven.host;
-      sven.kinds.host = {
+      yen.kinds.top.spawns.host = _: yen.host;
+      yen.kinds.host = {
         fields.port = {
           check = p: b.isInt p && p < 65536;
           name = "Port";
         };
         sinks.fw = { };
       };
-      sven.top.t = { };
-      sven.host = {
+      yen.top.t = { };
+      yen.host = {
         a.port = 22;
         b.port = 80;
       };
-      sven.aspects.firewall = {
-        at = sven.host.a;
+      yen.aspects.firewall = {
+        at = yen.host.a;
         fw = "on";
       };
-      sven.invariants.fw =
+      yen.invariants.fw =
         { scopes, ... }:
         map (s: {
           head = "bad:no-firewall:${s.id}";
@@ -451,28 +450,28 @@ let
     };
   ports =
     extra:
-    sven.eval (
-      { sven, ... }:
+    yen.eval (
+      { yen, ... }:
       {
         imports = [ extra ];
-        sven.kinds.top.spawns.host = _: sven.host;
-        sven.kinds.host = {
+        yen.kinds.top.spawns.host = _: yen.host;
+        yen.kinds.host = {
           fields.port = {
             check = p: b.isInt p && p < 65536;
             name = "Port";
           };
           sinks.fw = { };
         };
-        sven.top.t = { };
-        sven.host = {
+        yen.top.t = { };
+        yen.host = {
           a.port = 22;
           b.port = 80;
         };
-        sven.aspects.firewall = {
-          at = sven.host.a;
+        yen.aspects.firewall = {
+          at = yen.host.a;
           fw = "on";
         };
-        sven.invariants.fw =
+        yen.invariants.fw =
           { scopes, ... }:
           map (s: {
             head = "bad:no-firewall:${s.id}";
@@ -486,7 +485,7 @@ let
   checks = {
     errors-v2-check =
       let
-        e = rec1 (ports { sven.host.c.port = 70000; }) "check";
+        e = rec1 (ports { yen.host.c.port = 70000; }) "check";
       in
       e.want == "Port"
       && e.path == [ "port" ]
@@ -495,11 +494,11 @@ let
       && e.from == "host:c"
       && e.error == "port fails its check";
     errors-v2-near =
-      (rec1 (ports { sven.host.b.prot = 1; }) "unknown-field").near == [ "port" ]
-      && (rec1 (ports { sven.host.b.zzzzzz = 1; }) "unknown-field").near == [ ];
+      (rec1 (ports { yen.host.b.prot = 1; }) "unknown-field").near == [ "port" ]
+      && (rec1 (ports { yen.host.b.zzzzzz = 1; }) "unknown-field").near == [ ];
     errors-v2-two-answers =
       let
-        e = rec1 (ports { sven.host.a.port = 23; }) "two-answers";
+        e = rec1 (ports { yen.host.a.port = 23; }) "two-answers";
       in
       e.path == [
         "host"
@@ -509,7 +508,7 @@ let
       && e.got == 2;
     declared-in =
       let
-        r = ports { sven.aspects.firewall.nixos = { }; };
+        r = ports { yen.aspects.firewall.nixos = { }; };
       in
       b.length (
         r.declaredIn [
@@ -530,19 +529,19 @@ let
       && r.check.incomplete == [ ]
       && !r.check.ok
       && (ports (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.aspects.fw-b = {
-            at = sven.host.b;
+          yen.aspects.fw-b = {
+            at = yen.host.b;
             fw = "on";
           };
-          sven.aspects.firewall.at = sven.host.b;
+          yen.aspects.firewall.at = yen.host.b;
         }
       )).check.ok;
     invariants-incomplete =
       let
         r = ports {
-          sven.invariants.loop = [
+          yen.invariants.loop = [
             {
               head = "bad:loop";
               neg = [ "ok:loop" ];
@@ -559,9 +558,9 @@ let
       let
         s =
           (ports (
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.kinds.host.sinks.tags.reduce = sven.lib.reduce.set;
+              yen.kinds.host.sinks.tags.reduce = yen.lib.reduce.set;
             }
           )).schema;
       in
@@ -600,11 +599,11 @@ let
     explain =
       let
         r = ports (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.both.at = sven.lib.all [
-              sven.kinds.host
-              (sven.lib.not sven.aspects.firewall)
+            yen.aspects.both.at = yen.lib.all [
+              yen.kinds.host
+              (yen.lib.not yen.aspects.firewall)
             ];
           }
         );
@@ -634,10 +633,10 @@ let
         base = {
           imports = [ portsBase ];
         };
-        s = sven.stage {
+        s = yen.stage {
           inherit base;
           change = {
-            sven = {
+            yen = {
               host.c.port = 443;
               aspects.firewall.at = [
                 {
@@ -655,7 +654,7 @@ let
       && b.isString s.sha
       && s.diff.active.added == [ "firewall@top:t/host:c" ]
       &&
-        (sven.stage {
+        (yen.stage {
           inherit base;
           change = b.fromJSON s.render;
         }).diff == s.diff;
@@ -664,8 +663,8 @@ let
         base = {
           imports = [ portsBase ];
         };
-        ch = sven.change.set [ "host" "a" "port" ] 23;
-        s = sven.stage {
+        ch = yen.change.set [ "host" "a" "port" ] 23;
+        s = yen.stage {
           inherit base;
           change = ch;
         };
@@ -674,7 +673,7 @@ let
       && b.any (e: e.code == "two-answers") s.errors
       &&
         (b.head
-          (sven.stage {
+          (yen.stage {
             inherit base;
             change = ch;
             rejected = [ s.sha ];
@@ -682,35 +681,35 @@ let
         ).class == "authority"
       && (
         let
-          v = sven.stage {
+          v = yen.stage {
             inherit base;
-            change = sven.change.set [ "host" "c" "port" ] 1;
+            change = yen.change.set [ "host" "c" "port" ] 1;
           };
         in
         v.violations == [ "bad:no-firewall:top:t/host:c" ] && v.errors == [ ] && !v.ok
       );
     grants-narrow =
       let
-        g = sven.grant {
+        g = yen.grant {
           scopes = [ "top:t/host:a" ];
           sinks = [ "fw" ];
         };
-        all' = sven.grant { scopes = [ "top:t" ]; };
+        all' = yen.grant { scopes = [ "top:t" ]; };
         e = to: sink: { inherit to sink; };
       in
-      sven.allowed g (e "top:t/host:a" "fw")
-      && !sven.allowed g (e "top:t/host:b" "fw")
-      && !sven.allowed g (e "top:t/host:a" "nixos")
-      && sven.narrow all' g == g
-      && sven.narrow g all' == g
-      && (sven.narrow g (sven.grant { scopes = [ "top:t/host:b" ]; })).scopes == [ ]
+      yen.allowed g (e "top:t/host:a" "fw")
+      && !yen.allowed g (e "top:t/host:b" "fw")
+      && !yen.allowed g (e "top:t/host:a" "nixos")
+      && yen.narrow all' g == g
+      && yen.narrow g all' == g
+      && (yen.narrow g (yen.grant { scopes = [ "top:t/host:b" ]; })).scopes == [ ]
       &&
-        (sven.stage {
+        (yen.stage {
           base = {
             imports = [ portsBase ];
           };
           change = {
-            sven.aspects.firewall.at = [
+            yen.aspects.firewall.at = [
               {
                 kind = "host";
                 name = "b";
@@ -721,15 +720,15 @@ let
         }).refused != [ ];
     agent-json =
       let
-        a = sven.agent (ports {
-          sven.host.c.port = 70000;
+        a = yen.agent (ports {
+          yen.host.c.port = 70000;
         });
       in
       b.fromJSON (b.toJSON a) == a
       && a.counts.scopes == 4
       && b.length a.errors == 1
       &&
-        sven.jsonSafe {
+        yen.jsonSafe {
           f = x: x;
           p = ./.;
         } == {
@@ -739,11 +738,11 @@ let
     agent-context =
       let
         r = ports (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.kinds.host.sinks.fw2 = { };
-            sven.aspects.more = {
-              at = sven.host.a;
+            yen.kinds.host.sinks.fw2 = { };
+            yen.aspects.more = {
+              at = yen.host.a;
               fw = "x";
               fw2 = "y";
             };
@@ -768,7 +767,7 @@ let
     stored-queries =
       let
         r = ports {
-          sven.queries = {
+          yen.queries = {
             portOf = { host, r, ... }: (b.head (b.filter (s: s.name == host) r.scopes)).port;
             count =
               {
@@ -801,11 +800,11 @@ let
       && (r.ask "portof" { }).near == [ "portOf" ];
     history =
       let
-        h = sven.history {
+        h = yen.history {
           url = "file://${toString ./..}";
           revs = [
-            "33010b09579939ebe344cc23ab2f1b5650e295d1"
-            "5fa598ac90c560306d9ddcc80d8647798578e7e0"
+            "dd59e052790a0f3ced42d8a3a1911fd2a6c3ebdd"
+            "c0f96135f19d8d45373377646582abcdcf20d624"
           ];
           module = "tests/fixtures/history.nix";
         };
@@ -823,29 +822,29 @@ let
       ]
       && (b.elemAt h 0).changes == [ ]
       &&
-        (sven.asOf {
+        (yen.asOf {
           url = "file://${toString ./..}";
-          rev = "33010b09579939ebe344cc23ab2f1b5650e295d1";
+          rev = "dd59e052790a0f3ced42d8a3a1911fd2a6c3ebdd";
           module = "tests/fixtures/history.nix";
         }).data.host.a.port == 22;
     # reduce errors name their receiver and sink: a strategy cannot know them, the engine sets them
     reduce-error-receiver =
       let
-        r = sven.eval (
-          { sven, ... }:
+        r = yen.eval (
+          { yen, ... }:
           {
-            sven.kinds.top = {
-              spawns.h = _: sven.h;
+            yen.kinds.top = {
+              spawns.h = _: yen.h;
             };
-            sven.kinds.h.sinks.admin.reduce = sven.lib.reduce.one;
-            sven.top.t = { };
-            sven.h.a = { };
-            sven.aspects.x = {
-              at = sven.kinds.h;
+            yen.kinds.h.sinks.admin.reduce = yen.lib.reduce.one;
+            yen.top.t = { };
+            yen.h.a = { };
+            yen.aspects.x = {
+              at = yen.kinds.h;
               admin = "ana";
             };
-            sven.aspects.y = {
-              at = sven.kinds.h;
+            yen.aspects.y = {
+              at = yen.kinds.h;
               admin = "bo";
             };
           }
@@ -861,17 +860,17 @@ let
     # an aspect's `errors` key gives records too; `from` is always the giving scope
     aspect-error-record =
       let
-        r = sven.eval (
-          { sven, ... }:
+        r = yen.eval (
+          { yen, ... }:
           {
-            sven.kinds.top = {
-              spawns.h = _: sven.h;
+            yen.kinds.top = {
+              spawns.h = _: yen.h;
             };
-            sven.kinds.h = { };
-            sven.top.t = { };
-            sven.h.a = { };
-            sven.aspects.x = {
-              at = sven.kinds.h;
+            yen.kinds.h = { };
+            yen.top.t = { };
+            yen.h.a = { };
+            yen.aspects.x = {
+              at = yen.kinds.h;
               errors = [
                 {
                   code = "dup-addr";
@@ -909,31 +908,31 @@ let
       && (b.head r.errors).fix == "change one";
     # a declared bound that is null is open
     valid-at-null =
-      sven.validAt "2026-11-15" {
+      yen.validAt "2026-11-15" {
         validFrom = null;
         validTo = null;
       }
-      && sven.validAt "2026-11-15" {
+      && yen.validAt "2026-11-15" {
         validFrom = "2026-01-01";
         validTo = null;
       }
-      && !sven.validAt "2026-11-15" {
+      && !yen.validAt "2026-11-15" {
         validFrom = null;
         validTo = "2026-10-31";
       };
     valid-at =
       let
-        r = sven.eval (
-          { sven, ... }:
+        r = yen.eval (
+          { yen, ... }:
           {
             imports = [ ./fixtures/history.nix ];
-            sven.aspects.backup.at = sven.lib.all [
-              sven.kinds.host
-              (sven.lib.validAt "2026-11-15")
+            yen.aspects.backup.at = yen.lib.all [
+              yen.kinds.host
+              (yen.lib.validAt "2026-11-15")
             ];
-            sven.aspects.late.at = sven.lib.all [
-              sven.kinds.host
-              (sven.lib.validAt "2027-01-01")
+            yen.aspects.late.at = yen.lib.all [
+              yen.kinds.host
+              (yen.lib.validAt "2027-01-01")
             ];
           }
         );
@@ -944,7 +943,7 @@ let
       && r.active.late."top:t/host:b";
     without =
       let
-        w = sven.without {
+        w = yen.without {
           files = [
             ./fixtures/without/base.nix
             ./fixtures/without/db.nix
@@ -959,7 +958,7 @@ let
       && b.all (s: s.name != "db") w.r.scopes
       && b.any (s: s.name == "web") w.r.scopes
       &&
-        (sven.without {
+        (yen.without {
           files = [
             ./fixtures/without/base.nix
             ./fixtures/without/db.nix
@@ -971,7 +970,7 @@ let
         }).dropped == [ ];
     impact =
       let
-        r = sven.eval {
+        r = yen.eval {
           imports = [
             ./fixtures/without/base.nix
             ./fixtures/without/db.nix
@@ -996,7 +995,7 @@ let
       && (r.impact "top:t/host:dd" { }).code == "unknown-scope";
     labels-floor =
       let
-        r = sven.eval {
+        r = yen.eval {
           imports = [
             ./fixtures/labels/modules/base.nix
             ./fixtures/labels/agent/web.nix
@@ -1009,14 +1008,14 @@ let
       && b.all (x: x.trust == 1 && b.match ".*agent/web.nix" x.file != null) (r.floor 3)
       && b.length (r.floor 3) >= 2
       && r.floor 1 == [ ]
-      && (sven.eval { imports = [ ./fixtures/labels/modules/base.nix ]; }).labels.web.trust == 3;
+      && (yen.eval { imports = [ ./fixtures/labels/modules/base.nix ]; }).labels.web.trust == 3;
     field-facts =
       let
         r = ports (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.kinds.host.fields.peer = sven.lib.maybe sven.kinds.host;
-            sven.host.b.peer = sven.host.a;
+            yen.kinds.host.fields.peer = yen.lib.maybe yen.kinds.host;
+            yen.host.b.peer = yen.host.a;
           }
         );
       in
@@ -1026,13 +1025,13 @@ let
     check-whynot =
       let
         r = ports (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.aspects.fw-b = {
-              at = sven.host.b;
+            yen.aspects.fw-b = {
+              at = yen.host.b;
               fw = "on";
             };
-            sven.aspects.firewall.at = sven.host.b;
+            yen.aspects.firewall.at = yen.host.b;
           }
         );
       in
@@ -1045,7 +1044,7 @@ let
     program-validate =
       let
         r = ports { };
-        v = sven.program.validate r;
+        v = yen.program.validate r;
       in
       v [
         {
@@ -1106,7 +1105,7 @@ let
         };
         d =
           p:
-          sven.program.dryRun {
+          yen.program.dryRun {
             inherit base;
             prog = p;
           };
@@ -1148,7 +1147,7 @@ let
       ]).valid
       &&
         b.fromJSON (
-          sven.program.render [
+          yen.program.render [
             {
               op = "set";
               path = [
@@ -1728,31 +1727,31 @@ let
     neg-missing-addr = has noAddr "missing addr";
     neg-missing-addr-no-flake-break =
       noAddr.reduced.persist."fleet:main/host:lb" == [ "/var/lib/motd" ];
-    neg-unknown-field = has (sven.eval (fleet {
+    neg-unknown-field = has (yen.eval (fleet {
       addr = "a";
       adr = "b";
     })) "unknown field adr";
-    neg-bad-check = has (sven.eval (fleet {
+    neg-bad-check = has (yen.eval (fleet {
       addr = 1;
     })) "addr fails its check";
     bad-check-reads-null =
       (hostOf (
-        sven.eval (fleet {
+        yen.eval (fleet {
           addr = 1;
         })
       )).addr == null;
-    two-answers = has (sven.eval {
+    two-answers = has (yen.eval {
       imports = [
         (fleet { addr = "a"; })
-        { sven.host.lb.addr = "b"; }
+        { yen.host.lb.addr = "b"; }
       ];
     }) "two answers for host.lb.addr";
     same-answer-twice-ok =
       msgs (
-        sven.eval {
+        yen.eval {
           imports = [
             (fleet { addr = "a"; })
-            { sven.host.lb.addr = "a"; }
+            { yen.host.lb.addr = "a"; }
           ];
         }
       ) == [ ];
@@ -1800,16 +1799,16 @@ let
       { }
     )) "no cluster: k3s off";
     cycle-many-elements =
-      (sven.eval (
-        { sven, ... }:
+      (yen.eval (
+        { yen, ... }:
         {
-          sven.kinds.top = {
+          yen.kinds.top = {
             spawns = { };
-            sinks.many.reduce = sven.lib.reduce.list;
+            sinks.many.reduce = yen.lib.reduce.list;
           };
-          sven.top.t = { };
-          sven.aspects.m = {
-            at = sven.kinds.top;
+          yen.top.t = { };
+          yen.aspects.m = {
+            at = yen.kinds.top;
             cycle = _: {
               many = [
                 "a"
@@ -1829,10 +1828,10 @@ let
       && map (e: e.error) treeHit.errors == [ ];
     unread-sink-no-error =
       msgs (
-        sven.eval {
+        yen.eval {
           imports = [
             (fleet { addr = "a"; })
-            { sven.aspects.motd.nixso = { }; }
+            { yen.aspects.motd.nixso = { }; }
           ];
         }
       ) == [ ];
@@ -1873,7 +1872,7 @@ let
     } good.graph.edges;
     deep-1000 = b.length (deep 1000).scopes == 1002;
     empty-fleet =
-      msgs (sven.eval { }) == [ ] && (sven.eval { }).scopes == [ ] && (sven.eval { }).flake == null; # den-hoag empty-aspects
+      msgs (yen.eval { }) == [ ] && (yen.eval { }).scopes == [ ] && (yen.eval { }).flake == null; # den-hoag empty-aspects
     wide-3000 = b.length (wide 3000).scopes == 3001;
   };
 in
@@ -1883,7 +1882,7 @@ in
     logic
     ports
     portsBase
-    sven
+    yen
     ;
   # the lib suites live in their own files; `failed` runs them all
   failed =

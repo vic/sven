@@ -1,16 +1,16 @@
 # den-hoag CI capabilities, each as plain data and plain Nix: merge strategies with provenance, setting refs,
 # claim dedup, negation over claims, a composite claim split by a sink stage, a demand cascade as spawns,
 # a shadowing query, and a suppression chain as `at` predicates.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     all
     not
     same
     opt
     ;
-  inherit (sven.lib.reduce) entries;
-  hosts = lib.filterAttrs (_: h: h ? addr) sven.host;
+  inherit (yen.lib.reduce) entries;
+  hosts = lib.filterAttrs (_: h: h ? addr) yen.host;
 
   # a discipline is a reduce: per key, the first layer that names a strategy decides it ("replace" when none);
   # a value { ref = k; } reads the final value of key k. Provenance lists every layer that set the key.
@@ -72,9 +72,9 @@ let
 in
 {
   # H18 + H19: strategies, provenance, ref
-  sven.kinds.host.sinks.tuning.reduce = strategies;
-  sven.aspects.tuning-base = {
-    at = sven.kinds.host;
+  yen.kinds.host.sinks.tuning.reduce = strategies;
+  yen.aspects.tuning-base = {
+    at = yen.kinds.host;
     tuning = {
       rank = 0;
       set = {
@@ -85,18 +85,18 @@ in
       strategy.ports = "append";
     };
   };
-  sven.aspects.tuning-env = {
+  yen.aspects.tuning-env = {
     at = all [
-      sven.kinds.host
-      (sven.lib.within sven.environment.prod)
+      yen.kinds.host
+      (yen.lib.within yen.environment.prod)
     ];
     tuning = {
       rank = 1;
       set.ports = [ 80 ];
     };
   };
-  sven.aspects.tuning-lb = {
-    at = sven.host.lb;
+  yen.aspects.tuning-lb = {
+    at = yen.host.lb;
     tuning = {
       rank = 2;
       set = {
@@ -107,13 +107,13 @@ in
   };
 
   # H71: two claimants of one token give one node with sorted sharers
-  sven.kinds.machine.fields.tokens = opt (sven.helpers.listOf lib.types.str) [ ];
-  sven.host.web-2.tokens = [ "apitoken" ];
-  sven.host.web-1.tokens = [
+  yen.kinds.machine.fields.tokens = opt (yen.helpers.listOf lib.types.str) [ ];
+  yen.host.web-2.tokens = [ "apitoken" ];
+  yen.host.web-1.tokens = [
     "apitoken"
     "metrics"
   ];
-  sven.kinds.fleet.sinks.token-claims.reduce = es: {
+  yen.kinds.fleet.sinks.token-claims.reduce = es: {
     value = lib.mapAttrs (_: xs: { sharers = lib.sort (a: b: a < b) (map (x: x.from.name) xs); }) (
       lib.groupBy (x: x.token) (
         lib.concatMap (
@@ -127,18 +127,18 @@ in
     );
     errors = [ ];
   };
-  sven.aspects.token-claim = {
+  yen.aspects.token-claim = {
     at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: s.tokens != [ ])
     ];
     token-claims = { host, ... }: host.tokens;
   };
 
   # H72: lockdown keeps root claimants (nobody depends on them) and drops self-claims
-  sven.aspects.db-lockdown = {
+  yen.aspects.db-lockdown = {
     at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: !s.minimal)
     ];
     nixos =
@@ -158,7 +158,7 @@ in
   };
 
   # H73: a route claim is split into a secret claim and a connect claim by sink stages
-  sven.kinds.fleet.sinks = {
+  yen.kinds.fleet.sinks = {
     route-claims = {
       reduce = entries;
       secret-claims =
@@ -168,51 +168,51 @@ in
         { route-claims, ... }:
         lib.listToAttrs (map (e: lib.nameValuePair e.value { by = e.from.name; }) route-claims);
     };
-    secret-claims.reduce = sven.lib.reduce.merge;
-    connect-claims.reduce = sven.lib.reduce.merge;
+    secret-claims.reduce = yen.lib.reduce.merge;
+    connect-claims.reduce = yen.lib.reduce.merge;
   };
-  sven.aspects.api-route = {
-    at = sven.host.web-1;
+  yen.aspects.api-route = {
+    at = yen.host.web-1;
     route-claims = "api";
   };
 
   # H74: a demand cascades into structure: one database per demand, each with a secret and a connect below it
-  sven.kinds.machine.fields.demands = opt (sven.helpers.listOf lib.types.str) [ ];
-  sven.host.web-1.demands = [
+  yen.kinds.machine.fields.demands = opt (yen.helpers.listOf lib.types.str) [ ];
+  yen.host.web-1.demands = [
     "orders"
     "users"
   ];
-  sven.host.web-2.demands = [
+  yen.host.web-2.demands = [
     "orders"
     "audit"
   ];
-  sven.kinds.fleet.spawns.database =
+  yen.kinds.fleet.spawns.database =
     _:
     lib.genAttrs (lib.concatMap (h: h.demands) (lib.attrValues hosts)) (n: {
       by = map (h: h.name) (lib.filter (h: lib.elem n h.demands) (lib.attrValues hosts));
     });
-  sven.kinds.database.spawns = {
+  yen.kinds.database.spawns = {
     secret = s: { "${s.name}-pw" = { }; };
     connect = s: { "${s.name}-url" = { }; };
   };
 
   # H76: a query with shadowing: the nearer path wins, the label order breaks ties
-  sven.kinds.machine.fields = {
-    via = opt (sven.helpers.listOf sven.kinds.host) [ ];
-    motd = sven.lib.maybe lib.types.str;
+  yen.kinds.machine.fields = {
+    via = opt (yen.helpers.listOf yen.kinds.host) [ ];
+    motd = yen.lib.maybe lib.types.str;
   };
-  sven.host.stage.via = [
-    sven.host.web-1
-    sven.host.web-2
+  yen.host.stage.via = [
+    yen.host.web-1
+    yen.host.web-2
   ];
-  sven.host.web-1 = {
-    via = [ sven.host.lb ];
+  yen.host.web-1 = {
+    via = [ yen.host.lb ];
     motd = "w1";
   };
-  sven.host.web-2.motd = "w2";
-  sven.host.lb.motd = "lb";
-  sven.aspects.visible-motd = {
-    at = sven.fleet.main;
+  yen.host.web-2.motd = "w2";
+  yen.host.lb.motd = "lb";
+  yen.aspects.visible-motd = {
+    at = yen.fleet.main;
     out =
       { ... }:
       {
@@ -225,17 +225,17 @@ in
   };
 
   # H99: suppression chain: a suppresses b, b suppresses c, c suppresses d
-  sven.aspects.sup-a.at = sven.host.lb;
-  sven.aspects.sup-b.at = all [
-    sven.host.lb
-    (not sven.aspects.sup-a)
+  yen.aspects.sup-a.at = yen.host.lb;
+  yen.aspects.sup-b.at = all [
+    yen.host.lb
+    (not yen.aspects.sup-a)
   ];
-  sven.aspects.sup-c.at = all [
-    sven.host.lb
-    (not sven.aspects.sup-b)
+  yen.aspects.sup-c.at = all [
+    yen.host.lb
+    (not yen.aspects.sup-b)
   ];
-  sven.aspects.sup-d.at = all [
-    sven.host.lb
-    (not sven.aspects.sup-c)
+  yen.aspects.sup-d.at = all [
+    yen.host.lb
+    (not yen.aspects.sup-c)
   ];
 }

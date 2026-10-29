@@ -1,10 +1,10 @@
 ---
-{"description":"Reachability, layers, cycles and paths over fleet data with `sven.lib.graphs`: deploy waves and impact.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/graphs/page.nix","title":"Graphs"}
+{"description":"Reachability, layers, cycles and paths over fleet data with `yen.lib.graphs`: deploy waves and impact.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/graphs/page.nix","title":"Graphs"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-Fleet data is plain Nix, so a question about it is a function. `sven.lib.graphs` answers graph questions.
+Fleet data is plain Nix, so a question about it is a function. `yen.lib.graphs` answers graph questions.
 It works on `succ`, an attrset from a node to its successors. Every function sorts, so the order the data is
 written in never changes an answer.
 
@@ -24,46 +24,46 @@ Hosts depend on hosts:
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields.dependsOn = sven.lib.opt (sven.lib.is lib.isList) [ ]; # host refs
+  yen.kinds.host.fields.dependsOn = yen.lib.opt (yen.lib.is lib.isList) [ ]; # host refs
 
-  sven.fleet.main = { };
-  sven.host.db = { };
-  sven.host.cache = { };
-  sven.host.api = {
+  yen.fleet.main = { };
+  yen.host.db = { };
+  yen.host.cache = { };
+  yen.host.api = {
     dependsOn = [
-      sven.host.db
-      sven.host.cache
+      yen.host.db
+      yen.host.cache
     ];
   };
-  sven.host.web = {
-    dependsOn = [ sven.host.api ];
+  yen.host.web = {
+    dependsOn = [ yen.host.api ];
   };
-  sven.host.lb = {
-    dependsOn = [ sven.host.web ];
+  yen.host.lb = {
+    dependsOn = [ yen.host.web ];
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/deploy.nix"
 # `succ` is an attrset from a node to its successors. Here: a host to the hosts it depends on.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  G = sven.lib.graphs;
-  dependsOn = lib.mapAttrs (_: h: map (d: d.name) h.dependsOn) sven.host;
+  G = yen.lib.graphs;
+  dependsOn = lib.mapAttrs (_: h: map (d: d.name) h.dependsOn) yen.host;
 in
 {
-  sven.aspects.deploy-plan = {
-    at = sven.kinds.fleet;
+  yen.aspects.deploy-plan = {
+    at = yen.kinds.fleet;
     out.deploy = {
       waves = G.layers dependsOn; # dependencies first: each wave after the waves it depends on
-      impact = lib.genAttrs (lib.attrNames sven.host) (G.reachers dependsOn); # who breaks if this host is down
+      impact = lib.genAttrs (lib.attrNames yen.host) (G.reachers dependsOn); # who breaks if this host is down
       path = G.shortest dependsOn "lb" "db";
     };
     errors = map (c: "deploy: a dependency cycle: ${lib.concatStringsSep " -> " c}") (
@@ -138,9 +138,9 @@ A cycle is data, not a hang. `sccs` finds it, and the aspect gives an error reco
 
 ```nix title="variants/cycle.nix"
 # db now depends on lb: a cycle.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.db.dependsOn = [ sven.host.lb ];
+  yen.host.db.dependsOn = [ yen.host.lb ];
 }
 ```
 
@@ -154,7 +154,7 @@ A cycle is data, not a hang. `sccs` finds it, and the aspect gives an error reco
 Every block on this page is a file of the template `graphs`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#graphs
+nix flake init -t github:vic/yen#graphs
 ```
 
 <FileTree>

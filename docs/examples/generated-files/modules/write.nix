@@ -1,11 +1,11 @@
 # README.md and the CI workflow, generated from fleet data by github:sini/files.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  hosts = lib.filter (s: s.kind == "host") sven.lib.graph.scopes;
+  hosts = lib.filter (s: s.kind == "host") yen.lib.graph.scopes;
 in
 {
-  sven.aspects.write = {
-    at = sven.kinds.fleet;
+  yen.aspects.write = {
+    at = yen.kinds.fleet;
     files = {
       files.file."README.md".text = ''
         # My fleet

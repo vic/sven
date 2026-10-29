@@ -1,16 +1,16 @@
-# clan services written in sven. A service is data (roles, typed interface, constraints, nested instances) plus
+# clan services written in yen. A service is data (roles, typed interface, constraints, nested instances) plus
 # aspects: an aspect at a member scope is clan's perInstance, an aspect at a machine that `has` a member is perMachine.
 # borg comes from another file through a function, as clan's `module.input` loads a service from another flake.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) all has;
+  inherit (yen.lib) all has;
   memberOf =
     svc: role: s:
     s.service or null == svc && (role == null || s.role == role);
   at =
     svc: role:
     all [
-      sven.kinds.member
+      yen.kinds.member
       (memberOf svc role)
     ];
   str = lib.types.str;
@@ -18,7 +18,7 @@ in
 {
   imports = [ (import ../../services/borg.nix { prefix = "fleet"; }) ];
 
-  sven.helpers.clan.services = {
+  yen.helpers.clan.services = {
     sshd.roles.server = { };
     wifi.roles.default.interface.networks = {
       type = lib.types.attrs;
@@ -32,7 +32,7 @@ in
     banner = {
       roles.default.interface.text = {
         type = str;
-        default = "managed by sven";
+        default = "managed by yen";
       };
       constraints.maxInstances = 1;
     };
@@ -43,15 +43,15 @@ in
   };
 
   # sshd: one config per machine however many instances (perMachine)
-  sven.aspects.clan-sshd = {
+  yen.aspects.clan-sshd = {
     at = all [
-      sven.helpers.machines
+      yen.helpers.machines
       (has (memberOf "sshd" null))
     ];
     os.services.openssh.enable = true;
   };
   # wifi: the settings a member reads are interface defaults, then role-wide, then this machine's
-  sven.aspects.clan-wifi = {
+  yen.aspects.clan-wifi = {
     at = at "wifi" "default";
     nixos =
       { member, ... }:
@@ -60,7 +60,7 @@ in
       };
   };
   # users: many instances of one service on one machine, each its own scope
-  sven.aspects.clan-users = {
+  yen.aspects.clan-users = {
     at = at "users" "default";
     nixos =
       { member, ... }:
@@ -72,7 +72,7 @@ in
       };
   };
   # site exports its endpoints; dns, another service, reads every service's endpoints (clan dm-dns)
-  sven.aspects.clan-site = {
+  yen.aspects.clan-site = {
     at = at "site" "default";
     exports =
       { member, ... }:
@@ -80,8 +80,8 @@ in
         endpoints = [ "${member.instance}.example.org" ];
       };
   };
-  sven.aspects.clan-dns = {
-    at = sven.kinds.fleet;
+  yen.aspects.clan-dns = {
+    at = yen.kinds.fleet;
     out =
       { exports, ... }:
       {
@@ -94,7 +94,7 @@ in
         ) exports;
       };
   };
-  sven.aspects.clan-banner = {
+  yen.aspects.clan-banner = {
     at = at "banner" "default";
     os =
       { member, ... }:
@@ -104,8 +104,8 @@ in
   };
 
   # instances (clan inventory.instances); labels are clan tags
-  sven.host.stage.labels = [ "laptop" ];
-  sven.instance = {
+  yen.host.stage.labels = [ "laptop" ];
+  yen.instance = {
     backup = {
       module = "borg";
       roles = {

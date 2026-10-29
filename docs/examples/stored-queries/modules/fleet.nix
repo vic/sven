@@ -1,14 +1,14 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields.addr = lib.types.str;
-    spawns.user = s: lib.filterAttrs (_: u: sven.lib.same u.on s) sven.user;
+    spawns.user = s: lib.filterAttrs (_: u: yen.lib.same u.on s) yen.user;
     sinks.packages = {
-      reduce = sven.lib.reduce.set;
+      reduce = yen.lib.reduce.set;
       out =
         { host, packages, ... }:
         {
@@ -16,21 +16,21 @@
         };
     };
   };
-  sven.kinds.user.fields.on = sven.kinds.host;
+  yen.kinds.user.fields.on = yen.kinds.host;
 
-  sven.fleet.main = { };
-  sven.host.web.addr = "10.0.0.1";
-  sven.user.ana.on = sven.host.web;
-  sven.aspects.git = {
+  yen.fleet.main = { };
+  yen.host.web.addr = "10.0.0.1";
+  yen.user.ana.on = yen.host.web;
+  yen.aspects.git = {
     at = [
-      sven.kinds.host
-      sven.kinds.user
+      yen.kinds.host
+      yen.kinds.user
     ];
     packages = "git";
   };
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     packages = "nginx";
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }

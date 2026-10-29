@@ -10,7 +10,7 @@
     [
       ''
         Some values are not written but found: a port no other app uses, memory that fits a host, a database host in the
-        right environment. `sven.lib.krn` is µKanren with constraints. It has logic variables, unification over attrsets,
+        right environment. `yen.lib.krn` is µKanren with constraints. It has logic variables, unification over attrsets,
         lists and scalars, and goals that run in both directions.
       ''
       (docs.file "modules/fleet.nix")

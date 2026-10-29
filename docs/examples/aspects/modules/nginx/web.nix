@@ -1,8 +1,8 @@
 # One aspect, two files. `at` is the union of both files.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     packages = "nginx";
   };
 }

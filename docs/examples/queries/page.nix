@@ -1,6 +1,6 @@
 {
   title = "Queries";
-  description = "`sven.lib.eval` gives queries, not one value: errors, graph, scopes, active, reduced, facts, and more.";
+  description = "`yen.lib.eval` gives queries, not one value: errors, graph, scopes, active, reduced, facts, and more.";
   section = "query";
   order = 1;
 
@@ -8,7 +8,7 @@
     { docs, r, ... }:
     [
       ''
-        `(import sven).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+        `(import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
         Every answer is plain data, so `builtins.toJSON` prints it. This small fleet answers each query below.
       ''
       (docs.file "modules/fleet.nix")
@@ -41,7 +41,7 @@
           ]
           [
             "`flake`"
-            "the answer of `sven.flake`"
+            "the answer of `yen.flake`"
           ]
           [
             "`data`"

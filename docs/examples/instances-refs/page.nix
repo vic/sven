@@ -13,14 +13,14 @@
     }:
     [
       ''
-        A kind is also a type. A field of type `sven.kinds.environment` holds a ref to an environment instance:
-        `sven.environment.prod`, never the string `"prod"`.
+        A kind is also a type. A field of type `yen.kinds.environment` holds a ref to an environment instance:
+        `yen.environment.prod`, never the string `"prod"`.
       ''
       (docs.file "modules/kinds.nix")
       (docs.fileWith "{6-7}" "modules/instances.nix")
       ''
         Refs are lazy, so two hosts can point at each other. There is no cycle error.
-        Follow a ref like an attrset, and compare two instances with `sven.lib.same`:
+        Follow a ref like an attrset, and compare two instances with `yen.lib.same`:
       ''
       (docs.file "modules/report.nix")
       (docs.value r.flake.report)

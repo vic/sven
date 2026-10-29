@@ -1,9 +1,9 @@
 # A standalone home: alice on the edge channel, no machine above.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.home.alice-laptop = {
-    user = sven.user.alice;
-    channel = sven.channel.edge;
-    system = sven.system.x86_64-linux;
+  yen.home.alice-laptop = {
+    user = yen.user.alice;
+    channel = yen.channel.edge;
+    system = yen.system.x86_64-linux;
   };
 }

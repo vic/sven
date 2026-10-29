@@ -1,25 +1,25 @@
 ---
-{"description":"`sven.lib.eval` gives queries, not one value: errors, graph, scopes, active, reduced, facts, and more.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/queries/page.nix","title":"Queries"}
+{"description":"`yen.lib.eval` gives queries, not one value: errors, graph, scopes, active, reduced, facts, and more.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/queries/page.nix","title":"Queries"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-`(import sven).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+`(import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
 Every answer is plain data, so `builtins.toJSON` prints it. This small fleet answers each query below.
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields.addr = lib.types.str;
-    spawns.user = s: lib.filterAttrs (_: u: sven.lib.same u.on s) sven.user;
+    spawns.user = s: lib.filterAttrs (_: u: yen.lib.same u.on s) yen.user;
     sinks.packages = {
-      reduce = sven.lib.reduce.set;
+      reduce = yen.lib.reduce.set;
       out =
         { host, packages, ... }:
         {
@@ -27,23 +27,23 @@ Every answer is plain data, so `builtins.toJSON` prints it. This small fleet ans
         };
     };
   };
-  sven.kinds.user.fields.on = sven.kinds.host;
+  yen.kinds.user.fields.on = yen.kinds.host;
 
-  sven.fleet.main = { };
-  sven.host.web.addr = "10.0.0.1";
-  sven.user.ana.on = sven.host.web;
-  sven.aspects.git = {
+  yen.fleet.main = { };
+  yen.host.web.addr = "10.0.0.1";
+  yen.user.ana.on = yen.host.web;
+  yen.aspects.git = {
     at = [
-      sven.kinds.host
-      sven.kinds.user
+      yen.kinds.host
+      yen.kinds.user
     ];
     packages = "git";
   };
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     packages = "nginx";
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -55,7 +55,7 @@ Every answer is plain data, so `builtins.toJSON` prints it. This small fleet ans
 | `active` | aspect, then scope id, then `true` or `false` |
 | `undefined` | aspects that `at` cannot decide (a cycle through `not`) |
 | `reduced` | sink, then receiver id, then the value |
-| `flake` | the answer of `sven.flake` |
+| `flake` | the answer of `yen.flake` |
 | `data` | every instance's declared fields |
 | `schema` | every kind, aspect and invariant, as JSON-safe data |
 | `declaredIn path` | the files that answer a declaration path |
@@ -247,7 +247,7 @@ The commands above use a `query.nix` that returns `eval` of your modules. See [P
 Every block on this page is a file of the template `queries`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#queries
+nix flake init -t github:vic/yen#queries
 ```
 
 <FileTree>

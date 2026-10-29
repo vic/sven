@@ -1,8 +1,8 @@
 # What every host gets: its generated hardware file, its name, and the boot and locale basics.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.machine = {
-    at = sven.kinds.host;
+  yen.aspects.machine = {
+    at = yen.kinds.host;
     nixos =
       { host, ... }:
       {

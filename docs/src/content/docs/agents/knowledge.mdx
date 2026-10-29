@@ -1,53 +1,53 @@
 ---
-{"description":"The fleet as sorted N-Triples with a sha256, and SHACL shapes from the schema, for graph stores.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/knowledge/page.nix","title":"Knowledge packs"}
+{"description":"The fleet as sorted N-Triples with a sha256, and SHACL shapes from the schema, for graph stores.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/knowledge/page.nix","title":"Knowledge packs"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 An agent with a knowledge store (a triple store such as quipu) can keep the fleet as a graph and query it with SPARQL.
-`sven.lib.rdf.share r` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
+`yen.lib.rdf.share r` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
 element as a node with its origin, and errors. It adds a sha256 and a count.
 
 
 ```nix title="modules/hosts.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod.domain = "example.com";
-  sven.host.web.environment = sven.environment.prod;
-  sven.host.db.environment = sven.environment.prod;
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.environment.prod.domain = "example.com";
+  yen.host.web.environment = yen.environment.prod;
+  yen.host.db.environment = yen.environment.prod;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     services = "nginx";
   };
 }
 ```
 
 ```text
-<https://sven.dev/fleet/edge/32d0c078116c66f5> <https://sven.dev/fleet/sven/from> <https://sven.dev/fleet/scope/fleet:main> .
-<https://sven.dev/fleet/edge/32d0c078116c66f5> <https://sven.dev/fleet/sven/origin> "aspect pack" .
-<https://sven.dev/fleet/edge/32d0c078116c66f5> <https://sven.dev/fleet/sven/sink> "out" .
-<https://sven.dev/fleet/edge/32d0c078116c66f5> <https://sven.dev/fleet/sven/to> <https://sven.dev/fleet/scope/fleet:main> .
-<https://sven.dev/fleet/edge/a8c8404b6ebdf537> <https://sven.dev/fleet/sven/from> <https://sven.dev/fleet/scope/fleet:main/host:web> .
-<https://sven.dev/fleet/edge/a8c8404b6ebdf537> <https://sven.dev/fleet/sven/origin> "aspect nginx" .
-<https://sven.dev/fleet/edge/a8c8404b6ebdf537> <https://sven.dev/fleet/sven/sink> "services" .
-<https://sven.dev/fleet/edge/a8c8404b6ebdf537> <https://sven.dev/fleet/sven/to> <https://sven.dev/fleet/scope/fleet:main/host:web> .
-<https://sven.dev/fleet/instance/environment/prod> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://sven.dev/fleet/kind/environment> .
-<https://sven.dev/fleet/instance/environment/prod> <https://sven.dev/fleet/sven/name> "prod" .
-<https://sven.dev/fleet/instance/fleet/main> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://sven.dev/fleet/kind/fleet> .
-<https://sven.dev/fleet/instance/fleet/main> <https://sven.dev/fleet/sven/name> "main" .
+<https://yen.dev/fleet/edge/32d0c078116c66f5> <https://yen.dev/fleet/yen/from> <https://yen.dev/fleet/scope/fleet:main> .
+<https://yen.dev/fleet/edge/32d0c078116c66f5> <https://yen.dev/fleet/yen/origin> "aspect pack" .
+<https://yen.dev/fleet/edge/32d0c078116c66f5> <https://yen.dev/fleet/yen/sink> "out" .
+<https://yen.dev/fleet/edge/32d0c078116c66f5> <https://yen.dev/fleet/yen/to> <https://yen.dev/fleet/scope/fleet:main> .
+<https://yen.dev/fleet/edge/a8c8404b6ebdf537> <https://yen.dev/fleet/yen/from> <https://yen.dev/fleet/scope/fleet:main/host:web> .
+<https://yen.dev/fleet/edge/a8c8404b6ebdf537> <https://yen.dev/fleet/yen/origin> "aspect nginx" .
+<https://yen.dev/fleet/edge/a8c8404b6ebdf537> <https://yen.dev/fleet/yen/sink> "services" .
+<https://yen.dev/fleet/edge/a8c8404b6ebdf537> <https://yen.dev/fleet/yen/to> <https://yen.dev/fleet/scope/fleet:main/host:web> .
+<https://yen.dev/fleet/instance/environment/prod> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://yen.dev/fleet/kind/environment> .
+<https://yen.dev/fleet/instance/environment/prod> <https://yen.dev/fleet/yen/name> "prod" .
+<https://yen.dev/fleet/instance/fleet/main> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://yen.dev/fleet/kind/fleet> .
+<https://yen.dev/fleet/instance/fleet/main> <https://yen.dev/fleet/yen/name> "main" .
 …
 ```
 
 ```nix title="result"
 {
   count = 31;
-  sha256 = "44217e235703005cb4aab506d7eedc32f0c7040f6539764c2a31f713b76b6b24";
+  sha256 = "7d5008a92e83eb458e7a6975294ade014204a79975d870a2c385e87a1ecd3f5e";
 }
 ```
 
 ## Same fleet, same hash
 
-The triples are sorted, and sven gives the same answer whatever the file order. So two revisions compare by hash first.
+The triples are sorted, and yen gives the same answer whatever the file order. So two revisions compare by hash first.
 The docs check it: the files of this template, loaded in reverse order, give the same sha256.
 
 A fleet can give its pack as a flake output:
@@ -55,12 +55,12 @@ A fleet can give its pack as a flake output:
 
 ```nix title="modules/pack.nix"
 # The routing graph as a knowledge pack: sorted N-Triples with a sha256. Same fleet, same hash, any file order.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.pack = {
-    at = sven.kinds.fleet;
-    out.rdfPack = removeAttrs (sven.lib.rdf.share {
-      graph = sven.lib.graph;
+  yen.aspects.pack = {
+    at = yen.kinds.fleet;
+    out.rdfPack = removeAttrs (yen.lib.rdf.share {
+      graph = yen.lib.graph;
       active = { };
       errors = [ ];
     }) [ "ntriples" ];
@@ -70,8 +70,8 @@ A fleet can give its pack as a flake output:
 
 ## Shapes
 
-`sven.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `sven:name` required,
-`sven:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields.
+`yen.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required,
+`yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields.
 
 
 ```turtle
@@ -79,15 +79,15 @@ A fleet can give its pack as a flake output:
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 
-<https://sven.dev/fleet/kind/fleet> a sh:NodeShape ;
-  sh:targetClass <https://sven.dev/fleet/kind/fleet> ;
-  sh:property [ sh:path <https://sven.dev/fleet/sven/name> ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; ] ;
-  sh:property [ sh:path <https://sven.dev/fleet/sven/parent> ; sh:maxCount 1 ; ] ;
+<https://yen.dev/fleet/kind/fleet> a sh:NodeShape ;
+  sh:targetClass <https://yen.dev/fleet/kind/fleet> ;
+  sh:property [ sh:path <https://yen.dev/fleet/yen/name> ; sh:minCount 1 ; sh:maxCount 1 ; sh:datatype xsd:string ; ] ;
+  sh:property [ sh:path <https://yen.dev/fleet/yen/parent> ; sh:maxCount 1 ; ] ;
   .
 
-<https://sven.dev/fleet/kind/host> a sh:NodeShape ;
-  sh:targetClass <https://sven.dev/fleet/kind/host> ;
-  sh:property [ sh:path <https://sven.dev/fleet/sven/name> …
+<https://yen.dev/fleet/kind/host> a sh:NodeShape ;
+  sh:targetClass <https://yen.dev/fleet/kind/host> ;
+  sh:property [ sh:path <https://yen.dev/fleet/yen/name> ; sh:minCo…
 ```
 
 :::tip[One snapshot per revision]
@@ -99,7 +99,7 @@ so "what did the fleet look like before this change" is a query.
 Every block on this page is a file of the template `knowledge`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#knowledge
+nix flake init -t github:vic/yen#knowledge
 ```
 
 <FileTree>

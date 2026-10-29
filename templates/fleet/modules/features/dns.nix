@@ -1,13 +1,13 @@
 # base's second file: every machine's A record. dns reads the pool at the edge environment.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.base.records =
+  yen.aspects.base.records =
     { scope, ... }:
     {
       ${scope.name} = scope.addr;
     };
-  sven.aspects.dns = {
-    at = sven.environment.prod;
+  yen.aspects.dns = {
+    at = yen.environment.prod;
     terraform =
       { records, lib, ... }:
       {

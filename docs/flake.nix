@@ -1,20 +1,20 @@
-# The sven docs site, as a sven fleet: every page is an instance, every code block a file under examples/.
+# The yen docs site, as a yen fleet: every page is an instance, every code block a file under examples/.
 # Regenerate the pages: nix run .#write-files. Test the examples: nix eval --impure --file tests.nix failed
 {
-  description = "sven documentation, generated from tested examples";
+  description = "yen documentation, generated from tested examples";
 
   outputs =
     inputs:
     let
-      # the docs live in the sven repository: its root is the engine, shaped like the `sven` flake input
-      sven = import inputs.self.sourceInfo // {
+      # the docs live in the yen repository: its root is the engine, shaped like the `yen` flake input
+      yen = import inputs.self.sourceInfo // {
         inherit (inputs.self.sourceInfo) outPath;
       };
-      flake = sven.lib.mkFlake {
+      flake = yen.lib.mkFlake {
         imports = [ (inputs.import-tree ./modules) ];
         _module.args = {
           inputs = inputs // {
-            inherit sven;
+            inherit yen;
           };
           inherit (inputs.nixpkgs) lib;
         };

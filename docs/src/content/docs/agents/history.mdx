@@ -1,5 +1,5 @@
 ---
-{"description":"What a scope's elements reach, the fleet without the files of one declaration, and instances valid at a date.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/history/page.nix","title":"Impact, without, and time"}
+{"description":"What a scope's elements reach, the fleet without the files of one declaration, and instances valid at a date.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/history/page.nix","title":"Impact, without, and time"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -10,60 +10,60 @@ holds on a given day.
 
 ```nix title="modules/fleet.nix"
 # fleet > environment > host. The fleet says which day it is: pure evaluation has no clock.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same maybe;
+  inherit (yen.lib) same maybe;
 in
 {
-  sven.kinds.fleet = {
+  yen.kinds.fleet = {
     fields.today = lib.types.str;
-    spawns.environment = _: sven.environment;
-    sinks.out.reduce = sven.lib.reduce.merge;
+    spawns.environment = _: yen.environment;
+    sinks.out.reduce = yen.lib.reduce.merge;
     sinks.dns.out =
       { dns, ... }:
       {
         inherit dns;
       };
   };
-  sven.kinds.environment = {
+  yen.kinds.environment = {
     spawns.host =
       s:
-      lib.filterAttrs (_: h: same h.environment s && sven.lib.validAt sven.fleet.main.today h) sven.host;
+      lib.filterAttrs (_: h: same h.environment s && yen.lib.validAt yen.fleet.main.today h) yen.host;
     sinks.backends.dns =
       { environment, backends, ... }:
       {
         ${environment.name} = backends;
       };
   };
-  sven.kinds.host.fields = {
-    environment = sven.kinds.environment;
+  yen.kinds.host.fields = {
+    environment = yen.kinds.environment;
     validFrom = maybe lib.types.str; # null: open, valid since always
     validTo = maybe lib.types.str; # null: open, valid until always
   };
 
-  sven.fleet.main.today = "2026-11-15";
-  sven.environment.prod = { };
-  sven.host.web-old = {
-    environment = sven.environment.prod;
+  yen.fleet.main.today = "2026-11-15";
+  yen.environment.prod = { };
+  yen.host.web-old = {
+    environment = yen.environment.prod;
     validTo = "2026-10-31";
   }; # retired
-  sven.host.web = {
-    environment = sven.environment.prod;
+  yen.host.web = {
+    environment = yen.environment.prod;
     validFrom = "2026-10-01";
   };
-  sven.host.web-next = {
-    environment = sven.environment.prod;
+  yen.host.web-next = {
+    environment = yen.environment.prod;
     validFrom = "2026-12-01";
   }; # not yet
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/features/backend.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.backend = {
-    at = sven.kinds.host;
+  yen.aspects.backend = {
+    at = yen.kinds.host;
     backends = { host, ... }: host.name;
   };
 }
@@ -99,7 +99,7 @@ to its environment, and the environment gives DNS to the fleet:
 
 ## What if it were gone?
 
-`sven.lib.without { files; path; args; }` evaluates the fleet without the files that declare `path`.
+`yen.lib.without { files; path; args; }` evaluates the fleet without the files that declare `path`.
 A whole file goes: there is no hook to remove part of one.
 
 
@@ -116,7 +116,7 @@ A whole file goes: there is no hook to remove part of one.
 ## Valid time
 
 Pure evaluation has no clock, so the date is data. An instance with `validFrom` and `validTo` holds at the date
-the caller passes: `sven.lib.validAt date scope`. Here the environment spawns only the hosts valid today,
+the caller passes: `yen.lib.validAt date scope`. Here the environment spawns only the hosts valid today,
 so `web-old` and `web-next` have no scope:
 
 
@@ -130,16 +130,16 @@ so `web-old` and `web-next` have no scope:
 
 ## Transaction time
 
-`sven.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision. `sven.lib.history { url; revs; module; }`
+`yen.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision. `yen.lib.history { url; revs; module; }`
 lists each revision with the field changes from the one before (`diffData` over `r.data`). The engine's own tests
-run both on this repository: see [tests/default.nix](https://github.com/vic/sven/blob/main/tests/default.nix).
+run both on this repository: see [tests/default.nix](https://github.com/vic/yen/blob/main/tests/default.nix).
 
 
 :::tip[Run this example]
 Every block on this page is a file of the template `history`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#history
+nix flake init -t github:vic/yen#history
 ```
 
 <FileTree>

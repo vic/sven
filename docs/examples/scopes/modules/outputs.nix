@@ -1,10 +1,10 @@
-# The flake gives the scope ids: `sven.lib.graph` is readable inside the fleet.
-{ sven, ... }:
+# The flake gives the scope ids: `yen.lib.graph` is readable inside the fleet.
+{ yen, ... }:
 {
-  sven.kinds.fleet.sinks.out.reduce = sven.lib.reduce.merge;
-  sven.flake = { out, ... }: out;
-  sven.aspects.tree = {
-    at = sven.kinds.fleet;
-    out.scopes = map (s: s.id) sven.lib.graph.scopes;
+  yen.kinds.fleet.sinks.out.reduce = yen.lib.reduce.merge;
+  yen.flake = { out, ... }: out;
+  yen.aspects.tree = {
+    at = yen.kinds.fleet;
+    out.scopes = map (s: s.id) yen.lib.graph.scopes;
   };
 }

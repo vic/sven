@@ -1,11 +1,11 @@
-# Instances: `sven.<kind>.<name>`. The name is the attribute name.
-{ sven, ... }:
+# Instances: `yen.<kind>.<name>`. The name is the attribute name.
+{ yen, ... }:
 {
-  sven.host.web = {
+  yen.host.web = {
     addr = "10.0.0.1";
     cores = 4;
   };
-  sven.host.db = {
+  yen.host.db = {
     addr = "10.0.0.2";
     cores = 16;
   };

@@ -1,12 +1,12 @@
 # The problem: two aspects give an admin. I expected the second to win.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.ops = {
-    at = sven.kinds.host;
+  yen.aspects.ops = {
+    at = yen.kinds.host;
     admin = "ana";
   };
-  sven.aspects.dev = {
-    at = sven.host.web;
+  yen.aspects.dev = {
+    at = yen.host.web;
     admin = "bo";
   };
 }

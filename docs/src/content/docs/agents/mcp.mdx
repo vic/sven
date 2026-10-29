@@ -1,16 +1,16 @@
 ---
-{"description":"Agents ask a fleet over stdio JSON-RPC: schema, check, context, explain, stage, programs and stored queries.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/mcp/page.nix","title":"MCP server"}
+{"description":"Agents ask a fleet over stdio JSON-RPC: schema, check, context, explain, stage, programs and stored queries.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/mcp/page.nix","title":"MCP server"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-The reference fleet ships an MCP server: `templates/fleet/mcp/sven-mcp.sh`. It answers agents over stdio
-(JSON-RPC 2.0, one message per line) by running sven queries on the fleet. It serves the fleet in its directory.
+The reference fleet ships an MCP server: `templates/fleet/mcp/yen-mcp.sh`. It answers agents over stdio
+(JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
 
 
 ```sh frame="terminal"
 cd templates/fleet
-nix run .#sven-mcp
+nix run .#yen-mcp
 ```
 
 ## Tools
@@ -20,20 +20,20 @@ This table is read from the server script itself (14 tools):
 
 | Tool | What it answers |
 |---|---|
-| `sven_schema` | Every kind, aspect and invariant of the fleet. |
-| `sven_check` | Invariants: violations, incomplete, ok, and the why rules of each violation. |
-| `sven_context` | One scope: parent, children, aspects, elements given and received, errors. |
-| `sven_explain` | Why an aspect is active, inactive or undefined at a scope. |
-| `sven_errors` | Error records, optionally only one code. |
-| `sven_declared_in` | The files that answer a declaration path. |
-| `sven_export` | The fleet as sorted N-Triples with sha256 and count. The agent decides whether to store it. |
-| `sven_stage` | Evaluate a change (a module as JSON) without applying it: ok, errors, violations, diff, refused, sha. |
-| `sven_queries` | The stored-query catalog: each query with its required and optional parameters. |
-| `sven_ask` | Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result. |
-| `sven_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
-| `sven_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
-| `sven_why_not` | Whether an invariant atom is violated, and the why/whyNot rules for it. |
-| `sven_program` | Dry-run a change program (list of op objects): valid, errors, ok, violations, diff. |
+| `yen_schema` | Every kind, aspect and invariant of the fleet. |
+| `yen_check` | Invariants: violations, incomplete, ok, and the why rules of each violation. |
+| `yen_context` | One scope: parent, children, aspects, elements given and received, errors. |
+| `yen_explain` | Why an aspect is active, inactive or undefined at a scope. |
+| `yen_errors` | Error records, optionally only one code. |
+| `yen_declared_in` | The files that answer a declaration path. |
+| `yen_export` | The fleet as sorted N-Triples with sha256 and count. The agent decides whether to store it. |
+| `yen_stage` | Evaluate a change (a module as JSON) without applying it: ok, errors, violations, diff, refused, sha. |
+| `yen_queries` | The stored-query catalog: each query with its required and optional parameters. |
+| `yen_ask` | Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result. |
+| `yen_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
+| `yen_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
+| `yen_why_not` | Whether an invariant atom is violated, and the why/whyNot rules for it. |
+| `yen_program` | Dry-run a change program (list of op objects): valid, errors, ok, violations, diff. |
 
 Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.
 Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation.
@@ -44,17 +44,17 @@ Any MCP client that starts a stdio server can use it. For example, in an `mcpSer
 
 
 ```json
-{ "mcpServers": { "sven": { "command": "nix", "args": [ "run", "/path/to/fleet#sven-mcp" ] } } }
+{ "mcpServers": { "yen": { "command": "nix", "args": [ "run", "/path/to/fleet#yen-mcp" ] } } }
 ```
 
 | Variable | Meaning |
 |---|---|
-| `SVEN_FLEET` | the fleet directory (default: the parent of `mcp/`) |
-| `SVEN_FLAKE` | its flake ref (default: from the git top) |
-| `SVEN_TIMEOUT` | seconds per nix call (default 120) |
+| `YEN_FLEET` | the fleet directory (default: the parent of `mcp/`) |
+| `YEN_FLAKE` | its flake ref (default: from the git top) |
+| `YEN_TIMEOUT` | seconds per nix call (default 120) |
 
 :::tip[Your own fleet]
-Copy `mcp/` and [agent/mcp.nix](https://github.com/vic/sven/blob/main/templates/fleet/modules/agent/mcp.nix) into your fleet. The server needs only
+Copy `mcp/` and [agent/mcp.nix](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/mcp.nix) into your fleet. The server needs only
 the queries of the other agent pages: `schema`, `check`, `context`, `explain`, stored queries, `stage` and `program`.
 `mcp/test.sh` drives every tool.
 :::

@@ -14,7 +14,7 @@
     [
       ''
         The NixOS module system merges every definition into one value, then reads it.
-        sven does not merge. A read of a path is one query on the files that answer that path.
+        yen does not merge. A read of a path is one query on the files that answer that path.
 
         Here two feature files declare settings at two paths of one field. Neither file knows the other:
       ''
@@ -45,7 +45,7 @@
       ''
         ## Cascades
 
-        A cascade is a list in your order. `sven.lib.cascade path xs` gives the first non-null value along `xs`.
+        A cascade is a list in your order. `yen.lib.cascade path xs` gives the first non-null value along `xs`.
         `nas` sets its own `arcMax`; `node` falls back to its environment:
       ''
       (docs.file "modules/hosts.nix")

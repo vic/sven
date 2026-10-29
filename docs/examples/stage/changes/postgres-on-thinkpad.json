@@ -1,1 +1,1 @@
-{ "sven": { "aspects": { "postgres": { "at": [ { "kind": "host", "name": "thinkpad" } ] } } } }
+{ "yen": { "aspects": { "postgres": { "at": [ { "kind": "host", "name": "thinkpad" } ] } } } }

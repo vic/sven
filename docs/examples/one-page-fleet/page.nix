@@ -1,10 +1,10 @@
 let
-  site = "https://sven.oeiuwq.com";
+  site = "https://yen.oeiuwq.com";
   link = text: path: "[${text}](${site}${path})"; # absolute: this page is also the repository README
 in
 {
   title = "A fleet on one page";
-  plainTitle = "sven: Nix fleets you can query, and prove things about, before you deploy";
+  plainTitle = "yen: Nix fleets you can query, and prove things about, before you deploy";
   description = "Two environments, three hosts, a user, a service placed by a fact, and a rule across machines. One file.";
   section = "start";
   order = 4;
@@ -34,18 +34,18 @@ in
     in
     [
       ''
-        **sven is a query language for Nix configurations**: one file of Nix builtins, no dependencies, no module system,
-        no fixpoint, and no `throw`. You describe a fleet as data and behavior. sven answers queries on it: the systems to build,
+        **yen is a query language for Nix configurations**: one file of Nix builtins, no dependencies, no module system,
+        no fixpoint, and no `throw`. You describe a fleet as data and behavior. yen answers queries on it: the systems to build,
         the errors, the graph of who gives what to whom, and whether your rules hold across machines.
 
-        sven has no batteries and no vocabulary. It does not know what a host, a user or NixOS is. You name your own nouns,
+        yen has no batteries and no vocabulary. It does not know what a host, a user or NixOS is. You name your own nouns,
         so it configures NixOS, nix-darwin, home-manager, clusters, terraform or anything else you can model as Nix values.
 
-        ${link "Documentation" "/"} · ${link "Getting started" "/start/getting-started/"} · [Reference fully-featured fleet](https://github.com/vic/sven/tree/main/templates/fleet) · [vic/vix on sven](https://github.com/vic/vix/tree/sven) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
+        ${link "Documentation" "/"} · ${link "Getting started" "/start/getting-started/"} · [Reference fully-featured fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [vic/vix on yen](https://github.com/vic/vix/tree/yen) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
 
         ## Four words
 
-        - **Kinds**: your nouns, typed. `sven.kinds.host.fields.addr = lib.types.str;`
+        - **Kinds**: your nouns, typed. `yen.kinds.host.fields.addr = lib.types.str;`
         - **Scopes**: where things live. `spawns` builds a tree from your data: a user under each host it is on.
         - **Aspects**: behavior, active where a predicate holds: a kind, an instance, another aspect, or any fact.
         - **Sinks**: where elements go. An element goes up to the nearest scope that collects it, and the sink reduces them.
@@ -69,7 +69,7 @@ in
       ''
         ## Change it safely
 
-        An agent proposes a host in `lab` that uses the prod database. `sven.lib.stage` evaluates the fleet without and with
+        An agent proposes a host in `lab` that uses the prod database. `yen.lib.stage` evaluates the fleet without and with
         the change, applies nothing, and refuses it with the rule it breaks:
       ''
       (docs.file "changes/api-in-lab.nix")
@@ -88,16 +88,16 @@ in
         - **Fast where it counts**: one nixpkgs per system across hosts, and trimmed NixOS module lists, with drvPath oracles
           that prove the systems are the same. ${link "Performance" "/perf/shared-pkgs/"}
         - **Every capability of Den, den-hoag and clan**, and the patterns of real fleets, each with a check, in the
-          [reference fleet](https://github.com/vic/sven/tree/main/templates/fleet). ${link "From Den" "/migrate/from-den/"}
+          [reference fleet](https://github.com/vic/yen/tree/main/templates/fleet). ${link "From Den" "/migrate/from-den/"}
 
         ## Start
       ''
-      (docs.sh "nix flake init -t github:vic/sven#one-page-fleet")
+      (docs.sh "nix flake init -t github:vic/yen#one-page-fleet")
       ''
         Then read the ${link "documentation" "/"}: every page is a tested example. Coming from `configuration.nix`, a flake or Den?
         The ${link "migration guides" "/migrate/from-configuration-nix/"} build the same systems before and after.
 
-        sven is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
+        yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
         If it helps you, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor). Issues and pull requests are welcome:
         see [CONTRIBUTING.md](CONTRIBUTING.md).
       ''

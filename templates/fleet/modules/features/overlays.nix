@@ -1,8 +1,8 @@
 # A root emission: the overlay goes to the fleet's `overlays` pool; every machine reads it. A wrapped `final: prev:`.
-{ sven, inputs, ... }:
+{ yen, inputs, ... }:
 {
-  sven.aspects.unstable-overlay = {
-    at = sven.fleet.main;
+  yen.aspects.unstable-overlay = {
+    at = yen.fleet.main;
     overlays =
       { ... }:
       final: prev: {

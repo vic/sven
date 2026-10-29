@@ -1,6 +1,6 @@
 # Hosts with `sharedPkgs` reuse the pkgs of the first sharing host (the leader): nixpkgs is imported once.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -9,14 +9,14 @@ let
   np = inputs.nixpkgs;
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields = {
-      system = sven.lib.opt lib.types.str "x86_64-linux";
-      sharedPkgs = sven.lib.opt lib.types.bool false;
+      system = yen.lib.opt lib.types.str "x86_64-linux";
+      sharedPkgs = yen.lib.opt lib.types.bool false;
     };
     sinks.nixos.out =
       {
@@ -27,7 +27,7 @@ in
       }:
       let
         group = lib.sort (a: b: a < b) (
-          lib.attrNames (lib.filterAttrs (_: h: h.sharedPkgs && h.system == host.system) sven.host)
+          lib.attrNames (lib.filterAttrs (_: h: h.sharedPkgs && h.system == host.system) yen.host)
         ); # one group per system
         leader = lib.head group;
         follower = host.sharedPkgs && leader != host.name;
@@ -50,6 +50,6 @@ in
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

@@ -1,9 +1,9 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod.public = true;
-  sven.environment.lab = { };
-  sven.host.web.environment = sven.environment.prod;
-  sven.host.box.environment = sven.environment.lab;
-  sven.user.alice.on = sven.host.web;
-  sven.home.bob.on = sven.host.web;
+  yen.environment.prod.public = true;
+  yen.environment.lab = { };
+  yen.host.web.environment = yen.environment.prod;
+  yen.host.box.environment = yen.environment.lab;
+  yen.user.alice.on = yen.host.web;
+  yen.home.bob.on = yen.host.web;
 }

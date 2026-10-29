@@ -8,7 +8,7 @@
     { docs, ... }:
     [
       ''
-        sven's own part of a host's evaluation is small: 1.4% on the reference fleet's `lb`. Most of the time goes to
+        yen's own part of a host's evaluation is small: 1.4% on the reference fleet's `lb`. Most of the time goes to
         nixpkgs `pkgs` (56%) and the NixOS module system (36%). By default every host imports nixpkgs again.
 
         With `sharedPkgs = true`, a host reuses the `pkgs` of the first sharing host on its system (the leader),
@@ -41,7 +41,7 @@
       )
       ''
         Measured on the reference fleet, with the same `drvPath`s both ways
-        ([README](https://github.com/vic/sven/tree/main/templates/fleet#shared-pkgs-one-nixpkgs-per-channel-and-system)).
+        ([README](https://github.com/vic/yen/tree/main/templates/fleet#shared-pkgs-one-nixpkgs-per-channel-and-system)).
       ''
       (docs.caution "Two rules" ''
         - A sharing host cannot set `nixpkgs.config` or `nixpkgs.overlays` of its own: the group shares them.

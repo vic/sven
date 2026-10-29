@@ -13,7 +13,7 @@
     }:
     [
       ''
-        sven never reads a secret. It plans which host gets which encrypted file, as data that a secrets tool
+        yen never reads a secret. It plans which host gets which encrypted file, as data that a secrets tool
         (agenix, sops-nix) reads. A secret is an instance of a data kind; its owners are host refs.
       ''
       (docs.fileWith "{12-17}" "modules/kinds.nix")
@@ -40,7 +40,7 @@
       (docs.file "variants/by-name.nix")
       (docs.value (map (e: e.error) (variant "variants/by-name.nix").errors))
       (docs.tip "Guard who may read" ''
-        The plan is data, so a rule about it is a query. The [reference fleet](https://github.com/vic/sven/blob/main/templates/fleet/modules/clan/vars.nix)
+        The plan is data, so a rule about it is a query. The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/vars.nix)
         adds shared and per-machine generators, a deploy plan, and a guard that refuses a secret read by the wrong host.
       '')
     ];

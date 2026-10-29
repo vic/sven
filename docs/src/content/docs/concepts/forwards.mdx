@@ -1,5 +1,5 @@
 ---
-{"description":"A sink key that names another sink feeds it. One sink can build another, and a guest can feed its host.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/forwards/page.nix","title":"Forwards"}
+{"description":"A sink key that names another sink feeds it. One sink can build another, and a guest can feed its host.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/forwards/page.nix","title":"Forwards"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -10,12 +10,12 @@ They run at the receiver, with the receiver's args. You already know one: `out` 
 
 ```nix title="modules/sinks.nix" {8,15}
 # A sink's other keys give elements to other sinks. They run at the receiver, with its args.
-{ sven, ... }:
+{ yen, ... }:
 let
-  inherit (sven.lib.reduce) merge;
+  inherit (yen.lib.reduce) merge;
 in
 {
-  sven.kinds.host.sinks = {
+  yen.kinds.host.sinks = {
     ports.config =
       { ports, ... }:
       {
@@ -30,7 +30,7 @@ in
         };
     };
   };
-  sven.kinds.guest.sinks = {
+  yen.kinds.guest.sinks = {
     ports.config =
       { ports, ... }:
       {
@@ -54,31 +54,31 @@ in
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.spawns.guest = s: lib.filterAttrs (_: g: sven.lib.same g.on s) sven.guest;
-  sven.kinds.guest.fields.on = sven.kinds.host;
+  yen.kinds.host.spawns.guest = s: lib.filterAttrs (_: g: yen.lib.same g.on s) yen.guest;
+  yen.kinds.guest.fields.on = yen.kinds.host;
 
-  sven.fleet.main = { };
-  sven.host.server = { };
-  sven.guest.ci.on = sven.host.server;
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.server = { };
+  yen.guest.ci.on = yen.host.server;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/aspects.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.ssh = {
-    at = sven.kinds.host;
+  yen.aspects.ssh = {
+    at = yen.kinds.host;
     ports = 22;
   };
-  sven.aspects.runner = {
-    at = sven.guest.ci;
+  yen.aspects.runner = {
+    at = yen.guest.ci;
     ports = 8080;
     config.runner.enable = true;
   };
@@ -130,7 +130,7 @@ and to `darwin` on a mac. Aspects write `os` once. See [nix-darwin machines](/re
 Every block on this page is a file of the template `forwards`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#forwards
+nix flake init -t github:vic/yen#forwards
 ```
 
 <FileTree>

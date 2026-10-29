@@ -1,13 +1,13 @@
 # Two aspects that each hold where the other does not: no answer.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.left.at = sven.lib.all [
-    sven.kinds.host
-    (sven.lib.not sven.aspects.right)
+  yen.aspects.left.at = yen.lib.all [
+    yen.kinds.host
+    (yen.lib.not yen.aspects.right)
   ];
-  sven.aspects.right.at = sven.lib.all [
-    sven.kinds.host
-    (sven.lib.not sven.aspects.left)
+  yen.aspects.right.at = yen.lib.all [
+    yen.kinds.host
+    (yen.lib.not yen.aspects.left)
   ];
-  sven.aspects.typo.at = "host";
+  yen.aspects.typo.at = "host";
 }

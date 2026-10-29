@@ -1,7 +1,7 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.aspects.report = {
-    at = sven.kinds.host;
+  yen.aspects.report = {
+    at = yen.kinds.host;
     report =
       { host, ... }:
       {
@@ -10,7 +10,7 @@
           backup = if host.backup == null then null else host.backup.name;
           # `same` compares two instances by kind and name
           peers = lib.attrNames (
-            lib.filterAttrs (n: h: n != host.name && sven.lib.same h.environment host.environment) sven.host
+            lib.filterAttrs (n: h: n != host.name && yen.lib.same h.environment host.environment) yen.host
           );
         };
       };

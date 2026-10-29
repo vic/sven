@@ -1,11 +1,11 @@
 ---
-{"description":"One module tree, two entry points: a flake, or plain Nix with default.nix.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/project-layout/page.nix","title":"Project layout"}
+{"description":"One module tree, two entry points: a flake, or plain Nix with default.nix.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/project-layout/page.nix","title":"Project layout"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-sven reads one module. A module is a path, a function or an attrset with three keys: `imports`, `_module.args`
-and `sven`. sven does not know what `inputs` or `lib` are. You give them as args, and they flow down the
+yen reads one module. A module is a path, a function or an attrset with three keys: `imports`, `_module.args`
+and `yen`. yen does not know what `inputs` or `lib` are. You give them as args, and they flow down the
 `imports` tree to every file below.
 
 
@@ -32,11 +32,11 @@ and move files freely. File order never changes a result.
 
 ```nix title="flake.nix"
 {
-  description = "sven: flake and no-flake entry points";
+  description = "yen: flake and no-flake entry points";
 
   outputs =
     inputs:
-    inputs.sven.lib.mkFlake {
+    inputs.yen.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -45,7 +45,7 @@ and move files freely. File order never changes a result.
     };
 
   inputs = {
-    sven.url = "github:vic/sven";
+    yen.url = "github:vic/yen";
     import-tree.url = "github:denful/import-tree";
     nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
   };
@@ -58,13 +58,13 @@ and move files freely. File order never changes a result.
 ```nix title="default.nix"
 # Without flakes: every query of the fleet. Pin the sources with npins, niv or fetchTarball.
 {
-  sven ? builtins.fetchTarball "https://github.com/vic/sven/archive/main.tar.gz",
+  yen ? builtins.fetchTarball "https://github.com/vic/yen/archive/main.tar.gz",
   nixpkgs ? builtins.fetchTarball "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz",
   import-tree ? import (
     builtins.fetchTarball "https://github.com/denful/import-tree/archive/main.tar.gz"
   ),
 }:
-(import sven).lib.eval {
+(import yen).lib.eval {
   imports = [ (import-tree ./modules) ];
   _module.args = {
     inputs = { inherit nixpkgs; };
@@ -101,13 +101,13 @@ and with a plain path, so one host file serves both entry points:
 ```nix title="modules/host.nix" {7}
 # eval-config.nix works with a flake input and with a plain nixpkgs path.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields.system = lib.types.str;
     sinks.nixos.out =
       { host, nixos, ... }:
@@ -119,12 +119,12 @@ and with a plain path, so one host file serves both entry points:
       };
   };
 
-  sven.host.laptop.system = "x86_64-linux";
+  yen.host.laptop.system = "x86_64-linux";
 }
 ```
 
 :::caution[Args are explicit]
-sven gives a module only `sven` and the `_module.args` above it. A file that asks for `pkgs` at the top level gets an error record:
+yen gives a module only `yen` and the `_module.args` above it. A file that asks for `pkgs` at the top level gets an error record:
 `pkgs` belongs to NixOS. Ask for it inside a `nixos` element.
 :::
 
@@ -132,7 +132,7 @@ sven gives a module only `sven` and the `_module.args` above it. A file that ask
 Every block on this page is a file of the template `project-layout`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#project-layout
+nix flake init -t github:vic/yen#project-layout
 ```
 
 <FileTree>

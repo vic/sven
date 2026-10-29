@@ -1,6 +1,6 @@
-# sven docs
+# yen docs
 
-The sven documentation site. Astro and Starlight render it. A sven fleet writes it.
+The yen documentation site. Astro and Starlight render it. A yen fleet writes it.
 
 Every page is generated. Do not edit `src/content/docs/` or `src/sidebar.json`.
 
@@ -8,10 +8,10 @@ Every page is generated. Do not edit `src/content/docs/` or `src/sidebar.json`.
 
 - `examples/<slug>/`: one page each. `page.nix` has the prose. `flake.nix` and `modules/` are a flake template:
   every code block on the page is one of its files.
-- `modules/`: the docs site as a sven fleet. Each page is an instance of the `page` kind.
+- `modules/`: the docs site as a yen fleet. Each page is an instance of the `page` kind.
   Its aspect gives the `.mdx` file, the sidebar entry, the template and the tests.
 - `tests.nix`: the oracles of every example.
-- `modules/ci.nix`: sven's CI, `.github/workflows/test.yml`, also written by `nix run .#write-files`.
+- `modules/ci.nix`: yen's CI, `.github/workflows/test.yml`, also written by `nix run .#write-files`.
   Stages run one after another: fmt, engine, docs, fleet, then `flake-check` and one eval job per system.
 
 ## Commands
@@ -24,7 +24,7 @@ The commands are a sink of the docs fleet: see `modules/devshell.nix`.
 Without the devshell:
 
 ```sh
-nix eval --impure --file tests.nix failed       # [ ]: the checks of every example (sven queries)
+nix eval --impure --file tests.nix failed       # [ ]: the checks of every example (yen queries)
 nix eval --impure --file tests.nix e2e.failed   # [ ]: real NixOS, nix-darwin and home-manager evaluations
 nix run .#write-files                           # write src/content/docs and src/sidebar.json
 nix flake check                                 # pages current, examples green
@@ -37,5 +37,5 @@ New files are visible to Nix only when the VCS tracks them.
 Each template is published as a flake template:
 
 ```sh
-nix flake init -t github:vic/sven#getting-started
+nix flake init -t github:vic/yen#getting-started
 ```

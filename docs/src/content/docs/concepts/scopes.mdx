@@ -1,5 +1,5 @@
 ---
-{"description":"A scope is one instance at one place in a tree. `spawns` builds the tree from your data.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/scopes/page.nix","title":"Scopes and spawns"}
+{"description":"A scope is one instance at one place in a tree. `spawns` builds the tree from your data.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/scopes/page.nix","title":"Scopes and spawns"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -10,36 +10,36 @@ A scope is one instance at one place in the tree. The root kind is the kind that
 
 ```nix title="modules/tree.nix" {7,8,11}
 # `spawns.<kind>` gives the children of a scope: a function of the parent scope.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same is;
+  inherit (yen.lib) same is;
 in
 {
-  sven.kinds.fleet.spawns.environment = _: sven.environment;
-  sven.kinds.environment.spawns.host = s: lib.filterAttrs (_: h: same h.environment s) sven.host;
-  sven.kinds.host = {
-    fields.environment = sven.kinds.environment;
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) sven.user;
+  yen.kinds.fleet.spawns.environment = _: yen.environment;
+  yen.kinds.environment.spawns.host = s: lib.filterAttrs (_: h: same h.environment s) yen.host;
+  yen.kinds.host = {
+    fields.environment = yen.kinds.environment;
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) yen.user;
   };
-  sven.kinds.user.fields.hosts = is lib.isList; # refs to the hosts the user logs in to
+  yen.kinds.user.fields.hosts = is lib.isList; # refs to the hosts the user logs in to
 
-  sven.fleet.main = { };
+  yen.fleet.main = { };
 }
 ```
 
 ```nix title="modules/instances.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod = { };
-  sven.environment.lab = { };
-  sven.host.web.environment = sven.environment.prod;
-  sven.host.db.environment = sven.environment.prod;
-  sven.host.box.environment = sven.environment.lab;
-  sven.user.alice.hosts = [
-    sven.host.web
-    sven.host.box
+  yen.environment.prod = { };
+  yen.environment.lab = { };
+  yen.host.web.environment = yen.environment.prod;
+  yen.host.db.environment = yen.environment.prod;
+  yen.host.box.environment = yen.environment.lab;
+  yen.user.alice.hosts = [
+    yen.host.web
+    yen.host.box
   ]; # one user, two scopes
-  sven.user.bob.hosts = [ sven.host.db ];
+  yen.user.bob.hosts = [ yen.host.db ];
 }
 ```
 
@@ -98,10 +98,10 @@ A parent comes before its children. Siblings sort by the `order` sink (default `
 
 ```nix title="modules/order.nix"
 # Siblings sort by the `order` sink (default 0), then by name. A parent comes before its children.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.web-first = {
-    at = sven.host.web;
+  yen.aspects.web-first = {
+    at = yen.host.web;
     order = -1;
   };
 }
@@ -114,18 +114,18 @@ See [Instances and refs](/concepts/instances-refs/#data-kinds).
 
 ## Read the tree inside the fleet
 
-`sven.lib.graph` is readable by any module. This example gives its scope ids as a flake output:
+`yen.lib.graph` is readable by any module. This example gives its scope ids as a flake output:
 
 
 ```nix title="modules/outputs.nix"
-# The flake gives the scope ids: `sven.lib.graph` is readable inside the fleet.
-{ sven, ... }:
+# The flake gives the scope ids: `yen.lib.graph` is readable inside the fleet.
+{ yen, ... }:
 {
-  sven.kinds.fleet.sinks.out.reduce = sven.lib.reduce.merge;
-  sven.flake = { out, ... }: out;
-  sven.aspects.tree = {
-    at = sven.kinds.fleet;
-    out.scopes = map (s: s.id) sven.lib.graph.scopes;
+  yen.kinds.fleet.sinks.out.reduce = yen.lib.reduce.merge;
+  yen.flake = { out, ... }: out;
+  yen.aspects.tree = {
+    at = yen.kinds.fleet;
+    out.scopes = map (s: s.id) yen.lib.graph.scopes;
   };
 }
 ```
@@ -134,7 +134,7 @@ See [Instances and refs](/concepts/instances-refs/#data-kinds).
 Every block on this page is a file of the template `scopes`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#scopes
+nix flake init -t github:vic/yen#scopes
 ```
 
 <FileTree>

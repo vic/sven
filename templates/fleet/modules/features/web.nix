@@ -1,31 +1,31 @@
 # The diamond: nginx is reached directly and through `status` (web-1, stage). It lands once per scope.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.aspects.nginx = {
+  yen.aspects.nginx = {
     at = [
-      sven.host.web-1
-      sven.host.web-2
-      sven.host.stage
-      sven.aspects.status
+      yen.host.web-1
+      yen.host.web-2
+      yen.host.stage
+      yen.aspects.status
     ];
     nixos.services.nginx.enable = true;
     backends = { host, ... }: host.addr; # goes up to the environment
     persist = "/var/lib/nginx";
     tags = "web";
   };
-  sven.aspects.status = {
+  yen.aspects.status = {
     at = [
-      sven.host.web-1
-      sven.host.stage
+      yen.host.web-1
+      yen.host.stage
     ];
     nixos.services.nginx.virtualHosts.status.locations."/".return = "200 ok";
   };
-  sven.aspects.http-port = {
-    at = sven.aspects.nginx;
+  yen.aspects.http-port = {
+    at = yen.aspects.nginx;
     nixos.networking.firewall.allowedTCPPorts = [ 80 ];
   };
-  sven.aspects.haproxy = {
-    at = sven.host.lb;
+  yen.aspects.haproxy = {
+    at = yen.host.lb;
     nixos =
       { backends, ... }:
       {
@@ -33,18 +33,18 @@
         services.haproxy.config = lib.concatMapStrings (a: "  server ${a} ${a}:80 check\n") backends;
       };
   };
-  sven.aspects.desktop = {
-    at = sven.host.stage;
+  yen.aspects.desktop = {
+    at = yen.host.stage;
     nixos.services.xserver.enable = true;
   };
-  sven.aspects.dock = {
-    at = sven.kinds.mac;
+  yen.aspects.dock = {
+    at = yen.kinds.mac;
     darwin.system.defaults.dock.autohide = true;
   };
-  sven.aspects.docker = {
-    at = sven.lib.all [
-      sven.helpers.linux
-      (sven.lib.has sven.user.bob)
+  yen.aspects.docker = {
+    at = yen.lib.all [
+      yen.helpers.linux
+      (yen.lib.has yen.user.bob)
     ];
     nixos.virtualisation.docker.enable = true;
     persist = "/var/lib/docker";

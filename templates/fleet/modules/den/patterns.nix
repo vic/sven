@@ -1,45 +1,45 @@
 # Den CI usage patterns not shown elsewhere in the fleet (vic/den-patterns.md #22 #23 #26 #48 #63 #67 #77 #103 #115 #116).
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) all within same;
+  inherit (yen.lib) all within same;
   pkgs = s: inputs.nixpkgs.legacyPackages.${s};
 in
 {
   # #22 #23 pets and toys under hosts. A host-level cycle pairs every user with every pet (cartesian);
   # a toy-scope element reads its pet (nearest) and lands at the host (transitive).
-  sven.kinds.host.spawns.pet = s: lib.filterAttrs (_: p: same p.of s) sven.pet;
-  sven.kinds.pet = {
-    fields.of = sven.kinds.host;
-    spawns.toy = s: lib.filterAttrs (_: t: same t.of s) sven.toy;
+  yen.kinds.host.spawns.pet = s: lib.filterAttrs (_: p: same p.of s) yen.pet;
+  yen.kinds.pet = {
+    fields.of = yen.kinds.host;
+    spawns.toy = s: lib.filterAttrs (_: t: same t.of s) yen.toy;
   };
-  sven.kinds.toy.fields.of = sven.kinds.pet;
-  sven.pet = {
-    rex.of = sven.host.stage;
-    fido.of = sven.host.stage;
+  yen.kinds.toy.fields.of = yen.kinds.pet;
+  yen.pet = {
+    rex.of = yen.host.stage;
+    fido.of = yen.host.stage;
   };
-  sven.toy = {
-    ball.of = sven.pet.rex;
-    bone.of = sven.pet.rex;
+  yen.toy = {
+    ball.of = yen.pet.rex;
+    bone.of = yen.pet.rex;
   };
-  sven.kinds.host.sinks.pairs.reduce = sven.lib.reduce.set;
-  sven.aspects.user-pet-pairs = {
-    at = sven.kinds.host;
+  yen.kinds.host.sinks.pairs.reduce = yen.lib.reduce.set;
+  yen.aspects.user-pet-pairs = {
+    at = yen.kinds.host;
     cycle =
       { tree, ... }:
       {
         tree = [
           {
             category = "u";
-            children = sven.kinds.user;
+            children = yen.kinds.user;
           }
           {
             category = "p";
-            children = sven.kinds.pet;
+            children = yen.kinds.pet;
           }
         ];
         pairs = lib.concatMap (u: map (p: "${u.name}-${p.name}") (lib.head (tree.select "p"))) (
@@ -47,42 +47,42 @@ in
         ); # one response per request
       };
   };
-  sven.aspects.pet-toys = {
-    at = sven.kinds.toy;
+  yen.aspects.pet-toys = {
+    at = yen.kinds.toy;
     pairs = { pet, toy, ... }: "${pet.name}/${toy.name}";
   };
 
   # #26 a user's `classes` choose its home systems
-  sven.kinds.user.fields.classes = sven.lib.opt (sven.helpers.listOf (
-    sven.helpers.enum [
+  yen.kinds.user.fields.classes = yen.lib.opt (yen.helpers.listOf (
+    yen.helpers.enum [
       "homeManager"
       "maid"
     ]
   )) [ "homeManager" ];
-  sven.user.bob.classes = [
+  yen.user.bob.classes = [
     "homeManager"
     "maid"
   ];
-  sven.aspects.maid-all = {
-    at = sven.kinds.user;
+  yen.aspects.maid-all = {
+    at = yen.kinds.user;
     maid.".editorconfig" = "root = true";
   }; # given by every user; only users listing maid receive
 
   # #48 enrichment: a sink IS context. One aspect gives `isNixos`, another derives `platform` from it, content reads both.
-  sven.kinds.host.sinks = {
-    isNixos.reduce = sven.lib.reduce.one;
-    platform.reduce = sven.lib.reduce.one;
+  yen.kinds.host.sinks = {
+    isNixos.reduce = yen.lib.reduce.one;
+    platform.reduce = yen.lib.reduce.one;
   };
-  sven.aspects.host-guards = {
-    at = sven.kinds.host;
+  yen.aspects.host-guards = {
+    at = yen.kinds.host;
     isNixos = { host, ... }: host.system.name != "aarch64-darwin";
   };
-  sven.aspects.platform-info = {
-    at = sven.kinds.host;
+  yen.aspects.platform-info = {
+    at = yen.kinds.host;
     platform = { isNixos, ... }: if isNixos then "linux" else "other";
   };
-  sven.aspects.platform-env = {
-    at = sven.kinds.host;
+  yen.aspects.platform-env = {
+    at = yen.kinds.host;
     nixos =
       { platform, ... }:
       {
@@ -91,18 +91,18 @@ in
   };
 
   # #63 per-host packages from USER content roll up into packages.<host system>
-  sven.kinds.fleet.sinks.user-packages = {
-    reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet.sinks.user-packages = {
+    reduce = yen.lib.reduce.merge;
     out =
       { user-packages, ... }:
       {
         packages = lib.mapAttrs (_: ps: ps) user-packages;
       };
   };
-  sven.aspects.nh-tool = {
+  yen.aspects.nh-tool = {
     at = all [
-      sven.kinds.user
-      (within sven.kinds.host)
+      yen.kinds.user
+      (within yen.kinds.host)
     ];
     user-packages =
       { host, user, ... }:
@@ -113,17 +113,17 @@ in
   };
 
   # #67 #88 #127 host-written homeManager content for users who OPT IN; it runs at the user, with the user's own pool
-  sven.kinds.user.sinks.hmvals = { };
-  sven.aspects.host-aspects-opt-in.at = sven.user.alice;
-  sven.aspects.user-emitter = {
-    at = sven.user.alice;
+  yen.kinds.user.sinks.hmvals = { };
+  yen.aspects.host-aspects-opt-in.at = yen.user.alice;
+  yen.aspects.user-emitter = {
+    at = yen.user.alice;
     hmvals = "user";
   };
-  sven.aspects.stage-home = {
+  yen.aspects.stage-home = {
     at = all [
-      sven.kinds.user
-      (within sven.host.stage)
-      sven.aspects.host-aspects-opt-in
+      yen.kinds.user
+      (within yen.host.stage)
+      yen.aspects.host-aspects-opt-in
     ];
     homeManager =
       { hmvals, environment, ... }:
@@ -136,26 +136,26 @@ in
   };
 
   # #77 a pipeline stage between producers and consumers: `fw` is filtered into `fw-tcp` by a sink key
-  sven.kinds.host.sinks.fw-tcp = { };
-  sven.kinds.host.sinks.fw = {
+  yen.kinds.host.sinks.fw-tcp = { };
+  yen.kinds.host.sinks.fw = {
     fw-tcp = { fw, ... }: lib.filter (e: e.proto == "tcp") fw;
   };
-  sven.aspects.fw-ports = {
-    at = sven.host.lb;
+  yen.aspects.fw-ports = {
+    at = yen.host.lb;
     fw = {
       port = 80;
       proto = "tcp";
     };
   };
-  sven.aspects.fw-dns = {
-    at = sven.host.lb;
+  yen.aspects.fw-dns = {
+    at = yen.host.lb;
     fw = {
       port = 53;
       proto = "udp";
     };
   };
-  sven.aspects.fw-reader = {
-    at = sven.host.lb;
+  yen.aspects.fw-reader = {
+    at = yen.host.lb;
     nixos =
       { fw-tcp, ... }:
       {
@@ -164,8 +164,8 @@ in
   };
 
   # #103 one class forwarded into BOTH the machine's NixOS and the user's home-manager (an option both module systems have)
-  sven.kinds.user.sinks.both = {
-    at = within sven.helpers.linux;
+  yen.kinds.user.sinks.both = {
+    at = within yen.helpers.linux;
     os =
       { both, ... }:
       {
@@ -177,17 +177,17 @@ in
         imports = both;
       };
   };
-  sven.aspects.htop-both = {
-    at = sven.user.bob;
+  yen.aspects.htop-both = {
+    at = yen.user.bob;
     both.programs.htop.enable = true;
   };
 
   # #115 broadcast: the SENDER tags who receives; readers keep what targets them, never their own
-  sven.kinds.fleet.sinks.peer-dev.reduce = sven.lib.reduce.entries;
-  sven.aspects.peer-dev = {
+  yen.kinds.fleet.sinks.peer-dev.reduce = yen.lib.reduce.entries;
+  yen.aspects.peer-dev = {
     at = all [
-      sven.kinds.user
-      (within sven.helpers.linux)
+      yen.kinds.user
+      (within yen.helpers.linux)
     ];
     peer-dev =
       { scope, ... }:
@@ -196,8 +196,8 @@ in
         to = s: s.kind == "host";
       }; # to every host
   };
-  sven.aspects.peer-dev-reader = {
-    at = sven.kinds.host;
+  yen.aspects.peer-dev-reader = {
+    at = yen.kinds.host;
     nixos =
       { peer-dev, scope, ... }:
       {
@@ -208,15 +208,15 @@ in
   };
 
   # #116 a host value that reads the host's OWN realized config, consumed in its users' homes
-  sven.kinds.host.sinks.dev.reduce = sven.lib.reduce.one;
-  sven.aspects.host-dev = {
-    at = sven.host.stage;
+  yen.kinds.host.sinks.dev.reduce = yen.lib.reduce.one;
+  yen.aspects.host-dev = {
+    at = yen.host.stage;
     dev = { host, out, ... }: "h:${out.nixosConfigurations.${host.name}.config.networking.hostName}";
   };
-  sven.aspects.home-dev = {
+  yen.aspects.home-dev = {
     at = all [
-      sven.kinds.user
-      (within sven.host.stage)
+      yen.kinds.user
+      (within yen.host.stage)
     ];
     homeManager =
       { dev, ... }:

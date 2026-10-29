@@ -1,11 +1,11 @@
 # The root kind. Its `report` sink collects one attrset per host and gives it to the flake.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
     sinks.report = {
-      reduce = sven.lib.reduce.merge;
+      reduce = yen.lib.reduce.merge;
       out =
         { report, ... }:
         {
@@ -13,6 +13,6 @@
         };
     };
   };
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

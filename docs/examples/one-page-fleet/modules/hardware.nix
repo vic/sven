@@ -1,8 +1,8 @@
 # What every NixOS host needs to evaluate. Not part of the story.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.hardware = {
-    at = sven.kinds.host;
+  yen.aspects.hardware = {
+    at = yen.kinds.host;
     os = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {

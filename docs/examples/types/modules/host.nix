@@ -1,7 +1,7 @@
-# A type is anything with `check = value: bool`. sven adds defaults on top of it.
-{ sven, lib, ... }:
+# A type is anything with `check = value: bool`. yen adds defaults on top of it.
+{ yen, lib, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     opt
     maybe
     derive
@@ -9,7 +9,7 @@ let
     ;
 in
 {
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str; # required
     port = opt lib.types.port 22; # a default
     jump = maybe lib.types.str; # null by default

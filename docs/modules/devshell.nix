@@ -2,7 +2,7 @@
 # Every command runs from the repo root, whatever the directory: `nix develop ./docs` from the root, or `nix develop` in docs/.
 # CI runs these commands and nothing else (modules/ci.nix), so every CI step runs the same way locally.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -22,7 +22,7 @@ let
   fleet = "path:$PWD?dir=templates/fleet";
 in
 {
-  sven.kinds.site.sinks.commands.out =
+  yen.kinds.site.sinks.commands.out =
     { commands, ... }:
     {
       devShells = lib.genAttrs systems (
@@ -32,7 +32,7 @@ in
         in
         {
           default = inputs.devshell.legacyPackages.${system}.mkShell {
-            name = "sven-docs";
+            name = "yen-docs";
             packages = [
               pkgs.nodejs
               pkgs.pnpm
@@ -49,8 +49,8 @@ in
       );
     };
 
-  sven.aspects.docs-commands = {
-    at = sven.kinds.site;
+  yen.aspects.docs-commands = {
+    at = yen.kinds.site;
     commands = [
       (cmd "docs" "docs-write" "write the pages and the sidebar from examples/"
         "cd docs && nix run .#write-files"
@@ -79,8 +79,8 @@ in
       )
     ];
   };
-  sven.aspects.fmt-commands = {
-    at = sven.kinds.site;
+  yen.aspects.fmt-commands = {
+    at = yen.kinds.site;
     commands = [
       (cmd "fmt" "fmt-check" "every tracked nix file is formatted (nixfmt), as CI checks"
         "git ls-files -z '*.nix' | timeout 60 xargs -0 nixfmt --check"
@@ -90,7 +90,7 @@ in
         "bash docs/issue/run.sh \"$@\""
       )
       (cmd "issue" "issue-comment"
-        "issue-comment NUMBER FILE: post FILE on issue NUMBER, replacing sven's last comment (needs GH_TOKEN)"
+        "issue-comment NUMBER FILE: post FILE on issue NUMBER, replacing yen's last comment (needs GH_TOKEN)"
         "gh issue comment \"$1\" --edit-last --body-file \"$2\" || gh issue comment \"$1\" --body-file \"$2\""
       )
       (cmd "fmt" "lint" "the workflows are valid (actionlint, with shellcheck)"
@@ -101,8 +101,8 @@ in
       )
     ];
   };
-  sven.aspects.engine-commands = {
-    at = sven.kinds.site;
+  yen.aspects.engine-commands = {
+    at = yen.kinds.site;
     commands = [
       (cmd "engine" "engine-test" "the engine and library oracles" (
         empty "failed" "nix-instantiate --eval --strict tests -A failed"
@@ -110,8 +110,8 @@ in
       (cmd "engine" "engine-cost" "the memo cost oracles" "bash tests/cost.sh")
     ];
   };
-  sven.aspects.fleet-commands = {
-    at = sven.kinds.site;
+  yen.aspects.fleet-commands = {
+    at = yen.kinds.site;
     commands = [
       (cmd "fleet" "fleet-test" "the reference fleet's checks"
         "cd templates/fleet && ${empty "failed" "nix eval --impure --file tests.nix failed"}"
@@ -146,8 +146,8 @@ in
     ];
   };
   # every CI job of .github/workflows/test.yml, in order, stopping at the first failure
-  sven.aspects.ci-command = {
-    at = sven.kinds.site;
+  yen.aspects.ci-command = {
+    at = yen.kinds.site;
     commands = [
       (cmd "ci" "ci"
         "run the CI stages locally, in order: fmt, engine, docs, fleet (fleet-check and the per-arch evals not included)"

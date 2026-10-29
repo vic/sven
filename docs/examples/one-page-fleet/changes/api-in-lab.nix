@@ -1,9 +1,9 @@
 # A change, as an agent proposes it: a lab host that uses the prod database.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.api = {
-    env = sven.env.lab;
+  yen.host.api = {
+    env = yen.env.lab;
     addr = "10.0.1.2";
-    db = sven.host.db;
+    db = yen.host.db;
   };
 }

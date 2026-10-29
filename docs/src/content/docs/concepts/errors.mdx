@@ -1,10 +1,10 @@
 ---
-{"description":"sven never throws. Errors are records you query; your own checks add to them.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/errors/page.nix","title":"Errors as data"}
+{"description":"yen never throws. Errors are records you query; your own checks add to them.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/errors/page.nix","title":"Errors as data"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-sven never calls `throw`. When something is wrong, the read gives `null`, evaluation continues,
+yen never calls `throw`. When something is wrong, the read gives `null`, evaluation continues,
 and the `errors` query lists a record. An empty list means the fleet is valid.
 
 ## Error records
@@ -15,9 +15,9 @@ by this author can.
 
 
 ```nix title="variants/typo.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.cache = {
+  yen.host.cache = {
     addr = "10.0.0.5";
     bakup = false;
   };
@@ -30,7 +30,7 @@ by this author can.
     class = "fixable";
     code = "unknown-field";
     error = "unknown field bakup";
-    fix = "declare sven.kinds.host.fields.bakup, or use a declared field";
+    fix = "declare yen.kinds.host.fields.bakup, or use a declared field";
     from = "host:cache";
     near = [
       "backup"
@@ -55,48 +55,48 @@ by this author can.
 
 ## Your own checks
 
-An aspect key `errors` gives records, or plain messages. sven sets `from` to the scope that gave it: an aspect cannot
+An aspect key `errors` gives records, or plain messages. yen sets `from` to the scope that gave it: an aspect cannot
 report for another scope. A record without `class` is `fixable`.
 This fleet has two hosts with one address:
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
     sinks.warnings.out =
       { warnings, ... }:
       {
         inherit warnings;
       }; # messages that do not fail the fleet
   };
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str;
-    backup = sven.lib.opt lib.types.bool true;
+    backup = yen.lib.opt lib.types.bool true;
   };
 
-  sven.fleet.main = { };
-  sven.host.web.addr = "10.0.0.1";
-  sven.host.db.addr = "10.0.0.1";
-  sven.host.scratch = {
+  yen.fleet.main = { };
+  yen.host.web.addr = "10.0.0.1";
+  yen.host.db.addr = "10.0.0.1";
+  yen.host.scratch = {
     addr = "10.0.0.9";
     backup = false;
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/checks.nix" {9-15}
 # An aspect key `errors` gives error records, or plain messages. Nothing throws. `from` is always the giving scope.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  byAddr = lib.groupBy (h: h.addr) (lib.attrValues sven.host);
+  byAddr = lib.groupBy (h: h.addr) (lib.attrValues yen.host);
 in
 {
-  sven.aspects.unique-addr = {
-    at = sven.kinds.fleet;
+  yen.aspects.unique-addr = {
+    at = yen.kinds.fleet;
     errors = lib.concatLists (
       lib.mapAttrsToList (
         a: hs:
@@ -110,9 +110,9 @@ in
       ) byAddr
     );
   };
-  sven.aspects.no-backup = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.no-backup = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: !s.backup)
     ];
     warnings = { host, ... }: "${host.name} has no backup";
@@ -157,7 +157,7 @@ see [Project layout](/start/project-layout/).
 Every block on this page is a file of the template `errors`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#errors
+nix flake init -t github:vic/yen#errors
 ```
 
 <FileTree>

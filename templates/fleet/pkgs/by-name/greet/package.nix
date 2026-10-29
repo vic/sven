@@ -1,1 +1,1 @@
-{ writeShellScriptBin }: writeShellScriptBin "greet" "echo hello from sven"
+{ writeShellScriptBin }: writeShellScriptBin "greet" "echo hello from yen"

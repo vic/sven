@@ -1,24 +1,24 @@
 # vix: secrets are a data kind (no scopes). Features give the secrets they need on the user's `secrets` sink.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.secret.fields.sopsKey = lib.types.str;
-  sven.secret.gh-token.sopsKey = "github_token";
-  sven.secret.gpg-key.sopsKey = "gpg_key";
-  sven.kinds.user.sinks.secrets = {
-    of = sven.kinds.secret;
-    reduce = sven.lib.reduce.set;
+  yen.kinds.secret.fields.sopsKey = lib.types.str;
+  yen.secret.gh-token.sopsKey = "github_token";
+  yen.secret.gpg-key.sopsKey = "gpg_key";
+  yen.kinds.user.sinks.secrets = {
+    of = yen.kinds.secret;
+    reduce = yen.lib.reduce.set;
     homeManager =
       { secrets, ... }:
       {
         home.file.".secrets".text = lib.concatMapStringsSep "\n" (s: s.sopsKey) secrets;
       };
   };
-  sven.aspects.gh = {
-    at = sven.kinds.user;
-    secrets = sven.secret.gh-token;
+  yen.aspects.gh = {
+    at = yen.kinds.user;
+    secrets = yen.secret.gh-token;
   };
-  sven.aspects.gpg = {
-    at = sven.user.bob;
-    secrets = sven.secret.gpg-key;
+  yen.aspects.gpg = {
+    at = yen.user.bob;
+    secrets = yen.secret.gpg-key;
   };
 }

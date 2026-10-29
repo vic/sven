@@ -1,19 +1,19 @@
 # den-hoag productions: claim / provide with the reverse read (who claims me). Apps claim databases; the database host
 # reads every claim aimed at it and provides them; each app reads its provider's answer. Data that points both ways is two
 # facts, not a cycle: laziness, no strata.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same;
+  inherit (yen.lib) same;
 in
 {
-  sven.kinds.machine.fields.dbOn = sven.lib.maybe sven.kinds.host;
-  sven.host.web-1.dbOn = sven.host.lb;
-  sven.host.web-2.dbOn = sven.host.lb;
-  sven.host.stage.dbOn = sven.host.stage;
-  sven.kinds.fleet.sinks.db-claims.reduce = sven.lib.reduce.entries;
-  sven.aspects.db-claim = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.kinds.machine.fields.dbOn = yen.lib.maybe yen.kinds.host;
+  yen.host.web-1.dbOn = yen.host.lb;
+  yen.host.web-2.dbOn = yen.host.lb;
+  yen.host.stage.dbOn = yen.host.stage;
+  yen.kinds.fleet.sinks.db-claims.reduce = yen.lib.reduce.entries;
+  yen.aspects.db-claim = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.dbOn != null && !s.minimal)
     ];
     db-claims =
@@ -23,9 +23,9 @@ in
         on = host.dbOn;
       };
   };
-  sven.aspects.db-provide = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.db-provide = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: !s.minimal)
     ];
     nixos =
@@ -41,9 +41,9 @@ in
         };
       };
   };
-  sven.aspects.db-client = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.db-client = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.dbOn != null && !s.minimal)
     ];
     nixos =

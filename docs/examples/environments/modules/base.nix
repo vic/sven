@@ -1,17 +1,17 @@
 # Settings cascade: the host, then its environment, then the environment's base.
-{ sven, ... }:
+{ yen, ... }:
 let
   setting =
     path: host:
-    sven.lib.cascade path [
+    yen.lib.cascade path [
       host
       host.environment
       (host.environment.base or null)
     ];
 in
 {
-  sven.aspects.base = {
-    at = sven.kinds.host;
+  yen.aspects.base = {
+    at = yen.kinds.host;
     nixos =
       { host, environment, ... }:
       {
@@ -29,16 +29,16 @@ in
         system.stateVersion = "25.05";
       };
   };
-  sven.aspects.time-zones = {
-    at = sven.kinds.host;
+  yen.aspects.time-zones = {
+    at = yen.kinds.host;
     out =
       { host, ... }:
       {
         timeZones.${host.name} = setting [ "settings" "timeZone" ] host;
       }; # goes up to the fleet
   };
-  sven.aspects.account = {
-    at = sven.kinds.user;
+  yen.aspects.account = {
+    at = yen.kinds.user;
     nixos =
       { user, ... }:
       {

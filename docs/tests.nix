@@ -1,5 +1,5 @@
 # The docs oracles. Every page has checks on its example fleet.
-#   nix eval --impure --file tests.nix failed       # [ ]: sven queries only, fast
+#   nix eval --impure --file tests.nix failed       # [ ]: yen queries only, fast
 #   nix eval --impure --file tests.nix e2e.failed   # [ ]: real NixOS and home-manager evaluations
 let
   inherit (builtins)

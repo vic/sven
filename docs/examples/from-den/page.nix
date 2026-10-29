@@ -1,6 +1,6 @@
 {
   title = "From Den";
-  description = "Den's hosts, users, aspects, includes, defaults and batteries, in sven's four words.";
+  description = "Den's hosts, users, aspects, includes, defaults and batteries, in yen's four words.";
   section = "migrate";
   order = 3;
 
@@ -8,27 +8,27 @@
     { docs, ... }:
     [
       ''
-        [Den](https://github.com/denful/den) and sven share the aspect idea. The difference is where structure comes from.
-        Den gives you a schema: `den.hosts`, users, homes and context pipes. In sven you declare those kinds yourself, in
+        [Den](https://github.com/denful/den) and yen share the aspect idea. The difference is where structure comes from.
+        Den gives you a schema: `den.hosts`, users, homes and context pipes. In yen you declare those kinds yourself, in
         plain Nix, and every rule of how content moves is a sink you can read.
 
-        This page moves Den's default template to sven. The docs evaluate both and check that the host gets the same
+        This page moves Den's default template to yen. The docs evaluate both and check that the host gets the same
         account, groups, home, packages and state versions.
       ''
       (docs.table
-        [ "Den" "sven" ]
+        [ "Den" "yen" ]
         [
           [
             "`den.hosts.x86_64-linux.igloo.users.tux`"
-            "instances: `sven.host.igloo`, `sven.user.tux` with `hosts = [ … ]`"
+            "instances: `yen.host.igloo`, `yen.user.tux` with `hosts = [ … ]`"
           ]
           [
             "`den.aspects.igloo.nixos`"
-            "an aspect with `at = sven.host.igloo` and a `nixos` key"
+            "an aspect with `at = yen.host.igloo` and a `nixos` key"
           ]
           [
             "`den.default.nixos`"
-            "an aspect with `at = sven.kinds.host`"
+            "an aspect with `at = yen.kinds.host`"
           ]
           [
             "`includes = [ den.batteries.x ]`"
@@ -40,7 +40,7 @@
           ]
           [
             "`hasAspect`"
-            "`sven.lib.holds`, and `r.graph` edges with `origin`"
+            "`yen.lib.holds`, and `r.graph` edges with `origin`"
           ]
           [
             "context pipes, `osConfig`"
@@ -48,7 +48,7 @@
           ]
           [
             "`den.schema.*`"
-            "`sven.kinds.<kind>.fields`"
+            "`yen.kinds.<kind>.fields`"
           ]
         ]
       )
@@ -61,12 +61,12 @@
           body = docs.file "before/modules/den.nix";
         }
         {
-          label = "sven: fleet.nix";
+          label = "yen: fleet.nix";
           body = docs.file "modules/fleet.nix";
         }
       ])
       ''
-        Den's schema is built in. In sven, `fleet.nix` says the same in one short file: hosts build NixOS, users live under their
+        Den's schema is built in. In yen, `fleet.nix` says the same in one short file: hosts build NixOS, users live under their
         hosts, a user's `homeManager` content goes into the host, and home-manager is active where a user lives.
       ''
       (docs.tabs [
@@ -75,7 +75,7 @@
           body = docs.file "before/modules/igloo.nix";
         }
         {
-          label = "sven: igloo.nix";
+          label = "yen: igloo.nix";
           body = docs.file "modules/igloo.nix";
         }
       ])
@@ -85,14 +85,14 @@
           body = docs.file "before/modules/tux.nix";
         }
         {
-          label = "sven: tux.nix";
+          label = "yen: tux.nix";
           body = docs.file "modules/tux.nix";
         }
       ])
       ''
         ## Batteries are aspects
 
-        A battery is an aspect that you include. In sven you write the aspect once, without `at`, and each user of it
+        A battery is an aspect that you include. In yen you write the aspect once, without `at`, and each user of it
         adds itself to `at`. `at` from several files is a union.
       ''
       (docs.tabs [
@@ -124,13 +124,13 @@
         };
       '')
       ''
-        In sven a quirk is a sink. Where its values land is the tree: an element goes up to the nearest scope that has the sink.
+        In yen a quirk is a sink. Where its values land is the tree: an element goes up to the nearest scope that has the sink.
         A user's ports reach its host with no policy, which is Den's `pipe.expose`. `entries` keeps who gave each value, so a
         filter or a rename is a plain function in the reader:
       ''
       (docs.fileWith "{6-13,22}" "modules/quirks.nix")
       (docs.table
-        [ "Den" "sven" ]
+        [ "Den" "yen" ]
         [
           [
             "`den.quirks.<q>`"
@@ -166,9 +166,9 @@
         ## Policies are `spawns`
 
         A Den policy is a function from context to effects, such as `host-to-users` that resolves each user under its host.
-        The policy graph (flake, system, host, user, home) is Den's structure. In sven you write that structure as `spawns`:
-        `sven.kinds.host.spawns.user` in `fleet.nix` above is Den's `host-to-users`. Conditional policies are a `spawns`
-        that reads data or `sven.lib.holds`. Include and exclude effects are `at`, and `not`.
+        The policy graph (flake, system, host, user, home) is Den's structure. In yen you write that structure as `spawns`:
+        `yen.kinds.host.spawns.user` in `fleet.nix` above is Den's `host-to-users`. Conditional policies are a `spawns`
+        that reads data or `yen.lib.holds`. Include and exclude effects are `at`, and `not`.
       ''
       (docs.note "Three Den bug families that cannot happen" ''
         - **Double delivery.** An element has one id per receiver.
@@ -176,7 +176,7 @@
         - **A host's home content leaking to its users.** Elements go up the tree, never down.
       '')
       (docs.tip "Every Den capability" ''
-        The [reference fleet](https://github.com/vic/sven/tree/main/templates/fleet) shows every capability that Den's CI tests pin
+        The [reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) shows every capability that Den's CI tests pin
         (168 patterns), and den-hoag's laws, each with a check. See ${
           docs.fleet "modules/den/patterns.nix" null "den/patterns.nix"
         }.

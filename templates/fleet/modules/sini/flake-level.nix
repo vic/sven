@@ -1,6 +1,6 @@
 # Flake level: sink -> sink chains, and elements that read one `out` path and write another.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -9,7 +9,7 @@ let
   pkgs = s: inputs.nixpkgs.legacyPackages.${s.name};
 in
 {
-  sven.kinds.system.sinks = {
+  yen.kinds.system.sinks = {
     devshell.out =
       { system, devshell, ... }:
       {
@@ -38,8 +38,8 @@ in
         }; # a sink feeding another sink
     };
   };
-  sven.aspects.dev-tools = {
-    at = sven.kinds.system;
+  yen.aspects.dev-tools = {
+    at = yen.kinds.system;
     devshell =
       { system, ... }:
       {
@@ -48,8 +48,8 @@ in
     treefmt = "nixfmt";
     git-hooks = "nixfmt --check";
   };
-  sven.aspects.by-name = {
-    at = sven.kinds.system;
+  yen.aspects.by-name = {
+    at = yen.kinds.system;
     packages =
       { system, ... }:
       lib.filesystem.packagesFromDirectoryRecursive {
@@ -57,16 +57,16 @@ in
         directory = ../../pkgs/by-name;
       };
   };
-  sven.aspects.k8s-all = {
-    at = sven.system.x86_64-linux;
+  yen.aspects.k8s-all = {
+    at = yen.system.x86_64-linux;
     packages =
       { system, out, ... }:
       {
         k8s-all = (pkgs system).writeText "k8s-all.json" (builtins.toJSON out.k8sManifests);
       };
   };
-  sven.aspects.local-overlay = {
-    at = sven.kinds.fleet;
+  yen.aspects.local-overlay = {
+    at = yen.kinds.fleet;
     out =
       { out, ... }:
       {

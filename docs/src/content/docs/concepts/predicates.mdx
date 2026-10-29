@@ -1,5 +1,5 @@
 ---
-{"description":"`at` takes a predicate: a function, a kind, an instance, an aspect, a list, and `all`, `not`, `within`, `has`.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/predicates/page.nix","title":"Predicates"}
+{"description":"`at` takes a predicate: a function, a kind, an instance, an aspect, a list, and `all`, `not`, `within`, `has`.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/predicates/page.nix","title":"Predicates"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -10,9 +10,9 @@ A predicate is a function `scope: bool`. A kind ref, an instance ref, an aspect 
 | Predicate | Holds at a scope when |
 |---|---|
 | `s: …` | the function gives `true` |
-| `sven.kinds.host` | the scope is a host |
-| `sven.host.web` | the scope is the instance `web` |
-| `sven.aspects.cuda` | the aspect `cuda` is active there |
+| `yen.kinds.host` | the scope is a host |
+| `yen.host.web` | the scope is the instance `web` |
+| `yen.aspects.cuda` | the aspect `cuda` is active there |
 | `[ p q ]` | any of the list holds |
 | `all [ p q ]` | all of the list hold |
 | `not p` | `p` does not hold |
@@ -24,35 +24,35 @@ This example has two hosts and one guest (a VM) on `big`:
 
 ```nix title="modules/fleet.nix"
 # Hosts with facts, guests (VMs) under hosts. An `active` output lists each aspect's scopes.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields = {
       cores = lib.types.int;
-      gpu = sven.lib.opt lib.types.bool false;
+      gpu = yen.lib.opt lib.types.bool false;
     };
-    spawns.guest = s: lib.filterAttrs (_: g: sven.lib.same g.on s) sven.guest;
+    spawns.guest = s: lib.filterAttrs (_: g: yen.lib.same g.on s) yen.guest;
   };
-  sven.kinds.guest.fields.on = sven.kinds.host;
+  yen.kinds.guest.fields.on = yen.kinds.host;
 
-  sven.fleet.main = { };
-  sven.host.big = {
+  yen.fleet.main = { };
+  yen.host.big = {
     cores = 32;
     gpu = true;
   };
-  sven.host.small.cores = 4;
-  sven.guest.ci.on = sven.host.big;
+  yen.host.small.cores = 4;
+  yen.guest.ci.on = yen.host.big;
 
 }
 ```
 
 ```nix title="modules/aspects.nix"
-{ sven, ... }:
+{ yen, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     all
     not
     within
@@ -60,21 +60,21 @@ let
     ;
 in
 {
-  sven.aspects = {
+  yen.aspects = {
     builder.at = s: (s.cores or 0) >= 16; # a function of the scope: a fact test
     cuda.at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: s.gpu)
     ]; # all of a list
     tiny.at = all [
-      sven.kinds.host
-      (not sven.aspects.builder)
+      yen.kinds.host
+      (not yen.aspects.builder)
     ]; # an aspect ref, negated
-    vm-tools.at = within sven.aspects.cuda; # a proper ancestor holds
-    vm-host.at = has sven.kinds.guest; # a child holds
+    vm-tools.at = within yen.aspects.cuda; # a proper ancestor holds
+    vm-host.at = has yen.kinds.guest; # a child holds
     monitored.at = [
-      sven.host.small
-      sven.aspects.vm-host
+      yen.host.small
+      yen.aspects.vm-host
     ]; # a list is "any"
   };
 }
@@ -107,7 +107,7 @@ Where each aspect is active (the output comes from `modules/report.nix`, an `ent
 }
 ```
 
-Ask any predicate at a scope with `sven.lib.holds p scope`. A `spawns` function can use it too:
+Ask any predicate at a scope with `yen.lib.holds p scope`. A `spawns` function can use it too:
 structure can depend on which aspects are active at the parent.
 
 ## Cycles and mistakes
@@ -121,17 +121,17 @@ A value in `at` that is not a predicate, such as a string, is an error record. I
 
 ```nix title="variants/cycle.nix"
 # Two aspects that each hold where the other does not: no answer.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.left.at = sven.lib.all [
-    sven.kinds.host
-    (sven.lib.not sven.aspects.right)
+  yen.aspects.left.at = yen.lib.all [
+    yen.kinds.host
+    (yen.lib.not yen.aspects.right)
   ];
-  sven.aspects.right.at = sven.lib.all [
-    sven.kinds.host
-    (sven.lib.not sven.aspects.left)
+  yen.aspects.right.at = yen.lib.all [
+    yen.kinds.host
+    (yen.lib.not yen.aspects.left)
   ];
-  sven.aspects.typo.at = "host";
+  yen.aspects.typo.at = "host";
 }
 ```
 
@@ -192,7 +192,7 @@ you get "undefined", and a query that says where.
 Every block on this page is a file of the template `predicates`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#predicates
+nix flake init -t github:vic/yen#predicates
 ```
 
 <FileTree>

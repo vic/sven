@@ -1,8 +1,8 @@
 # base: every machine. Its `records` key lives in dns.nix: one aspect, two files.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.aspects.base = {
-    at = sven.helpers.machines;
+  yen.aspects.base = {
+    at = yen.helpers.machines;
     os =
       { scope, overlays, ... }:
       {
@@ -10,9 +10,9 @@
         nixpkgs.overlays = overlays;
       };
   };
-  sven.aspects.hardware = {
+  yen.aspects.hardware = {
     # enough for a real toplevel
-    at = sven.kinds.host;
+    at = yen.kinds.host;
     nixos = {
       fileSystems."/" = {
         device = "/dev/disk/by-label/root";
@@ -26,21 +26,21 @@
       boot.loader.grub.device = "nodev";
     };
   };
-  sven.aspects.state-version = {
-    at = sven.helpers.linux;
+  yen.aspects.state-version = {
+    at = yen.helpers.linux;
     nixos.system.stateVersion = "25.05";
   };
-  sven.aspects.user-account = {
-    at = sven.lib.all [
-      sven.kinds.user
-      (sven.lib.within sven.helpers.linux)
+  yen.aspects.user-account = {
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.helpers.linux)
     ];
     account.isNormalUser = true;
   }; # NixOS only
-  sven.aspects.user-account-mac = {
-    at = sven.lib.all [
-      sven.kinds.user
-      (sven.lib.within sven.kinds.mac)
+  yen.aspects.user-account-mac = {
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.kinds.mac)
     ];
     account =
       { user, ... }:

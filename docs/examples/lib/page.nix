@@ -1,6 +1,6 @@
 {
   title = "Library index";
-  description = "Every function of sven.lib, and every query of an eval result. Generated from the engine.";
+  description = "Every function of yen.lib, and every query of an eval result. Generated from the engine.";
   section = "reference";
   order = 1;
 
@@ -8,20 +8,20 @@
     { docs, engine, ... }:
     let
       code = xs: builtins.concatStringsSep ", " (map (x: "`${x}`") xs);
-      # sven.lib as modules see it. A root kind needs `spawns`: `top` spawns `leaf`
+      # yen.lib as modules see it. A root kind needs `spawns`: `top` spawns `leaf`
       inner =
         (engine.eval (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.kinds.top.spawns.leaf = _: { };
-            sven.kinds.leaf = { };
-            sven.top.t = { };
-            sven.flake = { ... }: builtins.attrNames sven.lib;
+            yen.kinds.top.spawns.leaf = _: { };
+            yen.kinds.leaf = { };
+            yen.top.t = { };
+            yen.flake = { ... }: builtins.attrNames yen.lib;
           }
         )).flake;
       r = engine.eval {
-        sven.kinds.top = { };
-        sven.top.t = { };
+        yen.kinds.top = { };
+        yen.top.t = { };
       };
       outer = builtins.attrNames engine;
       sub = [
@@ -37,14 +37,14 @@
     in
     [
       ''
-        This page is computed from the engine when the docs are written. A function added to sven appears here
+        This page is computed from the engine when the docs are written. A function added to yen appears here
         without a docs edit.
 
-        ## Outside a fleet: `(import sven).lib`
+        ## Outside a fleet: `(import yen).lib`
       ''
       (code (builtins.filter (n: !builtins.elem n sub) outer))
       ''
-        ## Inside a fleet: `sven.lib`
+        ## Inside a fleet: `yen.lib`
 
         Modules get the same lib, plus predicates and queries bound to the fleet:
       ''
@@ -54,12 +54,12 @@
       ''
       (docs.table [ "Library" "Functions" ] (
         map (n: [
-          "`sven.lib.${n}`"
+          "`yen.lib.${n}`"
           (code (builtins.attrNames engine.${n}))
         ]) sub
       ))
       ''
-        ## Queries of an eval result: `r = sven.lib.eval module`
+        ## Queries of an eval result: `r = yen.lib.eval module`
       ''
       (code (builtins.attrNames r))
       (docs.links [
@@ -71,7 +71,7 @@
         {
           title = "Error codes";
           href = "/reference/errors/";
-          description = "Every error record sven can give.";
+          description = "Every error record yen can give.";
         }
       ])
     ];
@@ -83,12 +83,12 @@
       inner =
         builtins.elem "holds"
           (engine.eval (
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.kinds.top.spawns.leaf = _: { };
-              sven.kinds.leaf = { };
-              sven.top.t = { };
-              sven.flake = { ... }: builtins.attrNames sven.lib;
+              yen.kinds.top.spawns.leaf = _: { };
+              yen.kinds.leaf = { };
+              yen.top.t = { };
+              yen.flake = { ... }: builtins.attrNames yen.lib;
             }
           )).flake;
     };

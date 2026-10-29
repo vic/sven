@@ -1,28 +1,28 @@
 # alice: an account on the server, and a standalone home for her laptop (any Linux, no NixOS).
-{ sven, ... }:
+{ yen, ... }:
 let
-  alice = sven.user.alice;
+  alice = yen.user.alice;
   # her own scopes, and every home that belongs to her
   hers = [
     alice
-    (s: s.kind == "home" && sven.lib.same s.user alice)
+    (s: s.kind == "home" && yen.lib.same s.user alice)
   ];
 in
 {
-  sven.user.alice.hosts = [ sven.host.server ];
-  sven.home."alice@laptop" = {
+  yen.user.alice.hosts = [ yen.host.server ];
+  yen.home."alice@laptop" = {
     user = alice;
     system = "x86_64-linux";
   };
 
-  sven.aspects.alice-account = {
+  yen.aspects.alice-account = {
     at = alice;
     nixos.users.users.alice = {
       isNormalUser = true;
       extraGroups = [ "wheel" ];
     };
   };
-  sven.aspects.alice-home = {
+  yen.aspects.alice-home = {
     at = hers; # one home config, in NixOS and standalone
     homeManager = {
       programs.git = {
@@ -32,8 +32,8 @@ in
       home.stateVersion = "25.05";
     };
   };
-  sven.aspects.standalone = {
-    at = sven.kinds.home;
+  yen.aspects.standalone = {
+    at = yen.kinds.home;
     homeManager =
       { home, ... }:
       {

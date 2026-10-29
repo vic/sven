@@ -1,21 +1,21 @@
 # Tags: a set per host; nixos.colmena adds the environment and the active role aspects. A host profile does not reach the host's guests (#67).
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.host.sinks.tags = {
+  yen.kinds.host.sinks.tags = {
     of = lib.types.str;
-    reduce = sven.lib.reduce.set;
+    reduce = yen.lib.reduce.set;
   };
-  sven.aspects.role-server.at = [
-    sven.host.lb
-    sven.host.web-1
-    sven.host.web-2
+  yen.aspects.role-server.at = [
+    yen.host.lb
+    yen.host.web-1
+    yen.host.web-2
   ];
-  sven.aspects.role-workstation.at = sven.host.stage;
-  sven.aspects.role-laptop.at = sven.host.stage;
-  sven.aspects.thermald = {
-    at = sven.aspects.role-laptop;
+  yen.aspects.role-workstation.at = yen.host.stage;
+  yen.aspects.role-laptop.at = yen.host.stage;
+  yen.aspects.thermald = {
+    at = yen.aspects.role-laptop;
     nixos.services.thermald.enable = true;
   };
-  sven.aspects.profile-workstation.at = sven.host.stage;
-  sven.aspects.desktop.at = [ sven.aspects.profile-workstation ]; # `at` from two files is a union; ci, stage's guest, gets nothing
+  yen.aspects.profile-workstation.at = yen.host.stage;
+  yen.aspects.desktop.at = [ yen.aspects.profile-workstation ]; # `at` from two files is a union; ci, stage's guest, gets nothing
 }

@@ -1,8 +1,8 @@
 # Aspects at guests. None of this reaches the host's own system: an element goes to its nearest `nixos` sink.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.guest-base = {
-    at = sven.kinds.guest;
+  yen.aspects.guest-base = {
+    at = yen.kinds.guest;
     nixos =
       { guest, ... }:
       {
@@ -10,12 +10,12 @@
         system.stateVersion = "25.05";
       };
   };
-  sven.aspects.nginx = {
-    at = sven.guest.web;
+  yen.aspects.nginx = {
+    at = yen.guest.web;
     nixos.services.nginx.enable = true;
   };
-  sven.aspects.postgres = {
-    at = sven.guest.db;
+  yen.aspects.postgres = {
+    at = yen.guest.db;
     nixos.services.postgresql.enable = true;
   };
 }

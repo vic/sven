@@ -1,25 +1,25 @@
 # README.md: the guide (`_guide.md`) plus live tables and diagrams computed from the fleet's own queries.
-# Every diagram is data: `sven.lib.graph` (scopes, routed elements), kind declarations, and sink values.
-{ sven, lib, ... }:
+# Every diagram is data: `yen.lib.graph` (scopes, routed elements), kind declarations, and sink values.
+{ yen, lib, ... }:
 let
-  g = sven.lib.graph;
+  g = yen.lib.graph;
   code = xs: lib.concatMapStringsSep ", " (x: "`${x}`") xs;
   names = v: if lib.isAttrs v then lib.attrNames v else [ ];
   sorted = xs: lib.sort (a: b: a < b) (lib.unique xs);
   kindRow =
     k:
     let
-      d = sven.kinds.${k};
+      d = yen.kinds.${k};
     in
     "| `${k}` | ${code (names (d.fields or { }))} | ${code (names (d.spawns or { }))} | ${code (names (d.sinks or { }))} | ${
       toString (lib.length (lib.filter (s: s.kind == k) g.scopes))
     } |";
   kinds = ''
     ## This fleet, live
-    Generated from the fleet's queries: ${toString (lib.length g.scopes)} scopes, ${toString (lib.length (lib.attrNames sven.kinds))} kinds, ${toString (lib.length (lib.attrNames sven.aspects))} aspects, ${toString (lib.length g.edges)} routed elements.
+    Generated from the fleet's queries: ${toString (lib.length g.scopes)} scopes, ${toString (lib.length (lib.attrNames yen.kinds))} kinds, ${toString (lib.length (lib.attrNames yen.aspects))} aspects, ${toString (lib.length g.edges)} routed elements.
     | Kind | Fields | Spawns | Sinks | Scopes |
     |---|---|---|---|---|
-    ${lib.concatMapStringsSep "\n" kindRow (lib.attrNames sven.kinds)}
+    ${lib.concatMapStringsSep "\n" kindRow (lib.attrNames yen.kinds)}
     A kind with 0 scopes is data: nothing spawns it.
   '';
 
@@ -118,7 +118,7 @@ let
         name = n;
         decl = if lib.isAttrs v then v else { };
       }) (d.sinks or { })
-    ) sven.kinds
+    ) yen.kinds
   );
   receiversOf = sink: sorted (map (e: nameOf.${e.to}) (lib.filter (e: e.sink == sink) g.edges));
   forwards = {
@@ -199,7 +199,7 @@ let
     nodes =
       map (i: {
         id = "inst:${i}";
-        label = "${i} (${sven.helpers.clan.instances.${i}.module})";
+        label = "${i} (${yen.helpers.clan.instances.${i}.module})";
         kind = "instance";
       }) (sorted (map instanceOf members))
       ++ map (m: {
@@ -240,7 +240,7 @@ let
   };
 
   # deploy order: a host deploys after what it depends on
-  hosts = lib.filterAttrs (_: h: h ? addr) sven.host;
+  hosts = lib.filterAttrs (_: h: h ? addr) yen.host;
   deploy = {
     nodes =
       lib.mapAttrsToList
@@ -272,7 +272,7 @@ let
       id = "k:${k}";
       label = k;
       kind = "kind";
-    }) (lib.attrNames sven.kinds);
+    }) (lib.attrNames yen.kinds);
     edges = lib.concatLists (
       lib.mapAttrsToList (
         k: d:
@@ -291,7 +291,7 @@ let
             }
           ) (d.fields or { })
         )
-      ) sven.kinds
+      ) yen.kinds
     );
   };
   # pools as a sequence: who sends what to whom
@@ -409,9 +409,9 @@ let
   # ── the agent surface and every capability, generated: nothing is listed by hand, so nothing goes missing ──
   sv = import ../../../../default.nix; # the engine's own lib, for the index of library functions
   fnList = xs: lib.concatMapStringsSep ", " (n: "`${n}`") (sorted xs);
-  hostsWith = f: lib.attrNames (lib.filterAttrs (_: h: h ? addr && (h.${f} or false)) sven.host);
+  hostsWith = f: lib.attrNames (lib.filterAttrs (_: h: h ? addr && (h.${f} or false)) yen.host);
   groupKey = h: "${h.channel.name}/${h.system.name}";
-  sharing = lib.filterAttrs (_: h: h ? addr && (h.sharedPkgs or false)) sven.host;
+  sharing = lib.filterAttrs (_: h: h ? addr && (h.sharedPkgs or false)) yen.host;
   groups = lib.groupBy (n: groupKey sharing.${n}) (sorted (lib.attrNames sharing));
   sharedView = {
     nodes = lib.concatLists (
@@ -445,15 +445,15 @@ let
   };
   labelView =
     let
-      ls = sven.lib.labels;
+      ls = yen.lib.labels;
     in
     {
       nodes =
         map (p: {
           id = "p:${p}";
-          label = "${p} trust ${toString sven.labelTable.${p}.trust}";
+          label = "${p} trust ${toString yen.labelTable.${p}.trust}";
           kind = "output";
-        }) (lib.attrNames sven.labelTable)
+        }) (lib.attrNames yen.labelTable)
         ++ map (a: {
           id = "a:${a}";
           label = a;
@@ -463,7 +463,7 @@ let
       edges = map (a: {
         from = "p:agent/";
         to = "a:${a}";
-        label = "${toString (lib.length (lib.filter (x: x.aspect == a) (sven.lib.floor 3)))} elements";
+        label = "${toString (lib.length (lib.filter (x: x.aspect == a) (yen.lib.floor 3)))} elements";
       }) (lib.attrNames (lib.filterAttrs (_: l: l.prefix == "agent/") ls));
     };
   invView = {
@@ -472,7 +472,7 @@ let
         id = "i:${n}";
         label = n;
         kind = "aspect";
-      }) (lib.attrNames sven.invariants)
+      }) (lib.attrNames yen.invariants)
       ++
         map
           (f: {
@@ -485,12 +485,12 @@ let
               lib.concatMap (
                 n:
                 map baseNameOf (
-                  sven.lib.declaredIn [
+                  yen.lib.declaredIn [
                     "invariants"
                     n
                   ]
                 )
-              ) (lib.attrNames sven.invariants)
+              ) (lib.attrNames yen.invariants)
             )
           ); # base names: the same in the working tree and the store
     edges = lib.concatMap (
@@ -501,19 +501,19 @@ let
           to = "i:${n}";
         })
         (
-          sven.lib.declaredIn [
+          yen.lib.declaredIn [
             "invariants"
             n
           ]
         )
-    ) (lib.attrNames sven.invariants);
+    ) (lib.attrNames yen.invariants);
   };
   mcpTools = sorted (
     lib.filter lib.isString (
       lib.flatten (
-        map (l: builtins.match ".*\"name\":\"(sven_[a-z_]+)\".*" l) (
+        map (l: builtins.match ".*\"name\":\"(yen_[a-z_]+)\".*" l) (
           lib.splitString "\n" (
-            builtins.replaceStrings [ "{" ] [ "\n{" ] (builtins.readFile ../../mcp/sven-mcp.sh)
+            builtins.replaceStrings [ "{" ] [ "\n{" ] (builtins.readFile ../../mcp/yen-mcp.sh)
           )
         )
       )
@@ -523,7 +523,7 @@ let
     nodes = [
       {
         id = "srv";
-        label = "sven-mcp (nix run .#sven-mcp)";
+        label = "yen-mcp (nix run .#yen-mcp)";
         kind = "output";
       }
     ]
@@ -540,13 +540,13 @@ let
   queryRow =
     n:
     let
-      fa = builtins.functionArgs sven.queries.${n};
+      fa = builtins.functionArgs yen.queries.${n};
       ps = lib.filter (a: a != "r") (lib.attrNames fa);
     in
     "| `${n}` | ${fnList (lib.filter (a: !fa.${a}) ps)} | ${fnList (lib.filter (a: fa.${a}) ps)} | ${
       lib.concatStringsSep ", " (
         map baseNameOf (
-          sven.lib.declaredIn [
+          yen.lib.declaredIn [
             "queries"
             n
           ]
@@ -558,9 +558,9 @@ let
 
     Every list below is computed from the engine and this fleet when the README is written.
 
-    **Queries on an eval result** (`r = sven.lib.eval module`): ${
+    **Queries on an eval result** (`r = yen.lib.eval module`): ${
       fnList (
-        sven.lib.schema.queries
+        yen.lib.schema.queries
         ++ [
           "context"
           "explain"
@@ -575,7 +575,7 @@ let
       )
     }.
 
-    **Engine library** (`sven.lib`): ${
+    **Engine library** (`yen.lib`): ${
       fnList (
         lib.filter (
           n:
@@ -592,22 +592,22 @@ let
         ) (lib.attrNames sv.lib)
       )
     }.
-    Reduce strategies: ${fnList (lib.attrNames sv.lib.reduce)}. Change programs (`sven.lib.program`): ${fnList (lib.attrNames sv.lib.program)}. Grants: ${fnList (lib.attrNames sv.lib.grants)}.
+    Reduce strategies: ${fnList (lib.attrNames sv.lib.reduce)}. Change programs (`yen.lib.program`): ${fnList (lib.attrNames sv.lib.program)}. Grants: ${fnList (lib.attrNames sv.lib.grants)}.
 
     | Library | Functions |
     |---|---|
-    | `sven.lib.graphs` | ${fnList (lib.attrNames sv.lib.graphs)} |
-    | `sven.lib.datalog` | ${fnList (lib.attrNames sv.lib.datalog)} |
-    | `sven.lib.krn` | ${fnList (lib.attrNames sv.lib.krn)} |
-    | `sven.lib.rdf` | ${fnList (lib.attrNames sv.lib.rdf)} |
+    | `yen.lib.graphs` | ${fnList (lib.attrNames sv.lib.graphs)} |
+    | `yen.lib.datalog` | ${fnList (lib.attrNames sv.lib.datalog)} |
+    | `yen.lib.krn` | ${fnList (lib.attrNames sv.lib.krn)} |
+    | `yen.lib.rdf` | ${fnList (lib.attrNames sv.lib.rdf)} |
 
     **Stored queries** (`r.ask name args`):
 
     | Query | Required | Optional | File |
     |---|---|---|---|
-    ${lib.concatMapStringsSep "\n" queryRow (sorted (lib.attrNames sven.queries))}
+    ${lib.concatMapStringsSep "\n" queryRow (sorted (lib.attrNames yen.queries))}
 
-    **Invariants** (`r.check`): ${fnList (lib.attrNames sven.invariants)}.
+    **Invariants** (`r.check`): ${fnList (lib.attrNames yen.invariants)}.
 
     ${mermaid invView}
 
@@ -615,9 +615,9 @@ let
 
     ${mermaid mcpView}
 
-    **Labels** (`sven.labels`, by file path): ${
+    **Labels** (`yen.labels`, by file path): ${
       lib.concatStringsSep ", " (
-        lib.mapAttrsToList (p: l: "`${p}` trust ${toString l.trust}") sven.labelTable
+        lib.mapAttrsToList (p: l: "`${p}` trust ${toString l.trust}") yen.labelTable
       )
     }. Aspects declared under `agent/` and the elements they give (`r.floor 3`):
 
@@ -627,7 +627,7 @@ let
 
     ${mermaid sharedView}
 
-    **Research and pattern maps** (in `vic/` of the sven repository): ${
+    **Research and pattern maps** (in `vic/` of the yen repository): ${
       fnList [
         "den-patterns.md"
         "den-census.md"
@@ -653,13 +653,13 @@ let
   '';
 in
 {
-  sven.aspects.readme = {
-    at = sven.system.x86_64-linux;
+  yen.aspects.readme = {
+    at = yen.system.x86_64-linux;
     files =
       { ci, generators, ... }:
       {
         files.file."README.md".text = lib.concatStringsSep "\n" [
-          "# sven fleet"
+          "# yen fleet"
           ""
           "<!-- Generated by github:sini/files from modules/docs. Edit there, then run `nix run .#write-files`. -->"
           ""

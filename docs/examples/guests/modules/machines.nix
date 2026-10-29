@@ -1,11 +1,11 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.box = { };
-  sven.guest.web.on = sven.host.box;
-  sven.guest.db.on = sven.host.box;
+  yen.host.box = { };
+  yen.guest.web.on = yen.host.box;
+  yen.guest.db.on = yen.host.box;
 
-  sven.aspects.box = {
-    at = sven.host.box;
+  yen.aspects.box = {
+    at = yen.host.box;
     nixos = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {

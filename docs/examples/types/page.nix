@@ -8,9 +8,9 @@
     { docs, r, ... }:
     [
       ''
-        sven has no type system of its own. A type is any value with `check = value: bool`.
+        yen has no type system of its own. A type is any value with `check = value: bool`.
         `lib.types` from nixpkgs works, a kind works (see [Instances and refs](/concepts/instances-refs/)),
-        and `sven.lib.is` makes a type from any function.
+        and `yen.lib.is` makes a type from any function.
       ''
       (docs.table
         [ "Constructor" "Default" ]
@@ -20,19 +20,19 @@
             "none: the field is required"
           ]
           [
-            "`sven.lib.opt type value`"
+            "`yen.lib.opt type value`"
             "`value`"
           ]
           [
-            "`sven.lib.maybe type`"
+            "`yen.lib.maybe type`"
             "`null`"
           ]
           [
-            "`sven.lib.derive type (self: …)`"
+            "`yen.lib.derive type (self: …)`"
             "computed from the instance itself"
           ]
           [
-            "`sven.lib.is (v: …)`"
+            "`yen.lib.is (v: …)`"
             "none: a type from a check function"
           ]
         ]

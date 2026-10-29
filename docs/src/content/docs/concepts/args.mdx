@@ -1,10 +1,10 @@
 ---
-{"description":"An element can be a function with named args. sven fills kinds, sinks and `scope`; other args stay open.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/args/page.nix","title":"Args"}
+{"description":"An element can be a function with named args. yen fills kinds, sinks and `scope`; other args stay open.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/args/page.nix","title":"Args"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-An element can be a function with named args. sven fills the args it knows:
+An element can be a function with named args. yen fills the args it knows:
 
 
 | Arg | Value |
@@ -18,22 +18,22 @@ A load balancer reads the addresses that its environment collects:
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  under = s: lib.filterAttrs (_: h: sven.lib.same h.environment s) sven.host;
+  under = s: lib.filterAttrs (_: h: yen.lib.same h.environment s) yen.host;
 in
 {
-  sven.kinds.fleet = {
-    spawns.environment = _: sven.environment;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.environment = _: yen.environment;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.environment = {
+  yen.kinds.environment = {
     spawns.host = under;
     sinks.backends = { }; # hosts give their address; a wall: it stays at the environment
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields = {
-      environment = sven.kinds.environment;
+      environment = yen.kinds.environment;
       addr = lib.types.str;
     };
     sinks.proxy.out =
@@ -43,38 +43,38 @@ in
       };
   };
 
-  sven.kinds.cluster.fields = { }; # a kind that no scope here is under
+  yen.kinds.cluster.fields = { }; # a kind that no scope here is under
 
-  sven.fleet.main = { };
-  sven.environment.prod = { };
-  sven.host.lb = {
-    environment = sven.environment.prod;
+  yen.fleet.main = { };
+  yen.environment.prod = { };
+  yen.host.lb = {
+    environment = yen.environment.prod;
     addr = "10.0.0.1";
   };
-  sven.host.web-1 = {
-    environment = sven.environment.prod;
+  yen.host.web-1 = {
+    environment = yen.environment.prod;
     addr = "10.0.0.2";
   };
-  sven.host.web-2 = {
-    environment = sven.environment.prod;
+  yen.host.web-2 = {
+    environment = yen.environment.prod;
     addr = "10.0.0.3";
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/aspects.nix" {5,10}
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.backend = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.backend = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.name != "lb")
     ];
     backends = { host, ... }: host.addr; # a kind arg: the nearest host
   };
-  sven.aspects.balancer = {
-    at = sven.host.lb;
+  yen.aspects.balancer = {
+    at = yen.host.lb;
     # a sink arg: the reduced value at its nearest receiver (the environment);
     # `scope` is the scope itself; `cluster ? null` is optional, and this fleet has no cluster
     proxy =
@@ -119,10 +119,10 @@ is not given, and `errors` says why:
 
 ```nix title="variants/missing.nix"
 # `cluster` without a default: no answer at lb, so the element is not given.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.cluster-name = {
-    at = sven.host.lb;
+  yen.aspects.cluster-name = {
+    at = yen.host.lb;
     proxy = { cluster, ... }: cluster.name;
   };
 }
@@ -142,16 +142,16 @@ is not given, and `errors` says why:
 
 ## Open args: modules for NixOS and home-manager
 
-Args that sven does not know stay open. This is how a `nixos` element is a NixOS module: sven fills `host`,
+Args that yen does not know stay open. This is how a `nixos` element is a NixOS module: yen fills `host`,
 and NixOS fills `pkgs`, `config` and `lib` later.
 
 
 ```nix title="variants/open.nix"
 # `pkgs` is not a kind, a sink or `scope`: it stays open. The element is a module function.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.open = {
-    at = sven.host.lb;
+  yen.aspects.open = {
+    at = yen.host.lb;
     proxy =
       { host, pkgs, ... }:
       {
@@ -163,7 +163,7 @@ and NixOS fills `pkgs`, `config` and `lib` later.
 ```
 
 :::caution[Overlays]
-A bare `final: prev:` is a function of `final`, and sven has no `final`. That is an error.
+A bare `final: prev:` is a function of `final`, and yen has no `final`. That is an error.
 Wrap it: `{ ... }: final: prev: …`.
 :::
 
@@ -171,7 +171,7 @@ Wrap it: `{ ... }: final: prev: …`.
 Every block on this page is a file of the template `args`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#args
+nix flake init -t github:vic/yen#args
 ```
 
 <FileTree>

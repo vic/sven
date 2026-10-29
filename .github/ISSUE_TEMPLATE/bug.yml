@@ -2,12 +2,12 @@
 "body":
   -
     "attributes":
-      "value": "Thanks for writing. CI evaluates every `nix` block of this issue as one sven fleet and comments the answer, so a small module that shows the problem gets a fast reply."
+      "value": "Thanks for writing. CI evaluates every `nix` block of this issue as one yen fleet and comments the answer, so a small module that shows the problem gets a fast reply."
     "type": "markdown"
   -
     "attributes":
-      "description": "A file of `modules/`: `{ sven, lib, ... }: { … }`. Declare the kinds it needs. `lib` is nixpkgs lib."
-      "label": "A sven module"
+      "description": "A file of `modules/`: `{ yen, lib, ... }: { … }`. Declare the kinds it needs. `lib` is nixpkgs lib."
+      "label": "A yen module"
       "render": "nix"
     "id": "module"
     "type": "textarea"
@@ -34,5 +34,5 @@
     "type": "textarea"
     "validations":
       "required": true
-"description": "Something sven does, or does not do. A sven module that shows it is required."
+"description": "Something yen does, or does not do. A yen module that shows it is required."
 "name": "Bug or question"

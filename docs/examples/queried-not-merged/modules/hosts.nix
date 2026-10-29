@@ -1,14 +1,14 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.host.fields.environment = sven.kinds.environment;
-  sven.environment.prod.settings.zfs.arcMax = 8;
+  yen.kinds.host.fields.environment = yen.kinds.environment;
+  yen.environment.prod.settings.zfs.arcMax = 8;
 
-  sven.host.nas = {
-    environment = sven.environment.prod;
+  yen.host.nas = {
+    environment = yen.environment.prod;
     settings.zfs.arcMax = 32;
   };
-  sven.host.node = {
-    environment = sven.environment.prod;
+  yen.host.node = {
+    environment = yen.environment.prod;
     settings.k3s.role = "server";
   };
 }

@@ -1,7 +1,7 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.report = {
-    at = sven.kinds.host;
+  yen.aspects.report = {
+    at = yen.kinds.host;
     report =
       { host, ... }:
       {

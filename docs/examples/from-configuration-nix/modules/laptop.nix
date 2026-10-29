@@ -1,9 +1,9 @@
 # The machine and its people: data, not configuration.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.laptop = { };
-  sven.user.alice = {
-    hosts = [ sven.host.laptop ];
+  yen.host.laptop = { };
+  yen.user.alice = {
+    hosts = [ yen.host.laptop ];
     groups = [ "wheel" ];
   };
 }

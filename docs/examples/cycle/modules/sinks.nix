@@ -1,6 +1,6 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.host.sinks.bridges.out =
+  yen.kinds.host.sinks.bridges.out =
     { host, bridges, ... }:
     {
       bridges.${host.name} = bridges;

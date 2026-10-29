@@ -1,10 +1,10 @@
 ---
-{"description":"One NixOS host, from an empty directory, in four files.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/getting-started/page.nix","title":"Getting started"}
+{"description":"One NixOS host, from an empty directory, in four files.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/getting-started/page.nix","title":"Getting started"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-This page builds one NixOS host with sven. You write four small files. At the end you have a
+This page builds one NixOS host with yen. You write four small files. At the end you have a
 `nixosConfigurations.laptop` that `nixos-rebuild` can use.
 
 
@@ -13,19 +13,19 @@ This page builds one NixOS host with sven. You write four small files. At the en
 1. Get the template. It has a `flake.nix` and a `modules/` directory.
 
    ```sh frame="terminal"
-   nix flake init -t github:vic/sven#getting-started
+   nix flake init -t github:vic/yen#getting-started
    ```
 
-2. Read `flake.nix`. The `sven` input is a normal flake input.
+2. Read `flake.nix`. The `yen` input is a normal flake input.
    [import-tree](https://github.com/denful/import-tree) loads every file in `modules/`.
 
    ```nix title="flake.nix"
    {
-     description = "sven: one NixOS host";
+     description = "yen: one NixOS host";
 
      outputs =
        inputs:
-       inputs.sven.lib.mkFlake {
+       inputs.yen.lib.mkFlake {
          imports = [ (inputs.import-tree ./modules) ];
          _module.args = {
            inherit inputs;
@@ -34,7 +34,7 @@ This page builds one NixOS host with sven. You write four small files. At the en
        };
 
      inputs = {
-       sven.url = "github:vic/sven";
+       yen.url = "github:vic/yen";
        import-tree.url = "github:denful/import-tree";
        nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
      };
@@ -51,20 +51,20 @@ This page builds one NixOS host with sven. You write four small files. At the en
 
 ## The fleet
 
-sven has no built-in kinds. You say what a fleet is. The root kind is the one that nothing spawns.
+yen has no built-in kinds. You say what a fleet is. The root kind is the one that nothing spawns.
 Here the root `fleet` spawns every host, and its `out` sink is the flake.
 
 
 ```nix title="modules/fleet.nix"
 # The root of the tree. Nothing spawns it. Its `out` sink is the flake.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host; # every host lives under the fleet
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host; # every host lives under the fleet
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -77,13 +77,13 @@ The `nixos` sink collects NixOS modules. Its `out` key gives the built system to
 ```nix title="modules/host.nix" {13}
 # A host has a system. Its `nixos` sink collects NixOS modules and builds the host.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields.system = lib.types.str;
     sinks.nixos.out =
       { host, nixos, ... }:
@@ -95,7 +95,7 @@ The `nixos` sink collects NixOS modules. Its `out` key gives the built system to
       };
   };
 
-  sven.host.laptop.system = "x86_64-linux";
+  yen.host.laptop.system = "x86_64-linux";
 }
 ```
 
@@ -107,10 +107,10 @@ of that name. `base` is active at every host. `motd` is active at `laptop` only.
 
 ```nix title="modules/aspects.nix"
 # Behavior: active at every host, gives one NixOS module to the `nixos` sink.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.base = {
-    at = sven.kinds.host;
+  yen.aspects.base = {
+    at = yen.kinds.host;
     nixos =
       { host, ... }:
       {
@@ -124,20 +124,20 @@ of that name. `base` is active at every host. `motd` is active at `laptop` only.
       };
   };
 
-  sven.aspects.motd = {
-    at = sven.host.laptop;
-    nixos.environment.etc.motd.text = "managed by sven";
+  yen.aspects.motd = {
+    at = yen.host.laptop;
+    nixos.environment.etc.motd.text = "managed by yen";
   };
 }
 ```
 
 :::note[Args are filled for you]
-`{ host, ... }:` asks sven for the nearest host. sven fills it, and the rest of the function stays a normal NixOS module.
+`{ host, ... }:` asks yen for the nearest host. yen fills it, and the rest of the function stays a normal NixOS module.
 :::
 
 ## Ask it
 
-sven answers queries on the fleet. This is the scope tree of this example, generated from `r.graph`:
+yen answers queries on the fleet. This is the scope tree of this example, generated from `r.graph`:
 
 
 ```mermaid
@@ -165,14 +165,14 @@ And `r.active`: which aspect is active at which scope.
 
 <CardGrid>
 <LinkCard title="Project layout" href="/start/project-layout/" description="Flakes, no flakes, and where files go." />
-<LinkCard title="Kinds and fields" href="/concepts/kinds-fields/" description="Typed data, the first of sven's four words." />
+<LinkCard title="Kinds and fields" href="/concepts/kinds-fields/" description="Typed data, the first of yen's four words." />
 </CardGrid>
 
 :::tip[Run this example]
 Every block on this page is a file of the template `getting-started`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#getting-started
+nix flake init -t github:vic/yen#getting-started
 ```
 
 <FileTree>

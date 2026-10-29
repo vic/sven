@@ -1,7 +1,7 @@
 # µKanren with finite domains: give each app a port in 8080..8083, all different, prometheus before grafana.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib.krn)
+  inherit (yen.lib.krn)
     run
     runAll
     freshNamed
@@ -21,11 +21,11 @@ let
       (eq q vs)
       (label (lib.attrValues vs))
     ]);
-  lb = sven.host.lb;
+  lb = yen.host.lb;
 in
 {
-  sven.aspects.ports = {
-    at = sven.kinds.fleet;
+  yen.aspects.ports = {
+    at = yen.kinds.fleet;
     out.ports = {
       first = run 1 (ports lb.apps); # one answer
       count = lib.length (runAll (ports lb.apps)); # every answer

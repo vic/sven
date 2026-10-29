@@ -1,7 +1,7 @@
 # rdf.nix: an eval result as sorted, de-duplicated N-Triples, and its content hash. Builtins only.
 let
   b = builtins;
-  base = "https://sven.dev/fleet/";
+  base = "https://yen.dev/fleet/";
   bad = [
     "%"
     " "
@@ -35,7 +35,7 @@ let
     "%09"
   ];
   iri = ns: x: "<${base}${ns}/${iriPart x}>";
-  pred = n: "<${base}sven/${n}>";
+  pred = n: "<${base}yen/${n}>";
   fpred = n: "<${base}field/${iriPart n}>";
   xsd = "http://www.w3.org/2001/XMLSchema#";
   type = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>";

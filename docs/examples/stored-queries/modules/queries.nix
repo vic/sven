@@ -1,7 +1,7 @@
 # A stored query names a question. `r` is the eval result; the other args are its parameters.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.queries = {
+  yen.queries = {
     aspectsOn =
       { r, host }:
       lib.sort (a: b: a < b) (

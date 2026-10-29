@@ -1,10 +1,10 @@
 # Written once, for every machine: options that NixOS and nix-darwin share.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.shared = {
+  yen.aspects.shared = {
     at = [
-      sven.kinds.host
-      sven.kinds.mac
+      yen.kinds.host
+      yen.kinds.mac
     ];
     os =
       { scope, pkgs, ... }:

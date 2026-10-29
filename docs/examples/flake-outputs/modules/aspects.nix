@@ -1,16 +1,16 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     services = "nginx";
   };
-  sven.aspects.postgres = {
-    at = sven.host.db;
+  yen.aspects.postgres = {
+    at = yen.host.db;
     services = "postgres";
   };
   # the `out` arg: an element reads the flake outputs, lazily. No `inputs.self`.
-  sven.aspects.inventory = {
-    at = sven.kinds.fleet;
+  yen.aspects.inventory = {
+    at = yen.kinds.fleet;
     out =
       { out, ... }:
       {
