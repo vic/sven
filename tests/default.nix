@@ -2020,6 +2020,42 @@ let
         }
       ]
       && map (e: e.code) treeAll.errors == [ "tree-request" ];
+    # yen modules are not NixOS modules: a key yen does not read is an error, at every level
+    unknown-keys =
+      map (e: { inherit (e) code from path; })
+        (yen.eval {
+          imports = [
+            {
+              options.x = 1;
+              yen.kinds.host.feilds = { };
+            }
+            { yen.aspect.a = { }; }
+          ];
+        }).errors == [
+        {
+          code = "unknown-key";
+          from = "root/0";
+          path = [ "options" ];
+        }
+        {
+          code = "unknown-key";
+          from = "root/1";
+          path = [
+            "yen"
+            "aspect"
+          ];
+        }
+        {
+          code = "unknown-key";
+          from = "root/0";
+          path = [
+            "yen"
+            "kinds"
+            "host"
+            "feilds"
+          ];
+        }
+      ];
     # NixOS `config` parity (configLike): each test is one pattern a fixpoint `config` expresses
     config-no-errors = msgs configLike == [ ];
     config-aggregate = configLike.reduced.ports."fleet:main/host:b" == [ 22 ];
