@@ -765,7 +765,7 @@ let
       byTo = groupBy (e: "${e.key}@${e.to.id}") routed;
 
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
-      isRen = n: n == "scope" || n == "tree" || kinds ? ${n} || elem n sinkNames;
+      isRen = n: n == "scope" || kinds ? ${n} || elem n sinkNames; # `tree` is a cycle source, never an element arg
       nearest = k: s: first (x: x.kind == k) s.rup;
       # what a tree request answers at a scope: a list, empty when nothing answers (Cycle: no source, no emission)
       answer =
@@ -836,6 +836,12 @@ let
           errWith s.id "bare function: wrap it as `{ ... }:`" {
             code = "bare-function";
             fix = "write `{ ... }:` so yen knows which args to fill";
+          }
+        else if fa ? tree then
+          errWith s.id "arg `tree` is a cycle source" {
+            code = "arg";
+            want = "tree";
+            fix = "ask the tree from a `cycle`: `cycle = { tree, ... }: { tree = [ … ]; <sink> = …; }`";
           }
         else if missing != [ ] then
           errWith s.id "arg `${head missing}` has no answer" {

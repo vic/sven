@@ -276,6 +276,10 @@ let
             at = yen.kinds.top;
             port = x: x; # bare-function
           };
+          yen.aspects.treeArg = {
+            at = yen.kinds.top;
+            port = { tree, ... }: 1; # arg: `tree` is a cycle source
+          };
           yen.aspects.noArg = {
             at = yen.kinds.top;
             port = { host, ... }: 1; # arg: no host above top
@@ -1957,8 +1961,10 @@ let
         "of"
         "bare-function"
         "arg"
+        "arg"
       ]
       && (b.elemAt codesFix.errors 6).want == "host"
+      && (b.elemAt codesFix.errors 7).error == "aspect treeArg: arg `tree` is a cycle source"
       && (b.elemAt codesFix.errors 5).error == "aspect bare: bare function: wrap it as `{ ... }:`";
     unread-sink-no-error =
       msgs (
