@@ -1140,24 +1140,23 @@ let
           node "instance" { instance = "${p.kind or "?"}:${p.name or "?"}"; };
       explain =
         n: id: depth:
+        let
+          s = byId.${id};
+          v = s.__here.${n};
+        in
         if !(aspects ? ${n}) then
           unknown "explain" "aspect" n aspectNames
         else if !(byId ? ${id}) then
           noScope "explain" id
         else
-          let
-            s = byId.${id};
-            v = s.__here.${n};
-          in
           {
             aspect = n;
             scope = id;
             active = if v == null then "undefined" else v;
             at = trace depth (aspects.${n}.at or [ ]) s;
-            gives = map (e: {
-              inherit (e) sink;
-              to = e.to;
-            }) (filter (e: e.origin == "aspect ${n}" && e.from == id) graph.edges);
+            gives = map (e: { inherit (e) sink to; }) (
+              filter (e: e.origin == "aspect ${n}" && e.from == id) graph.edges
+            );
             files = filesOf n;
           };
       # ── the agent surface: JSON-safe answers, every list says when it was cut ──
@@ -1179,12 +1178,12 @@ let
           maxEdges ? 20,
           maxAspects ? 50,
         }:
+        let
+          s = byId.${id};
+        in
         if !(byId ? ${id}) then
           noScope "context" id
         else
-          let
-            s = byId.${id};
-          in
           static.jsonSafe {
             scope = id;
             inherit (s) kind name;
@@ -1197,10 +1196,9 @@ let
             errors = filter (e: e.from == id) errorsAll;
           };
       agent = static.jsonSafe {
-        inherit schema;
+        inherit schema undefined;
         errors = errorsAll;
         check = { inherit (check) violations incomplete ok; };
-        undefined = undefined;
         counts = {
           scopes = length scopes;
           edges = length graph.edges;
@@ -1550,23 +1548,14 @@ let
       module,
     }:
     let
-      rs = map (rev: {
-        inherit rev;
-        r = asOf { inherit url rev module; };
-      }) revs;
+      r = b.elemAt (map (rev: asOf { inherit url rev module; }) revs); # one eval per revision
     in
-    b.genList (
-      i:
-      let
-        x = b.elemAt rs i;
-      in
-      {
-        inherit (x) rev;
-        errors = length x.r.errors;
-        scopes = length x.r.scopes;
-        changes = if i == 0 then [ ] else diffData (b.elemAt rs (i - 1)).r.data x.r.data;
-      }
-    ) (length rs);
+    b.genList (i: {
+      rev = b.elemAt revs i;
+      errors = length (r i).errors;
+      scopes = length (r i).scopes;
+      changes = if i == 0 then [ ] else diffData (r (i - 1)).data (r i).data;
+    }) (length revs);
   # without: the fleet with the files that declare `path` removed (coarse: a whole file goes; no engine hook)
   without =
     {
