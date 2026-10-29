@@ -71,6 +71,12 @@ let
       class = "fixable";
     }
     // x;
+  unknown =
+    from: what: x: known:
+    errWith from "no ${what} ${x}" {
+      code = "unknown-${what}";
+      near = near x known;
+    };
   # edit distance (Levenshtein), for `near`: the known names a typo was probably meant to be
   dist =
     a: c:
@@ -1150,13 +1156,13 @@ let
           // (
             if
               t ? default
-              && (
-                b.isString t.default
-                || b.isInt t.default
-                || b.isBool t.default
-                || t.default == null
-                || isList t.default
-              )
+              && elem (b.typeOf t.default) [
+                "string"
+                "int"
+                "bool"
+                "null"
+                "list"
+              ]
             then
               { default = t.default; }
             else
@@ -1167,7 +1173,7 @@ let
           mapAttrs (_: fieldsOf) t
         else
           { type = b.typeOf t; };
-      sinkOf' =
+      sinkSchema =
         v:
         let
           d = if isAttrs v then v else { };
@@ -1175,15 +1181,14 @@ let
         {
           reduce = if d ? reduce then d.reduce.name or "custom" else "list";
           of = if d ? of then typeName d.of else null;
-          feeds = filter (
-            k:
-            !elem k [
+          feeds = attrNames (
+            removeAttrs d [
               "reduce"
               "of"
               "at"
               "out"
             ]
-          ) (attrNames d);
+          );
           out = d ? out;
           conditional = d ? at;
         };
@@ -1191,19 +1196,18 @@ let
         kinds = mapAttrs (k: d: {
           fields = fieldsOf (d.fields or { });
           spawns = attrNames (d.spawns or { });
-          sinks = mapAttrs (_: sinkOf') (d.sinks or { });
+          sinks = mapAttrs (_: sinkSchema) (d.sinks or { });
           instances = length (instNames k);
           scopes = length (filter (s: s.kind == k) scopes);
         }) (top.kinds or { });
         aspects = mapAttrs (n: a: {
-          keys = filter (
-            k:
-            !elem k [
+          keys = attrNames (
+            removeAttrs a [
               "at"
               "order"
               "__aspect"
             ]
-          ) (attrNames a);
+          );
           cycle = a ? cycle;
           files = declaredIn [
             "aspects"
@@ -1228,6 +1232,7 @@ let
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
       byId = byScope (s: s) unsorted;
+      noScope = from: id: unknown from "scope" id (attrNames byId);
       trace =
         d: p: s:
         let
@@ -1269,15 +1274,9 @@ let
       explain =
         n: id: depth:
         if !(aspects ? ${n}) then
-          errWith "explain" "no aspect ${n}" {
-            code = "unknown-aspect";
-            near = near n aspectNames;
-          }
+          unknown "explain" "aspect" n aspectNames
         else if !(byId ? ${id}) then
-          errWith "explain" "no scope ${id}" {
-            code = "unknown-scope";
-            near = near id (attrNames byId);
-          }
+          noScope "explain" id
         else
           let
             s = byId.${id};
@@ -1312,10 +1311,7 @@ let
           maxAspects ? 50,
         }:
         if !(byId ? ${id}) then
-          errWith "context" "no scope ${id}" {
-            code = "unknown-scope";
-            near = near id (attrNames byId);
-          }
+          noScope "context" id
         else
           let
             s = byId.${id};
@@ -1377,15 +1373,9 @@ let
           );
         in
         if !(byId ? ${id}) then
-          errWith "impact" "no scope ${id}" {
-            code = "unknown-scope";
-            near = near id (attrNames byId);
-          }
+          noScope "impact" id
         else if bad != [ ] then
-          errWith "impact" "no sink ${head bad}" {
-            code = "unknown-sink";
-            near = near (head bad) sinkNames;
-          }
+          unknown "impact" "sink" (head bad) sinkNames
         else
           let
             c = cut max (
@@ -1529,10 +1519,7 @@ let
         ask =
           n: args:
           if !((top.queries or { }) ? ${n}) then
-            errWith "ask" "no query ${n}" {
-              code = "unknown-query";
-              near = near n (attrNames (top.queries or { }));
-            }
+            unknown "ask" "query" n (attrNames (top.queries or { }))
           else
             let
               q = self.queries.${n};
