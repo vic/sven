@@ -39,6 +39,7 @@ in
               {
                 _module.args.pkgs = pkgs;
                 files.root = inputs.self;
+                files.relativeRoot = "docs/examples/generated-files";
               }
             ]
             ++ files;
@@ -168,7 +169,9 @@ The template's own `flake.nix` is that output. Remove the `web` aspect, and `nix
     nixpkgs = {
       url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
     };
-    sven.url = "github:vic/sven";
+    sven = {
+      url = "github:vic/sven";
+    };
   };
 }
 ```
@@ -192,6 +195,7 @@ nix flake init -t github:vic/sven#generated-files
 
 <FileTree>
 
+- README.md
 - flake.lock
 - flake.nix
 - modules/
