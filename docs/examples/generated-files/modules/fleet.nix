@@ -23,6 +23,7 @@ in
               {
                 _module.args.pkgs = pkgs;
                 files.root = inputs.self;
+                files.relativeRoot = "docs/examples/generated-files";
               }
             ]
             ++ files;

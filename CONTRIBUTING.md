@@ -116,6 +116,7 @@ A change to the engine also needs a test in `tests/default.nix`. Keep the engine
 | `docs-build` | docs | build the site to docs/dist |
 | `engine-test` | engine | the engine and library oracles |
 | `engine-cost` | engine | the memo cost oracles |
+| `each-flake` | flake | run command in every flake.nix directory that has it |
 | `fleet-test` | fleet | the reference fleet's checks |
 | `fleet-e2e` | fleet | the reference fleet's real evaluations |
 | `fleet-cost` | fleet | the trimmed-module-list cost oracle |

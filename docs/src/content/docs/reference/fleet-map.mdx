@@ -133,7 +133,7 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 |---|---|
 | [`sini/clusters.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/clusters.nix) | Clusters under an environment. Discovery (den collect): k3s nodes reduce at the environment; the reader filters. |
 | [`sini/domains.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/domains.nix) | Recursive kinds: domains under domains. `parent` is a scope key, so the field is `under`. |
-| [`sini/flake.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/flake.nix) | Flake level: sink -> sink chains, and elements that read one `out` path and write another. |
+| [`sini/flake-level.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/flake-level.nix) | Flake level: sink -> sink chains, and elements that read one `out` path and write another. |
 | [`sini/joins.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/joins.nix) | sini joins and data-shaped aspects: two pools joined by host, a guest's intent read by its parent, |
 | [`sini/mesh.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/mesh.nix) | sini mesh family (vault, thunderbolt, ollama, nix-builders): every host in an environment gives one record; |
 | [`sini/network.nix`](https://github.com/vic/sven/blob/main/templates/fleet/modules/sini/network.nix) | Conditional environment receivers fed by hosts (terranix, unifi port-forwards). |

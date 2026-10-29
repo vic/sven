@@ -20,6 +20,8 @@
     nixpkgs = {
       url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
     };
-    sven.url = "github:vic/sven";
+    sven = {
+      url = "github:vic/sven";
+    };
   };
 }
