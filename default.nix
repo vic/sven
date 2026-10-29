@@ -502,34 +502,28 @@ let
                 mkScope s c n made.${n}
             ) (attrNames made)
         ) (attrNames (spawnsOf s.kind));
+      item =
+        c:
+        if c ? error then
+          {
+            key = "error:${c.from}:${c.error}";
+            e = c;
+          }
+        else
+          {
+            key = c.id;
+            s = c;
+          };
       tree = genericClosure {
         # C-level loop, breadth first: a parent comes before its children
-        startSet = map (s: {
-          key = s.id;
-          inherit s;
-        }) roots;
-        operator =
-          i:
-          if i ? s then
-            map (
-              c:
-              if c ? error then
-                {
-                  key = "error:${c.from}:${c.error}";
-                  e = c;
-                }
-              else
-                {
-                  key = c.id;
-                  s = c;
-                }
-            ) (childrenOf i.s)
-          else
-            [ ];
+        startSet = map item roots;
+        operator = i: if i ? s then map item (childrenOf i.s) else [ ];
       };
       unsorted = map (i: i.s) (filter (i: i ? s) tree);
       treeErrors = map (i: i.e) (filter (i: i ? e) tree);
-      byParent = groupBy (s: if s.parent == null then "" else s.parent.id) unsorted;
+      parentId = s: if s.parent == null then "" else s.parent.id;
+      byParent = groupBy parentId unsorted;
+      below = s: byParent.${s.id} or [ ];
 
       # ── filter: every predicate is a function; refs, lists and the combinators are data the engine reads ──
       # Three values: true, false, null (undefined). An aspect ref is memoised per scope (`__here`), so nested refs cost
@@ -576,19 +570,19 @@ let
           p s
         else if isList p then
           (if length p == 1 then eval3 stack (head p) s else or3 (map (q: eval3 stack q s) p)) # `at` is always a list (a union over files): one entry is the common case
-        else if isAttrs p && p ? __all then
+        else if p ? __all then
           and3 (map (q: eval3 stack q s) p.__all)
-        else if isAttrs p && p ? __not then
+        else if p ? __not then
           (
             let
               v = eval3 (map (x: x // { neg = true; }) stack) p.__not s;
             in
             if v == null then null else !v
           )
-        else if isAttrs p && p ? __within then
+        else if p ? __within then
           or3 (map (eval3 stack p.__within) (above s))
-        else if isAttrs p && p ? __has then
-          or3 (map (eval3 stack p.__has) (byParent.${s.id} or [ ]))
+        else if p ? __has then
+          or3 (map (eval3 stack p.__has) (below s))
         else if p ? __functor then
           p s
         else if p ? __kind then
@@ -596,36 +590,22 @@ let
         else if p ? __aspect then
           let
             q = p.__aspect;
-            key = "${q}@${s.id}";
-            hit = first (x: x.key == key) stack;
+            f = frame q s;
+            hit = first (x: x.key == f.key) stack;
           in
           if hit != null then
             (if hit.neg then null else false)
           else if stack == [ ] || !cyclic.${q} then
             s.__here.${q} # per scope: structure may depend on presence (Den #525) without the whole tree
           else
-            eval3 (
-              stack
-              ++ [
-                {
-                  inherit key;
-                  neg = false;
-                }
-              ]
-            ) (aspects.${q}.at or [ ]) s
+            eval3 (stack ++ [ f ]) (aspects.${q}.at or [ ]) s
         else
           p ? kind && p ? name && s.kind == p.kind && s.name == p.name;
-      here =
-        s:
-        mapAttrs (
-          q: a:
-          eval3 [
-            {
-              key = "${q}@${s.id}";
-              neg = false;
-            }
-          ] (a.at or [ ]) s
-        ) aspects;
+      frame = q: s: {
+        key = "${q}@${s.id}";
+        neg = false;
+      };
+      here = s: mapAttrs (q: a: eval3 [ (frame q s) ] (a.at or [ ]) s) aspects;
       holds =
         p: s:
         if isFunction p then
@@ -654,7 +634,7 @@ let
         map (n: {
           aspect = n;
           scope = s.id;
-        }) (filter (n: s.__here.${n} == null) (filter (n: tainted.${n}) aspectNames))
+        }) (filter (n: tainted.${n} && s.__here.${n} == null) aspectNames)
       ) unsorted;
       atErrors = concatMap (
         n:
@@ -725,7 +705,7 @@ let
       scopes =
         b.seq (foldl' (_: s: sortKeys.${s.id}) null unsorted) # force keys breadth first: no deep thunk chain
           (b.sort (x: y: sortKeys.${x.id} < sortKeys.${y.id}) unsorted);
-      childrenAt = groupBy (s: if s.parent == null then "" else s.parent.id) scopes;
+      childrenAt = groupBy parentId scopes;
 
       # ── routing: nearest ancestor-or-self receiver (Cycle isolateSink tags the identity) ──
       sinkOf = s: k: (kinds.${s.kind}.sinks or { }).${k} or null;
@@ -1245,7 +1225,7 @@ let
           node "within" { kids = kids (d': map (x: { scope = x.id; } // trace d' p.__within x) (above s)); }
         else if p ? __has then
           node "has" {
-            kids = kids (d': map (x: { scope = x.id; } // trace d' p.__has x) (byParent.${s.id} or [ ]));
+            kids = kids (d': map (x: { scope = x.id; } // trace d' p.__has x) (below s));
           }
         else if p ? __functor then
           node "function" { }
@@ -1309,7 +1289,7 @@ let
             scope = id;
             inherit (s) kind name;
             parent = if s.parent == null then null else s.parent.id;
-            children = map (c: c.id) (byParent.${id} or [ ]);
+            children = map (c: c.id) (below s);
             aspects = cut maxAspects (filter (n: active.${n}.${id}) aspectNames);
             undefined = map (x: x.aspect) (filter (x: x.scope == id) undefined);
             given = cut maxEdges (filter (e: e.from == id) graph.edges);
