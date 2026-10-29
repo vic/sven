@@ -1746,74 +1746,44 @@ let
     opErrors =
       r: i: o:
       let
-        at = "program[${toString i}]";
         kinds = r.schema.kinds;
+        k = head o.path;
+        f = b.elemAt o.path 2;
+        fs = attrNames (kinds.${k}.fields or { });
+        fail = msg: x: [ (errWith "program[${toString i}]" msg ({ code = "program"; } // x)) ];
+        noKind = if kinds ? ${o.kind or ""} then [ ] else fail "no kind ${o.kind or "?"}" { };
       in
       if !isAttrs o || !(o ? op) then
-        [
-          (errWith at "not an op" {
-            code = "program";
-            want = "{ op = …; }";
-          })
-        ]
+        fail "not an op" { want = "{ op = …; }"; }
       else if o.op == "set" || o.op == "ref" then
-        (
-          if !(isList (o.path or null)) || o.path == [ ] then
-            [ (errWith at "path must be a non-empty list" { code = "program"; }) ]
-          else
-            let
-              k = head o.path;
-            in
-            if !(kinds ? ${k}) then
-              [
-                (errWith at "no kind ${k}" {
-                  code = "program";
-                  near = near k (attrNames kinds);
-                })
-              ]
-            else if length o.path > 2 && !((kinds.${k}.fields or { }) ? ${b.elemAt o.path 2}) then
-              [
-                (errWith at "kind ${k} has no field ${b.elemAt o.path 2}" {
-                  code = "program";
-                  near = near (b.elemAt o.path 2) (attrNames (kinds.${k}.fields or { }));
-                })
-              ]
-            else if o.op == "ref" && !(kinds ? ${o.kind or ""}) then
-              [ (errWith at "no kind ${o.kind or "?"}" { code = "program"; }) ]
-            else
-              [ ]
-        )
+        if !(isList (o.path or null)) || o.path == [ ] then
+          fail "path must be a non-empty list" { }
+        else if !(kinds ? ${k}) then
+          fail "no kind ${k}" { near = near k (attrNames kinds); }
+        else if length o.path > 2 && !elem f fs then
+          fail "kind ${k} has no field ${f}" { near = near f fs; }
+        else if o.op == "ref" then
+          noKind
+        else
+          [ ]
       else if o.op == "place" then
         (
-          if !(r.schema.aspects ? ${o.aspect or ""}) then
-            [
-              (errWith at "no aspect ${o.aspect or "?"}" {
-                code = "program";
-                near = near (o.aspect or "") (attrNames r.schema.aspects);
-              })
-            ]
-          else
+          if r.schema.aspects ? ${o.aspect or ""} then
             [ ]
+          else
+            fail "no aspect ${o.aspect or "?"}" { near = near (o.aspect or "") (attrNames r.schema.aspects); }
         )
       else if o.op == "new" then
-        (
-          if !(kinds ? ${o.kind or ""}) then
-            [ (errWith at "no kind ${o.kind or "?"}" { code = "program"; }) ]
-          else
-            [ ]
-        )
+        noKind
       else
-        [
-          (errWith at "unknown op ${toString o.op}" {
-            code = "program";
-            near = near (toString o.op) [
-              "set"
-              "ref"
-              "place"
-              "new"
-            ];
-          })
-        ];
+        fail "unknown op ${toString o.op}" {
+          near = near (toString o.op) [
+            "set"
+            "ref"
+            "place"
+            "new"
+          ];
+        };
     validate = r: prog: b.concatLists (b.genList (i: opErrors r i (b.elemAt prog i)) (length prog));
     # the program as one yen module (a function: refs need `yen`)
     toModule =
