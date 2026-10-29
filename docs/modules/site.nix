@@ -83,25 +83,33 @@ in
       title = "Recipes";
       order = 4;
     };
+    nixos = {
+      title = "NixOS patterns in yen";
+      order = 5;
+    };
+    den = {
+      title = "Den patterns in yen";
+      order = 6;
+    };
     query = {
       title = "Ask and prove";
-      order = 5;
+      order = 7;
     };
     agents = {
       title = "For agents";
-      order = 6;
+      order = 8;
     };
     perf = {
       title = "Performance";
-      order = 7;
+      order = 9;
     };
     reference = {
       title = "Reference";
-      order = 8;
+      order = 10;
     };
     project = {
       title = "Project";
-      order = 9;
+      order = 11;
     };
   };
 }

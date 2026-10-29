@@ -1,0 +1,203 @@
+---
+{"description":"The eight aspect patterns of the dendritic design guide, and the yen form of each, with the pitfalls that go away.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/den-dendritic/page.nix","title":"The dendritic aspect patterns"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Den is one way to write dendritic Nix. The
+[dendritic design guide](https://github.com/Doc-Steve/dendritic-design-with-flake-parts/wiki/Dendritic_Aspects)
+names eight aspect patterns that recur in dendritic configurations. Most Den users know them, by these names or
+by others. This page gives the yen form of each.
+
+In the guide, each pattern is a different way to write `flake.modules.<class>.<aspect>` and its `imports`. In yen
+each pattern is an aspect. What changes is its `at`, or the data it reads.
+
+
+| Pattern | Guide | yen |
+|---|---|---|
+| Simple | a module per class | an aspect with one key per class, below |
+| Multi context | a NixOS module adds a home module to `home-manager.sharedModules` | an aspect at the users `within` the hosts that have the feature: [System and home](/nixos/system-and-home/) |
+| Inheritance | `imports = [ parent ]` | the parent's `at` names the child aspect, below |
+| Conditional | `lib.mkMerge` and `lib.mkIf pkgs.stdenv.isLinux` | `at` tests a fact; `not` excludes, below |
+| Collector | each host feature adds its part to a shared module | a sink at a common parent, read back with `entries`: [Facts from other hosts](/nixos/cross-host/) |
+| Constants | a `generic` class module with `options.systemConstants` | a field of the fleet, read as the `fleet` arg, below |
+| DRY | a new class for values inside an attribute set of submodules | a sink that places its content at a path: [Custom classes](/den/classes/) |
+| Factory | a function that returns modules, such as `user "bob" true` | a kind and its instances, with fields for the arguments, below |
+
+```nix title="modules/patterns.nix"
+# Five of the dendritic aspect patterns, in yen. Each one is an aspect; only its `at` differs.
+{ yen, ... }:
+let
+  inherit (yen.lib) all not;
+in
+{
+  # Simple aspect: one feature, for every host.
+  yen.aspects.basic-packages = {
+    at = yen.kinds.host;
+    nixos =
+      { pkgs, ... }:
+      {
+        environment.systemPackages = [ pkgs.git ];
+      };
+  };
+
+  # Inheritance aspect: system-desktop extends system-cli. system-cli applies wherever system-desktop does.
+  # There is no `imports`, so a parent included by two children is still given once.
+  yen.aspects.system-cli = {
+    at = [
+      yen.host.srv
+      yen.aspects.system-desktop
+      yen.aspects.system-dev
+    ];
+    nixos =
+      { pkgs, ... }:
+      {
+        environment.systemPackages = [ pkgs.tmux ];
+      };
+  };
+  yen.aspects.system-desktop = {
+    at = yen.host.desk;
+    nixos.services.printing.enable = true;
+  };
+  yen.aspects.system-dev = {
+    at = yen.host.desk; # a second child on the same host: system-cli still comes once
+    nixos.virtualisation.docker.enable = true;
+  };
+
+  # Conditional aspect: no lib.mkIf inside a module. `at` tests a fact, and can exclude.
+  yen.aspects.nvidia = {
+    at = s: (s.gpu or null) == "nvidia";
+    nixos.services.xserver.videoDrivers = [ "nvidia" ];
+  };
+  yen.aspects.headless = {
+    at = all [
+      yen.kinds.host
+      (not yen.aspects.system-desktop)
+    ];
+    nixos.documentation.enable = false;
+  };
+
+  # Constants aspect: a field of the fleet, read as the `fleet` arg. No options, no generic class.
+  yen.aspects.acme = {
+    at = yen.kinds.host;
+    nixos =
+      { fleet, ... }:
+      {
+        security.acme.defaults.email = fleet.adminEmail;
+      };
+  };
+
+  # Factory aspect: `user "bob" true` becomes an instance with a field. The kind is the factory.
+  yen.aspects.user-account = {
+    at = yen.kinds.user;
+    nixos =
+      { user, ... }:
+      {
+        users.users.${user.name} = {
+          isNormalUser = true;
+          extraGroups = if user.admin then [ "wheel" ] else [ ];
+        };
+      };
+  };
+}
+```
+
+<Tabs>
+<TabItem label="fleet.nix">
+
+```nix title="modules/fleet.nix"
+# Two hosts and two users. The fleet carries constants; a user's `admin` field replaces a user factory's argument.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (yen.lib) opt is;
+in
+{
+  yen.kinds.fleet = {
+    fields.adminEmail = lib.types.str;
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    fields.gpu = opt (lib.types.enum [
+      "none"
+      "nvidia"
+    ]) "none";
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+  yen.kinds.user.fields = {
+    hosts = is lib.isList;
+    admin = opt lib.types.bool false;
+  };
+
+  yen.fleet.main.adminEmail = "admin@example.org";
+  yen.flake = { out, ... }: out;
+
+  yen.host.desk.gpu = "nvidia";
+  yen.host.srv = { };
+  yen.user.bob = {
+    hosts = [ yen.host.desk ];
+    admin = true;
+  };
+  yen.user.eve.hosts = [
+    yen.host.desk
+    yen.host.srv
+  ];
+  yen.aspects.machine = {
+    at = yen.kinds.host;
+    nixos =
+      { host, ... }:
+      {
+        networking.hostName = host.name;
+        boot.loader.grub.device = "nodev";
+        fileSystems."/" = {
+          device = "/dev/sda1";
+          fsType = "ext4";
+        };
+        nixpkgs.hostPlatform = "x86_64-linux";
+        system.stateVersion = "25.05";
+      };
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Pitfalls that go away
+
+The guide warns about these. In yen they cannot happen, or they have no cause:
+
+
+| Guide warning | In yen |
+|---|---|
+| Use `lib.mkMerge`, not `//`, to merge aspect parts | An aspect written in many files is read from all of them. Nothing is merged with `//`. |
+| Multi context plus inheritance can add the same module to `sharedModules` two times | An element has one id per receiver. A parent reached by two children is given once. |
+| Never use `lib.mkIf` around `imports`: infinite recursion | No module looks at its own config to decide if it applies. `at` decides, before NixOS runs. |
+| Every host needs a `mkNixos` call | The host kind builds every host: [Many hosts, one base](/nixos/hosts/) |
+
+:::tip[Run this example]
+Every block on this page is a file of the template `den-dendritic`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#den-dendritic
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - fleet.nix
+  - patterns.nix
+
+</FileTree>
+:::

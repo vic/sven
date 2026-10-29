@@ -1,0 +1,154 @@
+---
+{"description":"Each feature names its unfree packages. One allowUnfreePredicate per host reads them all.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/nixos-unfree/page.nix","title":"Unfree packages from many files"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+`nixpkgs.config.allowUnfree = true` allows every unfree package. To allow only some, nixpkgs has
+`allowUnfreePredicate`. It is a function, so the module system cannot merge it: when two modules set it, they
+conflict ([nixpkgs#55674](https://github.com/NixOS/nixpkgs/issues/55674),
+[discourse](https://discourse.nixos.org/t/appending-entries-to-nixpkgs-config-allowunfreepredicate/55844)).
+The usual fix declares a list option and sets the predicate once from it. Den ships the same fix as
+`den.batteries.unfree`, its most used battery.
+
+In yen the list option is a sink. A feature gives the names that it needs. A user can give names too: they go
+up to each host of the user.
+
+
+```nix title="modules/unfree.nix"
+# allowUnfreePredicate is a function: two modules that set it conflict. A sink collects names; one predicate reads them.
+{ lib, ... }:
+{
+  yen.kinds.host.sinks.unfree = {
+    nixos =
+      { unfree, ... }:
+      {
+        nixpkgs.config.allowUnfreePredicate = pkg: lib.elem (lib.getName pkg) (lib.flatten unfree);
+      };
+    # the list per host, as a flake output: review it before a deploy
+    out =
+      { host, unfree, ... }:
+      {
+        unfree.${host.name} = lib.sort lib.lessThan (lib.flatten unfree);
+      };
+  };
+}
+```
+
+```nix title="modules/features.nix"
+# Each feature names the unfree packages it needs, next to the packages. No file knows the whole list.
+{ yen, ... }:
+{
+  yen.aspects.gaming = {
+    at = yen.host.desk;
+    unfree = [
+      "steam"
+      "steam-unwrapped"
+    ];
+    nixos.programs.steam.enable = true;
+  };
+  # from a user: a user has no `unfree` sink, so the names go up to each of its hosts
+  yen.aspects.ana-editor = {
+    at = yen.user.ana;
+    unfree = [ "vscode" ];
+    nixos =
+      { pkgs, ... }:
+      {
+        users.users.ana = {
+          isNormalUser = true;
+          packages = [ pkgs.vscode ];
+        };
+      };
+  };
+}
+```
+
+The `out` key of the sink makes the list a flake output, so you can see it. `server` has no names, so its sink
+gives nothing: nixpkgs refuses every unfree package there, as by default.
+
+
+```nix title="result"
+{
+  desk = [
+    "steam"
+    "steam-unwrapped"
+    "vscode"
+  ];
+}
+```
+
+<Tabs>
+<TabItem label="fleet.nix">
+
+```nix title="modules/fleet.nix"
+# Hosts build NixOS and hold their users.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+  yen.kinds.user.fields.hosts = yen.lib.is lib.isList;
+
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+
+  yen.host.desk = { };
+  yen.host.server = { };
+  yen.user.ana.hosts = [ yen.host.desk ];
+  yen.aspects.machine = {
+    at = yen.kinds.host;
+    nixos =
+      { host, ... }:
+      {
+        networking.hostName = host.name;
+        boot.loader.grub.device = "nodev";
+        fileSystems."/" = {
+          device = "/dev/sda1";
+          fsType = "ext4";
+        };
+        nixpkgs.hostPlatform = "x86_64-linux";
+        system.stateVersion = "25.05";
+      };
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+:::note[Home-manager]
+With `home-manager.useGlobalPkgs = true`, home-manager uses the host's `pkgs`, so the host predicate applies to
+home packages too. For a standalone home, give the home kind the same sink with a `homeManager` key.
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `nixos-unfree`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#nixos-unfree
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - features.nix
+  - fleet.nix
+  - unfree.nix
+
+</FileTree>
+:::
