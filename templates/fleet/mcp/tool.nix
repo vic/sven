@@ -4,7 +4,7 @@ let
   env = builtins.getEnv;
   fleet = /. + env "SVEN_FLEET";
   inputs = (builtins.getFlake (env "SVEN_FLAKE")).inputs;
-  sven = import inputs.sven;
+  sven = inputs.sven;
   base = {
     imports = [ (inputs.import-tree (fleet + "/modules")) ];
     _module.args = {

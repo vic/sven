@@ -40,14 +40,14 @@ in
     in
     {
       inherit dir inputs module;
-      engine = (import inputs.sven).lib; # stage, program, without: functions of a module
+      engine = inputs.sven.lib; # stage, program, without: functions of a module
       page = import (dir + "/page.nix");
       # the eval result: every query of the example fleet
-      r = if has "modules" then (import inputs.sven).lib.eval module else null;
+      r = if has "modules" then inputs.sven.lib.eval module else null;
       # the example with one more file (a `variants/` file, outside `modules/`): what a change does
       variant =
         f:
-        (import inputs.sven).lib.eval {
+        inputs.sven.lib.eval {
           imports = [
             module
             (dir + "/${f}")
@@ -56,7 +56,7 @@ in
       # only some files of the example: an early step of a migration
       only =
         fs:
-        (import inputs.sven).lib.eval {
+        inputs.sven.lib.eval {
           imports = map (f: dir + "/${f}") fs;
           _module.args = module._module.args;
         };

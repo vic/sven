@@ -6,8 +6,11 @@
   outputs =
     inputs:
     let
-      sven = inputs.self.sourceInfo; # the docs live in the sven repository: its root is the engine
-      flake = (import sven).lib.mkFlake {
+      # the docs live in the sven repository: its root is the engine, shaped like the `sven` flake input
+      sven = import inputs.self.sourceInfo // {
+        inherit (inputs.self.sourceInfo) outPath;
+      };
+      flake = sven.lib.mkFlake {
         imports = [ (inputs.import-tree ./modules) ];
         _module.args = {
           inputs = inputs // {

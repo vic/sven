@@ -596,7 +596,6 @@
       }
     },
     "sven": {
-      "flake": false,
       "locked": {
         "path": "../..",
         "type": "path"

@@ -16,7 +16,7 @@
         p:
         import (dir + "/dry-run.nix") {
           program = p;
-          sven = inputs.sven;
+          sven = inputs.sven.outPath;
           inherit (inputs) nixpkgs import-tree;
         };
     in
@@ -87,7 +87,7 @@
         p:
         import (dir + "/dry-run.nix") {
           program = p;
-          sven = inputs.sven;
+          sven = inputs.sven.outPath;
           inherit (inputs) nixpkgs import-tree;
         };
     in

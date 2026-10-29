@@ -4,7 +4,7 @@
 let
   inputs = (builtins.getFlake "path:${toString ../..}?dir=templates/fleet").inputs;
   inherit (inputs.nixpkgs) lib;
-  sven = (import inputs.sven).lib;
+  sven = inputs.sven.lib;
 
   # ── the fleet ──
   schema =

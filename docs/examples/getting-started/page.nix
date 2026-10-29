@@ -18,7 +18,7 @@
           ${docs.sh "nix flake init -t github:vic/sven#getting-started"}
         ''
         ''
-          Read `flake.nix`. sven is a plain Nix file, so the input has `flake = false`.
+          Read `flake.nix`. The `sven` input is a normal flake input.
           [import-tree](https://github.com/denful/import-tree) loads every file in `modules/`.
 
           ${docs.file "flake.nix"}

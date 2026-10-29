@@ -3,7 +3,7 @@
 let
   inputs = (builtins.getFlake "path:${toString ../..}?dir=templates/fleet").inputs; # in the sven tree: `../..` resolves
 in
-(import inputs.sven).lib.eval {
+inputs.sven.lib.eval {
   imports = [ (inputs.import-tree ./modules) ];
   _module.args = {
     inherit inputs;

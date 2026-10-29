@@ -2,7 +2,7 @@
 {
   outputs =
     inputs:
-    (import inputs.sven).lib.mkFlake {
+    inputs.sven.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -20,9 +20,6 @@
     nixpkgs = {
       url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
     };
-    sven = {
-      flake = false;
-      url = "github:vic/sven";
-    };
+    sven.url = "github:vic/sven";
   };
 }

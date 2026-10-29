@@ -17,7 +17,7 @@
         args:
         import (dir + "/stage.nix") (
           {
-            sven = inputs.sven;
+            sven = inputs.sven.outPath;
             inherit (inputs) nixpkgs import-tree;
           }
           // args
@@ -84,7 +84,7 @@
         args:
         import (dir + "/stage.nix") (
           {
-            sven = inputs.sven;
+            sven = inputs.sven.outPath;
             inherit (inputs) nixpkgs import-tree;
           }
           // args

@@ -4,10 +4,7 @@
   sven.aspects.core-inputs = {
     at = sven.kinds.fleet;
     inputs = {
-      sven = {
-        url = "github:vic/sven";
-        flake = false;
-      };
+      sven.url = "github:vic/sven";
       import-tree.url = "github:denful/import-tree";
       files.url = "github:sini/files";
     };

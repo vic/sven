@@ -20,7 +20,7 @@ in
           {
             outputs =
               inputs:
-              (import inputs.sven).lib.mkFlake {
+              inputs.sven.lib.mkFlake {
                 imports = [ (inputs.import-tree ./modules) ];
                 _module.args = {
                   inherit inputs;

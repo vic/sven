@@ -3,7 +3,7 @@
 
   outputs =
     inputs:
-    (import inputs.sven).lib.mkFlake {
+    inputs.sven.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -12,10 +12,7 @@
     };
 
   inputs = {
-    sven = {
-      url = "github:vic/sven";
-      flake = false;
-    };
+    sven.url = "github:vic/sven";
     import-tree.url = "github:denful/import-tree";
     nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
     home-manager = {
