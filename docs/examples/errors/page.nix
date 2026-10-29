@@ -29,11 +29,20 @@
 
         An aspect key `errors` gives records, or plain messages. yen sets `from` to the scope that gave it: an aspect cannot
         report for another scope. A record without `class` is `fixable`.
-        This fleet has two hosts with one address:
+        Here `unique-addr` checks that no two hosts share an address:
       ''
       (docs.file "modules/fleet.nix")
       (docs.fileWith "{9-15}" "modules/checks.nix")
-      (docs.value result.errors)
+      ''
+        A new host with the address of `web` gives an error record:
+      ''
+      (docs.file "variants/duplicate.nix")
+      (docs.value (variant "variants/duplicate.nix").errors)
+      ''
+        A fleet with an error gives no outputs. Its `flake` is `null` until `errors` is `[ ]` and every invariant
+        holds, so nothing can build it:
+      ''
+      (docs.value (variant "variants/duplicate.nix").flake)
       ''
         ## Warnings
 
@@ -47,8 +56,6 @@
       '')
     ];
 
-  errors = true; # this example shows a duplicate address on purpose
-
   checks =
     { result, variant, ... }:
     {
@@ -60,14 +67,15 @@
             from
             class
             ;
-        }) result.errors == [
+        }) (variant "variants/duplicate.nix").errors == [
           {
             code = "duplicate-addr";
-            error = "10.0.0.1 is the address of db and web";
+            error = "10.0.0.1 is the address of cache and web";
             from = "fleet:main";
             class = "fixable";
           }
         ];
+      no-outputs = (variant "variants/duplicate.nix").flake == null;
       warnings = result.flake.warnings == [ "scratch has no backup" ];
       typo = builtins.any (
         e: e.code == "unknown-field" && e.near == [ "backup" ]

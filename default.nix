@@ -53,6 +53,7 @@ let
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
   requestKinds = words "nearest parent children scopesOf holds";
+  factRelations = words "scope kind has edge error ref val"; # the atoms yen extracts: no rule may derive them
   # the only keys a module, its `yen` and a kind declare; any other key is an error, never ignored
   moduleKeys = words "imports _module yen";
   yenKeys = words "kinds aspects helpers queries invariants labels flake"; # and the kind names
@@ -991,7 +992,11 @@ let
               }
             else
               f;
-          rules = concatMap rulesOf (attrNames invs);
+          # a rule may derive only its own relations: a head that spells an extracted fact would forge it
+          isFact = a: any (p: b.substring 0 (b.stringLength p + 1) a == "${p}:") factRelations;
+          allRules = concatMap rulesOf (attrNames invs);
+          forged = map (r: r.head) (filter (r: isFact r.head) allRules);
+          rules = filter (r: !isFact r.head) allRules;
           mentioned = keySet (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules);
           m = D.wfs (rules ++ D.facts (filter (a: mentioned ? ${a}) facts));
           isBad = a: b.substring 0 4 a == "bad:";
@@ -1000,8 +1005,8 @@ let
           ground = rules ++ D.facts facts;
         in
         {
-          inherit violations incomplete;
-          ok = violations == [ ] && incomplete == [ ];
+          inherit violations incomplete forged;
+          ok = violations == [ ] && incomplete == [ ] && forged == [ ];
           why = D.why ground m;
           whyNot = D.whyNot ground m;
           proof = D.proof ground m;
@@ -1342,7 +1347,12 @@ let
           ) instances.${k}
         ) kinds;
         errors = errorsAll;
-        flake = if top ? flake && scopes != [ ] then (fill (head scopes) top.flake).ok or null else null;
+        # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs
+        flake =
+          if top ? flake && scopes != [ ] && errorsAll == [ ] && check.ok then
+            (fill (head scopes) top.flake).ok or null
+          else
+            null;
         # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.
@@ -1383,9 +1393,10 @@ let
       };
     in
     self;
-  # grants that only narrow: a grant names scope id prefixes and sinks (null: every sink). Two grants meet: a scope
-  # stays when one prefix holds the other (the longer is kept), sinks intersect. There is no way to widen.
-  hasPrefix = p: s: b.substring 0 (b.stringLength p) s == p;
+  # grants that only narrow: a grant names scope ids and sinks (null: every sink). A scope id covers itself and the
+  # scopes under it, by path segment (`host:web` covers `host:web/user:a`, never `host:webhook`). Two grants meet: a
+  # scope stays when one covers the other (the deeper is kept), sinks intersect. There is no way to widen.
+  covers = p: s: s == p || b.substring 0 (b.stringLength p + 1) s == "${p}/";
   grants = {
     grant =
       {
@@ -1401,9 +1412,9 @@ let
           p:
           concatMap (
             q:
-            if hasPrefix p q then
+            if covers p q then
               [ q ]
-            else if hasPrefix q p then
+            else if covers q p then
               [ p ]
             else
               [ ]
@@ -1418,7 +1429,7 @@ let
         else
           filter (x: elem x h.sinks) g.sinks;
     };
-    allowed = g: e: any (p: hasPrefix p e.to) g.scopes && (g.sinks == null || elem e.sink g.sinks);
+    allowed = g: e: any (p: covers p e.to) g.scopes && (g.sinks == null || elem e.sink g.sinks);
   };
   # data with no functions: it can be hashed, rendered as JSON and read back
   isData =
@@ -1436,11 +1447,10 @@ let
       change,
       rejected ? [ ],
       grant ? null,
-      invariants ? true,
+      id ? null, # the change's content hash, when the caller knows it (a program); else from a path or data
       baseResult ? eval base,
-    }: # baseResult: the base already evaluated
+    }: # baseResult: the base already evaluated. The invariants always run: the law is not optional
     let
-
       changedResult = eval {
         imports = [
           base
@@ -1466,7 +1476,9 @@ let
           attrNames r.active
         );
       sha =
-        if isPath change then
+        if id != null then
+          id
+        else if isPath change then
           b.hashFile "sha256" change
         else if isData change then
           b.hashString "sha256" (b.toJSON change)
@@ -1477,12 +1489,53 @@ let
         edges = delta keyG (r: r.graph.edges);
         active = delta (x: x) activeList;
       };
+      # what the change itself declares: no value comparison (reduced values can hold functions and cycles).
+      # Instance data it declares changes that instance's scopes; an aspect key it declares changes where it routes.
+      # shortcut: direct changes only; a value that reaches other scopes through a sink read or a kind arg is not
+      # followed (bead "transitive impact of a staged change"), upgrade with an impact closure over edges + children
+      declared = eval change;
+      changedValues =
+        concatMap (
+          s:
+          optional
+            (
+              declared.declaredIn [
+                s.kind
+                s.name
+              ] != [ ]
+            )
+            {
+              k = "data";
+              to = s.id;
+            }
+        ) changedResult.scopes
+        ++ concatMap (
+          e:
+          optional
+            (
+              declared.declaredIn [
+                "aspects"
+                (b.substring 7 (b.stringLength e.origin) e.origin)
+                e.sink
+              ] != [ ]
+            )
+            {
+              k = e.sink;
+              inherit (e) to;
+            }
+        ) (filter (e: b.substring 0 7 e.origin == "aspect ") changedResult.graph.edges);
+      outside =
+        what: e:
+        errWith (e.from or "stage") "the change ${what} ${e.sink} at ${e.to}, outside the grant" {
+          code = "outside-grant";
+          class = "authority";
+          got = e;
+        };
+      lawKeys = words "invariants labels flake";
+      law = filter (k: declared.declaredIn [ k ] != [ ]) lawKeys;
       errors = minus keyE changedResult.errors baseResult.errors;
-      violations =
-        if invariants then
-          filter (a: !elem a baseResult.check.violations) changedResult.check.violations
-        else
-          [ ];
+      violations = filter (a: !elem a baseResult.check.violations) changedResult.check.violations;
+      incomplete = filter (a: !elem a baseResult.check.incomplete) changedResult.check.incomplete;
       refused =
         optional (sha != null && elem sha rejected) (
           errWith "stage" "this change was rejected before" {
@@ -1492,13 +1545,40 @@ let
           }
         )
         ++ map (
-          e:
-          errWith e.from "the change gives ${e.sink} to ${e.to}, outside the grant" {
-            code = "outside-grant";
+          k:
+          errWith "stage" "the change declares `${k}`: the law is the owner's, never a change's" {
+            code = "law-change";
             class = "authority";
-            got = e;
+            path = [ k ];
           }
-        ) (filter (e: grant != null && !grants.allowed grant e) diff.edges.added);
+        ) law
+        ++ (
+          if grant == null then
+            [ ]
+          else
+            # one refusal per scope outside the grant: an edge it adds or removes is also a change there
+            map (x: outside x.what x.e) (
+              uniqueBy (x: x.e.to) (
+                filter (x: !grants.allowed grant x.e) (
+                  map (e: {
+                    what = "gives";
+                    inherit e;
+                  }) diff.edges.added
+                  ++ map (e: {
+                    what = "removes";
+                    inherit e;
+                  }) diff.edges.removed
+                  ++ map (x: {
+                    what = "changes";
+                    e = {
+                      sink = x.k;
+                      inherit (x) to;
+                    };
+                  }) changedValues
+                )
+              )
+            )
+        );
     in
     {
       inherit
@@ -1506,10 +1586,10 @@ let
         refused
         sha
         violations
+        incomplete
         diff
         ;
-
-      ok = errors == [ ] && violations == [ ] && refused == [ ];
+      ok = errors == [ ] && violations == [ ] && incomplete == [ ] && refused == [ ];
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
   # field changes between two `data` answers: [ { path; old; new; } ], sorted by path
@@ -1650,6 +1730,7 @@ let
           inherit base grant rejected;
           baseResult = result;
           change = toModule prog;
+          id = b.hashString "sha256" (b.toJSON prog); # a program is data: `rejected` matches it
         };
       in
       if errs != [ ] then
@@ -1659,11 +1740,7 @@ let
           errors = errs;
         }
       else
-        removeAttrs s [ "render" ]
-        // {
-          valid = true;
-          sha = b.hashString "sha256" (b.toJSON prog);
-        };
+        removeAttrs s [ "render" ] // { valid = true; };
     render = b.toJSON;
   };
   # a change as data: set one declaration path (`change.set [ "host" "web-1" "port" ] 8080`)

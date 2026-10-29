@@ -65,6 +65,7 @@ nix eval --impure --json --file stage.nix --argstr change changes/desktop-on-web
     };
   };
   errors = [ ];
+  incomplete = [ ];
   ok = false;
   refused = [ ];
   sha = "a1969acc86001f4528de7a4ec227f9cf7a5af809fd2555b04adeed0dd6c04146";
@@ -93,7 +94,7 @@ with `class = "authority"`: no edit by this author can fix it.
   {
     class = "authority";
     code = "outside-grant";
-    error = "the change gives services to fleet:main/host:thinkpad, outside the grant";
+    error = "the change gives services at fleet:main/host:thinkpad, outside the grant";
     from = "fleet:main/host:thinkpad";
     got = {
       from = "fleet:main/host:thinkpad";

@@ -390,6 +390,72 @@ let
       };
     }
   );
+  # rung 1 (vic/formally-verified.md): the law gates outputs and stage; grants by path segment, edges and values
+  rung1 = extra: {
+    imports = [
+      (
+        { yen, ... }:
+        {
+          yen.kinds.top = {
+            spawns.host = _: yen.host;
+          };
+          yen.kinds.host = {
+            fields.port = yen.lib.opt (yen.lib.is b.isInt) 22;
+            fields.bypass = yen.lib.maybe (yen.lib.is b.isBool);
+            sinks.nixos.reduce = yen.lib.reduce.merge;
+            sinks.fw = { };
+          };
+          yen.top.t = { };
+          yen.host = {
+            web = { };
+            webhook = { };
+            db = { };
+          };
+          yen.aspects.sshd = {
+            at = yen.kinds.host;
+            nixos =
+              { host, ... }:
+              {
+                ports = [ host.port ];
+              };
+          };
+          yen.aspects.fw = {
+            at = yen.lib.all [
+              yen.kinds.host
+              (s: s.bypass == null)
+            ];
+            fw = "on";
+          };
+          yen.aspects.cyc.at = [ ];
+          yen.invariants.cycle = [
+            {
+              head = "p";
+              pos = [ "has:cyc:top:t" ];
+              neg = [ "q" ];
+            }
+            {
+              head = "q";
+              pos = [ "has:cyc:top:t" ];
+              neg = [ "p" ];
+            }
+            {
+              head = "bad:cycle";
+              pos = [ "p" ];
+            }
+          ];
+          yen.flake.ok = true; # outputs exist only when the fleet is clean
+        }
+      )
+    ]
+    ++ extra;
+  };
+  r1stage =
+    change: grant:
+    yen.stage {
+      base = rung1 [ ];
+      inherit change grant;
+    };
+  r1grant = yen.grant { scopes = [ "top:t/host:web" ]; };
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -2056,6 +2122,101 @@ let
           ];
         }
       ];
+    # rung 1: outputs only from a clean fleet (D0)
+    r1-clean-flake = (yen.eval (rung1 [ ])).flake == { ok = true; };
+    r1-violation-no-flake =
+      (yen.eval (rung1 [
+        {
+          yen.invariants.no = [
+            {
+              head = "bad:sshd-web";
+              pos = [ "has:sshd:top:t/host:web" ];
+            }
+          ];
+        }
+      ])).flake == null;
+    r1-error-no-flake =
+      (yen.eval (rung1 [
+        { yen.host.web.port = 1; }
+        { yen.host.web.port = 2; }
+      ])).flake == null;
+    # D9: a rule head that spells an extracted fact is dropped and reported; the fleet is not ok
+    r1-forged-head =
+      let
+        r = yen.eval (rung1 [ { yen.invariants.f = [ { head = "has:fw:top:t/host:web"; } ]; } ]);
+      in
+      r.check.forged == [ "has:fw:top:t/host:web" ] && !r.check.ok && r.flake == null;
+    # D6: an undefined invariant is not ok
+    r1-stage-incomplete =
+      let
+        s = r1stage {
+          yen.aspects.cyc.at = [
+            {
+              kind = "top";
+              name = "t";
+            }
+          ];
+        } null;
+      in
+      !s.ok && s.incomplete == [ "bad:cycle" ];
+    # D7: the law cannot be switched off
+    r1-no-invariants-arg = !((b.functionArgs yen.stage) ? invariants);
+    # D8: grants by path segment; added, removed and changed values all checked
+    r1-grant-segment =
+      yen.allowed r1grant {
+        to = "top:t/host:web";
+        sink = "fw";
+      }
+      && !yen.allowed r1grant {
+        to = "top:t/host:webhook";
+        sink = "fw";
+      }
+      && yen.allowed r1grant {
+        to = "top:t/host:web/user:a";
+        sink = "fw";
+      };
+    r1-grant-added =
+      map (e: e.code)
+        (r1stage {
+          yen.aspects.extra = {
+            at = {
+              kind = "host";
+              name = "webhook";
+            };
+            fw = "x";
+          };
+        } r1grant).refused == [ "outside-grant" ];
+    r1-grant-removed =
+      map (e: e.code) (r1stage { yen.host.db.bypass = true; } r1grant).refused == [ "outside-grant" ];
+    r1-grant-changed =
+      map (e: e.code) (r1stage { yen.host.db.port = 2222; } r1grant).refused == [ "outside-grant" ];
+    r1-grant-inside = (r1stage { yen.host.web.port = 2222; } r1grant).refused == [ ];
+    # D9: a change never declares the law
+    r1-law-change =
+      map (e: e.code) (r1stage { yen.invariants.w = [ { head = "ok:web"; } ]; } null).refused == [
+        "law-change"
+      ];
+    # D11: a program refused before is refused again
+    r1-rejected-program =
+      let
+        prog = [
+          {
+            op = "set";
+            path = [
+              "host"
+              "db"
+              "port"
+            ];
+            value = 2222;
+          }
+        ];
+      in
+      map (e: e.code)
+        (yen.program.dryRun {
+          base = rung1 [ ];
+          inherit prog;
+          rejected = [ (b.hashString "sha256" (b.toJSON prog)) ];
+        }).refused == [ "rejected" ];
     # NixOS `config` parity (configLike): each test is one pattern a fixpoint `config` expresses
     config-no-errors = msgs configLike == [ ];
     config-aggregate = configLike.reduced.ports."fleet:main/host:b" == [ 22 ];
