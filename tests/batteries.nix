@@ -4,7 +4,7 @@ let
   b = builtins;
   bat = yen.batteries;
   nixos = yen.batteries.nixos;
-  # the words of this fleet: no battery knows them
+  # the words of this fleet: no battery knows them. Every box gives its `sys` list as output.
   fleet =
     { yen, ... }:
     {
@@ -12,7 +12,13 @@ let
         spawns.box = _: yen.box;
         sinks.out.reduce = yen.lib.reduce.merge;
       };
-      yen.kinds.box.spawns.person = s: if s.name == "a" then { inherit (yen.person) p; } else { };
+      yen.kinds.box = {
+        spawns.person = s: if s.name == "a" then { inherit (yen.person) p; } else { };
+        sinks = bat.system {
+          as = "sys";
+          out = s: v: { sys.${s.name} = v; };
+        };
+      };
       yen.kinds.person = { };
       yen.top.t = { };
       yen.box = {
@@ -23,23 +29,15 @@ let
       yen.flake = { out, ... }: out;
     };
   run = ms: yen.eval { imports = [ fleet ] ++ ms; };
-  # every box gives its `sys` list as output: what a battery delivered
-  sysOut = bat.system {
-    kind = "box";
-    as = "sys";
-    out = s: v: { sys.${s.name} = v; };
-  };
   pooled = run [
-    sysOut
-    (bat.pool {
-      on = "box";
-      as = "names";
-      into = "sys";
-      set = ns: { allowed = b.concatLists ns; };
-    })
     (
       { yen, ... }:
       {
+        yen.kinds.box.sinks = bat.pool {
+          as = "names";
+          into = "sys";
+          set = ns: { allowed = b.concatLists ns; };
+        };
         yen.aspects.x = {
           at = yen.box.a;
           names = [ "steam" ];
@@ -51,33 +49,20 @@ let
       }
     )
   ];
-  typo = run [
-    (bat.pool {
-      on = "bxo";
-      as = "names";
-      into = "sys";
-      set = ns: ns;
-    })
-  ];
   gatedR = run [
-    sysOut
     (
       { yen, ... }:
       {
-        imports = [
-          (bat.gated {
-            name = "label";
-            at = yen.kinds.box;
-            into = "sys";
-            body = s: "box ${s.name}";
-          })
-        ];
+        yen.aspects.label = bat.gated {
+          at = yen.kinds.box;
+          into = "sys";
+          body = s: "box ${s.name}";
+        };
       }
     )
   ];
-  # the engine rule: a functor with `__functionArgs` is a function; without it, it is content
+  # the engine rule: a functor with `__functionArgs` is a function
   functorR = run [
-    sysOut
     (
       { yen, ... }:
       {
@@ -92,17 +77,29 @@ let
     )
   ];
   hostR = run [
-    sysOut
     (
       { yen, ... }:
       {
-        imports = [
-          (nixos.hostname {
-            name = "hn";
-            at = yen.box.a;
-            into = "sys";
-          })
-        ];
+        yen.aspects.hn = nixos.hostname {
+          at = yen.box.a;
+          into = "sys";
+        };
+      }
+    )
+  ];
+  # a person's account lands in its box's `sys`: the person has no `sys` sink
+  usersR = run [
+    (
+      { yen, ... }:
+      {
+        yen.aspects.account = nixos.define-user {
+          at = yen.kinds.person;
+          into = "sys";
+        };
+        yen.aspects.admin = nixos.primary-user {
+          at = yen.person.p;
+          into = "sys";
+        };
       }
     )
   ];
@@ -110,15 +107,13 @@ let
   unfreeMod =
     b.head
       (run [
-        sysOut
-        (nixos.unfree {
-          on = "box";
-          as = "unfree";
-          into = "sys";
-        })
         (
           { yen, ... }:
           {
+            yen.kinds.box.sinks = nixos.unfree {
+              as = "unfree";
+              into = "sys";
+            };
             yen.aspects.u = {
               at = yen.box.a;
               unfree = [ "steam" ];
@@ -131,33 +126,29 @@ let
       lib = {
         inherit (b) elem;
         getName = p: p.pname;
-        flatten = b.concatLists;
       };
     }).nixpkgs.config.allowUnfreePredicate;
 
-  # a person's account lands in its box's `sys`: the person has no `sys` sink
-  usersR = run [
-    sysOut
-    (
-      { yen, ... }:
-      {
-        imports = [
-          (nixos.define-user {
-            name = "account";
-            at = yen.kinds.person;
-            into = "sys";
-          })
-          (nixos.primary-user {
-            name = "admin";
-            at = yen.person.p;
-            into = "sys";
-          })
-        ];
-      }
-    )
-  ];
-
   checks = {
+    pool =
+      pooled.errors == [ ]
+      &&
+        pooled.flake.sys.a == [
+          {
+            allowed = [
+              "steam"
+              "vscode"
+            ];
+          }
+        ];
+    pool-only-givers = !(pooled.flake.sys ? c); # a sink with no elements gives nothing
+    gated =
+      gatedR.flake.sys == {
+        a = [ "box a" ];
+        c = [ "box c" ];
+      };
+    functor = functorR.flake.sys.c == [ "at c" ];
+    hostname = hostR.flake.sys.a == [ { networking.hostName = "a"; } ] && !(hostR.flake.sys ? c);
     users =
       usersR.flake.sys.a == [
         {
@@ -174,26 +165,6 @@ let
         }
       ]
       && !(usersR.flake.sys ? c);
-    pool =
-      pooled.errors == [ ]
-      &&
-        pooled.flake.sys.a == [
-          {
-            allowed = [
-              "steam"
-              "vscode"
-            ];
-          }
-        ];
-    pool-only-givers = !(pooled.flake.sys ? c); # a sink with no elements gives nothing
-    typo-is-violation = typo.check.violations == [ "bad:no-scope-of-kind:bxo" ] && typo.flake == null;
-    gated =
-      gatedR.flake.sys == {
-        a = [ "box a" ];
-        c = [ "box c" ];
-      };
-    functor = functorR.flake.sys.c == [ "at c" ];
-    hostname = hostR.flake.sys.a == [ { networking.hostName = "a"; } ] && !(hostR.flake.sys ? c);
     unfree = pred { pname = "steam"; } && !(pred { pname = "zoom"; });
   };
 in
