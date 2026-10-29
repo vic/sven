@@ -5,7 +5,7 @@
   order = 1;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         An agent that manages a fleet works through queries. Every answer is data that `builtins.toJSON` prints,
@@ -13,16 +13,16 @@
 
         ## One call to start
 
-        `r.agent` is the schema, the errors, the invariant check and the counts, JSON-safe:
+        `result.agent` is the schema, the errors, the invariant check and the counts, JSON-safe:
       ''
-      (docs.value r.agent)
+      (docs.value result.agent)
       ''
         ## Why is an aspect active, or not?
 
-        `r.explain aspect id depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
+        `result.explain aspect id depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
         there, and its files. Past the depth, `kids = "cut"`.
       ''
-      (docs.value (r.explain "postgres" "fleet:main/host:web" 2))
+      (docs.value (result.explain "postgres" "fleet:main/host:web" 2))
       ''
         An unknown aspect or scope is an error record with `near`: the names it was probably meant to be.
 
@@ -34,14 +34,14 @@
       (docs.file "modules/labels.nix")
       (docs.file "modules/agent/metrics.nix")
       ''
-        `r.labels` gives each labelled aspect. `r.floor 3` lists every routed element of an aspect below trust 3,
+        `result.labels` gives each labelled aspect. `result.floor 3` lists every routed element of an aspect below trust 3,
         with its file: what a reviewer reads first.
       ''
       (docs.value (
         map (x: {
           inherit (x) aspect trust file;
           to = x.edge.to;
-        }) (r.floor 3)
+        }) (result.floor 3)
       ))
       (docs.table
         [ "Query" "Answer" ]
@@ -79,16 +79,16 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       counts =
-        r.agent.counts == {
+        result.agent.counts == {
           aspects = 3;
           edges = 4;
           kinds = 2;
           scopes = 4;
         };
-      explain = !(r.explain "postgres" "fleet:main/host:web" 2).active;
-      floor = builtins.length (r.floor 3) == 3 && (builtins.head (r.floor 3)).trust == 1;
+      explain = !(result.explain "postgres" "fleet:main/host:web" 2).active;
+      floor = builtins.length (result.floor 3) == 3 && (builtins.head (result.floor 3)).trust == 1;
     };
 }

@@ -291,17 +291,17 @@ yen.lib.stage { base = fleet; change = { yen.aspects.attic.at = [ { kind = "mac"
 
 **Proofs and why-not.** `yen.lib.datalog` adds `proof rules model atom` (a proof tree; a positive cycle shows `cycle = true`), `whyNot rules model atom` (per rule: the `missing` positive atoms, the `blocking` negative ones, the undefined ones) and `judge rules a notA` (`supported`, `refuted`, `both`, `neither` or `unknown`). [query/datalog.nix](modules/query/datalog.nix) gives `out.serving.whyNot.<host>` and judges the database primary: `unknown`, a choice the policy leaves open.
 
-**Knowledge packs.** `yen.lib.rdf.share r` gives the eval result as sorted N-Triples with a sha256 and a count: scopes, kinds, parents, active aspects, every routed element as a node with its origin, and errors. The same fleet gives the same hash in every file order, so two revisions compare by hash first. [agent/rdf.nix](modules/agent/rdf.nix) packs the routing graph as `out.rdfPack`.
+**Knowledge packs.** `yen.lib.rdf.share result` gives the eval result as sorted N-Triples with a sha256 and a count: scopes, kinds, parents, active aspects, every routed element as a node with its origin, and errors. The same fleet gives the same hash in every file order, so two revisions compare by hash first. [agent/rdf.nix](modules/agent/rdf.nix) packs the routing graph as `out.rdfPack`.
 
-**Stored queries.** `yen.queries.<name> = { host, r }: …` names a question. `r` is the eval result; the other formal args are its parameters, required unless they have a default. `r.queries` lists them with `required` and `optional`, and `r.ask name args` answers, or gives an error record for an unknown query, a missing parameter or an unknown one ([agent/queries.nix](modules/agent/queries.nix)).
+**Stored queries.** `yen.queries.<name> = { host, result }: …` names a question. `result` is the eval result; the other formal args are its parameters, required unless they have a default. `result.queries` lists them with `required` and `optional`, and `result.ask name args` answers, or gives an error record for an unknown query, a missing parameter or an unknown one ([agent/queries.nix](modules/agent/queries.nix)).
 
-**What else breaks, and what if it were gone.** `r.impact id { hops; sinks; max; }` follows routed elements from a scope, by depth, with `truncated`. `yen.lib.without { files; path; args; }` evaluates the fleet without the files that declare `path`: a whole file goes, there is no hook to remove part of one.
+**What else breaks, and what if it were gone.** `result.impact id { hops; sinks; max; }` follows routed elements from a scope, by depth, with `truncated`. `yen.lib.without { files; path; args; }` evaluates the fleet without the files that declare `path`: a whole file goes, there is no hook to remove part of one.
 
-**History and valid time.** `yen.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision; `yen.lib.history { url; revs; module; }` lists each revision with the field changes from the one before (`diffData` over `r.data`). Valid time is data: an instance with `validFrom` or `validTo` holds at a date the caller passes, `yen.lib.validAt "2026-11-15"`. Pure evaluation has no clock.
+**History and valid time.** `yen.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision; `yen.lib.history { url; revs; module; }` lists each revision with the field changes from the one before (`diffData` over `result.data`). Valid time is data: an instance with `validFrom` or `validTo` holds at a date the caller passes, `yen.lib.validAt "2026-11-15"`. Pure evaluation has no clock.
 
-**Labels.** `yen.labels."agent/" = { trust = 1; }` labels the content of files whose path contains `agent/`. An aspect declared in several files takes the lowest trust of them (the meet). `r.labels` gives each aspect's label and `r.floor 3` every routed element of an aspect below trust 3, with the file.
+**Labels.** `yen.labels."agent/" = { trust = 1; }` labels the content of files whose path contains `agent/`. An aspect declared in several files takes the lowest trust of them (the meet). `result.labels` gives each aspect's label and `result.floor 3` every routed element of an aspect below trust 3, with the file.
 
-**A knowledge pack per revision.** An agent that keeps a store such as quipu knots `yen.lib.rdf.share r` into a named graph under one snapshot key, with `replace_snapshot`. Each revision replaces the last; the old one stays readable by transaction:
+**A knowledge pack per revision.** An agent that keeps a store such as quipu knots `yen.lib.rdf.share result` into a named graph under one snapshot key, with `replace_snapshot`. Each revision replaces the last; the old one stays readable by transaction:
 
 ```
 SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://yen.dev/fleet/yen/name> ?name }
@@ -310,20 +310,20 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Bounded search.** A krn query an agent writes must stop. `yen.lib.krn.runFuel n fuel f` and `runAllFuel fuel f` count each search step and return `{ answers; complete; }`: `complete = false` means "bounded", never "no answer". `maximize fuel measure f` gives `{ best; value; complete; count; }`; a best found under `complete = false` is not proven optimal. [query/krn.nix](modules/query/krn.nix) gives guest memory by `maximize` with `ramFuel` steps; a search that runs out of fuel is an error record.
 
-**Shapes.** `yen.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required, `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields. The pack types every instance, so a ref meets its class. quipu's validator accepts the pack of a fixture fleet and reports one `sh:class` violation for a ref to a missing instance.
+**Shapes.** `yen.lib.rdf.shacl result` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required, `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields. The pack types every instance, so a ref meets its class. quipu's validator accepts the pack of a fixture fleet and reports one `sh:class` violation for a ref to a missing instance.
 
 **An MCP server.** `templates/fleet/mcp/yen-mcp.sh` answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. `nix run .#yen-mcp` from the fleet directory runs it as a flake app ([agent/mcp.nix](modules/agent/mcp.nix)): it serves the fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
 
 **Safe between machines, before deploy.** Facts include field values: `val:FIELD:ID:VALUE` and `ref:FIELD:ID:KIND:NAME`. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
 
-**Change programs.** `yen.lib.program` writes a change as data ops: `set`, `ref`, `place` and `new`. `validate r prog` checks it against the schema (with `near`), `toModule` makes the module, `dryRun { base; prog; }` validates and stages it, and `render` gives JSON. An agent writes a program, not Nix code.
+**Change programs.** `yen.lib.program` writes a change as data ops: `set`, `ref`, `place` and `new`. `validate result prog` checks it against the schema (with `near`), `toModule` makes the module, `dryRun { base; prog; }` validates and stages it, and `render` gives JSON. An agent writes a program, not Nix code.
 
 **Install order.** The stored query `installOrder { instance }` gives the waves of a clan service instance: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
 
 **Synthesis, checked.** Stored queries in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
 
 ```nix
-r.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
+result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 # { safe = [ "stage" ]; refused.studio = [ "bad:attic-on-mac:fleet:main/environment:staging/mac:studio" ]; }
 ```
 

@@ -1,4 +1,4 @@
-# Inside the fleet there is no `r`. An element reads results through its args and `yen.lib`.
+# Inside the fleet there is no `result`. An element reads results through its args and `yen.lib`.
 { yen, ... }:
 {
   yen.aspects.inside = {

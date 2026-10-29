@@ -5,7 +5,7 @@
   order = 14;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         yen does not know what a flake is. The root kind declares an `out` sink with `merge`, and `yen.flake`
@@ -18,7 +18,7 @@
         The `out` arg is the flake itself, read lazily. An element can build on other outputs without `inputs.self`:
       ''
       (docs.fileWith "{12-18}" "modules/aspects.nix")
-      (docs.value r.flake)
+      (docs.value result.flake)
       ''
         ## With or without flakes
 
@@ -32,10 +32,10 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       flake =
-        r.flake == {
+        result.flake == {
           inventory = [
             "postgres"
             "nginx"

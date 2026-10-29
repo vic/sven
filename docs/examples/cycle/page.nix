@@ -5,7 +5,7 @@
   order = 12;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         Each key of an aspect gives one element. For 0 to n elements, or to ask the tree for data, write a component
@@ -16,7 +16,7 @@
       ''
         The host has two guests, so the component gives two bridges:
       ''
-      (docs.value r.flake.bridges)
+      (docs.value result.flake.bridges)
       ''
         ## Tree requests
 
@@ -54,10 +54,10 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       bridges =
-        r.flake.bridges.server == [
+        result.flake.bridges.server == [
           "br-ci"
           "br-db"
         ];

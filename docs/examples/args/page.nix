@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -41,7 +41,7 @@
       ''
       (docs.file "modules/fleet.nix")
       (docs.fileWith "{8,17}" "modules/aspects.nix")
-      (docs.value r.flake.proxy)
+      (docs.value result.flake.proxy)
       ''
         ## Optional and missing args
 
@@ -64,10 +64,10 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       proxy =
-        r.flake.proxy.lb == [
+        result.flake.proxy.lb == [
           {
             at = "fleet:main/environment:prod/host:lb";
             backends = [

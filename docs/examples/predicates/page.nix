@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -64,7 +64,7 @@
       ''
         Where each aspect is active (the output comes from `modules/report.nix`, an `entries` sink):
       ''
-      (docs.value r.flake.active)
+      (docs.value result.flake.active)
       ''
         Ask any predicate at a scope with `yen.lib.holds p scope`. A `spawns` function can use it too:
         structure can depend on which aspects are active at the parent.
@@ -80,11 +80,11 @@
       (docs.file "variants/cycle.nix")
       (docs.tabs [
         {
-          label = "r.undefined";
+          label = "result.undefined";
           body = docs.value (variant "variants/cycle.nix").undefined;
         }
         {
-          label = "r.errors";
+          label = "result.errors";
           body = docs.value (variant "variants/cycle.nix").errors;
         }
       ])
@@ -95,10 +95,10 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       active =
-        r.flake.active == {
+        result.flake.active == {
           builder = [ "big" ];
           cuda = [ "big" ];
           monitored = [

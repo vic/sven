@@ -5,7 +5,7 @@
   order = 3;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `environment.systemPackages`,
@@ -17,7 +17,7 @@
       ''
         The routes: `shared` gives `os` at each machine, and each `os` sink feeds its platform's sink:
       ''
-      (docs.routes r)
+      (docs.routes result)
       (docs.sh ''
         sudo nixos-rebuild switch --flake .#server
         sudo darwin-rebuild switch --flake .#studio
@@ -29,11 +29,11 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       forwards =
-        builtins.any (e: e.sink == "darwin" && e.origin == "sink os") r.graph.edges
-        && builtins.any (e: e.sink == "nixos" && e.origin == "sink os") r.graph.edges;
+        builtins.any (e: e.sink == "darwin" && e.origin == "sink os") result.graph.edges
+        && builtins.any (e: e.sink == "nixos" && e.origin == "sink os") result.graph.edges;
     };
   e2e =
     { flake, ... }:

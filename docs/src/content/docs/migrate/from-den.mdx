@@ -19,7 +19,7 @@ account, groups, home, packages and state versions.
 | `den.default.nixos` | an aspect with `at = yen.kinds.host` |
 | `includes = [ den.batteries.x ]` | the included aspect's `at` names the includer, from any file |
 | `provides.to-users.homeManager` | an aspect at the users `within` the host |
-| `hasAspect` | `yen.lib.holds`, and `r.graph` edges with `origin` |
+| `hasAspect` | `yen.lib.holds`, and `result.graph` edges with `origin` |
 | context pipes, `osConfig` | args: a kind, a sink or `out` (the built flake) |
 | `den.schema.*` | `yen.kinds.<kind>.fields` |
 

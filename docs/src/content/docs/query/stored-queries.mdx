@@ -1,35 +1,35 @@
 ---
-{"description":"Name a question once with `yen.queries`, then ask it with `r.ask` from Nix, the CLI or an agent.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/stored-queries/page.nix","title":"Stored queries"}
+{"description":"Name a question once with `yen.queries`, then ask it with `result.ask` from Nix, the CLI or an agent.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/stored-queries/page.nix","title":"Stored queries"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-A stored query names a question about the fleet. `r` is the eval result, the same `r` as outside the fleet: yen passes it when the query is asked with `r.ask`. The other formal args are its parameters:
+A stored query names a question about the fleet. `result` is the eval result, the same `result` as outside the fleet: yen passes it when the query is asked with `result.ask`. The other formal args are its parameters:
 required, unless they have a default.
 
 
 ```nix title="modules/queries.nix"
-# A stored query names a question. `r` is the eval result; the other args are its parameters.
+# A stored query names a question. `result` is the eval result; the other args are its parameters.
 { yen, lib, ... }:
 {
   yen.queries = {
     aspectsOn =
-      { r, host }:
+      { result, host }:
       lib.sort (a: b: a < b) (
-        lib.filter (a: r.active.${a}."fleet:main/host:${host}" or false) (lib.attrNames r.active)
+        lib.filter (a: result.active.${a}."fleet:main/host:${host}" or false) (lib.attrNames result.active)
       );
     hostsWith =
       {
-        r,
+        result,
         aspect,
         kind ? "host",
       }:
-      map (s: s.name) (lib.filter (s: s.kind == kind && r.active.${aspect}.${s.id}) r.scopes);
+      map (s: s.name) (lib.filter (s: s.kind == kind && result.active.${aspect}.${s.id}) result.scopes);
   };
 }
 ```
 
-`r.queries` lists them with their parameters:
+`result.queries` lists them with their parameters:
 
 
 ```nix title="result"
@@ -51,7 +51,7 @@ required, unless they have a default.
 }
 ```
 
-`r.ask name args` answers:
+`result.ask name args` answers:
 
 
 <Tabs>

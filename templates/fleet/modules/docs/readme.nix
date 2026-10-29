@@ -541,7 +541,7 @@ let
     n:
     let
       fa = builtins.functionArgs yen.queries.${n};
-      ps = lib.filter (a: a != "r") (lib.attrNames fa);
+      ps = lib.filter (a: a != "result") (lib.attrNames fa);
     in
     "| `${n}` | ${fnList (lib.filter (a: !fa.${a}) ps)} | ${fnList (lib.filter (a: fa.${a}) ps)} | ${
       lib.concatStringsSep ", " (
@@ -558,7 +558,7 @@ let
 
     Every list below is computed from the engine and this fleet when the README is written.
 
-    **Queries on an eval result** (`r = yen.lib.eval module`): ${
+    **Queries on an eval result** (`result = yen.lib.eval module`): ${
       fnList (
         yen.lib.schema.queries
         ++ [
@@ -601,13 +601,13 @@ let
     | `yen.lib.krn` | ${fnList (lib.attrNames sv.lib.krn)} |
     | `yen.lib.rdf` | ${fnList (lib.attrNames sv.lib.rdf)} |
 
-    **Stored queries** (`r.ask name args`):
+    **Stored queries** (`result.ask name args`):
 
     | Query | Required | Optional | File |
     |---|---|---|---|
     ${lib.concatMapStringsSep "\n" queryRow (sorted (lib.attrNames yen.queries))}
 
-    **Invariants** (`r.check`): ${fnList (lib.attrNames yen.invariants)}.
+    **Invariants** (`result.check`): ${fnList (lib.attrNames yen.invariants)}.
 
     ${mermaid invView}
 
@@ -619,7 +619,7 @@ let
       lib.concatStringsSep ", " (
         lib.mapAttrsToList (p: l: "`${p}` trust ${toString l.trust}") yen.labelTable
       )
-    }. Aspects declared under `agent/` and the elements they give (`r.floor 3`):
+    }. Aspects declared under `agent/` and the elements they give (`result.floor 3`):
 
     ${mermaid labelView}
 

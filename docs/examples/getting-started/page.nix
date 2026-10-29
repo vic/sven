@@ -5,7 +5,7 @@
   order = 2;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         This page builds one NixOS host with yen. You write four small files. At the end you have a
@@ -56,13 +56,13 @@
       ''
         ## Ask it
 
-        yen answers queries on the fleet. This is the scope tree of this example, generated from `r.graph`:
+        yen answers queries on the fleet. This is the scope tree of this example, generated from `result.graph`:
       ''
-      (docs.scopes r)
+      (docs.scopes result)
       ''
-        And `r.active`: which aspect is active at which scope.
+        And `result.active`: which aspect is active at which scope.
       ''
-      (docs.value r.active)
+      (docs.value result.active)
       (docs.links [
         {
           title = "Project layout";
@@ -78,14 +78,14 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       scopes =
-        map (s: s.id) r.graph.scopes == [
+        map (s: s.id) result.graph.scopes == [
           "fleet:main"
           "fleet:main/host:laptop"
         ];
-      motd-at-laptop = r.active.motd."fleet:main/host:laptop";
+      motd-at-laptop = result.active.motd."fleet:main/host:laptop";
     };
 
   e2e =

@@ -47,7 +47,7 @@ let
     unknown-aspect = "a query names an aspect that does not exist";
     unknown-field = "an instance sets a field its kind does not declare";
     unknown-param = "a stored query is asked with a parameter it does not take";
-    unknown-query = "`r.ask` names a stored query that does not exist";
+    unknown-query = "`result.ask` names a stored query that does not exist";
     unknown-scope = "a query names a scope id that does not exist";
     unknown-sink = "a query names a sink that does not exist";
   };

@@ -1649,7 +1649,7 @@ let
           args = { inherit inputs lib; };
         };
       in
-      map baseNameOf w.dropped == [ "secrets.nix" ] && !(w.r.active ? attic);
+      map baseNameOf w.dropped == [ "secrets.nix" ] && !(w.result.active ? attic);
     krn-fuel =
       let
         K = yen.krn;

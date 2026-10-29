@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -59,7 +59,7 @@
       ''
       (docs.file "modules/fleet.nix")
       (docs.file "modules/deploy.nix")
-      (docs.value r.flake.deploy)
+      (docs.value result.flake.deploy)
       ''
         The deploy waves as a diagram, from the same data:
       ''
@@ -70,9 +70,9 @@
             builtins.genList (
               i:
               map (h: "  ${h} --> w${toString i}[\"wave ${toString (i + 1)}\"]") (
-                builtins.elemAt r.flake.deploy.waves i
+                builtins.elemAt result.flake.deploy.waves i
               )
-            ) (builtins.length r.flake.deploy.waves)
+            ) (builtins.length result.flake.deploy.waves)
           )
         )
       ))
@@ -86,10 +86,10 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       waves =
-        r.flake.deploy.waves == [
+        result.flake.deploy.waves == [
           [
             "cache"
             "db"
@@ -99,7 +99,7 @@
           [ "lb" ]
         ];
       impact =
-        r.flake.deploy.impact.db == [
+        result.flake.deploy.impact.db == [
           "api"
           "lb"
           "web"

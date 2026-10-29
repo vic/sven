@@ -864,13 +864,13 @@ let
       let
         r = ports {
           yen.queries = {
-            portOf = { host, r, ... }: (b.head (b.filter (s: s.name == host) r.scopes)).port;
+            portOf = { host, result, ... }: (b.head (b.filter (s: s.name == host) result.scopes)).port;
             count =
               {
                 kind ? "host",
-                r,
+                result,
               }:
-              b.length (b.filter (s: s.kind == kind) r.scopes);
+              b.length (b.filter (s: s.kind == kind) result.scopes);
           };
         };
       in
@@ -1039,8 +1039,8 @@ let
         };
       in
       w.dropped == [ ./fixtures/without/db.nix ]
-      && b.all (s: s.name != "db") w.r.scopes
-      && b.any (s: s.name == "web") w.r.scopes
+      && b.all (s: s.name != "db") w.result.scopes
+      && b.any (s: s.name == "web") w.result.scopes
       &&
         (yen.without {
           files = [

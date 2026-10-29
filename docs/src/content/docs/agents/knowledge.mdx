@@ -5,7 +5,7 @@
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 An agent with a knowledge store (a triple store such as quipu) can keep the fleet as a graph and query it with SPARQL.
-`yen.lib.rdf.share r` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
+`yen.lib.rdf.share result` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
 element as a node with its origin, and errors. It adds a sha256 and a count.
 
 
@@ -70,7 +70,7 @@ A fleet can give its pack as a flake output:
 
 ## Shapes
 
-`yen.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required,
+`yen.lib.rdf.shacl result` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required,
 `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields.
 
 

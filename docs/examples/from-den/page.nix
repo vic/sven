@@ -40,7 +40,7 @@
           ]
           [
             "`hasAspect`"
-            "`yen.lib.holds`, and `r.graph` edges with `origin`"
+            "`yen.lib.holds`, and `result.graph` edges with `origin`"
           ]
           [
             "context pipes, `osConfig`"
@@ -184,9 +184,9 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
-      quirk-up = r.flake.userPorts == { igloo = [ 3000 ]; };
+      quirk-up = result.flake.userPorts == { igloo = [ 3000 ]; };
     };
 
   e2e =

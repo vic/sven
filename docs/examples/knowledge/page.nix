@@ -7,17 +7,17 @@
   body =
     {
       docs,
-      r,
+      result,
       engine,
       ...
     }:
     let
-      pack = engine.rdf.share r;
+      pack = engine.rdf.share result;
     in
     [
       ''
         An agent with a knowledge store (a triple store such as quipu) can keep the fleet as a graph and query it with SPARQL.
-        `yen.lib.rdf.share r` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
+        `yen.lib.rdf.share result` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
         element as a node with its origin, and errors. It adds a sha256 and a count.
       ''
       (docs.file "modules/hosts.nix")
@@ -42,10 +42,10 @@
       ''
         ## Shapes
 
-        `yen.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required,
+        `yen.lib.rdf.shacl result` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required,
         `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields.
       ''
-      (docs.code "turtle" (builtins.substring 0 640 (engine.rdf.shacl r) + "…"))
+      (docs.code "turtle" (builtins.substring 0 640 (engine.rdf.shacl result) + "…"))
       (docs.tip "One snapshot per revision" ''
         Store each revision's pack under one snapshot key, replacing the last. The store keeps old ones readable by transaction,
         so "what did the fleet look like before this change" is a query.
@@ -54,18 +54,18 @@
 
   checks =
     {
-      r,
+      result,
       engine,
       only,
       ...
     }:
     {
       stable =
-        (engine.rdf.share r).sha256 == (engine.rdf.share (only [
+        (engine.rdf.share result).sha256 == (engine.rdf.share (only [
           "modules/pack.nix"
           "modules/hosts.nix"
           "modules/fleet.nix"
         ])).sha256;
-      shapes = builtins.isString (engine.rdf.shacl r);
+      shapes = builtins.isString (engine.rdf.shacl result);
     };
 }

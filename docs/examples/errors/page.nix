@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -33,14 +33,14 @@
       ''
       (docs.file "modules/fleet.nix")
       (docs.fileWith "{9-15}" "modules/checks.nix")
-      (docs.value r.errors)
+      (docs.value result.errors)
       ''
         ## Warnings
 
         A warning is a message that does not fail the fleet. It is a plain sink with `list` reduce, here given
         to the flake as `warnings`:
       ''
-      (docs.value r.flake.warnings)
+      (docs.value result.flake.warnings)
       (docs.tip "Gate CI on it" ''
         In CI, fail when `errors` is not `[ ]`, before any build. A `query.nix` gives every query on the command line:
         see [Project layout](/start/project-layout/).
@@ -50,7 +50,7 @@
   errors = true; # this example shows a duplicate address on purpose
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       duplicate =
         map (e: {
@@ -60,7 +60,7 @@
             from
             class
             ;
-        }) r.errors == [
+        }) result.errors == [
           {
             code = "duplicate-addr";
             error = "10.0.0.1 is the address of db and web";
@@ -68,7 +68,7 @@
             class = "fixable";
           }
         ];
-      warnings = r.flake.warnings == [ "scratch has no backup" ];
+      warnings = result.flake.warnings == [ "scratch has no backup" ];
       typo = builtins.any (
         e: e.code == "unknown-field" && e.near == [ "backup" ]
       ) (variant "variants/typo.nix").errors;

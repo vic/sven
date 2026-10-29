@@ -5,7 +5,7 @@
   order = 5;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         Host files that list roles drift: someone adds a GPU and forgets the line. Put the facts on the host instead,
@@ -22,17 +22,17 @@
         `yen.lib.holds` asks a predicate at a scope. One aspect turns the active roles into tags:
       ''
       (docs.file "modules/tags.nix")
-      (docs.value r.flake.tags)
+      (docs.value result.flake.tags)
       (docs.tip "Change a fact, not a list" ''
         Give `rack-2` the label `ci-runner`, and it gets the role, its content and its tag. Nothing else changes.
       '')
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       tags =
-        r.flake.tags == {
+        result.flake.tags == {
           rack-1 = [
             "server"
             "ci-runner"

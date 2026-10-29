@@ -5,7 +5,7 @@
   order = 4;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         A guest is a machine that runs inside a host: a NixOS container here, a microvm in the
@@ -15,7 +15,7 @@
       (docs.fileWith "{23-24}" "modules/kinds.nix")
       (docs.file "modules/machines.nix")
       (docs.file "modules/services.nix")
-      (docs.routes r)
+      (docs.routes result)
       ''
         `nginx` runs in the `web` container. The host `box` does not get it: the element went to `web`'s own sink.
       ''
@@ -27,10 +27,10 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       nginx-at-guest =
-        r.active.nginx."fleet:main/host:box/guest:web" && !r.active.nginx."fleet:main/host:box";
+        result.active.nginx."fleet:main/host:box/guest:web" && !result.active.nginx."fleet:main/host:box";
     };
   e2e =
     { flake, ... }:

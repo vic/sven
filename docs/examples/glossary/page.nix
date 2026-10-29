@@ -117,7 +117,7 @@
           ]
           [
             "stored query"
-            "a named question, asked with `r.ask`"
+            "a named question, asked with `result.ask`"
             "[Stored queries](/query/stored-queries/)"
           ]
           [

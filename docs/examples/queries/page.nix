@@ -7,14 +7,14 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
     [
       ''
-        `r = (import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
-        `r` exists outside the fleet: in a script, a test, the CLI or an agent. Inside the fleet, see [below](#inside-the-fleet).
+        `result = (import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+        `result` exists outside the fleet: in a script, a test, the CLI or an agent. Inside the fleet, see [below](#inside-the-fleet).
         Every answer is plain data, so `builtins.toJSON` prints it. This small fleet answers each query below.
       ''
       (docs.file "modules/fleet.nix")
@@ -78,29 +78,29 @@
       (docs.tabs [
         {
           label = "reduced";
-          body = docs.value r.reduced;
+          body = docs.value result.reduced;
         }
         {
           label = "graph.edges";
-          body = docs.value r.graph.edges;
+          body = docs.value result.graph.edges;
         }
         {
           label = "facts";
-          body = docs.value r.facts;
+          body = docs.value result.facts;
         }
       ])
       ''
         ## One scope in context
 
-        `r.context id { maxEdges; maxAspects; }` is what an agent or a person reads first about a scope.
+        `result.context id { maxEdges; maxAspects; }` is what an agent or a person reads first about a scope.
         Each list says how much it shows of how much there is:
       ''
-      (docs.value (r.context "fleet:main/host:web" { }))
+      (docs.value (result.context "fleet:main/host:web" { }))
       ''
         ## Which aspects reach this host?
 
         Each edge of `graph` has `origin`: the aspect that gave the element. "Which aspects reach `web`" is a filter,
-        not a registry: `map (e: e.origin) (filter (e: e.to == "fleet:main/host:web") r.graph.edges)`.
+        not a registry: `map (e: e.origin) (filter (e: e.to == "fleet:main/host:web") result.graph.edges)`.
       ''
       (docs.sh ''
         nix eval --impure --file query.nix errors
@@ -113,7 +113,7 @@
       ''
         ## Inside the fleet
 
-        A module never gets `r`: the fleet is what `r` is computed from. An element reads results through its args
+        A module never gets `result`: the fleet is what `result` is computed from. An element reads results through its args
         and `yen.lib`, where it runs:
       ''
       (docs.table
@@ -153,13 +153,13 @@
       (docs.value (variant "variants/inside.nix").reduced.out."fleet:main".inside)
       (docs.note "Not inside" ''
         `errors`, `check`, `context`, `explain` and `impact` read the errors, and an element that reads the errors
-        could change them. They exist only on `r`. A stored query gets `r` when it is asked from outside:
+        could change them. They exist only on `result`. A stored query gets `result` when it is asked from outside:
         see [Stored queries](/query/stored-queries/). A [cycle](/concepts/cycle/) also asks the tree with `tree`.
       '')
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       inside =
         (variant "variants/inside.nix").reduced.out."fleet:main".inside == {
@@ -175,18 +175,18 @@
         }
         && (variant "variants/inside.nix").errors == [ ];
       reduced =
-        r.reduced.packages."fleet:main/host:web" == [
+        result.reduced.packages."fleet:main/host:web" == [
           "git"
           "nginx"
         ];
       origins =
         builtins.sort builtins.lessThan (
-          map (e: e.origin) (builtins.filter (e: e.to == "fleet:main/host:web") r.graph.edges)
+          map (e: e.origin) (builtins.filter (e: e.to == "fleet:main/host:web") result.graph.edges)
         ) == [
           "aspect git"
           "aspect git"
           "aspect nginx"
         ];
-      facts = builtins.elem "has:nginx:fleet:main/host:web" r.facts;
+      facts = builtins.elem "has:nginx:fleet:main/host:web" result.facts;
     };
 }

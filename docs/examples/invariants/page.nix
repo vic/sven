@@ -1,13 +1,13 @@
 {
   title = "Invariants";
-  description = "Rules that must hold across the whole fleet, checked before deploy: `r.check`.";
+  description = "Rules that must hold across the whole fleet, checked before deploy: `result.check`.";
   section = "query";
   order = 5;
 
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -54,7 +54,7 @@
         This fleet holds:
       ''
       (docs.value {
-        inherit (r.check)
+        inherit (result.check)
           ok
           violations
           incomplete
@@ -67,7 +67,7 @@
       (docs.file "variants/mistakes.nix")
       (docs.value { inherit ((variant "variants/mistakes.nix").check) ok violations; })
       ''
-        `r.check.why atom` gives the rules that prove a violation. `whyNot` and `proof` work as in Datalog:
+        `result.check.why atom` gives the rules that prove a violation. `whyNot` and `proof` work as in Datalog:
       ''
       (docs.value ((variant "variants/mistakes.nix").check.why "bad:same-addr:db:spare"))
       (docs.caution "Incomplete is not a pass" ''
@@ -79,12 +79,12 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     let
       m = (variant "variants/mistakes.nix").check;
     in
     {
-      ok = r.check.ok;
+      ok = result.check.ok;
       violations =
         m.violations == [
           "bad:desktop-on-server:web"

@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -30,11 +30,11 @@
       ])
       ''
         A read of `host.settings.k3s.role` looks at the instance, then at the type default. It never reads `zfs.nix`.
-        `r.declaredIn` answers which files declare a path:
+        `result.declaredIn` answers which files declare a path:
       ''
       (docs.value (
         map baseNameOf (
-          r.declaredIn [
+          result.declaredIn [
             "kinds"
             "host"
             "fields"
@@ -50,7 +50,7 @@
       ''
       (docs.file "modules/hosts.nix")
       (docs.fileWith "{10}" "modules/report.nix")
-      (docs.value r.flake.report)
+      (docs.value result.flake.report)
       ''
         ## Helpers
 
@@ -79,10 +79,10 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       cascade =
-        r.flake.report == {
+        result.flake.report == {
           nas = {
             arcMax = 32;
             k3s = "agent";
@@ -94,7 +94,7 @@
         };
       declared =
         map baseNameOf (
-          r.declaredIn [
+          result.declaredIn [
             "kinds"
             "host"
             "fields"

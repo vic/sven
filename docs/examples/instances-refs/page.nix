@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -23,14 +23,14 @@
         Follow a ref like an attrset, and compare two instances with `yen.lib.same`:
       ''
       (docs.file "modules/report.nix")
-      (docs.value r.flake.report)
+      (docs.value result.flake.report)
       ''
         ## Data kinds
 
         `environment` is a data kind: no kind spawns it. Its instances have no place in the scope tree,
         and refs to them still work. The tree has the fleet and the hosts only:
       ''
-      (docs.scopes r)
+      (docs.scopes result)
       ''
         Groups, channels and secrets are good data kinds. [Scopes](/concepts/scopes/) shows how a kind gets a place in the tree.
 
@@ -43,16 +43,16 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       report =
-        r.flake.report.web == {
+        result.flake.report.web == {
           backup = "db";
           fqdn = "web.example.com";
           peers = [ "db" ];
         };
       data-kind =
-        map (s: s.kind) r.graph.scopes == [
+        map (s: s.kind) result.graph.scopes == [
           "fleet"
           "host"
           "host"
