@@ -129,39 +129,42 @@ let
   mergeAt =
     path: a: bv:
     let
-      common = filter (n: a ? ${n}) (attrNames bv);
-      sub =
-        n:
-        if isLeaf a.${n} || isLeaf bv.${n} then
+      subs = mapAttrs (
+        n: v:
+        let
+          p = path ++ [ n ];
+        in
+        if !(a ? ${n}) then
+          pure v
+        else if isLeaf a.${n} || isLeaf v then
           {
             value = a.${n};
             errors =
-              if a.${n} == bv.${n} then
+              if a.${n} == v then
                 [ ]
               else
                 [
-                  (errWith "merge" "merge conflict at ${concatStringsSep "." (path ++ [ n ])}" {
+                  (errWith "merge" "merge conflict at ${concatStringsSep "." p}" {
                     code = "merge";
-                    path = path ++ [ n ];
+                    path = p;
                   })
                 ];
           }
         else
-          mergeAt (path ++ [ n ]) a.${n} bv.${n};
+          mergeAt p a.${n} v
+      ) bv;
     in
     {
-      value = a // mapAttrs (n: v: if a ? ${n} then (sub n).value else v) bv;
-      errors = concatMap (n: (sub n).errors) common;
+      value = a // mapAttrs (_: x: x.value) subs;
+      errors = concatMap (x: x.errors) (b.attrValues subs);
     };
+  pure = value: {
+    inherit value;
+    errors = [ ];
+  };
   reduce = {
-    list = es: {
-      value = map (e: e.value) es;
-      errors = [ ];
-    };
-    set = es: {
-      value = uniq (map (e: e.value) es);
-      errors = [ ];
-    };
+    list = es: pure (map (e: e.value) es);
+    set = es: pure (uniq (map (e: e.value) es));
     one = es: {
       value = if es == [ ] then null else (head es).value;
       errors =
@@ -176,28 +179,14 @@ let
             })
           ];
     };
-    merge =
-      es:
-      foldl'
-        (
-          acc: e:
-          let
-            m = mergeAt [ ] acc.value e.value;
-          in
-          {
-            value = m.value;
-            errors = acc.errors ++ m.errors;
-          }
-        )
-        {
-          value = { };
-          errors = [ ];
-        }
-        es;
-    entries = es: {
-      value = es;
-      errors = [ ];
-    };
+    merge = foldl' (
+      acc: e:
+      let
+        m = mergeAt [ ] acc.value e.value;
+      in
+      m // { errors = acc.errors ++ m.errors; }
+    ) (pure { });
+    entries = pure;
   };
   # each built-in reduce is callable and carries its name, so `schema` can say which strategy a sink uses
   reduceNamed = mapAttrs (n: f: {
