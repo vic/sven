@@ -290,8 +290,8 @@ let
             n:
             n ? mod
             &&
-              (foldl' (a: k: if a != null && isAttrs a && a ? ${k} then a.${k} else null) (n.mod.yen or { }
-              ) path) != null
+              (foldl' (a: k: if a != null && isAttrs a && a ? ${k} then a.${k} else null) (n.mod.yen or { }) path)
+              != null
           ) loaded
         );
       loadErrors = map (n: err "module" n.error) (filter (n: n ? error) loaded);

@@ -204,8 +204,7 @@ let
     { yen, ... }:
     {
       yen.kinds.top.spawns.host = _: yen.host;
-      yen.kinds.host.spawns.svc =
-        p: if yen.lib.holds yen.aspects.server p then { web = { }; } else { };
+      yen.kinds.host.spawns.svc = p: if yen.lib.holds yen.aspects.server p then { web = { }; } else { };
       yen.kinds.svc = { };
       yen.top.t = { };
       yen.host = {

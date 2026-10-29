@@ -7,8 +7,7 @@ let
   members = c: lib.filter (e: lib.any (same e.from) c.hosts);
 in
 {
-  yen.kinds.environment.spawns.cluster =
-    s: lib.filterAttrs (_: c: same c.environment s) yen.cluster;
+  yen.kinds.environment.spawns.cluster = s: lib.filterAttrs (_: c: same c.environment s) yen.cluster;
   yen.kinds.cluster = {
     fields = {
       environment = yen.kinds.environment;

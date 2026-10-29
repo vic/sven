@@ -9,8 +9,7 @@
       {
         services.syncthing.enable = true;
         services.syncthing.settings.devices =
-          lib.genAttrs
-            (map (s: s.parent.name) (lib.filter (s: s.path != scope.path) (yen.lib.scopesOf user)))
+          lib.genAttrs (map (s: s.parent.name) (lib.filter (s: s.path != scope.path) (yen.lib.scopesOf user)))
             (n: {
               id = builtins.hashString "sha256" n;
             });

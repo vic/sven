@@ -6,9 +6,7 @@
     cycle =
       { scope, ... }:
       {
-        secrets = lib.attrValues (
-          lib.filterAttrs (_: s: lib.any (yen.lib.same scope) s.owners) yen.secret
-        );
+        secrets = lib.attrValues (lib.filterAttrs (_: s: lib.any (yen.lib.same scope) s.owners) yen.secret);
       };
   };
   # a secret that no host owns is an error, not a silent leftover

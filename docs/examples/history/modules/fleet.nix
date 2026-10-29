@@ -16,8 +16,7 @@ in
   };
   yen.kinds.environment = {
     spawns.host =
-      s:
-      lib.filterAttrs (_: h: same h.environment s && yen.lib.validAt yen.fleet.main.today h) yen.host;
+      s: lib.filterAttrs (_: h: same h.environment s && yen.lib.validAt yen.fleet.main.today h) yen.host;
     sinks.backends.dns =
       { environment, backends, ... }:
       {

@@ -39,8 +39,7 @@ in
   yen.helpers.clan = {
     services = { };
     # instances as data, plus the instances services add (clan nested services)
-    instances =
-      yen.instance // lib.concatMapAttrs (_: i: (service i).adds or (_: { }) i) yen.instance;
+    instances = yen.instance // lib.concatMapAttrs (_: i: (service i).adds or (_: { }) i) yen.instance;
     selectExports = q: lib.filter (e: lib.all (k: e.${k} == q.${k}) (lib.attrNames q));
   };
   yen.kinds.member = { }; # spawned under machines; its elements go up to the machine
@@ -120,9 +119,7 @@ in
             c = svc.constraints or { };
             count =
               r:
-              lib.length (
-                lib.filter (roleHas i.roles.${r}) (lib.attrValues yen.host ++ lib.attrValues yen.mac)
-              );
+              lib.length (lib.filter (roleHas i.roles.${r}) (lib.attrValues yen.host ++ lib.attrValues yen.mac));
           in
           if svc == null then
             [ "clan: instance ${n} uses unknown service ${i.module}" ]

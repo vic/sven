@@ -322,9 +322,7 @@ in
       let
         shown = lib.filter (e: e.item.slug != "index") sidebar;
         bySection = lib.groupBy (e: e.section.name) shown;
-        sections = lib.sort (a: b: a.order < b.order) (
-          map (n: yen.section.${n}) (lib.attrNames bySection)
-        );
+        sections = lib.sort (a: b: a.order < b.order) (map (n: yen.section.${n}) (lib.attrNames bySection));
       in
       {
         files.file."src/sidebar.json".text =
