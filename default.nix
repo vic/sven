@@ -272,7 +272,7 @@ let
           "aspects"
           n
         ];
-      loadErrors = map (n: err "module" n.error) (filter (n: n ? error) loaded);
+      loadErrors = map (n: errWith "module" n.error { code = "module"; }) (filter (n: n ? error) loaded);
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
       # one lazy index over every file (zipAttrsWith): a lookup walks its path, never all files
@@ -469,7 +469,7 @@ let
             made = (spawnsOf s.kind).${c} s;
           in
           if !isAttrs made then
-            [ (err s.id "spawns.${c} gives no attrset") ]
+            [ (errWith s.id "spawns.${c} gives no attrset" { code = "spawns"; }) ]
           else
             map (
               n:
@@ -479,7 +479,7 @@ let
                   got = "${c}:${n}";
                 }
               else if !isAttrs made.${n} then
-                err s.id "spawns.${c}.${n} is no attrset"
+                errWith s.id "spawns.${c}.${n} is no attrset" { code = "spawns"; }
               else
                 mkScope s c n made.${n}
             ) (attrNames made)
@@ -665,7 +665,7 @@ let
             toList (aspects.${n}.order or [ ]) ++ toList ((outAt n s).order or [ ])
         ) orderNames;
       isNum = o: b.isInt o || b.isFloat o;
-      orderErrors = map (s: err s.id "order is not a number") (
+      orderErrors = map (s: errWith s.id "order is not a number" { code = "order"; }) (
         filter (s: !all isNum (ordersAt s)) unsorted
       );
       sortKeys = byScope (
@@ -798,7 +798,7 @@ let
         s:
         concatMap (
           n:
-          map (_: err s.id "aspect ${n}: unknown tree request") (
+          map (_: errWith s.id "aspect ${n}: unknown tree request" { code = "tree-request"; }) (
             filter (q: !known q) (toList ((outAt n s).tree or [ ]))
           )
         ) (attrNames cycleOuts)
@@ -877,9 +877,9 @@ let
           bad = map (
             x:
             if x ? error then
-              err x.from "${x.e.origin}: ${x.error}"
+              removeAttrs x [ "e" ] // { error = "${x.e.origin}: ${x.error}"; } # the fill record keeps its code
             else
-              err r.id "sink ${k}: element of ${x.e.origin} from ${x.e.from.id} fails `of`"
+              errWith r.id "sink ${k}: element of ${x.e.origin} from ${x.e.from.id} fails `of`" { code = "of"; }
           ) (filter (x: !okOf x) filled);
         in
         {
@@ -910,7 +910,7 @@ let
               err e.from.id m
           ) (toList x.ok)
         else
-          [ (err x.from "${e.origin}: ${x.error}") ]
+          [ (x // { error = "${e.origin}: ${x.error}"; }) ]
       ) (filter (e: e.key == "errors") given);
 
       # ── run: sinks feed drivers, drivers feed sources, Nix laziness closes the loop. Every output is a query ──

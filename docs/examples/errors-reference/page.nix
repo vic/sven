@@ -29,7 +29,12 @@ let
     bare-function = "an element is a function without named args (`x: …`): wrap it as `{ ... }:`";
     check = "a field value fails its type";
     cycle = "an instance appears twice on its own scope path: `spawns` loops";
-    error = "a message from an aspect's `errors` key, a failed `of`, or a component";
+    error = "a message from an aspect's `errors` key";
+    module = "a module asks for an arg that has no answer";
+    of = "a sink element fails the sink's `of` type";
+    order = "an `order` answer is not a number";
+    spawns = "a `spawns` function gives no attrset, or an instance in it is no attrset";
+    tree-request = "a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds)";
     merge = "`merge`: two different leaves at one path";
     missing = "a required field has no value";
     missing-param = "a stored query is asked without a required parameter";
