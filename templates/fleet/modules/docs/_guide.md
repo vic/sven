@@ -380,6 +380,27 @@ r.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 | a child kind declared in another file, and feature gates | vix | [vix/editors.nix](modules/vix/editors.nix) |
 | secrets as a data kind | vix | [vix/secrets.nix](modules/vix/secrets.nix) |
 
+### `osConfig`: a home-manager module that reads its host
+
+Each host gives its realized NixOS config to an `osConfig` sink. A home-manager module names `osConfig` like any sink arg. `pkgs` stays open, so home-manager fills its own `pkgs`:
+
+```nix
+sven.kinds.host.sinks.osConfig.reduce = sven.lib.reduce.one;
+sven.aspects.os-config = {
+  at = sven.kinds.host;
+  osConfig = { host, out, ... }: out.nixosConfigurations.${host.name}.config; # lazy
+};
+sven.aspects.editors = {
+  at = sven.lib.all [ sven.kinds.user (sven.lib.within sven.kinds.host) ];
+  homeManager = { osConfig, pkgs, ... }: {
+    home.sessionVariables.EDITOR_HOST = osConfig.networking.hostName;
+    home.packages = [ pkgs.nano ];
+  };
+};
+```
+
+The same aspect works for a user in a host's NixOS (`alice` on `lb`) and for a standalone home under a host (`alice@stage`). The e2e checks `os-config-nested` and `os-config-standalone` prove it ([den/os-config.nix](modules/den/os-config.nix)).
+
 ### Den #739: a standalone home that reads host data
 
 In [den#739](https://github.com/denful/den/discussions/739), a Den user wants host data (a monitor) in a standalone home `tux@igloo`. Den pipes the data to a home-manager module home only.
@@ -406,7 +427,7 @@ The home reads stage's `monitor` sink like any child. It still builds its own `h
 | `hasAspect`, projected `hasAspect` | `sven.lib.holds`, and `graph` edges with `origin` | [sini/roles.nix](modules/sini/roles.nix) |
 | a policy gated on `hasAspect` that creates structure (#525) | `spawns` that reads `holds` at the parent | [den/presence-structure.nix](modules/den/presence-structure.nix) |
 | quirks and pipes: collect, expose, broadcast, provenance | a sink at a common ancestor with `entries`, and a filter in the reader | [sini/clusters.nix](modules/sini/clusters.nix) |
-| a value that reads a realized config (#713, `osConfig`) | read `out.nixosConfigurations.<host>.config`, lazily | [den/standalone-home-on-host.nix](modules/den/standalone-home-on-host.nix) |
+| a value that reads a realized config (#713, `osConfig`) | an `osConfig` sink that each host gives from `out.nixosConfigurations.<host>.config`, lazily | [den/os-config.nix](modules/den/os-config.nix), [den/standalone-home-on-host.nix](modules/den/standalone-home-on-host.nix) |
 | settings layers with authority, the projects facet (A8, A14) | a sink with your own reduce | [hoag/settings.nix](modules/hoag/settings.nix) |
 | claim and provide, "who claims me" | an `entries` sink and a reader filter | [hoag/claims.nix](modules/hoag/claims.nix) |
 | collectors: an aggregate with its own content | a `hive` kind that selects its members | [hoag/collectors.nix](modules/hoag/collectors.nix) |

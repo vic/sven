@@ -1,0 +1,153 @@
+---
+{"description":"A home-manager module reads its host's NixOS config, nested in NixOS or as a standalone home.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/os-config/page.nix","title":"osConfig in home-manager"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+A home-manager module often needs its host's NixOS config: `{ osConfig, pkgs, ... }:`.
+In sven, `osConfig` is a sink. Each host gives its realized config to it, and a module names it like any sink arg.
+`pkgs` stays open, so home-manager fills its own `pkgs`.
+
+
+```nix title="modules/fleet.nix" {16-28,58-61}
+# Hosts build NixOS. Users live under hosts; a standalone home lives under a host too, and builds its own config.
+{
+  sven,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (sven.lib) same is;
+in
+{
+  sven.kinds.fleet = {
+    spawns.host = _: sven.host;
+    sinks.out.reduce = sven.lib.reduce.merge;
+  };
+  sven.kinds.host = {
+    spawns = {
+      user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) sven.user;
+      home = s: lib.filterAttrs (_: h: same h.on s) sven.home;
+    };
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+    sinks.osConfig.reduce = sven.lib.reduce.one; # the host's realized NixOS config
+  };
+  sven.kinds.user = {
+    fields.hosts = is lib.isList;
+    sinks.homeManager.nixos =
+      { user, homeManager, ... }:
+      {
+        home-manager.users.${user.name}.imports = homeManager;
+      };
+  };
+  sven.kinds.home = {
+    fields = {
+      user = sven.kinds.user;
+      on = sven.kinds.host;
+      system = lib.types.str;
+    };
+    sinks.homeManager.out =
+      { home, homeManager, ... }:
+      {
+        homeConfigurations.${home.name} = inputs.home-manager.lib.homeManagerConfiguration {
+          pkgs = inputs.nixpkgs.legacyPackages.${home.system};
+          modules = homeManager;
+        };
+      };
+  };
+  sven.aspects.home-manager = {
+    at = sven.lib.has sven.kinds.user;
+    nixos = {
+      imports = [ inputs.home-manager.nixosModules.home-manager ];
+      home-manager.useGlobalPkgs = true;
+    };
+  };
+  sven.aspects.os-config = {
+    at = sven.kinds.host;
+    osConfig = { host, out, ... }: out.nixosConfigurations.${host.name}.config; # lazy: read only when a module asks
+  };
+
+  sven.fleet.main = { };
+  sven.flake = { out, ... }: out;
+}
+```
+
+- The `os-config` aspect gives `out.nixosConfigurations.<host>.config`. It is lazy: Nix reads it only when a module asks.
+- A home has `on`, so it lives under that host. It reads the host's sinks like any child, and still builds `homeConfigurations`.
+
+
+```nix title="modules/alice.nix" {22-33}
+# alice: an account on the server, and a standalone home that lives under the server.
+{ sven, ... }:
+let
+  alice = sven.user.alice;
+  hers = [
+    alice
+    (s: s.kind == "home" && sven.lib.same s.user alice)
+  ];
+in
+{
+  sven.user.alice.hosts = [ sven.host.server ];
+  sven.home."alice@server" = {
+    user = alice;
+    on = sven.host.server;
+    system = "x86_64-linux";
+  };
+
+  sven.aspects.alice-account = {
+    at = alice;
+    nixos.users.users.alice.isNormalUser = true;
+  };
+  sven.aspects.editors = {
+    at = hers; # one module, in NixOS and standalone
+    homeManager =
+      { osConfig, pkgs, ... }: # osConfig: the host's sink; pkgs: home-manager's own
+      {
+        home.sessionVariables.EDITOR_HOST = osConfig.networking.hostName;
+        home.packages = [ pkgs.nano ];
+        home.stateVersion = "25.05";
+      };
+  };
+  sven.aspects.standalone = {
+    at = sven.kinds.home;
+    homeManager =
+      { home, ... }:
+      {
+        home.username = home.user.name;
+        home.homeDirectory = "/home/${home.user.name}";
+      };
+  };
+}
+```
+
+`editors` lands in two places: in the server's NixOS (`home-manager.users.alice`) and in `homeConfigurations."alice@server"`.
+Both read the same `osConfig`.
+
+
+```sh frame="terminal"
+sudo nixos-rebuild switch --flake .#server
+home-manager switch --flake '.#alice@server'
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `os-config`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/sven#os-config
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - alice.nix
+  - fleet.nix
+  - machines.nix
+
+</FileTree>
+:::

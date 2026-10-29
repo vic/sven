@@ -8,6 +8,14 @@
   ...
 }:
 let
+  concurrency = {
+    group = "\${{ github.workflow }}-\${{ github.ref }}";
+    # never cancel main builds: back-to-back merges would leave main untested.
+    # On PRs cancel only for new commits: a run cancelled for the same commit
+    # before its matrix expands leaves literal `${{ matrix.* }}` checks failed
+    # forever, so label/review events queue behind the running build instead.
+    cancel-in-progress = "\${{ github.ref != 'refs/heads/main' && github.event.action == 'synchronize' }}";
+  };
   setup = [
     {
       uses = "actions/checkout@v4";
@@ -139,10 +147,7 @@ in
             pull_request = { };
             workflow_dispatch = { };
           };
-          concurrency = {
-            group = "\${{ github.workflow }}-\${{ github.ref }}";
-            cancel-in-progress = true;
-          };
+          inherit concurrency;
           permissions.contents = "read";
           jobs = workflow;
         };
@@ -162,7 +167,6 @@ in
   sven.aspects.ci-engine = {
     at = sven.kinds.site;
     workflow.engine = job {
-      needs = [ "fmt" ];
       timeout = 20;
       steps = [
         (dev "engine and library oracles" "engine-test")
@@ -173,7 +177,6 @@ in
   sven.aspects.ci-docs = {
     at = sven.kinds.site;
     workflow.docs = job {
-      needs = [ "engine" ];
       timeout = 60;
       steps = [
         (dev "docs examples" "docs-test")
@@ -186,7 +189,6 @@ in
     at = sven.kinds.site;
     workflow = {
       fleet = job {
-        needs = [ "docs" ];
         timeout = 120;
         steps = [
           (dev "fleet checks" "fleet-test")
@@ -196,7 +198,6 @@ in
         ];
       };
       flake-check = job {
-        needs = [ "fleet" ];
         timeout = 120;
         # no KVM: VM tests are `vmTests`, not checks (hosted runners cannot run guests reliably)
         steps = [ (dev "nix flake check of the fleet" "fleet-check") ];

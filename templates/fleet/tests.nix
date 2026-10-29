@@ -2092,6 +2092,16 @@ let
         bad.config.system.build.toplevel.drvPath != lbCfg.system.build.toplevel.drvPath;
       den-713-home-reads-host-config =
         out.homeConfigurations."alice@stage".config.home.sessionVariables.HOST_DESKTOP == "yes";
+      # osConfig sink: a nested user and a standalone home under a host read the host's config; pkgs is home-manager's
+      os-config-nested =
+        lbCfg.home-manager.users.alice.home.sessionVariables.EDITOR_HOST == "lb"
+        && lib.any (p: lib.getName p == "nano") lbCfg.home-manager.users.alice.home.packages;
+      os-config-standalone =
+        let
+          c = out.homeConfigurations."alice@stage".config;
+        in
+        c.home.sessionVariables.EDITOR_HOST == "stage"
+        && lib.any (p: lib.getName p == "nano") c.home.packages;
       hoag-claims-built = lib.elem "app_web_1" out.nixosConfigurations.lb.config.services.postgresql.ensureDatabases;
       den-chained-forward-built =
         out.nixosConfigurations.lb.config.home-manager.users.alice.programs.git.extraConfig.init.defaultBranch

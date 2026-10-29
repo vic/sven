@@ -384,6 +384,27 @@ r.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 | a child kind declared in another file, and feature gates | vix | [vix/editors.nix](modules/vix/editors.nix) |
 | secrets as a data kind | vix | [vix/secrets.nix](modules/vix/secrets.nix) |
 
+### `osConfig`: a home-manager module that reads its host
+
+Each host gives its realized NixOS config to an `osConfig` sink. A home-manager module names `osConfig` like any sink arg. `pkgs` stays open, so home-manager fills its own `pkgs`:
+
+```nix
+sven.kinds.host.sinks.osConfig.reduce = sven.lib.reduce.one;
+sven.aspects.os-config = {
+  at = sven.kinds.host;
+  osConfig = { host, out, ... }: out.nixosConfigurations.${host.name}.config; # lazy
+};
+sven.aspects.editors = {
+  at = sven.lib.all [ sven.kinds.user (sven.lib.within sven.kinds.host) ];
+  homeManager = { osConfig, pkgs, ... }: {
+    home.sessionVariables.EDITOR_HOST = osConfig.networking.hostName;
+    home.packages = [ pkgs.nano ];
+  };
+};
+```
+
+The same aspect works for a user in a host's NixOS (`alice` on `lb`) and for a standalone home under a host (`alice@stage`). The e2e checks `os-config-nested` and `os-config-standalone` prove it ([den/os-config.nix](modules/den/os-config.nix)).
+
 ### Den #739: a standalone home that reads host data
 
 In [den#739](https://github.com/denful/den/discussions/739), a Den user wants host data (a monitor) in a standalone home `tux@igloo`. Den pipes the data to a home-manager module home only.
@@ -410,7 +431,7 @@ The home reads stage's `monitor` sink like any child. It still builds its own `h
 | `hasAspect`, projected `hasAspect` | `sven.lib.holds`, and `graph` edges with `origin` | [sini/roles.nix](modules/sini/roles.nix) |
 | a policy gated on `hasAspect` that creates structure (#525) | `spawns` that reads `holds` at the parent | [den/presence-structure.nix](modules/den/presence-structure.nix) |
 | quirks and pipes: collect, expose, broadcast, provenance | a sink at a common ancestor with `entries`, and a filter in the reader | [sini/clusters.nix](modules/sini/clusters.nix) |
-| a value that reads a realized config (#713, `osConfig`) | read `out.nixosConfigurations.<host>.config`, lazily | [den/standalone-home-on-host.nix](modules/den/standalone-home-on-host.nix) |
+| a value that reads a realized config (#713, `osConfig`) | an `osConfig` sink that each host gives from `out.nixosConfigurations.<host>.config`, lazily | [den/os-config.nix](modules/den/os-config.nix), [den/standalone-home-on-host.nix](modules/den/standalone-home-on-host.nix) |
 | settings layers with authority, the projects facet (A8, A14) | a sink with your own reduce | [hoag/settings.nix](modules/hoag/settings.nix) |
 | claim and provide, "who claims me" | an `entries` sink and a reader filter | [hoag/claims.nix](modules/hoag/claims.nix) |
 | collectors: an aggregate with its own content | a `hive` kind that selects its members | [hoag/collectors.nix](modules/hoag/collectors.nix) |
@@ -528,7 +549,7 @@ bash tests/cost.sh                                # PASS aspect-ref-memo, PASS r
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/sven/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 28 kinds, 185 aspects, 965 routed elements.
+Generated from the fleet's queries: 87 scopes, 28 kinds, 187 aspects, 983 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
 | `backup` |  |  | `nixos` | 3 |
@@ -544,7 +565,7 @@ Generated from the fleet's queries: 87 scopes, 28 kinds, 185 aspects, 965 routed
 | `guest` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `on`, `passthrough`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `user` | `age-secrets`, `nixos`, `os`, `persist`, `unfree` | 1 |
 | `hive` | `environment` |  | `meta` | 2 |
 | `home` | `channel`, `on`, `system`, `user` | `user` | `homeManager`, `os` | 2 |
-| `host` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `backup`, `guest`, `home`, `host`, `member`, `pet`, `user`, `variant` | `age-secrets`, `aspect-settings`, `deploy`, `dev`, `fw`, `fw-tcp`, `isNixos`, `monitor`, `nixos`, `os`, `pairs`, `persist`, `platform`, `service-domains`, `tags`, `tuning`, `unfree` | 9 |
+| `host` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `backup`, `guest`, `home`, `host`, `member`, `pet`, `user`, `variant` | `age-secrets`, `aspect-settings`, `deploy`, `dev`, `fw`, `fw-tcp`, `isNixos`, `monitor`, `nixos`, `os`, `osConfig`, `pairs`, `persist`, `platform`, `service-domains`, `tags`, `tuning`, `unfree` | 9 |
 | `instance` | `module`, `roles` |  |  | 0 |
 | `mac` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `member`, `user` | `darwin`, `os` | 1 |
 | `machine` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` |  |  | 0 |
@@ -878,6 +899,7 @@ flowchart LR
   n9ed1dd6a5f("no-gui")
   n58609270c8("nodes")
   na38fcc0344("os")
+  nade7eca458("osConfig")
   nc03228363e("out")
   n305e8e949e("overlays")
   n81a4f97a16("packages")
@@ -1185,15 +1207,15 @@ flowchart LR
 
 | Machine | Kind | Aspects giving elements | Some aspects |
 |---|---|---|---|
-| `app-1` | host | 31 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +25 |
-| `app-2` | host | 31 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +25 |
-| `app-3` | host | 31 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +25 |
-| `app-4` | host | 30 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +24 |
-| `lb` | host | 49 | alloy, attic, base, caddy, ci-host, clan-sshd, +43 |
-| `lb-minimal` | host | 30 | alloy, base, clan-sshd, deploy-record, dev, env-tuning, +24 |
-| `web-1` | host | 47 | alloy, api-route, base, ci-host, clan-sshd, db-claim, +41 |
-| `web-2` | host | 45 | alloy, autoinclude, base, ci-host, clan-sshd, db-claim, +39 |
-| `stage` | host | 52 | alloy, base, ci-host, clan-sshd, db-claim, db-client, +46 |
+| `app-1` | host | 32 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +26 |
+| `app-2` | host | 32 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +26 |
+| `app-3` | host | 32 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +26 |
+| `app-4` | host | 31 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +25 |
+| `lb` | host | 50 | alloy, attic, base, caddy, ci-host, clan-sshd, +44 |
+| `lb-minimal` | host | 31 | alloy, base, clan-sshd, deploy-record, dev, env-tuning, +25 |
+| `web-1` | host | 48 | alloy, api-route, base, ci-host, clan-sshd, db-claim, +42 |
+| `web-2` | host | 46 | alloy, autoinclude, base, ci-host, clan-sshd, db-claim, +40 |
+| `stage` | host | 53 | alloy, base, ci-host, clan-sshd, db-claim, db-client, +47 |
 | `ci` | guest | 12 | alloy, base, dev, docker, global-pkgs, globals-addr, +6 |
 | `studio` | mac | 12 | base, ci-mac, clan-sshd, darwin-base, dev, dock, +6 |
 
@@ -1231,7 +1253,7 @@ flowchart LR
 | `hmvals` | user | user | 10 |
 | `homeDarwin` | user | user | 2 |
 | `homeLinux` | user | user | 9 |
-| `homeManager` | user | home, phone, user | 123 |
+| `homeManager` | user | home, phone, user | 132 |
 | `host-addrs` | host | fleet | 9 |
 | `idm-users` | environment | environment | 3 |
 | `inference-clients` | host | fleet | 1 |
@@ -1248,6 +1270,7 @@ flowchart LR
 | `no-gui` | system | system | 1 |
 | `nodes` | host | fleet | 1 |
 | `os` | export, guest, host, mac, member, user | export, guest, home, host, mac | 113 |
+| `osConfig` | host | host | 9 |
 | `out` | cluster, environment, export, fleet, hive, home, +5 | fleet | 56 |
 | `overlays` | fleet | fleet | 1 |
 | `packages` | system | system | 7 |
