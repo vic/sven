@@ -1,11 +1,11 @@
 # An aspect key `errors` gives error records, or plain messages. Nothing throws. `from` is always the giving scope.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  byAddr = lib.groupBy (h: h.addr) (lib.attrValues sven.host);
+  byAddr = lib.groupBy (h: h.addr) (lib.attrValues yen.host);
 in
 {
-  sven.aspects.unique-addr = {
-    at = sven.kinds.fleet;
+  yen.aspects.unique-addr = {
+    at = yen.kinds.fleet;
     errors = lib.concatLists (
       lib.mapAttrsToList (
         a: hs:
@@ -19,9 +19,9 @@ in
       ) byAddr
     );
   };
-  sven.aspects.no-backup = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.no-backup = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: !s.backup)
     ];
     warnings = { host, ... }: "${host.name} has no backup";

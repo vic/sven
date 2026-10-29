@@ -11,11 +11,11 @@
         Some repo files are views of your fleet: the flake's inputs, a README with the host diagram, a CI workflow.
         Write them from the data, and a check fails when a committed file is stale.
         [denful/flake-file](https://github.com/denful/flake-file) writes `flake.nix`.
-        [sini/files](https://github.com/sini/files) writes `README.md` and the CI workflow. sven gives both the content.
+        [sini/files](https://github.com/sini/files) writes `README.md` and the CI workflow. yen gives both the content.
 
-        These docs are made this way: every page you read is a file that the docs fleet writes. So is sven's CI workflow:
+        These docs are made this way: every page you read is a file that the docs fleet writes. So is yen's CI workflow:
         each stage is an aspect, and one job per system comes from the reference fleet's `ci.json`
-        ([docs/modules/ci.nix](https://github.com/vic/sven/blob/main/docs/modules/ci.nix)).
+        ([docs/modules/ci.nix](https://github.com/vic/yen/blob/main/docs/modules/ci.nix)).
       ''
       (docs.fileWith "{17-36}" "modules/fleet.nix")
       ''
@@ -59,7 +59,7 @@
           "import-tree"
           "nixpkgs"
           "nixpkgs-unstable"
-          "sven"
+          "yen"
         ];
     };
 }

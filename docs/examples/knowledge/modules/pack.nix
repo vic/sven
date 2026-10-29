@@ -1,10 +1,10 @@
 # The routing graph as a knowledge pack: sorted N-Triples with a sha256. Same fleet, same hash, any file order.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.pack = {
-    at = sven.kinds.fleet;
-    out.rdfPack = removeAttrs (sven.lib.rdf.share {
-      graph = sven.lib.graph;
+  yen.aspects.pack = {
+    at = yen.kinds.fleet;
+    out.rdfPack = removeAttrs (yen.lib.rdf.share {
+      graph = yen.lib.graph;
       active = { };
       errors = [ ];
     }) [ "ntriples" ];

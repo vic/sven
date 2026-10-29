@@ -1,15 +1,15 @@
 ---
-{"description":"Issues with code, pull requests that exercise the docs examples, and every generator and test, in one place.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/contributing/page.nix","title":"Contributing"}
+{"description":"Issues with code, pull requests that exercise the docs examples, and every generator and test, in one place.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/contributing/page.nix","title":"Contributing"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 Thank you for helping. Bug reports, questions, docs fixes, examples and engine changes are all welcome.
-sven is small, and every page of its docs is a tested example, so a good report or a good example helps everyone after you.
+yen is small, and every page of its docs is a tested example, so a good report or a good example helps everyone after you.
 
 ## Open an issue: bring code
 
-An issue must have a sven module that shows the problem. The issue form asks for one. This is not a formality:
+An issue must have a yen module that shows the problem. The issue form asks for one. This is not a formality:
 CI evaluates every `nix` block of the issue as one fleet and comments the answer, often before a person reads it.
 
 Each block is one module of `modules/`. Declare the kinds it needs; `lib` is nixpkgs lib. For example:
@@ -17,25 +17,25 @@ Each block is one module of `modules/`. Declare the kinds it needs; `lib` is nix
 
 ```nix title="issue/block-1.nix"
 # The fleet: a root kind, and a host kind with an `admin` sink that takes one element.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet.spawns.host = _: sven.host;
-  sven.kinds.host.sinks.admin.reduce = sven.lib.reduce.one;
-  sven.fleet.main = { };
-  sven.host.web = { };
+  yen.kinds.fleet.spawns.host = _: yen.host;
+  yen.kinds.host.sinks.admin.reduce = yen.lib.reduce.one;
+  yen.fleet.main = { };
+  yen.host.web = { };
 }
 ```
 
 ```nix title="issue/block-2.nix"
 # The problem: two aspects give an admin. I expected the second to win.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.ops = {
-    at = sven.kinds.host;
+  yen.aspects.ops = {
+    at = yen.kinds.host;
     admin = "ana";
   };
-  sven.aspects.dev = {
-    at = sven.host.web;
+  yen.aspects.dev = {
+    at = yen.host.web;
     admin = "bo";
   };
 }
@@ -86,8 +86,8 @@ Run the same evaluation before you post, from the repository root, with your blo
 
 
 ```sh frame="terminal"
-nix-instantiate --eval --strict --json --restrict-eval -I sven=. -I nixpkgs=channel:nixos-25.05 -I blocks=./my-issue \
-  --expr 'import ./docs/issue/eval.nix { sven = <sven>; nixpkgs = <nixpkgs>; blocks = <blocks>; }'
+nix-instantiate --eval --strict --json --restrict-eval -I yen=. -I nixpkgs=channel:nixos-25.05 -I blocks=./my-issue \
+  --expr 'import ./docs/issue/eval.nix { yen = <yen>; nixpkgs = <nixpkgs>; blocks = <blocks>; }'
 ```
 
 ## Send a pull request: exercise the examples
@@ -131,7 +131,7 @@ A change to the engine also needs a test in `tests/default.nix`. Keep the engine
 | `lint` | fmt | the workflows are valid (actionlint, with shellcheck) |
 | `fmt` | fmt | format every tracked nix file (nixfmt) |
 | `issue-eval` | issue | issue-eval BODY DIR: an issue's nix blocks as one fleet, restricted; writes DIR/comment.md |
-| `issue-comment` | issue | issue-comment NUMBER FILE: post FILE on issue NUMBER, replacing sven's last comment (needs GH_TOKEN) |
+| `issue-comment` | issue | issue-comment NUMBER FILE: post FILE on issue NUMBER, replacing yen's last comment (needs GH_TOKEN) |
 
 ## Generated files
 

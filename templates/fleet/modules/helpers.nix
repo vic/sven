@@ -1,26 +1,26 @@
-# Shared values. `sven.helpers` is a query like any other declaration.
+# Shared values. `yen.helpers` is a query like any other declaration.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) same holds;
+  inherit (yen.lib) same holds;
 in
 {
-  sven.helpers = {
+  yen.helpers = {
     machines = [
-      sven.kinds.host
-      sven.kinds.guest
-      sven.kinds.mac
+      yen.kinds.host
+      yen.kinds.guest
+      yen.kinds.mac
     ];
     linux = [
-      sven.kinds.host
-      sven.kinds.guest
+      yen.kinds.host
+      yen.kinds.guest
     ];
-    listOf = t: sven.lib.is (v: lib.isList v && lib.all t.check v);
-    enum = xs: sven.lib.is (v: lib.elem v xs);
+    listOf = t: yen.lib.is (v: lib.isList v && lib.all t.check v);
+    enum = xs: yen.lib.is (v: lib.elem v xs);
     pkgsOf = m: m.channel.nixpkgs.legacyPackages.${m.system.name};
     inEnv = xs: s: lib.filterAttrs (_: x: same x.environment s) xs;
     upTo = p: s: lib.findFirst (holds p) null (lib.reverseList s.up); # nearest ancestor-or-self where p holds
@@ -38,22 +38,22 @@ in
             map (p: {
               key = p.name;
               g = p;
-            }) (lib.filter (p: lib.any (same x.g) p.members) (lib.attrValues sven.group));
+            }) (lib.filter (p: lib.any (same x.g) p.members) (lib.attrValues yen.group));
         }
       );
     # ACL: a posix group of the user meets the environment's or the machine's grants, and the machine's gates when it has any
     meets = xs: ys: lib.any (x: lib.any (same x) ys) xs;
-    posixOf = u: lib.filter (g: g.label == "posix") (sven.helpers.closure u.groups);
+    posixOf = u: lib.filter (g: g.label == "posix") (yen.helpers.closure u.groups);
     usersOn =
       s:
       lib.filterAttrs (
         _: u:
         let
-          gs = sven.helpers.posixOf u;
+          gs = yen.helpers.posixOf u;
         in
-        sven.helpers.meets gs (s.environment.grants ++ s.grants)
-        && (s.gates == [ ] || sven.helpers.meets gs s.gates)
-      ) sven.user;
+        yen.helpers.meets gs (s.environment.grants ++ s.grants)
+        && (s.gates == [ ] || yen.helpers.meets gs s.gates)
+      ) yen.user;
     flatten = a: ms: lib.mkMerge (map (m: if lib.isFunction m then m a else m) ms); # config-only submodules (users.users.<n>)
     noGui =
       system: h: cfg: bad:
@@ -75,7 +75,7 @@ in
       );
     ids = lib.listToAttrs (
       lib.imap0 (i: n: lib.nameValuePair n i) (
-        lib.sort (a: b: a < b) (map (s: s.name) (lib.filter (s: s.kind == "host") sven.lib.graph.scopes))
+        lib.sort (a: b: a < b) (map (s: s.name) (lib.filter (s: s.kind == "host") yen.lib.graph.scopes))
       )
     ); # deterministic: sorted host scope names
   };

@@ -1,5 +1,5 @@
 ---
-{"description":"A sink collects elements and reduces them: list, set, one, merge, entries, or your own function.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/sinks/page.nix","title":"Sinks and reduce"}
+{"description":"A sink collects elements and reduces them: list, set, one, merge, entries, or your own function.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/sinks/page.nix","title":"Sinks and reduce"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -19,9 +19,9 @@ A sink on a kind collects the elements that aspects give, and reduces them to on
 
 ```nix title="modules/sinks.nix" {5,10-15}
 # A sink collects elements and reduces them. `of` checks each element.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib.reduce)
+  inherit (yen.lib.reduce)
     list
     set
     one
@@ -34,7 +34,7 @@ let
   }; # your own reduce
 in
 {
-  sven.kinds.host.sinks = {
+  yen.kinds.host.sinks = {
     motd = {
       reduce = list;
       of = lib.types.str;
@@ -49,8 +49,8 @@ in
     groups.reduce = sorted;
   };
   # every sink of a host, read as args, to one flake output
-  sven.aspects.report = {
-    at = sven.kinds.host;
+  yen.aspects.report = {
+    at = yen.kinds.host;
     out =
       {
         host,
@@ -82,10 +82,10 @@ Two aspects give elements:
 
 
 ```nix title="modules/aspects.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.base = {
-    at = sven.kinds.host;
+  yen.aspects.base = {
+    at = yen.kinds.host;
     motd = "welcome";
     ports = 22;
     admin = "alice";
@@ -93,8 +93,8 @@ Two aspects give elements:
     owners = "ops";
     groups = "wheel";
   };
-  sven.aspects.web = {
-    at = sven.host.web;
+  yen.aspects.web = {
+    at = yen.host.web;
     motd = "this host serves web";
     ports = 22; # a duplicate: `set` keeps one
     nginx.http.servers.www.port = 80; # `merge` joins the attrsets
@@ -143,10 +143,10 @@ A failed reduce is an error record. The other sinks still work:
 
 ```nix title="variants/conflicts.nix"
 # Each line breaks one sink rule.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.mistakes = {
-    at = sven.host.web;
+  yen.aspects.mistakes = {
+    at = yen.host.web;
     admin = "bob"; # `one`: two admins
     ports = 70000; # `of`: not a port
     nginx.http.gzip = false; # `merge`: two different leaves at one path
@@ -207,7 +207,7 @@ Do not give a sink the name of a field or an arg. A sink `tags` and a field `tag
 Every block on this page is a file of the template `sinks`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#sinks
+nix flake init -t github:vic/yen#sinks
 ```
 
 <FileTree>

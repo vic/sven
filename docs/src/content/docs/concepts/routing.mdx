@@ -1,5 +1,5 @@
 ---
-{"description":"An element goes up to the nearest scope that has the sink and where the sink's `at` holds.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/routing/page.nix","title":"Routing and walls"}
+{"description":"An element goes up to the nearest scope that has the sink and where the sink's `at` holds.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/routing/page.nix","title":"Routing and walls"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -12,26 +12,26 @@ This example has a fleet, two environments, two hosts, a user and a home:
 
 ```nix title="modules/fleet.nix" {17,30}
 # fleet > environment > host > user and home. Who receives an element depends on where the sinks are.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same opt;
+  inherit (yen.lib) same opt;
   under =
     field: kind: s:
     lib.filterAttrs (_: x: same x.${field} s) kind;
 in
 {
-  sven.kinds.fleet = {
-    spawns.environment = _: sven.environment;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.environment = _: yen.environment;
+    sinks.out.reduce = yen.lib.reduce.merge;
     sinks.dns.out =
       { dns, ... }:
       {
         dns.fleet = dns;
       }; # the fallback receiver
   };
-  sven.kinds.environment = {
+  yen.kinds.environment = {
     fields.public = opt lib.types.bool false;
-    spawns.host = under "environment" sven.host;
+    spawns.host = under "environment" yen.host;
     sinks.dns = {
       at = s: s.public; # a conditional receiver: only public environments
       out =
@@ -41,11 +41,11 @@ in
         };
     };
   };
-  sven.kinds.host = {
-    fields.environment = sven.kinds.environment;
+  yen.kinds.host = {
+    fields.environment = yen.kinds.environment;
     spawns = {
-      user = under "on" sven.user;
-      home = under "on" sven.home;
+      user = under "on" yen.user;
+      home = under "on" yen.home;
     };
     sinks.os.out =
       { host, os, ... }:
@@ -53,9 +53,9 @@ in
         os.${host.name} = os;
       };
   };
-  sven.kinds.user.fields.on = sven.kinds.host;
-  sven.kinds.home = {
-    fields.on = sven.kinds.host;
+  yen.kinds.user.fields.on = yen.kinds.host;
+  yen.kinds.home = {
+    fields.on = yen.kinds.host;
     sinks.os.out =
       { home, os, ... }:
       {
@@ -63,35 +63,35 @@ in
       }; # a home builds its own config
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/instances.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod.public = true;
-  sven.environment.lab = { };
-  sven.host.web.environment = sven.environment.prod;
-  sven.host.box.environment = sven.environment.lab;
-  sven.user.alice.on = sven.host.web;
-  sven.home.bob.on = sven.host.web;
+  yen.environment.prod.public = true;
+  yen.environment.lab = { };
+  yen.host.web.environment = yen.environment.prod;
+  yen.host.box.environment = yen.environment.lab;
+  yen.user.alice.on = yen.host.web;
+  yen.home.bob.on = yen.host.web;
 }
 ```
 
 ```nix title="modules/aspects.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.accounts = {
+  yen.aspects.accounts = {
     at = [
-      sven.kinds.user
-      sven.kinds.home
+      yen.kinds.user
+      yen.kinds.home
     ];
     os = { scope, ... }: "account ${scope.name}";
   };
-  sven.aspects.records = {
-    at = sven.kinds.host;
+  yen.aspects.records = {
+    at = yen.kinds.host;
     dns = { host, ... }: "${host.name} A";
   };
 }
@@ -159,18 +159,18 @@ can keep its packages away from the host:
 
 ```nix title="modules/walls.nix"
 # A sink with no keys is a wall: a home's packages stop at the home and never reach the host.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.host.sinks.packages.out =
+  yen.kinds.host.sinks.packages.out =
     { host, packages, ... }:
     {
       packages.${host.name} = packages;
     };
-  sven.kinds.home.sinks.packages = { };
-  sven.aspects.editor = {
+  yen.kinds.home.sinks.packages = { };
+  yen.aspects.editor = {
     at = [
-      sven.kinds.user
-      sven.kinds.home
+      yen.kinds.user
+      yen.kinds.home
     ];
     packages = { scope, ... }: "vim for ${scope.name}";
   };
@@ -199,7 +199,7 @@ A sink that nobody reads is not an error. Nothing happens. Laziness means it cos
 Every block on this page is a file of the template `routing`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#routing
+nix flake init -t github:vic/yen#routing
 ```
 
 <FileTree>

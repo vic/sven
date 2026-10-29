@@ -1,7 +1,7 @@
 # A sink collects elements and reduces them. `of` checks each element.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib.reduce)
+  inherit (yen.lib.reduce)
     list
     set
     one
@@ -14,7 +14,7 @@ let
   }; # your own reduce
 in
 {
-  sven.kinds.host.sinks = {
+  yen.kinds.host.sinks = {
     motd = {
       reduce = list;
       of = lib.types.str;
@@ -29,8 +29,8 @@ in
     groups.reduce = sorted;
   };
   # every sink of a host, read as args, to one flake output
-  sven.aspects.report = {
-    at = sven.kinds.host;
+  yen.aspects.report = {
+    at = yen.kinds.host;
     out =
       {
         host,

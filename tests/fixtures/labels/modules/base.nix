@@ -1,16 +1,16 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.top = {
-    spawns.host = _: sven.host;
+  yen.kinds.top = {
+    spawns.host = _: yen.host;
   };
-  sven.kinds.host.sinks.nixos = { };
-  sven.top.t = { };
-  sven.host.h = { };
-  sven.aspects.web = {
-    at = sven.kinds.host;
+  yen.kinds.host.sinks.nixos = { };
+  yen.top.t = { };
+  yen.host.h = { };
+  yen.aspects.web = {
+    at = yen.kinds.host;
     nixos.services.nginx.enable = true;
   };
-  sven.labels = {
+  yen.labels = {
     "modules/" = {
       trust = 3;
     };

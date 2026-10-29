@@ -1,6 +1,6 @@
 {
   title = "Overview";
-  description = "What sven is, in four words: kinds, scopes, aspects, sinks.";
+  description = "What yen is, in four words: kinds, scopes, aspects, sinks.";
   section = "start";
   order = 1;
 
@@ -8,10 +8,10 @@
     { docs, r, ... }:
     [
       ''
-        sven is a query language for Nix configurations. You declare data and behavior in plain Nix files.
-        sven answers queries on them: the systems to build, the errors, and the graph of who gives what to whom.
+        yen is a query language for Nix configurations. You declare data and behavior in plain Nix files.
+        yen answers queries on them: the systems to build, the errors, and the graph of who gives what to whom.
 
-        sven is one small Nix file. It uses Nix builtins only: no nixpkgs, no module system, no flakes.
+        yen is one small Nix file. It uses Nix builtins only: no nixpkgs, no module system, no flakes.
         It never calls `throw`. An error is data that you can query.
       ''
       (docs.cards [
@@ -39,10 +39,10 @@
       ''
         ## The four words
 
-        Everything in sven is one of four words. Read them once, in order, before any code:
+        Everything in yen is one of four words. Read them once, in order, before any code:
 
         1. **Kind.** A type of thing you configure, and the fields each one has. You name your kinds: `host`, `user`,
-           `cluster`, `printer`, `editor`. An **instance** is one thing of a kind: `sven.host.web`.
+           `cluster`, `printer`, `editor`. An **instance** is one thing of a kind: `yen.host.web`.
         2. **Scope.** One instance at one place in a tree. A kind's `spawns` says which instances live under it: a user
            under each host it logs in to, a host under its environment. The kind that nothing spawns is the root.
         3. **Aspect.** One feature: "ssh on", "nginx with these sites". Its `at` is a predicate that says at which scopes
@@ -54,7 +54,7 @@
         Sinks also build the outputs: the sink of a host can call `nixosSystem` on the modules it collected.
       ''
       (docs.note "No batteries, no vocabulary" ''
-        sven knows no nouns. It has no `host`, no `user`, no `nixos` class, no NixOS or flake-parts options, and no
+        yen knows no nouns. It has no `host`, no `user`, no `nixos` class, no NixOS or flake-parts options, and no
         batteries such as Den's `define-user`. It is agnostic: you define the kinds, fields and sinks of what you configure,
         in your own language. A fleet of NixOS hosts, a set of dev shells and a printer inventory use the same four words.
         Every example in these docs declares its own kinds, so you can read each one top to bottom.
@@ -95,11 +95,11 @@
         ## Data is queried, not merged
 
         There is no `evalModules` fixpoint and no merge step. Each read of a declaration is a query on the files
-        that answer it. A value is computed only when something reads it. sven follows
+        that answer it. A value is computed only when something reads it. yen follows
         [Cycle.js](https://cycle.js.org): a component reads sources and writes sinks, and Nix laziness closes the loop.
       ''
       (docs.note "Why another configuration language?" ''
-        sven covers every capability of [Den](https://github.com/denful/den), den-hoag and [clan](https://clan.lol)
+        yen covers every capability of [Den](https://github.com/denful/den), den-hoag and [clan](https://clan.lol)
         with these four words. On top, it answers questions: graph queries, Datalog with a well-founded semantics,
         and µKanren with constraints, all in pure Nix. An agent can stage a change and get it refused with the reason,
         before you deploy.
@@ -112,7 +112,7 @@
         }
         {
           title = "The reference fleet";
-          href = "https://github.com/vic/sven/tree/main/templates/fleet";
+          href = "https://github.com/vic/yen/tree/main/templates/fleet";
           description = "Every capability, in one running specification.";
         }
       ])

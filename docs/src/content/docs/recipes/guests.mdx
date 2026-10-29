@@ -1,37 +1,37 @@
 ---
-{"description":"Containers or VMs as scopes under their host. A guest's NixOS goes into the host, never the other way.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/guests/page.nix","title":"Guests inside hosts"}
+{"description":"Containers or VMs as scopes under their host. A guest's NixOS goes into the host, never the other way.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/guests/page.nix","title":"Guests inside hosts"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 A guest is a machine that runs inside a host: a NixOS container here, a microvm in the
-[reference fleet](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/microvm.nix).
+[reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/microvm.nix).
 It is a scope under its host, with its own `nixos` sink. That sink forwards its modules up, into the host.
 
 
 ```nix title="modules/kinds.nix" {16-18}
 # A guest lives under its host. Its own `nixos` sink forwards up, into the host's containers.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.guest = s: lib.filterAttrs (_: g: sven.lib.same g.on s) sven.guest;
+  yen.kinds.host = {
+    spawns.guest = s: lib.filterAttrs (_: g: yen.lib.same g.on s) yen.guest;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.guest = {
-    fields.on = sven.kinds.host;
+  yen.kinds.guest = {
+    fields.on = yen.kinds.host;
     sinks.nixos.nixos =
       { guest, nixos, ... }:
       {
@@ -42,20 +42,20 @@ It is a scope under its host, with its own `nixos` sink. That sink forwards its 
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/machines.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.box = { };
-  sven.guest.web.on = sven.host.box;
-  sven.guest.db.on = sven.host.box;
+  yen.host.box = { };
+  yen.guest.web.on = yen.host.box;
+  yen.guest.db.on = yen.host.box;
 
-  sven.aspects.box = {
-    at = sven.host.box;
+  yen.aspects.box = {
+    at = yen.host.box;
     nixos = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {
@@ -71,10 +71,10 @@ It is a scope under its host, with its own `nixos` sink. That sink forwards its 
 
 ```nix title="modules/services.nix"
 # Aspects at guests. None of this reaches the host's own system: an element goes to its nearest `nixos` sink.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.guest-base = {
-    at = sven.kinds.guest;
+  yen.aspects.guest-base = {
+    at = yen.kinds.guest;
     nixos =
       { guest, ... }:
       {
@@ -82,12 +82,12 @@ It is a scope under its host, with its own `nixos` sink. That sink forwards its 
         system.stateVersion = "25.05";
       };
   };
-  sven.aspects.nginx = {
-    at = sven.guest.web;
+  yen.aspects.nginx = {
+    at = yen.guest.web;
     nixos.services.nginx.enable = true;
   };
-  sven.aspects.postgres = {
-    at = sven.guest.db;
+  yen.aspects.postgres = {
+    at = yen.guest.db;
     nixos.services.postgresql.enable = true;
   };
 }
@@ -108,7 +108,7 @@ flowchart BT
 
 
 :::caution[Content flows up only]
-A host aspect never reaches its guests. To give every guest something, write an aspect with `at = sven.kinds.guest`,
+A host aspect never reaches its guests. To give every guest something, write an aspect with `at = yen.kinds.guest`,
 or `within` a host.
 :::
 
@@ -120,7 +120,7 @@ sudo nixos-rebuild switch --flake .#box   # builds box and both containers
 Every block on this page is a file of the template `guests`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#guests
+nix flake init -t github:vic/yen#guests
 ```
 
 <FileTree>

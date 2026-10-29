@@ -1,8 +1,8 @@
 # The old common.nix and the mkHost helper, as aspects at every host.
-{ sven, inputs, ... }:
+{ yen, inputs, ... }:
 {
-  sven.aspects.common = {
-    at = sven.kinds.host;
+  yen.aspects.common = {
+    at = yen.kinds.host;
     nixos =
       { host, pkgs, ... }:
       {
@@ -14,8 +14,8 @@
         system.stateVersion = "25.05";
       };
   };
-  sven.aspects.home-manager = {
-    at = sven.lib.has sven.kinds.user; # only hosts with users
+  yen.aspects.home-manager = {
+    at = yen.lib.has yen.kinds.user; # only hosts with users
     nixos = {
       imports = [ inputs.home-manager.nixosModules.home-manager ];
       home-manager.useGlobalPkgs = true;

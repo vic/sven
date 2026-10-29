@@ -543,7 +543,7 @@
         "nix-on-droid": "nix-on-droid",
         "nixpkgs": "nixpkgs_6",
         "nixpkgs-unstable": "nixpkgs-unstable",
-        "sven": "sven",
+        "yen": "yen",
         "terranix": "terranix"
       }
     },
@@ -595,7 +595,7 @@
         "type": "github"
       }
     },
-    "sven": {
+    "yen": {
       "locked": {
         "path": "../..",
         "type": "path"

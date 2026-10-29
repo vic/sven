@@ -1,21 +1,21 @@
 ---
-{"description":"Rules that must hold across the whole fleet, checked before deploy: `r.check`.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/invariants/page.nix","title":"Invariants"}
+{"description":"Rules that must hold across the whole fleet, checked before deploy: `r.check`.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/invariants/page.nix","title":"Invariants"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 An invariant is a rule about the whole fleet: "no server runs a desktop", "no two hosts share an address".
-`sven.invariants.<name>` gives [Datalog](/query/datalog/) rules over the fleet's facts. A true `bad:` atom is a violation.
+`yen.invariants.<name>` gives [Datalog](/query/datalog/) rules over the fleet's facts. A true `bad:` atom is a violation.
 
 
 ```nix title="modules/fleet.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str;
     form = lib.types.enum [
       "server"
@@ -23,38 +23,38 @@ An invariant is a rule about the whole fleet: "no server runs a desktop", "no tw
     ];
   };
 
-  sven.fleet.main = { };
-  sven.host.web = {
+  yen.fleet.main = { };
+  yen.host.web = {
     addr = "10.0.0.1";
     form = "server";
   };
-  sven.host.db = {
+  yen.host.db = {
     addr = "10.0.0.2";
     form = "server";
   };
-  sven.host.thinkpad = {
+  yen.host.thinkpad = {
     addr = "10.0.0.50";
     form = "laptop";
   };
-  sven.aspects.desktop.at = s: (s.form or null) == "laptop";
-  sven.aspects.postgres.at = sven.host.db;
-  sven.flake = { out, ... }: out;
+  yen.aspects.desktop.at = s: (s.form or null) == "laptop";
+  yen.aspects.postgres.at = yen.host.db;
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/invariants.nix" {5-7,9-12}
 # Rules over `r.facts`. A true `bad:` atom is a violation. Facts: kind:K:ID, has:ASPECT:ID, val:FIELD:ID:VALUE, …
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
   # no server runs a desktop
-  sven.invariants.no-desktop-on-servers =
+  yen.invariants.no-desktop-on-servers =
     { scopes, ... }:
     map (s: {
       head = "bad:desktop-on-server:${s.name}";
       pos = [ "has:desktop:${s.id}" ];
     }) (lib.filter (s: s.kind == "host" && s.form == "server") scopes);
   # no two hosts share an address: a rule across machines
-  sven.invariants.unique-addr =
+  yen.invariants.unique-addr =
     { scopes, ... }:
     let
       hosts = lib.filter (s: s.kind == "host") scopes;
@@ -104,10 +104,10 @@ This fleet holds:
 
 ```nix title="variants/mistakes.nix"
 # A desktop on a server, and a new host with a copied address.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.desktop.at = sven.host.web;
-  sven.host.spare = {
+  yen.aspects.desktop.at = yen.host.web;
+  yen.host.spare = {
     addr = "10.0.0.2";
     form = "server";
   };
@@ -151,7 +151,7 @@ A `bad:` atom on a cycle through `not` is undefined. It goes to `incomplete`, an
 Every block on this page is a file of the template `invariants`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#invariants
+nix flake init -t github:vic/yen#invariants
 ```
 
 <FileTree>

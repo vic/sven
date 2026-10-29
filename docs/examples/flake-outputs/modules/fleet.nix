@@ -1,17 +1,17 @@
-# The `out` sink of the root is the flake: `sven.flake` gives it.
-{ sven, ... }:
+# The `out` sink of the root is the flake: `yen.flake` gives it.
+{ yen, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.sinks.services.out =
+  yen.kinds.host.sinks.services.out =
     { host, services, ... }:
     {
       services.${host.name} = services;
     };
-  sven.fleet.main = { };
-  sven.host.web = { };
-  sven.host.db = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.web = { };
+  yen.host.db = { };
+  yen.flake = { out, ... }: out;
 }

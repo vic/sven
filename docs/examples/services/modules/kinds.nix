@@ -1,7 +1,7 @@
 # A service instance is data: which machines take which role. Each machine spawns one `member` scope per role it has.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same is;
+  inherit (yen.lib) same is;
   membersOf =
     m:
     lib.listToAttrs (
@@ -17,24 +17,24 @@ let
               }
             )
           ) (lib.attrNames i.roles)
-        ) sven.instance
+        ) yen.instance
       )
     );
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
     sinks = {
-      out.reduce = sven.lib.reduce.merge;
-      exports.reduce = sven.lib.reduce.entries; # what members publish, with the scope that published it
+      out.reduce = yen.lib.reduce.merge;
+      exports.reduce = yen.lib.reduce.entries; # what members publish, with the scope that published it
     };
   };
-  sven.kinds.instance.fields.roles = is lib.isAttrs; # role name -> host refs
-  sven.kinds.host = {
+  yen.kinds.instance.fields.roles = is lib.isAttrs; # role name -> host refs
+  yen.kinds.host = {
     fields.addr = lib.types.str;
     spawns.member = membersOf;
     sinks.config = {
-      reduce = sven.lib.reduce.merge;
+      reduce = yen.lib.reduce.merge;
       out =
         { host, config, ... }:
         {
@@ -42,8 +42,8 @@ in
         };
     };
   };
-  sven.kinds.member = { }; # its elements go up to its machine
+  yen.kinds.member = { }; # its elements go up to its machine
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

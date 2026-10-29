@@ -5,7 +5,7 @@
 
   outputs =
     inputs:
-    inputs.sven.lib.mkFlake {
+    inputs.yen.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -19,6 +19,6 @@
     import-tree.url = "github:denful/import-tree";
     nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    sven.url = "github:vic/sven";
+    yen.url = "github:vic/yen";
   };
 }

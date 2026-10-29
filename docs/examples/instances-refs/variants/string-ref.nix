@@ -1,5 +1,5 @@
 # A name where a ref goes.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.cache.environment = "prod";
+  yen.host.cache.environment = "prod";
 }

@@ -1,6 +1,6 @@
 # Checks derived from the infra: aspects state facts from fleet data; `checks.x86_64-linux.infra-<host>` compares each fact with the realized NixOS config.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -27,8 +27,8 @@ let
     );
 in
 {
-  sven.kinds.fleet.sinks.infra = {
-    reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet.sinks.infra = {
+    reduce = yen.lib.reduce.merge;
     out =
       { infra, out, ... }:
       {
@@ -38,9 +38,9 @@ in
         ) infra;
       };
   };
-  sven.aspects.infra-base = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.infra-base = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: !s.minimal)
     ];
     infra =
@@ -72,9 +72,9 @@ in
         );
       };
   };
-  sven.aspects.infra-web = {
-    at = sven.lib.all [
-      sven.aspects.nginx
+  yen.aspects.infra-web = {
+    at = yen.lib.all [
+      yen.aspects.nginx
       (s: !s.minimal)
     ];
     infra =

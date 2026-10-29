@@ -1,15 +1,15 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.spawns.guest = s: lib.filterAttrs (_: g: sven.lib.same g.on s) sven.guest;
-  sven.kinds.guest.fields.on = sven.kinds.host;
+  yen.kinds.host.spawns.guest = s: lib.filterAttrs (_: g: yen.lib.same g.on s) yen.guest;
+  yen.kinds.guest.fields.on = yen.kinds.host;
 
-  sven.fleet.main = { };
-  sven.host.server = { };
-  sven.guest.ci.on = sven.host.server;
-  sven.guest.db.on = sven.host.server;
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.server = { };
+  yen.guest.ci.on = yen.host.server;
+  yen.guest.db.on = yen.host.server;
+  yen.flake = { out, ... }: out;
 }

@@ -9,7 +9,7 @@
     [
       ''
         A guest is a machine that runs inside a host: a NixOS container here, a microvm in the
-        [reference fleet](https://github.com/vic/sven/blob/main/templates/fleet/modules/platforms/microvm.nix).
+        [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/platforms/microvm.nix).
         It is a scope under its host, with its own `nixos` sink. That sink forwards its modules up, into the host.
       ''
       (docs.fileWith "{16-18}" "modules/kinds.nix")
@@ -20,7 +20,7 @@
         `nginx` runs in the `web` container. The host `box` does not get it: the element went to `web`'s own sink.
       ''
       (docs.caution "Content flows up only" ''
-        A host aspect never reaches its guests. To give every guest something, write an aspect with `at = sven.kinds.guest`,
+        A host aspect never reaches its guests. To give every guest something, write an aspect with `at = yen.kinds.guest`,
         or `within` a host.
       '')
       (docs.sh "sudo nixos-rebuild switch --flake .#box   # builds box and both containers")

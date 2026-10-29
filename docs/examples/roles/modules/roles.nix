@@ -1,10 +1,10 @@
 # A role is an aspect whose `at` is a fact test. Roles build on roles.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) all not;
+  inherit (yen.lib) all not;
 in
 {
-  sven.aspects = {
+  yen.aspects = {
     server.at = s: (s.form or null) == "server";
     workstation.at =
       s:
@@ -16,13 +16,13 @@ in
     nvidia.at = s: (s.gpu or null) == "nvidia";
     ci-runner.at = s: lib.elem "ci-runner" (s.labels or [ ]);
     gaming.at = all [
-      sven.aspects.workstation
-      sven.aspects.nvidia
-      (not sven.aspects.laptop)
+      yen.aspects.workstation
+      yen.aspects.nvidia
+      (not yen.aspects.laptop)
     ];
     backups.at = [
-      sven.aspects.server
-      sven.aspects.workstation
+      yen.aspects.server
+      yen.aspects.workstation
     ];
   };
 }

@@ -1,12 +1,12 @@
 # Trust graph: the filter lives with the reader.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  trusts = e: user: !(sven.lib.same e.from user);
+  trusts = e: user: !(yen.lib.same e.from user);
 in
 {
-  sven.kinds.fleet.sinks.xmsg-nodes.reduce = sven.lib.reduce.entries;
-  sven.aspects.xmsg = {
-    at = sven.kinds.user;
+  yen.kinds.fleet.sinks.xmsg-nodes.reduce = yen.lib.reduce.entries;
+  yen.aspects.xmsg = {
+    at = yen.kinds.user;
     xmsg-nodes = { user, ... }: user.name;
     homeManager =
       { xmsg-nodes, user, ... }:

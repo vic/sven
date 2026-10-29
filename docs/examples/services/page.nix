@@ -10,7 +10,7 @@
     [
       ''
         A service such as backup has roles: one server, many clients. The instance says which machine takes which role.
-        This is [clan](https://clan.lol)'s inventory model, in plain sven.
+        This is [clan](https://clan.lol)'s inventory model, in plain yen.
       ''
       (docs.file "modules/inventory.nix")
       ''
@@ -28,7 +28,7 @@
       (docs.fileWith "{9,14}" "modules/backup.nix")
       (docs.value r.flake.config)
       (docs.tip "The full model" ''
-        The [reference fleet](https://github.com/vic/sven/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
+        The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
         typed role settings with errors, exports per service with owner overrides, install order, and vars generators.
       '')
     ];

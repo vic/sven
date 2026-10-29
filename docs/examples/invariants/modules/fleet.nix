@@ -1,10 +1,10 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str;
     form = lib.types.enum [
       "server"
@@ -12,20 +12,20 @@
     ];
   };
 
-  sven.fleet.main = { };
-  sven.host.web = {
+  yen.fleet.main = { };
+  yen.host.web = {
     addr = "10.0.0.1";
     form = "server";
   };
-  sven.host.db = {
+  yen.host.db = {
     addr = "10.0.0.2";
     form = "server";
   };
-  sven.host.thinkpad = {
+  yen.host.thinkpad = {
     addr = "10.0.0.50";
     form = "laptop";
   };
-  sven.aspects.desktop.at = s: (s.form or null) == "laptop";
-  sven.aspects.postgres.at = sven.host.db;
-  sven.flake = { out, ... }: out;
+  yen.aspects.desktop.at = s: (s.form or null) == "laptop";
+  yen.aspects.postgres.at = yen.host.db;
+  yen.flake = { out, ... }: out;
 }

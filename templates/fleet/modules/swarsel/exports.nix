@@ -1,14 +1,14 @@
-# swarsel exports: aspects used outside sven. An export scope never builds a machine;
+# swarsel exports: aspects used outside yen. An export scope never builds a machine;
 # what lands on it becomes `nixosModules.<name>` for other flakes (Den: `moduleOf`, "change needed").
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet.spawns.export = _: sven.export;
-  sven.kinds.export.sinks.os.out =
+  yen.kinds.fleet.spawns.export = _: yen.export;
+  yen.kinds.export.sinks.os.out =
     { export, os, ... }:
     {
       nixosModules.${export.name}.imports = os;
     };
-  sven.export.base = { };
-  sven.aspects.motd.at = [ sven.export.base ];
-  sven.aspects.dev.at = [ sven.export.base ];
+  yen.export.base = { };
+  yen.aspects.motd.at = [ yen.export.base ];
+  yen.aspects.dev.at = [ yen.export.base ];
 }

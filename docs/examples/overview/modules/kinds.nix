@@ -1,13 +1,13 @@
 # Kinds: typed data. `office` is the root: nothing spawns it.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.office = {
-    spawns.machine = _: sven.machine; # scopes: every machine lives in the office
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.office = {
+    spawns.machine = _: yen.machine; # scopes: every machine lives in the office
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.machine = {
+  yen.kinds.machine = {
     fields.owner = lib.types.str;
-    sinks.packages.reduce = sven.lib.reduce.set; # sinks: where elements go
+    sinks.packages.reduce = yen.lib.reduce.set; # sinks: where elements go
     sinks.packages.out =
       { machine, packages, ... }:
       {
@@ -15,8 +15,8 @@
       };
   };
 
-  sven.office.main = { };
-  sven.machine.reception.owner = "ana";
-  sven.machine.studio.owner = "bo";
-  sven.flake = { out, ... }: out;
+  yen.office.main = { };
+  yen.machine.reception.owner = "ana";
+  yen.machine.studio.owner = "bo";
+  yen.flake = { out, ... }: out;
 }

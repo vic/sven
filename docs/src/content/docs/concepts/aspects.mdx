@@ -1,5 +1,5 @@
 ---
-{"description":"Behavior at scopes. An aspect is active where `at` holds, and gives elements to sinks by key.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/aspects/page.nix","title":"Aspects"}
+{"description":"Behavior at scopes. An aspect is active where `at` holds, and gives elements to sinks by key.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/aspects/page.nix","title":"Aspects"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -14,30 +14,30 @@ so the packages of a user go up to its host.
 
 ```nix title="modules/fleet.nix"
 # Hosts with users. A host collects `packages`; a user has no such sink, so its packages go up to its host.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (sven.lib.same s) u.hosts) sven.user;
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
     sinks.packages.out =
       { host, packages, ... }:
       {
         packages.${host.name} = packages;
       };
   };
-  sven.kinds.user.fields.hosts = sven.lib.is lib.isList;
+  yen.kinds.user.fields.hosts = yen.lib.is lib.isList;
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
-  sven.host.web = { };
-  sven.host.db = { };
-  sven.user.alice.hosts = [ sven.host.web ];
-  sven.user.bob.hosts = [
-    sven.host.web
-    sven.host.db
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+  yen.host.web = { };
+  yen.host.db = { };
+  yen.user.alice.hosts = [ yen.host.web ];
+  yen.user.bob.hosts = [
+    yen.host.web
+    yen.host.db
   ];
 }
 ```
@@ -52,10 +52,10 @@ so the packages of a user go up to its host.
 
 ```nix title="modules/nginx/web.nix"
 # One aspect, two files. `at` is the union of both files.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.nginx = {
-    at = sven.host.web;
+  yen.aspects.nginx = {
+    at = yen.host.web;
     packages = "nginx";
   };
 }
@@ -65,10 +65,10 @@ so the packages of a user go up to its host.
 <TabItem label="nginx/db.nix">
 
 ```nix title="modules/nginx/db.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.nginx = {
-    at = sven.host.db;
+  yen.aspects.nginx = {
+    at = yen.host.db;
     packages = { host, ... }: "nginx-conf-${host.name}"; # a function under the same key: one more element
   };
 }
@@ -98,19 +98,19 @@ Content that names the scope (`{ user, ... }:`) lands once per scope: each user 
 
 
 ```nix title="modules/shells.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
   # active at hosts and at users; static content lands once at each receiver
-  sven.aspects.zsh = {
+  yen.aspects.zsh = {
     at = [
-      sven.kinds.host
-      sven.kinds.user
+      yen.kinds.host
+      yen.kinds.user
     ];
     packages = "zsh";
   };
   # content that names the scope lands once per scope
-  sven.aspects.dotfiles = {
-    at = sven.kinds.user;
+  yen.aspects.dotfiles = {
+    at = yen.kinds.user;
     packages = { user, ... }: "dotfiles-${user.name}";
   };
 }
@@ -147,7 +147,7 @@ Use a static value for data that all receivers share. Use a function value for d
 Every block on this page is a file of the template `aspects`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#aspects
+nix flake init -t github:vic/yen#aspects
 ```
 
 <FileTree>

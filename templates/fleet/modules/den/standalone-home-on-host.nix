@@ -1,35 +1,35 @@
 # den#739: Den cannot pipe host data (a quirk) to a standalone home `tux@igloo`, only to a home-manager module home.
-# In sven, where a scope lives (spawns) and what it builds (its sink's `out`) are separate. The home `alice@stage`
+# In yen, where a scope lives (spawns) and what it builds (its sink's `out`) are separate. The home `alice@stage`
 # lives under host stage, so it reads stage's `monitor` sink like any child, and still builds a standalone
 # `homeConfigurations."alice@stage"`.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same maybe;
+  inherit (yen.lib) same maybe;
 in
 {
-  sven.kinds.home.fields.on = maybe sven.kinds.host;
-  sven.kinds.host.spawns.home = s: lib.filterAttrs (_: h: same h.on s) sven.home;
-  sven.kinds.host.sinks.monitor.reduce = sven.lib.reduce.merge;
-  sven.kinds.home.sinks.os = { }; # a wall: the home's users give `os` here, and nothing reads it, so stage's NixOS stays untouched
-  sven.home."alice@stage" = {
-    user = sven.user.alice;
-    channel = sven.channel.edge;
-    system = sven.system.x86_64-linux;
-    on = sven.host.stage;
+  yen.kinds.home.fields.on = maybe yen.kinds.host;
+  yen.kinds.host.spawns.home = s: lib.filterAttrs (_: h: same h.on s) yen.home;
+  yen.kinds.host.sinks.monitor.reduce = yen.lib.reduce.merge;
+  yen.kinds.home.sinks.os = { }; # a wall: the home's users give `os` here, and nothing reads it, so stage's NixOS stays untouched
+  yen.home."alice@stage" = {
+    user = yen.user.alice;
+    channel = yen.channel.edge;
+    system = yen.system.x86_64-linux;
+    on = yen.host.stage;
   };
-  sven.aspects.stage-monitor = {
-    at = sven.host.stage;
+  yen.aspects.stage-monitor = {
+    at = yen.host.stage;
     monitor = {
       resolution = "2560x1440";
       scale = 1.5;
     };
   };
-  sven.aspects.host-config-env = {
+  yen.aspects.host-config-env = {
     # Den #713 / osConfig: a home reads its host's REALIZED config through `out`, lazily
-    at = sven.lib.all [
-      sven.kinds.user
-      (sven.lib.within sven.kinds.home)
-      (sven.lib.within sven.kinds.host)
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.kinds.home)
+      (yen.lib.within yen.kinds.host)
     ];
     homeManager =
       { host, out, ... }:
@@ -38,10 +38,10 @@ in
           if out.nixosConfigurations.${host.name}.config.services.xserver.enable then "yes" else "no";
       };
   };
-  sven.aspects.monitor-env = {
-    at = sven.lib.all [
-      sven.kinds.user
-      (sven.lib.within sven.kinds.home)
+  yen.aspects.monitor-env = {
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.kinds.home)
     ];
     homeManager =
       {

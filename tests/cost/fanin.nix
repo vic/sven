@@ -4,33 +4,33 @@
 }:
 let
   b = builtins;
-  sven = (import ../../default.nix).lib;
+  yen = (import ../../default.nix).lib;
 in
 let
-  r = sven.eval (
-    { sven, ... }:
+  r = yen.eval (
+    { yen, ... }:
     {
-      sven.kinds.top = {
-        spawns.host = _: sven.host;
+      yen.kinds.top = {
+        spawns.host = _: yen.host;
         sinks.pool.reduce = es: {
           value = b.foldl' (a: e: a + e.value) 0 es;
           errors = [ ];
         };
       };
-      sven.kinds.host.sinks.out = { };
-      sven.top.t = { };
-      sven.host = b.listToAttrs (
+      yen.kinds.host.sinks.out = { };
+      yen.top.t = { };
+      yen.host = b.listToAttrs (
         b.genList (i: {
           name = "h${toString i}";
           value = { };
         }) n
       );
-      sven.aspects.give = {
-        at = sven.kinds.host;
+      yen.aspects.give = {
+        at = yen.kinds.host;
         pool = { host, ... }: b.stringLength host.name;
       };
-      sven.aspects.read = {
-        at = sven.kinds.host;
+      yen.aspects.read = {
+        at = yen.kinds.host;
         out = { pool, ... }: pool;
       };
     }

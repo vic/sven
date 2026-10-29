@@ -1,18 +1,18 @@
 # substitute: motd-short replaces motd on web-2 through `not`.
-{ sven, ... }:
+{ yen, ... }:
 let
-  inherit (sven.lib) all not;
+  inherit (yen.lib) all not;
 in
 {
-  sven.aspects.motd = {
+  yen.aspects.motd = {
     at = all [
-      sven.helpers.machines
-      (not sven.aspects.motd-short)
+      yen.helpers.machines
+      (not yen.aspects.motd-short)
     ];
-    os.environment.etc.motd.text = "managed by sven";
+    os.environment.etc.motd.text = "managed by yen";
   };
-  sven.aspects.motd-short = {
-    at = sven.host.web-2;
-    os.environment.etc.motd.text = "sven";
+  yen.aspects.motd-short = {
+    at = yen.host.web-2;
+    os.environment.etc.motd.text = "yen";
   };
 }

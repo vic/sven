@@ -12,7 +12,7 @@ let
     ];
 in
 {
-  sven.invariants = {
+  yen.invariants = {
     # every machine has the base aspect (hostname, overlays)
     base =
       { scopes, ... }:

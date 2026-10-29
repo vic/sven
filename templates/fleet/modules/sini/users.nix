@@ -1,10 +1,10 @@
 # homeLinux: a user sink that only users on linux machines have. Primary user: a user element that goes up to the host.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.helpers) linux upTo;
+  inherit (yen.helpers) linux upTo;
 in
 {
-  sven.kinds.user.sinks.homeLinux = {
+  yen.kinds.user.sinks.homeLinux = {
     at = s: lib.hasSuffix "-linux" ((upTo linux s).system.name or "");
     homeManager =
       { homeLinux, ... }:
@@ -12,21 +12,21 @@ in
         imports = homeLinux;
       };
   };
-  sven.aspects.linux-home = {
-    at = sven.kinds.user;
-    homeLinux.home.sessionVariables.SVEN_LINUX = "1";
+  yen.aspects.linux-home = {
+    at = yen.kinds.user;
+    homeLinux.home.sessionVariables.YEN_LINUX = "1";
   };
-  sven.kinds.machine.fields.system-owner = sven.lib.maybe sven.kinds.user;
-  sven.host.lb.system-owner = sven.user.alice;
-  sven.aspects.primary-user = {
-    at = sven.lib.all [
-      sven.kinds.user
+  yen.kinds.machine.fields.system-owner = yen.lib.maybe yen.kinds.user;
+  yen.host.lb.system-owner = yen.user.alice;
+  yen.aspects.primary-user = {
+    at = yen.lib.all [
+      yen.kinds.user
       (
         s:
         let
           h = upTo linux s;
         in
-        h != null && h.system-owner != null && sven.lib.same h.system-owner s
+        h != null && h.system-owner != null && yen.lib.same h.system-owner s
       )
     ];
     nixos =

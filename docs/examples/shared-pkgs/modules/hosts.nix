@@ -1,10 +1,10 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.host = lib.genAttrs [ "app-1" "app-2" "app-3" ] (_: {
+  yen.host = lib.genAttrs [ "app-1" "app-2" "app-3" ] (_: {
     sharedPkgs = true;
   });
-  sven.aspects.app = {
-    at = sven.kinds.host;
+  yen.aspects.app = {
+    at = yen.kinds.host;
     nixos =
       { host, pkgs, ... }:
       {
@@ -19,9 +19,9 @@
       };
   };
   # docs differ when pkgs is shared: keep them off on sharing hosts
-  sven.aspects.shared-no-docs = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.shared-no-docs = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.sharedPkgs)
     ];
     nixos.documentation = {

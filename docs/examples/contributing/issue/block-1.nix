@@ -1,8 +1,8 @@
 # The fleet: a root kind, and a host kind with an `admin` sink that takes one element.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet.spawns.host = _: sven.host;
-  sven.kinds.host.sinks.admin.reduce = sven.lib.reduce.one;
-  sven.fleet.main = { };
-  sven.host.web = { };
+  yen.kinds.fleet.spawns.host = _: yen.host;
+  yen.kinds.host.sinks.admin.reduce = yen.lib.reduce.one;
+  yen.fleet.main = { };
+  yen.host.web = { };
 }

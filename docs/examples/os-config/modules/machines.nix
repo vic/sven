@@ -1,8 +1,8 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.server = { };
-  sven.aspects.server = {
-    at = sven.host.server;
+  yen.host.server = { };
+  yen.aspects.server = {
+    at = yen.host.server;
     nixos = {
       networking.hostName = "server";
       boot.loader.grub.device = "nodev";

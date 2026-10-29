@@ -1,8 +1,8 @@
 # Step one: the whole old file as one aspect. Use it with modules/fleet.nix and modules/laptop.nix only.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.legacy = {
-    at = sven.host.laptop;
+  yen.aspects.legacy = {
+    at = yen.host.laptop;
     nixos = ../before/configuration.nix;
   };
 }

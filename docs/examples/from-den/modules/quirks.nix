@@ -1,10 +1,10 @@
-# Den quirks and pipes, in sven: a quirk is a sink; where it lands is the tree, not a policy.
-{ sven, lib, ... }:
+# Den quirks and pipes, in yen: a quirk is a sink; where it lands is the tree, not a policy.
+{ yen, lib, ... }:
 {
   # den.quirks.firewall: a sink on the host. A user has no `firewall` sink, so a user's ports go up
   # to its host by routing: Den's `pipe.expose` is the default here.
-  sven.kinds.host.sinks.firewall = {
-    reduce = sven.lib.reduce.entries; # each value with the scope that gave it: provenance, as in pipe.collect
+  yen.kinds.host.sinks.firewall = {
+    reduce = yen.lib.reduce.entries; # each value with the scope that gave it: provenance, as in pipe.collect
     nixos =
       { firewall, ... }:
       {
@@ -13,17 +13,17 @@
   };
 
   # producers do not know the consumer: they give `firewall` elements
-  sven.aspects.ssh = {
-    at = sven.kinds.host;
+  yen.aspects.ssh = {
+    at = yen.kinds.host;
     firewall.ports = [ 22 ];
   };
-  sven.aspects.tux-dev-server = {
-    at = sven.user.tux;
+  yen.aspects.tux-dev-server = {
+    at = yen.user.tux;
     firewall.ports = [ 3000 ]; # from a user, lands on each of its hosts
   };
 
   # pipe.filter / pipe.as: a plain reader. Here: the ports that users opened, for a report
-  sven.kinds.host.sinks.firewall.out =
+  yen.kinds.host.sinks.firewall.out =
     { host, firewall, ... }:
     {
       userPorts.${host.name} = lib.concatMap (e: e.value.ports) (

@@ -1,24 +1,24 @@
 ---
-{"description":"Service instances as data: each machine gets one member scope per role, and members exchange data.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/services/page.nix","title":"Services and roles"}
+{"description":"Service instances as data: each machine gets one member scope per role, and members exchange data.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/services/page.nix","title":"Services and roles"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 A service such as backup has roles: one server, many clients. The instance says which machine takes which role.
-This is [clan](https://clan.lol)'s inventory model, in plain sven.
+This is [clan](https://clan.lol)'s inventory model, in plain yen.
 
 
 ```nix title="modules/inventory.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.nas.addr = "10.0.0.10";
-  sven.host.web.addr = "10.0.0.1";
-  sven.host.db.addr = "10.0.0.2";
-  sven.instance.backup.roles = {
-    server = [ sven.host.nas ];
+  yen.host.nas.addr = "10.0.0.10";
+  yen.host.web.addr = "10.0.0.1";
+  yen.host.db.addr = "10.0.0.2";
+  yen.instance.backup.roles = {
+    server = [ yen.host.nas ];
     client = [
-      sven.host.web
-      sven.host.db
+      yen.host.web
+      yen.host.db
     ];
   };
 }
@@ -30,9 +30,9 @@ per instance (clan's `perInstance`). An aspect at a machine that `has` a member 
 
 ```nix title="modules/kinds.nix" {5-7,23}
 # A service instance is data: which machines take which role. Each machine spawns one `member` scope per role it has.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same is;
+  inherit (yen.lib) same is;
   membersOf =
     m:
     lib.listToAttrs (
@@ -48,24 +48,24 @@ let
               }
             )
           ) (lib.attrNames i.roles)
-        ) sven.instance
+        ) yen.instance
       )
     );
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
     sinks = {
-      out.reduce = sven.lib.reduce.merge;
-      exports.reduce = sven.lib.reduce.entries; # what members publish, with the scope that published it
+      out.reduce = yen.lib.reduce.merge;
+      exports.reduce = yen.lib.reduce.entries; # what members publish, with the scope that published it
     };
   };
-  sven.kinds.instance.fields.roles = is lib.isAttrs; # role name -> host refs
-  sven.kinds.host = {
+  yen.kinds.instance.fields.roles = is lib.isAttrs; # role name -> host refs
+  yen.kinds.host = {
     fields.addr = lib.types.str;
     spawns.member = membersOf;
     sinks.config = {
-      reduce = sven.lib.reduce.merge;
+      reduce = yen.lib.reduce.merge;
       out =
         { host, config, ... }:
         {
@@ -73,10 +73,10 @@ in
         };
     };
   };
-  sven.kinds.member = { }; # its elements go up to its machine
+  yen.kinds.member = { }; # its elements go up to its machine
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -105,27 +105,27 @@ as itself. The server reads the entries and builds its allow list:
 
 ```nix title="modules/backup.nix" {9,14}
 # The service: an aspect per role, at member scopes. Clients export their address; the server reads them.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
   role =
     r:
-    sven.lib.all [
-      sven.kinds.member
+    yen.lib.all [
+      yen.kinds.member
       (s: s.instance == "backup" && s.role == r)
     ];
 in
 {
-  sven.aspects.backup-client = {
+  yen.aspects.backup-client = {
     at = role "client";
     exports = { host, ... }: host.addr; # published by the member scope: the engine sets `from`
     config =
       { host, ... }:
       {
-        backup.target = sven.host.nas.addr;
+        backup.target = yen.host.nas.addr;
         backup.name = host.name;
       };
   };
-  sven.aspects.backup-server = {
+  yen.aspects.backup-server = {
     at = role "server";
     config =
       { exports, ... }:
@@ -136,8 +136,8 @@ in
       };
   };
   # once per machine that takes part in any role of the service
-  sven.aspects.backup-tools = {
-    at = sven.lib.has (s: s.kind == "member" && s.instance == "backup");
+  yen.aspects.backup-tools = {
+    at = yen.lib.has (s: s.kind == "member" && s.instance == "backup");
     config.packages = [ "borgbackup" ];
   };
 }
@@ -178,7 +178,7 @@ in
 ```
 
 :::tip[The full model]
-The [reference fleet](https://github.com/vic/sven/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
+The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
 typed role settings with errors, exports per service with owner overrides, install order, and vars generators.
 :::
 
@@ -186,7 +186,7 @@ typed role settings with errors, exports per service with owner overrides, insta
 Every block on this page is a file of the template `services`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#services
+nix flake init -t github:vic/yen#services
 ```
 
 <FileTree>

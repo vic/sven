@@ -1,14 +1,14 @@
 # sini joins and data-shaped aspects: two pools joined by host, a guest's intent read by its parent,
 # aspect factories, an aspect checked alone with stand-in arguments, and one edge environment at most.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) all opt same;
-  inherit (sven.lib.reduce) entries;
+  inherit (yen.lib) all opt same;
+  inherit (yen.lib.reduce) entries;
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
   by = from: lib.filter (e: same e.from from);
   # a factory: an aspect with instance data (sini `dns.cloudflare "json64"`)
@@ -24,15 +24,15 @@ let
 in
 {
   # served-domains ⋈ gateway-upstreams by host, in the cluster's environment; `exclude` drops names.
-  sven.kinds.fleet.sinks = {
+  yen.kinds.fleet.sinks = {
     served-domains.reduce = entries;
     gateway-upstreams.reduce = entries;
-    dns-zones.reduce = sven.lib.reduce.list;
+    dns-zones.reduce = yen.lib.reduce.list;
   };
-  sven.aspects.served = {
+  yen.aspects.served = {
     at = [
-      sven.host.web-1
-      sven.host.web-2
+      yen.host.web-1
+      yen.host.web-2
     ];
     served-domains =
       { host, ... }:
@@ -41,8 +41,8 @@ in
         "admin.${host.name}.example.org"
       ];
   };
-  sven.aspects.gateway-upstream = {
-    at = sven.host.web-1;
+  yen.aspects.gateway-upstream = {
+    at = yen.host.web-1;
     gateway-upstreams =
       { host, ... }:
       {
@@ -50,8 +50,8 @@ in
         exclude = [ "admin.web-1.example.org" ];
       };
   };
-  sven.aspects.host-upstreams = {
-    at = sven.kinds.cluster;
+  yen.aspects.host-upstreams = {
+    at = yen.kinds.cluster;
     k8s-manifests =
       {
         cluster,
@@ -67,31 +67,31 @@ in
   };
 
   # The guest states its passthrough devices; the parent host binds them to vfio.
-  sven.kinds.guest.fields.passthrough = opt (sven.helpers.listOf lib.types.str) [ ];
-  sven.guest.ci.passthrough = [ "10de:2203" ];
-  sven.aspects.vfio = {
+  yen.kinds.guest.fields.passthrough = opt (yen.helpers.listOf lib.types.str) [ ];
+  yen.guest.ci.passthrough = [ "10de:2203" ];
+  yen.aspects.vfio = {
     at = all [
-      sven.kinds.host
-      (s: lib.any (g: same g.on s && g.passthrough != [ ]) (lib.attrValues sven.guest))
+      yen.kinds.host
+      (s: lib.any (g: same g.on s && g.passthrough != [ ]) (lib.attrValues yen.guest))
     ];
     nixos =
       { host, ... }:
       {
         environment.etc."vfio/ids".text = lib.concatStringsSep "," (
-          lib.concatMap (g: g.passthrough) (lib.filter (g: same g.on host) (lib.attrValues sven.guest))
+          lib.concatMap (g: g.passthrough) (lib.filter (g: same g.on host) (lib.attrValues yen.guest))
         );
       };
   };
 
   # Factories: one function, two instances.
-  sven.aspects.cloudflare-json64 = cloudflare "json64" sven.domain."example.org";
-  sven.aspects.cloudflare-api = cloudflare "api" sven.domain."api.example.org";
+  yen.aspects.cloudflare-json64 = cloudflare "json64" yen.domain."example.org";
+  yen.aspects.cloudflare-api = cloudflare "api" yen.domain."api.example.org";
 
   # The aspect is a value: a check applies it to a stand-in cluster with the flag forced on, whatever axon sets.
-  sven.kinds.cluster.fields.settings.guard.enable = opt lib.types.bool false;
-  sven.cluster.axon.settings.guard.enable = true;
-  sven.kinds.fleet.sinks.unit-checks = {
-    reduce = sven.lib.reduce.merge;
+  yen.kinds.cluster.fields.settings.guard.enable = opt lib.types.bool false;
+  yen.cluster.axon.settings.guard.enable = true;
+  yen.kinds.fleet.sinks.unit-checks = {
+    reduce = yen.lib.reduce.merge;
     out =
       { unit-checks, ... }:
       {
@@ -100,19 +100,19 @@ in
         ) unit-checks;
       };
   };
-  sven.aspects.guard-pod = {
-    at = sven.kinds.fleet;
+  yen.aspects.guard-pod = {
+    at = yen.kinds.fleet;
     unit-checks.guard-pod =
-      (sven.aspects.guard.k8s-manifests { cluster.settings.guard.enable = true; }).applications.guard.hub
+      (yen.aspects.guard.k8s-manifests { cluster.settings.guard.enable = true; }).applications.guard.hub
       == "alice@lb";
   };
 
   # At most one environment is the DNS edge.
-  sven.aspects.one-edge = {
-    at = sven.kinds.fleet;
+  yen.aspects.one-edge = {
+    at = yen.kinds.fleet;
     errors =
       let
-        n = lib.length (lib.filter (e: e.dns.publicIPv4 != null) (lib.attrValues sven.environment));
+        n = lib.length (lib.filter (e: e.dns.publicIPv4 != null) (lib.attrValues yen.environment));
       in
       lib.optional (n > 1) "dns: ${toString n} environments set dns.publicIPv4, at most one may";
   };

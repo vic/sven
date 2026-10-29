@@ -1,5 +1,5 @@
 ---
-{"description":"flake.nix by flake-file, README.md and the CI workflow by sini/files: written from fleet data, and checked in CI.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/generated-files/page.nix","title":"Generated files"}
+{"description":"flake.nix by flake-file, README.md and the CI workflow by sini/files: written from fleet data, and checked in CI.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/generated-files/page.nix","title":"Generated files"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -7,18 +7,18 @@ import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, Ta
 Some repo files are views of your fleet: the flake's inputs, a README with the host diagram, a CI workflow.
 Write them from the data, and a check fails when a committed file is stale.
 [denful/flake-file](https://github.com/denful/flake-file) writes `flake.nix`.
-[sini/files](https://github.com/sini/files) writes `README.md` and the CI workflow. sven gives both the content.
+[sini/files](https://github.com/sini/files) writes `README.md` and the CI workflow. yen gives both the content.
 
-These docs are made this way: every page you read is a file that the docs fleet writes. So is sven's CI workflow:
+These docs are made this way: every page you read is a file that the docs fleet writes. So is yen's CI workflow:
 each stage is an aspect, and one job per system comes from the reference fleet's `ci.json`
-([docs/modules/ci.nix](https://github.com/vic/sven/blob/main/docs/modules/ci.nix)).
+([docs/modules/ci.nix](https://github.com/vic/yen/blob/main/docs/modules/ci.nix)).
 
 
 ```nix title="modules/fleet.nix" {17-36}
 # The fleet writes its own repo files. `flake-file` collects github:denful/flake-file options (flake.nix);
 # `files` collects github:sini/files modules (README.md, CI workflow).
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -27,12 +27,12 @@ let
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
     sinks = {
-      out.reduce = sven.lib.reduce.merge;
+      out.reduce = yen.lib.reduce.merge;
       flake-file = {
-        reduce = sven.lib.reduce.merge; # flake inputs, declared by the aspects that use them
+        reduce = yen.lib.reduce.merge; # flake inputs, declared by the aspects that use them
         out =
           { flake-file, ... }:
           let
@@ -72,15 +72,15 @@ in
         };
     };
   };
-  sven.kinds.host.sinks.nixos.out =
+  yen.kinds.host.sinks.nixos.out =
     { host, nixos, ... }:
     {
       nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
     };
 
-  sven.fleet.main = { };
-  sven.host.web = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.host.web = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -91,15 +91,15 @@ Each aspect declares the flake inputs it uses on the `flake-file` sink. The host
 
 ```nix title="modules/inputs.nix" {29}
 # Each feature declares the inputs it uses, next to the code that uses them.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.core-inputs = {
-    at = sven.kinds.fleet;
+  yen.aspects.core-inputs = {
+    at = yen.kinds.fleet;
     flake-file = {
       description = "A fleet that writes its own flake.nix, README.md and CI workflow";
       outputs = ''
         inputs:
-        inputs.sven.lib.mkFlake {
+        inputs.yen.lib.mkFlake {
           imports = [ (inputs.import-tree ./modules) ];
           _module.args = {
             inherit inputs;
@@ -108,7 +108,7 @@ Each aspect declares the flake inputs it uses on the `flake-file` sink. The host
         }
       '';
       inputs = {
-        sven.url = "github:vic/sven";
+        yen.url = "github:vic/yen";
         import-tree.url = "github:denful/import-tree";
         flake-file.url = "github:denful/flake-file";
         files.url = "github:sini/files";
@@ -116,8 +116,8 @@ Each aspect declares the flake inputs it uses on the `flake-file` sink. The host
       };
     };
   };
-  sven.aspects.web = {
-    at = sven.host.web;
+  yen.aspects.web = {
+    at = yen.host.web;
     flake-file.inputs.nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz"; # goes up to the fleet's `flake-file` sink
     nixos = {
       services.nginx.enable = true;
@@ -140,13 +140,13 @@ The `files` sink collects `sini/files` modules. One aspect writes the README, wi
 
 ```nix title="modules/write.nix"
 # README.md and the CI workflow, generated from fleet data by github:sini/files.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  hosts = lib.filter (s: s.kind == "host") sven.lib.graph.scopes;
+  hosts = lib.filter (s: s.kind == "host") yen.lib.graph.scopes;
 in
 {
-  sven.aspects.write = {
-    at = sven.kinds.fleet;
+  yen.aspects.write = {
+    at = yen.kinds.fleet;
     files = {
       files.file."README.md".text = ''
         # My fleet
@@ -186,7 +186,7 @@ The template's own `flake.nix` is the `flake-file` output. Remove the `web` aspe
 
   outputs =
     inputs:
-    inputs.sven.lib.mkFlake {
+    inputs.yen.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
       _module.args = {
         inherit inputs;
@@ -200,7 +200,7 @@ The template's own `flake.nix` is the `flake-file` output. Remove the `web` aspe
     import-tree.url = "github:denful/import-tree";
     nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    sven.url = "github:vic/sven";
+    yen.url = "github:vic/yen";
   };
 }
 ```
@@ -239,7 +239,7 @@ nix flake check         # fails when a committed file is stale
 Every block on this page is a file of the template `generated-files`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#generated-files
+nix flake init -t github:vic/yen#generated-files
 ```
 
 <FileTree>

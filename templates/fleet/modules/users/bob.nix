@@ -1,4 +1,4 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.user.bob.groups = [ sven.group.deploy ];
+  yen.user.bob.groups = [ yen.group.deploy ];
 }

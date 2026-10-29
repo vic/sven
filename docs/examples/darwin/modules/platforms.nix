@@ -1,14 +1,14 @@
 # Two kinds of machine, one `os` sink: an aspect writes `os` once, and each platform forwards it.
-{ sven, inputs, ... }:
+{ yen, inputs, ... }:
 {
-  sven.kinds.fleet = {
+  yen.kinds.fleet = {
     spawns = {
-      host = _: sven.host;
-      mac = _: sven.mac;
+      host = _: yen.host;
+      mac = _: yen.mac;
     };
-    sinks.out.reduce = sven.lib.reduce.merge;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.sinks = {
+  yen.kinds.host.sinks = {
     os.nixos =
       { os, ... }:
       {
@@ -20,7 +20,7 @@
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.mac.sinks = {
+  yen.kinds.mac.sinks = {
     os.darwin =
       { os, ... }:
       {
@@ -33,6 +33,6 @@
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

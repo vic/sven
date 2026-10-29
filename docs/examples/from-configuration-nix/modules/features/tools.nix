@@ -1,8 +1,8 @@
 # `pkgs` stays open: NixOS fills it.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.tools = {
-    at = sven.kinds.host;
+  yen.aspects.tools = {
+    at = yen.kinds.host;
     nixos =
       { pkgs, ... }:
       {

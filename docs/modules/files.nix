@@ -4,7 +4,7 @@ let
   pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
 in
 {
-  sven.kinds.site.sinks.files.out =
+  yen.kinds.site.sinks.files.out =
     { files, ... }:
     let
       e = lib.evalModules {

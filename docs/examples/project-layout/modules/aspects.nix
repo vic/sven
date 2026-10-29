@@ -1,8 +1,8 @@
 # Behavior: active at every host, gives one NixOS module to the `nixos` sink.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.base = {
-    at = sven.kinds.host;
+  yen.aspects.base = {
+    at = yen.kinds.host;
     nixos =
       { host, ... }:
       {
@@ -16,8 +16,8 @@
       };
   };
 
-  sven.aspects.motd = {
-    at = sven.host.laptop;
-    nixos.environment.etc.motd.text = "managed by sven";
+  yen.aspects.motd = {
+    at = yen.host.laptop;
+    nixos.environment.etc.motd.text = "managed by yen";
   };
 }

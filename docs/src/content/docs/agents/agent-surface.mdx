@@ -1,5 +1,5 @@
 ---
-{"description":"What an agent reads first: `agent`, `schema`, `context`, `explain`, and trust labels by file path.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/agent-surface/page.nix","title":"The agent surface"}
+{"description":"What an agent reads first: `agent`, `schema`, `context`, `explain`, and trust labels by file path.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/agent-surface/page.nix","title":"The agent surface"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -150,7 +150,7 @@ An unknown aspect or scope is an error record with `near`: the names it was prob
 
 ## Trust labels
 
-`sven.labels."<path part>" = { trust = n; }` labels the content of files whose path contains that part.
+`yen.labels."<path part>" = { trust = n; }` labels the content of files whose path contains that part.
 An aspect declared in several files takes the lowest trust of them.
 
 
@@ -158,7 +158,7 @@ An aspect declared in several files takes the lowest trust of them.
 # Content gets the trust of the files that declare it: files under agent/ are written by agents.
 { ... }:
 {
-  sven.labels."agent/" = {
+  yen.labels."agent/" = {
     trust = 1;
   };
 }
@@ -166,10 +166,10 @@ An aspect declared in several files takes the lowest trust of them.
 
 ```nix title="modules/agent/metrics.nix"
 # Written by an agent.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.metrics = {
-    at = sven.kinds.host;
+  yen.aspects.metrics = {
+    at = yen.kinds.host;
     services = "prometheus-node-exporter";
   };
 }
@@ -216,7 +216,7 @@ with its file: what a reviewer reads first.
 Every block on this page is a file of the template `agent-surface`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#agent-surface
+nix flake init -t github:vic/yen#agent-surface
 ```
 
 <FileTree>

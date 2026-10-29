@@ -4,9 +4,9 @@
 # - placeDb { host }           the database hosts of the host's own environment (krn, unification over host records)
 # - safeHostsFor { aspect; env } the machines of `env` where the aspect can be active with no new error or violation:
 #                              each candidate is a change program, validated and staged; refusals come with their reason
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  K = sven.lib.krn;
+  K = yen.lib.krn;
   machinesIn =
     r: env:
     lib.filter (
@@ -20,7 +20,7 @@ let
     ) r.scopes;
 in
 {
-  sven.queries = {
+  yen.queries = {
     freePort =
       { host, r }:
       let
@@ -81,7 +81,7 @@ in
       let
         try =
           s:
-          sven.lib.program.dryRun {
+          yen.lib.program.dryRun {
             base = r.root;
             inherit r;
             prog = [

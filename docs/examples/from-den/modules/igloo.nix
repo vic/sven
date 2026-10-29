@@ -1,9 +1,9 @@
 # den.hosts.x86_64-linux.igloo.users.tux, and the igloo aspect.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.igloo.system = "x86_64-linux";
-  sven.aspects.igloo = {
-    at = sven.host.igloo;
+  yen.host.igloo.system = "x86_64-linux";
+  yen.aspects.igloo = {
+    at = yen.host.igloo;
     nixos =
       { pkgs, ... }:
       {
@@ -16,10 +16,10 @@
       };
   };
   # provides.to-users: content for the users of igloo, given at each user
-  sven.aspects.igloo-users = {
-    at = sven.lib.all [
-      sven.kinds.user
-      (sven.lib.within sven.host.igloo)
+  yen.aspects.igloo-users = {
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.host.igloo)
     ];
     homeManager =
       { pkgs, ... }:

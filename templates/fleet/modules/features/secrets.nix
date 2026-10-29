@@ -1,20 +1,20 @@
 # Per-aspect flake inputs (flake-file) and module imports. vm-host: a host that has a guest.
-{ sven, inputs, ... }:
+{ yen, inputs, ... }:
 {
-  sven.aspects.secrets = {
-    at = sven.kinds.host;
+  yen.aspects.secrets = {
+    at = yen.kinds.host;
     nixos.imports = [ inputs.agenix.nixosModules.default ];
     flake-file.inputs.agenix.url = "github:ryantm/agenix";
   };
-  sven.aspects.vm = {
-    at = sven.kinds.guest;
+  yen.aspects.vm = {
+    at = yen.kinds.guest;
     nixos.imports = [ inputs.microvm.nixosModules.microvm ];
     flake-file.inputs.microvm.url = "github:microvm-nix/microvm.nix";
   };
-  sven.aspects.vm-host = {
-    at = sven.lib.all [
-      sven.kinds.host
-      (sven.lib.has sven.kinds.guest)
+  yen.aspects.vm-host = {
+    at = yen.lib.all [
+      yen.kinds.host
+      (yen.lib.has yen.kinds.guest)
     ];
     nixos.imports = [ inputs.microvm.nixosModules.host ];
   };

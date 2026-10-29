@@ -1,8 +1,8 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.web = { };
-  sven.aspects.web-hardware = {
-    at = sven.host.web;
+  yen.host.web = { };
+  yen.aspects.web-hardware = {
+    at = yen.host.web;
     nixos = {
       fileSystems."/" = {
         device = "/dev/sda1";

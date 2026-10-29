@@ -1,28 +1,28 @@
 # swarsel (after oddlama): distributed config. One machine writes NixOS config into another (old `nodes.<name>`),
 # and every machine adds fragments to fleet-wide `globals` that any scope reads.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet.sinks.nodes.reduce = sven.lib.reduce.entries;
-  sven.kinds.fleet.sinks.globals.reduce = sven.lib.reduce.merge;
-  sven.aspects.lb-writes-backends = {
-    at = sven.host.lb;
+  yen.kinds.fleet.sinks.nodes.reduce = yen.lib.reduce.entries;
+  yen.kinds.fleet.sinks.globals.reduce = yen.lib.reduce.merge;
+  yen.aspects.lb-writes-backends = {
+    at = yen.host.lb;
     nodes =
       { host, ... }:
       lib.genAttrs [ "web-1" "web-2" ] (_: {
         networking.extraHosts = "${host.addr} lb.internal";
       });
   };
-  sven.aspects.nodes = {
-    at = sven.kinds.host;
+  yen.aspects.nodes = {
+    at = yen.kinds.host;
     nixos =
       { host, nodes, ... }:
       {
         imports = lib.concatMap (e: lib.optional (e.value ? ${host.name}) e.value.${host.name}) nodes;
       };
   };
-  sven.aspects.globals-addr = {
-    at = sven.lib.all [
-      sven.helpers.machines
+  yen.aspects.globals-addr = {
+    at = yen.lib.all [
+      yen.helpers.machines
       (s: !s.minimal)
     ];
     globals =
@@ -31,8 +31,8 @@
         hosts.${scope.name}.addr = scope.addr;
       };
   };
-  sven.aspects.globals-hosts = {
-    at = sven.helpers.linux;
+  yen.aspects.globals-hosts = {
+    at = yen.helpers.linux;
     nixos =
       { globals, ... }:
       {

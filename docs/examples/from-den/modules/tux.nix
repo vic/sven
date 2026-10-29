@@ -1,11 +1,11 @@
 # The tux aspect. `includes` becomes `at` on the included aspects.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.user.tux.hosts = [ sven.host.igloo ];
-  sven.aspects.define-user.at = sven.user.tux;
-  sven.aspects.primary-user.at = sven.user.tux;
-  sven.aspects.tux = {
-    at = sven.user.tux;
+  yen.user.tux.hosts = [ yen.host.igloo ];
+  yen.aspects.define-user.at = yen.user.tux;
+  yen.aspects.primary-user.at = yen.user.tux;
+  yen.aspects.tux = {
+    at = yen.user.tux;
     homeManager =
       { pkgs, ... }:
       {

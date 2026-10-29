@@ -1,7 +1,7 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.base = {
-    at = sven.kinds.host;
+  yen.aspects.base = {
+    at = yen.kinds.host;
     motd = "welcome";
     ports = 22;
     admin = "alice";
@@ -9,8 +9,8 @@
     owners = "ops";
     groups = "wheel";
   };
-  sven.aspects.web = {
-    at = sven.host.web;
+  yen.aspects.web = {
+    at = yen.host.web;
     motd = "this host serves web";
     ports = 22; # a duplicate: `set` keeps one
     nginx.http.servers.www.port = 80; # `merge` joins the attrsets

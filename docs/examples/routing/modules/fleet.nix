@@ -1,24 +1,24 @@
 # fleet > environment > host > user and home. Who receives an element depends on where the sinks are.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same opt;
+  inherit (yen.lib) same opt;
   under =
     field: kind: s:
     lib.filterAttrs (_: x: same x.${field} s) kind;
 in
 {
-  sven.kinds.fleet = {
-    spawns.environment = _: sven.environment;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.environment = _: yen.environment;
+    sinks.out.reduce = yen.lib.reduce.merge;
     sinks.dns.out =
       { dns, ... }:
       {
         dns.fleet = dns;
       }; # the fallback receiver
   };
-  sven.kinds.environment = {
+  yen.kinds.environment = {
     fields.public = opt lib.types.bool false;
-    spawns.host = under "environment" sven.host;
+    spawns.host = under "environment" yen.host;
     sinks.dns = {
       at = s: s.public; # a conditional receiver: only public environments
       out =
@@ -28,11 +28,11 @@ in
         };
     };
   };
-  sven.kinds.host = {
-    fields.environment = sven.kinds.environment;
+  yen.kinds.host = {
+    fields.environment = yen.kinds.environment;
     spawns = {
-      user = under "on" sven.user;
-      home = under "on" sven.home;
+      user = under "on" yen.user;
+      home = under "on" yen.home;
     };
     sinks.os.out =
       { host, os, ... }:
@@ -40,9 +40,9 @@ in
         os.${host.name} = os;
       };
   };
-  sven.kinds.user.fields.on = sven.kinds.host;
-  sven.kinds.home = {
-    fields.on = sven.kinds.host;
+  yen.kinds.user.fields.on = yen.kinds.host;
+  yen.kinds.home = {
+    fields.on = yen.kinds.host;
     sinks.os.out =
       { home, os, ... }:
       {
@@ -50,6 +50,6 @@ in
       }; # a home builds its own config
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

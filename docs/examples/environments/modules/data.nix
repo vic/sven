@@ -1,32 +1,32 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.group = {
+  yen.group = {
     admins = { };
     devs = { };
   };
-  sven.environment.prod = {
+  yen.environment.prod = {
     domain = "example.com";
-    grants = [ sven.group.admins ];
+    grants = [ yen.group.admins ];
     settings.timeZone = "UTC";
   };
-  sven.environment.staging = {
+  yen.environment.staging = {
     domain = "staging.example.com";
-    base = sven.environment.prod;
+    base = yen.environment.prod;
     grants = [
-      sven.group.admins
-      sven.group.devs
+      yen.group.admins
+      yen.group.devs
     ];
   };
-  sven.host.web = {
-    environment = sven.environment.prod;
+  yen.host.web = {
+    environment = yen.environment.prod;
   };
-  sven.host.web-next = {
-    environment = sven.environment.staging;
+  yen.host.web-next = {
+    environment = yen.environment.staging;
     settings.timeZone = "Europe/Berlin";
   };
-  sven.host.api-next = {
-    environment = sven.environment.staging;
+  yen.host.api-next = {
+    environment = yen.environment.staging;
   };
-  sven.user.ana.groups = [ sven.group.admins ];
-  sven.user.dev.groups = [ sven.group.devs ];
+  yen.user.ana.groups = [ yen.group.admins ];
+  yen.user.dev.groups = [ yen.group.devs ];
 }

@@ -1,11 +1,11 @@
 # Aspects are active where a predicate holds; each element goes up to the nearest `os` sink.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same;
+  inherit (yen.lib) same;
 in
 {
-  sven.aspects.names = {
-    at = sven.kinds.host;
+  yen.aspects.names = {
+    at = yen.kinds.host;
     os =
       { host, env, ... }:
       {
@@ -15,20 +15,20 @@ in
         };
       };
   };
-  sven.aspects.account = {
-    at = sven.kinds.user; # no `os` sink on a user: the account lands on each host ana is on
+  yen.aspects.account = {
+    at = yen.kinds.user; # no `os` sink on a user: the account lands on each host ana is on
     os =
       { user, ... }:
       {
         users.users.${user.name}.isNormalUser = true;
       };
   };
-  sven.aspects.postgres = {
-    at = s: lib.any (h: same h.db s) (lib.attrValues sven.host); # a fact: some host uses me as its db
+  yen.aspects.postgres = {
+    at = s: lib.any (h: same h.db s) (lib.attrValues yen.host); # a fact: some host uses me as its db
     os.services.postgresql.enable = true;
   };
   # a rule across machines, checked before deploy: a host's db lives in its environment
-  sven.invariants.db-same-env =
+  yen.invariants.db-same-env =
     { scopes, ... }:
     map (s: {
       head = "bad:db-other-env:${s.name}";

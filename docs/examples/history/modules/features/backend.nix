@@ -1,7 +1,7 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.backend = {
-    at = sven.kinds.host;
+  yen.aspects.backend = {
+    at = yen.kinds.host;
     backends = { host, ... }: host.name;
   };
 }

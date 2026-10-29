@@ -1,15 +1,15 @@
 # NixOS hosts: the nixos sink builds the system; os fans out to nixos (#76).
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) same;
-  inherit (sven.lib.reduce) one;
+  inherit (yen.lib) same;
+  inherit (yen.lib.reduce) one;
   modlists = (import ./_modlists.nix).checked;
 in
 {
   # a host on shared pkgs keeps docs off: the manual, man pages and option help differ when pkgs is shared
-  sven.aspects.shared-pkgs-no-docs = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.shared-pkgs-no-docs = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.sharedPkgs)
     ];
     nixos.documentation = {
@@ -18,11 +18,11 @@ in
       man.enable = false;
     };
   };
-  sven.kinds.host = {
-    fields = sven.kinds.machine.fields;
+  yen.kinds.host = {
+    fields = yen.kinds.machine.fields;
     spawns = {
-      user = sven.helpers.usersOn;
-      guest = s: lib.filterAttrs (_: g: same g.on s) sven.guest;
+      user = yen.helpers.usersOn;
+      guest = s: lib.filterAttrs (_: g: same g.on s) yen.guest;
     };
     sinks = {
       nixos = {
@@ -62,7 +62,7 @@ in
               lib.attrNames (
                 lib.filterAttrs (
                   _: h: h ? addr && h.sharedPkgs && same h.channel host.channel && same h.system host.system
-                ) sven.host
+                ) yen.host
               )
             );
             leader = lib.head group;
@@ -116,7 +116,7 @@ in
                   host.environment.name
                 ]
                 ++ tags
-                ++ lib.filter (n: sven.lib.holds sven.aspects."role-${n}" scope) [
+                ++ lib.filter (n: yen.lib.holds yen.aspects."role-${n}" scope) [
                   "server"
                   "workstation"
                   "laptop"

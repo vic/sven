@@ -1,13 +1,13 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod = { };
-  sven.environment.lab = { };
-  sven.host.web.environment = sven.environment.prod;
-  sven.host.db.environment = sven.environment.prod;
-  sven.host.box.environment = sven.environment.lab;
-  sven.user.alice.hosts = [
-    sven.host.web
-    sven.host.box
+  yen.environment.prod = { };
+  yen.environment.lab = { };
+  yen.host.web.environment = yen.environment.prod;
+  yen.host.db.environment = yen.environment.prod;
+  yen.host.box.environment = yen.environment.lab;
+  yen.user.alice.hosts = [
+    yen.host.web
+    yen.host.box
   ]; # one user, two scopes
-  sven.user.bob.hosts = [ sven.host.db ];
+  yen.user.bob.hosts = [ yen.host.db ];
 }

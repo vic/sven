@@ -1,10 +1,10 @@
 # A sink's other keys give elements to other sinks. They run at the receiver, with its args.
-{ sven, ... }:
+{ yen, ... }:
 let
-  inherit (sven.lib.reduce) merge;
+  inherit (yen.lib.reduce) merge;
 in
 {
-  sven.kinds.host.sinks = {
+  yen.kinds.host.sinks = {
     ports.config =
       { ports, ... }:
       {
@@ -19,7 +19,7 @@ in
         };
     };
   };
-  sven.kinds.guest.sinks = {
+  yen.kinds.guest.sinks = {
     ports.config =
       { ports, ... }:
       {

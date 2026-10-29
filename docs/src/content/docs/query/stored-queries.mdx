@@ -1,5 +1,5 @@
 ---
-{"description":"Name a question once with `sven.queries`, then ask it with `r.ask` from Nix, the CLI or an agent.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/stored-queries/page.nix","title":"Stored queries"}
+{"description":"Name a question once with `yen.queries`, then ask it with `r.ask` from Nix, the CLI or an agent.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/stored-queries/page.nix","title":"Stored queries"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -10,9 +10,9 @@ required, unless they have a default.
 
 ```nix title="modules/queries.nix"
 # A stored query names a question. `r` is the eval result; the other args are its parameters.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.queries = {
+  yen.queries = {
     aspectsOn =
       { r, host }:
       lib.sort (a: b: a < b) (
@@ -128,7 +128,7 @@ aspect is safe from [Stage](/agents/stage/). The [MCP server](/agents/mcp/) serv
 Every block on this page is a file of the template `stored-queries`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#stored-queries
+nix flake init -t github:vic/yen#stored-queries
 ```
 
 <FileTree>

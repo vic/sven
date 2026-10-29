@@ -1,19 +1,19 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  under = s: lib.filterAttrs (_: h: sven.lib.same h.environment s) sven.host;
+  under = s: lib.filterAttrs (_: h: yen.lib.same h.environment s) yen.host;
 in
 {
-  sven.kinds.fleet = {
-    spawns.environment = _: sven.environment;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.environment = _: yen.environment;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.environment = {
+  yen.kinds.environment = {
     spawns.host = under;
     sinks.backends = { }; # hosts give their address; a wall: it stays at the environment
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields = {
-      environment = sven.kinds.environment;
+      environment = yen.kinds.environment;
       addr = lib.types.str;
     };
     sinks.proxy.out =
@@ -23,21 +23,21 @@ in
       };
   };
 
-  sven.kinds.cluster.fields = { }; # a kind that no scope here is under
+  yen.kinds.cluster.fields = { }; # a kind that no scope here is under
 
-  sven.fleet.main = { };
-  sven.environment.prod = { };
-  sven.host.lb = {
-    environment = sven.environment.prod;
+  yen.fleet.main = { };
+  yen.environment.prod = { };
+  yen.host.lb = {
+    environment = yen.environment.prod;
     addr = "10.0.0.1";
   };
-  sven.host.web-1 = {
-    environment = sven.environment.prod;
+  yen.host.web-1 = {
+    environment = yen.environment.prod;
     addr = "10.0.0.2";
   };
-  sven.host.web-2 = {
-    environment = sven.environment.prod;
+  yen.host.web-2 = {
+    environment = yen.environment.prod;
     addr = "10.0.0.3";
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }

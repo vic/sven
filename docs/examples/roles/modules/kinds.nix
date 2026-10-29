@@ -1,14 +1,14 @@
 # Machines carry facts. No host file names its roles: the facts decide.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) opt is;
+  inherit (yen.lib) opt is;
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     form = lib.types.enum [
       "server"
       "laptop"
@@ -22,16 +22,16 @@ in
     labels = opt (is (v: lib.isList v && lib.all lib.isString v)) [ ];
   };
 
-  sven.fleet.main = { };
-  sven.host.rack-1 = {
+  yen.fleet.main = { };
+  yen.host.rack-1 = {
     form = "server";
     labels = [ "ci-runner" ];
   };
-  sven.host.rack-2.form = "server";
-  sven.host.thinkpad.form = "laptop";
-  sven.host.tower = {
+  yen.host.rack-2.form = "server";
+  yen.host.thinkpad.form = "laptop";
+  yen.host.tower = {
     form = "desktop";
     gpu = "nvidia";
   };
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }

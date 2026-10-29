@@ -26,7 +26,7 @@
         [ "Request" "Answer" ]
         [
           [
-            "`nearest = sven.kinds.environment`"
+            "`nearest = yen.kinds.environment`"
             "the nearest scope of that kind"
           ]
           [

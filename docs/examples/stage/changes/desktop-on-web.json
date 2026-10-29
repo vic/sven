@@ -1,1 +1,1 @@
-{ "sven": { "aspects": { "desktop": { "at": [ { "kind": "host", "name": "web" } ] } } } }
+{ "yen": { "aspects": { "desktop": { "at": [ { "kind": "host", "name": "web" } ] } } } }

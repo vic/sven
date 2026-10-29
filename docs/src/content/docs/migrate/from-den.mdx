@@ -1,27 +1,27 @@
 ---
-{"description":"Den's hosts, users, aspects, includes, defaults and batteries, in sven's four words.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/from-den/page.nix","title":"From Den"}
+{"description":"Den's hosts, users, aspects, includes, defaults and batteries, in yen's four words.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/from-den/page.nix","title":"From Den"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-[Den](https://github.com/denful/den) and sven share the aspect idea. The difference is where structure comes from.
-Den gives you a schema: `den.hosts`, users, homes and context pipes. In sven you declare those kinds yourself, in
+[Den](https://github.com/denful/den) and yen share the aspect idea. The difference is where structure comes from.
+Den gives you a schema: `den.hosts`, users, homes and context pipes. In yen you declare those kinds yourself, in
 plain Nix, and every rule of how content moves is a sink you can read.
 
-This page moves Den's default template to sven. The docs evaluate both and check that the host gets the same
+This page moves Den's default template to yen. The docs evaluate both and check that the host gets the same
 account, groups, home, packages and state versions.
 
 
-| Den | sven |
+| Den | yen |
 |---|---|
-| `den.hosts.x86_64-linux.igloo.users.tux` | instances: `sven.host.igloo`, `sven.user.tux` with `hosts = [ … ]` |
-| `den.aspects.igloo.nixos` | an aspect with `at = sven.host.igloo` and a `nixos` key |
-| `den.default.nixos` | an aspect with `at = sven.kinds.host` |
+| `den.hosts.x86_64-linux.igloo.users.tux` | instances: `yen.host.igloo`, `yen.user.tux` with `hosts = [ … ]` |
+| `den.aspects.igloo.nixos` | an aspect with `at = yen.host.igloo` and a `nixos` key |
+| `den.default.nixos` | an aspect with `at = yen.kinds.host` |
 | `includes = [ den.batteries.x ]` | the included aspect's `at` names the includer, from any file |
 | `provides.to-users.homeManager` | an aspect at the users `within` the host |
-| `hasAspect` | `sven.lib.holds`, and `r.graph` edges with `origin` |
+| `hasAspect` | `yen.lib.holds`, and `r.graph` edges with `origin` |
 | context pipes, `osConfig` | args: a kind, a sink or `out` (the built flake) |
-| `den.schema.*` | `sven.kinds.<kind>.fields` |
+| `den.schema.*` | `yen.kinds.<kind>.fields` |
 
 ## The template, side by side
 
@@ -41,24 +41,24 @@ account, groups, home, packages and state versions.
 ```
 
 </TabItem>
-<TabItem label="sven: fleet.nix">
+<TabItem label="yen: fleet.nix">
 
 ```nix title="modules/fleet.nix"
 # What Den gives you built in, declared: hosts build NixOS, users live on hosts, a user's home goes into its host.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields.system = lib.types.str;
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (sven.lib.same s) u.hosts) sven.user;
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
@@ -68,28 +68,28 @@ account, groups, home, packages and state versions.
         };
       };
   };
-  sven.kinds.user = {
-    fields.hosts = sven.lib.is lib.isList;
+  yen.kinds.user = {
+    fields.hosts = yen.lib.is lib.isList;
     sinks.homeManager.nixos =
       { user, homeManager, ... }:
       {
         home-manager.users.${user.name}.imports = homeManager;
       };
   };
-  sven.aspects.home-manager = {
-    at = sven.lib.has sven.kinds.user;
+  yen.aspects.home-manager = {
+    at = yen.lib.has yen.kinds.user;
     nixos.imports = [ inputs.home-manager.nixosModules.home-manager ];
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
 </TabItem>
 </Tabs>
 
-Den's schema is built in. In sven, `fleet.nix` says the same in one short file: hosts build NixOS, users live under their
+Den's schema is built in. In yen, `fleet.nix` says the same in one short file: hosts build NixOS, users live under their
 hosts, a user's `homeManager` content goes into the host, and home-manager is active where a user lives.
 
 
@@ -119,15 +119,15 @@ hosts, a user's `homeManager` content goes into the host, and home-manager is ac
 ```
 
 </TabItem>
-<TabItem label="sven: igloo.nix">
+<TabItem label="yen: igloo.nix">
 
 ```nix title="modules/igloo.nix"
 # den.hosts.x86_64-linux.igloo.users.tux, and the igloo aspect.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.igloo.system = "x86_64-linux";
-  sven.aspects.igloo = {
-    at = sven.host.igloo;
+  yen.host.igloo.system = "x86_64-linux";
+  yen.aspects.igloo = {
+    at = yen.host.igloo;
     nixos =
       { pkgs, ... }:
       {
@@ -140,10 +140,10 @@ hosts, a user's `homeManager` content goes into the host, and home-manager is ac
       };
   };
   # provides.to-users: content for the users of igloo, given at each user
-  sven.aspects.igloo-users = {
-    at = sven.lib.all [
-      sven.kinds.user
-      (sven.lib.within sven.host.igloo)
+  yen.aspects.igloo-users = {
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.host.igloo)
     ];
     homeManager =
       { pkgs, ... }:
@@ -178,17 +178,17 @@ hosts, a user's `homeManager` content goes into the host, and home-manager is ac
 ```
 
 </TabItem>
-<TabItem label="sven: tux.nix">
+<TabItem label="yen: tux.nix">
 
 ```nix title="modules/tux.nix"
 # The tux aspect. `includes` becomes `at` on the included aspects.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.user.tux.hosts = [ sven.host.igloo ];
-  sven.aspects.define-user.at = sven.user.tux;
-  sven.aspects.primary-user.at = sven.user.tux;
-  sven.aspects.tux = {
-    at = sven.user.tux;
+  yen.user.tux.hosts = [ yen.host.igloo ];
+  yen.aspects.define-user.at = yen.user.tux;
+  yen.aspects.primary-user.at = yen.user.tux;
+  yen.aspects.tux = {
+    at = yen.user.tux;
     homeManager =
       { pkgs, ... }:
       {
@@ -203,7 +203,7 @@ hosts, a user's `homeManager` content goes into the host, and home-manager is ac
 
 ## Batteries are aspects
 
-A battery is an aspect that you include. In sven you write the aspect once, without `at`, and each user of it
+A battery is an aspect that you include. In yen you write the aspect once, without `at`, and each user of it
 adds itself to `at`. `at` from several files is a union.
 
 
@@ -212,9 +212,9 @@ adds itself to `at`. `at` from several files is a union.
 
 ```nix title="modules/batteries/define-user.nix"
 # den.batteries.define-user: an aspect. Who includes it is its `at`, from any file.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.define-user = {
+  yen.aspects.define-user = {
     nixos =
       { user, ... }:
       {
@@ -238,9 +238,9 @@ adds itself to `at`. `at` from several files is a union.
 <TabItem label="primary-user.nix">
 
 ```nix title="modules/batteries/primary-user.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.primary-user.nixos =
+  yen.aspects.primary-user.nixos =
     { user, ... }:
     {
       users.users.${user.name}.extraGroups = [
@@ -256,14 +256,14 @@ adds itself to `at`. `at` from several files is a union.
 
 ```nix title="modules/defaults.nix"
 # den.default: an aspect at every scope of a kind.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.state-version = {
-    at = sven.kinds.host;
+  yen.aspects.state-version = {
+    at = yen.kinds.host;
     nixos.system.stateVersion = "25.05";
   };
-  sven.aspects.home-state-version = {
-    at = sven.kinds.user;
+  yen.aspects.home-state-version = {
+    at = yen.kinds.user;
     homeManager.home.stateVersion = "25.05";
   };
 }
@@ -287,19 +287,19 @@ den.aspects.networking.nixos = { firewall, lib, ... }: {
 };
 ```
 
-In sven a quirk is a sink. Where its values land is the tree: an element goes up to the nearest scope that has the sink.
+In yen a quirk is a sink. Where its values land is the tree: an element goes up to the nearest scope that has the sink.
 A user's ports reach its host with no policy, which is Den's `pipe.expose`. `entries` keeps who gave each value, so a
 filter or a rename is a plain function in the reader:
 
 
 ```nix title="modules/quirks.nix" {6-13,22}
-# Den quirks and pipes, in sven: a quirk is a sink; where it lands is the tree, not a policy.
-{ sven, lib, ... }:
+# Den quirks and pipes, in yen: a quirk is a sink; where it lands is the tree, not a policy.
+{ yen, lib, ... }:
 {
   # den.quirks.firewall: a sink on the host. A user has no `firewall` sink, so a user's ports go up
   # to its host by routing: Den's `pipe.expose` is the default here.
-  sven.kinds.host.sinks.firewall = {
-    reduce = sven.lib.reduce.entries; # each value with the scope that gave it: provenance, as in pipe.collect
+  yen.kinds.host.sinks.firewall = {
+    reduce = yen.lib.reduce.entries; # each value with the scope that gave it: provenance, as in pipe.collect
     nixos =
       { firewall, ... }:
       {
@@ -308,17 +308,17 @@ filter or a rename is a plain function in the reader:
   };
 
   # producers do not know the consumer: they give `firewall` elements
-  sven.aspects.ssh = {
-    at = sven.kinds.host;
+  yen.aspects.ssh = {
+    at = yen.kinds.host;
     firewall.ports = [ 22 ];
   };
-  sven.aspects.tux-dev-server = {
-    at = sven.user.tux;
+  yen.aspects.tux-dev-server = {
+    at = yen.user.tux;
     firewall.ports = [ 3000 ]; # from a user, lands on each of its hosts
   };
 
   # pipe.filter / pipe.as: a plain reader. Here: the ports that users opened, for a report
-  sven.kinds.host.sinks.firewall.out =
+  yen.kinds.host.sinks.firewall.out =
     { host, firewall, ... }:
     {
       userPorts.${host.name} = lib.concatMap (e: e.value.ports) (
@@ -328,7 +328,7 @@ filter or a rename is a plain function in the reader:
 }
 ```
 
-| Den | sven |
+| Den | yen |
 |---|---|
 | `den.quirks.<q>` | a sink `<q>` on the kind that consumes it |
 | emit on a quirk key | an aspect key with the sink's name |
@@ -341,9 +341,9 @@ filter or a rename is a plain function in the reader:
 ## Policies are `spawns`
 
 A Den policy is a function from context to effects, such as `host-to-users` that resolves each user under its host.
-The policy graph (flake, system, host, user, home) is Den's structure. In sven you write that structure as `spawns`:
-`sven.kinds.host.spawns.user` in `fleet.nix` above is Den's `host-to-users`. Conditional policies are a `spawns`
-that reads data or `sven.lib.holds`. Include and exclude effects are `at`, and `not`.
+The policy graph (flake, system, host, user, home) is Den's structure. In yen you write that structure as `spawns`:
+`yen.kinds.host.spawns.user` in `fleet.nix` above is Den's `host-to-users`. Conditional policies are a `spawns`
+that reads data or `yen.lib.holds`. Include and exclude effects are `at`, and `not`.
 
 
 :::note[Three Den bug families that cannot happen]
@@ -353,15 +353,15 @@ that reads data or `sven.lib.holds`. Include and exclude effects are `at`, and `
 :::
 
 :::tip[Every Den capability]
-The [reference fleet](https://github.com/vic/sven/tree/main/templates/fleet) shows every capability that Den's CI tests pin
-(168 patterns), and den-hoag's laws, each with a check. See [den/patterns.nix](https://github.com/vic/sven/blob/main/templates/fleet/modules/den/patterns.nix).
+The [reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) shows every capability that Den's CI tests pin
+(168 patterns), and den-hoag's laws, each with a check. See [den/patterns.nix](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/patterns.nix).
 :::
 
 :::tip[Run this example]
 Every block on this page is a file of the template `from-den`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#from-den
+nix flake init -t github:vic/yen#from-den
 ```
 
 <FileTree>

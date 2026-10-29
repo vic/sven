@@ -1,11 +1,11 @@
 ---
-{"description":"A change as a list of data ops: set, ref, place, new. An agent writes a program, not Nix code.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/programs/page.nix","title":"Change programs"}
+{"description":"A change as a list of data ops: set, ref, place, new. An agent writes a program, not Nix code.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/programs/page.nix","title":"Change programs"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
 Writing Nix is a poor interface for an agent: it can write anything, and a typo is a parse error.
-`sven.lib.program` writes a change as data. Four ops cover a fleet change:
+`yen.lib.program` writes a change as data. Four ops cover a fleet change:
 
 
 | Op | Effect |
@@ -27,13 +27,13 @@ Writing Nix is a poor interface for an agent: it can write anything, and a typo 
 #   nix eval --impure --json --file dry-run.nix --argstr program programs/new-cache.json
 {
   program,
-  sven ? builtins.fetchTarball "https://github.com/vic/sven/archive/main.tar.gz",
+  yen ? builtins.fetchTarball "https://github.com/vic/yen/archive/main.tar.gz",
   nixpkgs ? builtins.fetchTarball "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz",
   import-tree ? import (
     builtins.fetchTarball "https://github.com/denful/import-tree/archive/main.tar.gz"
   ),
 }:
-(import sven).lib.program.dryRun {
+(import yen).lib.program.dryRun {
   base = {
     imports = [ (import-tree ./modules) ];
     _module.args = {
@@ -125,7 +125,7 @@ Writing Nix is a poor interface for an agent: it can write anything, and a typo 
 | Function | Use |
 |---|---|
 | `validate r prog` | error records, `[ ]` when the program is valid |
-| `toModule prog` | the program as a sven module, to import |
+| `toModule prog` | the program as a yen module, to import |
 | `dryRun { base; prog; grant; rejected; }` | validate, then [stage](/agents/stage/) |
 | `render prog` | JSON, to store or send |
 
@@ -133,7 +133,7 @@ Writing Nix is a poor interface for an agent: it can write anything, and a typo 
 Every block on this page is a file of the template `programs`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#programs
+nix flake init -t github:vic/yen#programs
 ```
 
 <FileTree>

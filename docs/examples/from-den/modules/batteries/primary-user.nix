@@ -1,6 +1,6 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.primary-user.nixos =
+  yen.aspects.primary-user.nixos =
     { user, ... }:
     {
       users.users.${user.name}.extraGroups = [

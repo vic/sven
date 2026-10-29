@@ -1,13 +1,13 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.nas.addr = "10.0.0.10";
-  sven.host.web.addr = "10.0.0.1";
-  sven.host.db.addr = "10.0.0.2";
-  sven.instance.backup.roles = {
-    server = [ sven.host.nas ];
+  yen.host.nas.addr = "10.0.0.10";
+  yen.host.web.addr = "10.0.0.1";
+  yen.host.db.addr = "10.0.0.2";
+  yen.instance.backup.roles = {
+    server = [ yen.host.nas ];
     client = [
-      sven.host.web
-      sven.host.db
+      yen.host.web
+      yen.host.db
     ];
   };
 }

@@ -17,7 +17,7 @@
     [
       ''
         An agent with a knowledge store (a triple store such as quipu) can keep the fleet as a graph and query it with SPARQL.
-        `sven.lib.rdf.share r` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
+        `yen.lib.rdf.share r` gives the eval result as sorted N-Triples: scopes, kinds, parents, active aspects, every routed
         element as a node with its origin, and errors. It adds a sha256 and a count.
       ''
       (docs.file "modules/hosts.nix")
@@ -33,7 +33,7 @@
       ''
         ## Same fleet, same hash
 
-        The triples are sorted, and sven gives the same answer whatever the file order. So two revisions compare by hash first.
+        The triples are sorted, and yen gives the same answer whatever the file order. So two revisions compare by hash first.
         The docs check it: the files of this template, loaded in reverse order, give the same sha256.
 
         A fleet can give its pack as a flake output:
@@ -42,8 +42,8 @@
       ''
         ## Shapes
 
-        `sven.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `sven:name` required,
-        `sven:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields.
+        `yen.lib.rdf.shacl r` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required,
+        `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields.
       ''
       (docs.code "turtle" (builtins.substring 0 640 (engine.rdf.shacl r) + "…"))
       (docs.tip "One snapshot per revision" ''

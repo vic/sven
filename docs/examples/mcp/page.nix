@@ -7,19 +7,19 @@
   body =
     { docs, inputs, ... }:
     let
-      script = builtins.readFile (inputs.sven + "/templates/fleet/mcp/sven-mcp.sh");
+      script = builtins.readFile (inputs.yen + "/templates/fleet/mcp/yen-mcp.sh");
       lines = builtins.filter builtins.isString (builtins.split "\n" script);
-      tool = l: builtins.match ''.*\{"name":"(sven_[a-z_]+)","description":"([^"]*)".*'' l;
+      tool = l: builtins.match ''.*\{"name":"(yen_[a-z_]+)","description":"([^"]*)".*'' l;
       tools = builtins.filter (x: x != null) (map tool lines);
     in
     [
       ''
-        The reference fleet ships an MCP server: `templates/fleet/mcp/sven-mcp.sh`. It answers agents over stdio
-        (JSON-RPC 2.0, one message per line) by running sven queries on the fleet. It serves the fleet in its directory.
+        The reference fleet ships an MCP server: `templates/fleet/mcp/yen-mcp.sh`. It answers agents over stdio
+        (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
       ''
       (docs.sh ''
         cd templates/fleet
-        nix run .#sven-mcp
+        nix run .#yen-mcp
       '')
       ''
         ## Tools
@@ -41,21 +41,21 @@
         Any MCP client that starts a stdio server can use it. For example, in an `mcpServers` config:
       ''
       (docs.code "json" ''
-        { "mcpServers": { "sven": { "command": "nix", "args": [ "run", "/path/to/fleet#sven-mcp" ] } } }
+        { "mcpServers": { "yen": { "command": "nix", "args": [ "run", "/path/to/fleet#yen-mcp" ] } } }
       '')
       (docs.table
         [ "Variable" "Meaning" ]
         [
           [
-            "`SVEN_FLEET`"
+            "`YEN_FLEET`"
             "the fleet directory (default: the parent of `mcp/`)"
           ]
           [
-            "`SVEN_FLAKE`"
+            "`YEN_FLAKE`"
             "its flake ref (default: from the git top)"
           ]
           [
-            "`SVEN_TIMEOUT`"
+            "`YEN_TIMEOUT`"
             "seconds per nix call (default 120)"
           ]
         ]
@@ -75,9 +75,9 @@
       tools =
         builtins.length (
           builtins.filter (x: x != null) (
-            map (l: builtins.match ''.*\{"name":"(sven_[a-z_]+)".*'' l) (
+            map (l: builtins.match ''.*\{"name":"(yen_[a-z_]+)".*'' l) (
               builtins.filter builtins.isString (
-                builtins.split "\n" (builtins.readFile (inputs.sven + "/templates/fleet/mcp/sven-mcp.sh"))
+                builtins.split "\n" (builtins.readFile (inputs.yen + "/templates/fleet/mcp/yen-mcp.sh"))
               )
             )
           )

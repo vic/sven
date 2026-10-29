@@ -1,6 +1,6 @@
-# sven.nix: builtins only. A query language for configurations: a Cycle.js loop over nested scopes.
+# yen.nix: builtins only. A query language for configurations: a Cycle.js loop over nested scopes.
 # No throws: an error is an emission. No merge, no module system: every read is a query on the files that answer it.
-# Entry: `(import ./sven.nix).lib.eval module`. A module is a path, a function or an attrset; `imports` nest, `_module.args` flow down.
+# Entry: `(import ./yen.nix).lib.eval module`. A module is a path, a function or an attrset; `imports` nest, `_module.args` flow down.
 let
   b = builtins;
   inherit (b)
@@ -203,7 +203,7 @@ let
   }) reduce;
   static = {
     reduce = reduceNamed;
-    is = check: { inherit check; }; # any check is a type: `sven.lib.is builtins.isString`
+    is = check: { inherit check; }; # any check is a type: `yen.lib.is builtins.isString`
     opt = t: d: t // { default = d; };
     derive = t: f: t // { defaultFrom = f; }; # a default computed from the instance itself (Den schema defaults)
     maybe = t: {
@@ -266,11 +266,11 @@ let
           else
             {
               mod = v;
-              args = args // (v._module.args or { }) // { inherit sven; };
+              args = args // (v._module.args or { }) // { inherit yen; };
             }
         );
       loaded = genericClosure {
-        startSet = [ (node { inherit sven; } "root" root) ];
+        startSet = [ (node { inherit yen; } "root" root) ];
         operator =
           n:
           let
@@ -281,7 +281,7 @@ let
           else
             [ ];
       };
-      defs = map (n: n.mod.sven or { }) (filter (n: n ? mod) loaded);
+      defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
       declaredIn =
         path:
@@ -290,7 +290,7 @@ let
             n:
             n ? mod
             &&
-              (foldl' (a: k: if a != null && isAttrs a && a ? ${k} then a.${k} else null) (n.mod.sven or { }
+              (foldl' (a: k: if a != null && isAttrs a && a ? ${k} then a.${k} else null) (n.mod.yen or { }
               ) path) != null
           ) loaded
         );
@@ -471,7 +471,7 @@ let
                     want = typeName bad;
                     fix =
                       if kr != null then
-                        "use sven.${kr.__kind}.<name>, not a string"
+                        "use yen.${kr.__kind}.<name>, not a string"
                       else
                         "give ${p} a value of type ${typeName bad}";
                   }
@@ -488,7 +488,7 @@ let
                 code = "unknown-field";
                 inherit path;
                 near = near (b.elemAt path (length path - 1)) (names known);
-                fix = "declare sven.kinds.${k}.fields.${p}, or use a declared field";
+                fix = "declare yen.kinds.${k}.fields.${p}, or use a declared field";
               }
             )
           ]
@@ -520,7 +520,7 @@ let
           }) (instNames k)
         )
       ) kinds;
-      sven = instances // {
+      yen = instances // {
         inherit kinds aspects lib;
         helpers = top.helpers or { };
         queries = top.queries or { };
@@ -1030,7 +1030,7 @@ let
         ) (attrNames cycleOuts)
       ) unsorted;
 
-      # ── map: fill the args sven answers; other args stay open (`__functionArgs`) ──
+      # ── map: fill the args yen answers; other args stay open (`__functionArgs`) ──
       argAt =
         s: n:
         if n == "scope" then
@@ -1052,7 +1052,7 @@ let
         else if !isAttrsFn v then
           errWith s.id "bare function: wrap it as `{ ... }:`" {
             code = "bare-function";
-            fix = "write `{ ... }:` so sven knows which args to fill";
+            fix = "write `{ ... }:` so yen knows which args to fill";
           }
         else
           let
@@ -1196,7 +1196,7 @@ let
           inherit (e) origin;
         }) routed;
       }; # origin: "aspect x" or "sink y": who gave it
-      # ── facts and invariants: the fleet as ground atoms; `sven.invariants.<name>` gives Datalog rules over them.
+      # ── facts and invariants: the fleet as ground atoms; `yen.invariants.<name>` gives Datalog rules over them.
       # A true `bad:` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
       facts =
         map (s: "scope:${s.id}") scopes
@@ -1266,7 +1266,7 @@ let
                   active
                   facts
                   ;
-                sven = sven;
+                yen = yen;
               }
             else
               f;
@@ -1596,7 +1596,7 @@ let
             inherit (c) truncated;
             inherit hops;
           };
-      # ── labels by file path prefix (`sven.labels."agent/" = { trust = 1; }`): an aspect's label is the meet (the
+      # ── labels by file path prefix (`yen.labels."agent/" = { trust = 1; }`): an aspect's label is the meet (the
       # lowest trust) over the files that declare it; an element carries its aspect's label; `floor n` lists what is below ──
       labelTable = top.labels or { };
       labelOf =
@@ -1708,7 +1708,7 @@ let
         ) kinds;
         errors = errorsAll;
         flake = if top ? flake && scopes != [ ] then (fill (head scopes) top.flake).ok or null else null;
-        # stored queries: `sven.queries.<name> = { host, r, ... }: …`. `r` is this result; the other formals are the
+        # stored queries: `yen.queries.<name> = { host, r, ... }: …`. `r` is this result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.
         queries = mapAttrs (
@@ -2043,26 +2043,26 @@ let
           })
         ];
     validate = r: prog: b.concatLists (b.genList (i: opErrors r i (b.elemAt prog i)) (length prog));
-    # the program as one sven module (a function: refs need `sven`)
+    # the program as one yen module (a function: refs need `yen`)
     toModule =
       prog:
-      { sven, ... }:
+      { yen, ... }:
       let
         nest = path: v: b.foldl' (acc: k: { ${k} = acc; }) v (reverse path);
-        refOf = x: if isAttrs x && x ? ref then sven.${x.ref.kind}.${x.ref.name} else x;
+        refOf = x: if isAttrs x && x ? ref then yen.${x.ref.kind}.${x.ref.name} else x;
         one =
           o:
           if o.op == "set" then
             nest o.path o.value
           else if o.op == "ref" then
-            nest o.path sven.${o.kind}.${o.name}
+            nest o.path yen.${o.kind}.${o.name}
           else if o.op == "place" then
             { aspects.${o.aspect}.at = [ { inherit (o) kind name; } ]; }
           else
             { ${o.kind}.${o.name} = mapAttrs (_: refOf) (o.fields or { }); };
       in
       {
-        imports = map (o: { sven = one o; }) prog;
+        imports = map (o: { yen = one o; }) prog;
       };
     dryRun =
       {
@@ -2101,7 +2101,7 @@ let
   };
   # a change as data: set one declaration path (`change.set [ "host" "web-1" "port" ] 8080`)
   change = {
-    set = path: value: { sven = b.foldl' (acc: k: { ${k} = acc; }) value (reverse path); };
+    set = path: value: { yen = b.foldl' (acc: k: { ${k} = acc; }) value (reverse path); };
   };
 in
 {

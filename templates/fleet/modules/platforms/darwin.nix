@@ -1,9 +1,9 @@
 # macOS: the darwin sink; os fans out to darwin.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.mac = {
-    fields = sven.kinds.machine.fields;
-    spawns.user = sven.helpers.usersOn;
+  yen.kinds.mac = {
+    fields = yen.kinds.machine.fields;
+    spawns.user = yen.helpers.usersOn;
     sinks.darwin.out =
       { mac, darwin, ... }:
       {
@@ -19,8 +19,8 @@
       };
   };
   # what every nix-darwin system needs: a stateVersion, and the user that user-level options (dock, defaults) apply to
-  sven.aspects.darwin-base = {
-    at = sven.kinds.mac;
+  yen.aspects.darwin-base = {
+    at = yen.kinds.mac;
     darwin =
       { mac, ... }:
       {

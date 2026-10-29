@@ -1,10 +1,10 @@
 # The root of the tree. Nothing spawns it. Its `out` sink is the flake.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host; # every host lives under the fleet
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host; # every host lives under the fleet
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }

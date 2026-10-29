@@ -1,56 +1,56 @@
-# sven rdf oracles. Run: nix-instantiate --eval --strict tests/rdf.nix -A failed   (expect [ ])
+# yen rdf oracles. Run: nix-instantiate --eval --strict tests/rdf.nix -A failed   (expect [ ])
 let
-  sven = (import ../default.nix).lib;
-  rdf = sven.rdf;
+  yen = (import ../default.nix).lib;
+  rdf = yen.rdf;
   b = builtins;
 
   base =
     name: msg:
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.kinds.fleet = {
-        spawns.host = _: sven.host;
-        sinks.fw.reduce = sven.lib.reduce.set;
+      yen.kinds.fleet = {
+        spawns.host = _: yen.host;
+        sinks.fw.reduce = yen.lib.reduce.set;
       };
-      sven.kinds.host = {
-        fields.port = sven.lib.is b.isInt;
+      yen.kinds.host = {
+        fields.port = yen.lib.is b.isInt;
         sinks.fw = { };
       };
-      sven.fleet.main = { };
-      sven.host.${name}.port = 80;
-      sven.host.db.port = 5432;
-      sven.aspects.web = {
-        at = sven.host.${name};
+      yen.fleet.main = { };
+      yen.host.${name}.port = 80;
+      yen.host.db.port = 5432;
+      yen.aspects.web = {
+        at = yen.host.${name};
         fw = 443;
       };
-      sven.aspects.warn = {
-        at = sven.host.db;
+      yen.aspects.warn = {
+        at = yen.host.db;
         errors = msg;
       };
     };
   mods = [
     (base "web" "plain")
     (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.aspects.dbsrv = {
-          at = sven.host.db;
+        yen.aspects.dbsrv = {
+          at = yen.host.db;
           fw = 5432;
         };
       }
     )
   ];
-  fleet = ms: sven.eval { imports = ms; };
+  fleet = ms: yen.eval { imports = ms; };
   r = fleet mods;
   rRev = fleet (b.genList (i: b.elemAt mods (1 - i)) 2);
   rMore = fleet (
     mods
     ++ [
       (
-        { sven, ... }:
+        { yen, ... }:
         {
-          sven.aspects.extra = {
-            at = sven.host.db;
+          yen.aspects.extra = {
+            at = yen.host.db;
           };
         }
       )
@@ -83,13 +83,13 @@ rec {
     count-is-unique-lines =
       (rdf.share r).count == uniqueCount lines && lines == b.sort b.lessThan lines;
     line-shape = b.all (l: b.substring 0 1 l == "<" && b.match ".* \\.$" l != null) lines;
-    edge-per-graph-edge = r.graph.edges != [ ] && count "sven/sink>" lines == b.length r.graph.edges;
+    edge-per-graph-edge = r.graph.edges != [ ] && count "yen/sink>" lines == b.length r.graph.edges;
     ntriples-ends-newline = b.match ".*\n" (rdf.ntriples r) != null;
     escaped-no-raw-newline =
       escLines != [ ]
       && b.all (l: b.match ".*\n.*" l == null) escLines
       && b.any (l: b.match ".*bad \\\\\"msg\\\\\"\\\\nline2.*" l != null) escLines;
-    scope-and-parent = b.elem "<https://sven.dev/fleet/scope/fleet:main/host:db> <https://sven.dev/fleet/sven/parent> <https://sven.dev/fleet/scope/fleet:main> ." lines;
+    scope-and-parent = b.elem "<https://yen.dev/fleet/scope/fleet:main/host:db> <https://yen.dev/fleet/yen/parent> <https://yen.dev/fleet/scope/fleet:main> ." lines;
   };
   failed = b.filter (n: !checks.${n}) (b.attrNames checks);
 }

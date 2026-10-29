@@ -1,5 +1,5 @@
 ---
-{"description":"prod and staging: hosts grouped by where they run, settings that cascade, and access from groups.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/environments/page.nix","title":"Environments"}
+{"description":"prod and staging: hosts grouped by where they run, settings that cascade, and access from groups.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/environments/page.nix","title":"Environments"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -11,13 +11,13 @@ may log in. staging inherits from prod what it does not set.
 ```nix title="modules/kinds.nix" {17,23}
 # fleet > environment > host > user. Groups are data: an environment grants groups, a user is in groups.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     same
     maybe
     opt
@@ -27,71 +27,71 @@ let
   meets = xs: ys: lib.any (x: lib.any (same x) ys) xs;
 in
 {
-  sven.kinds.fleet = {
-    spawns.environment = _: sven.environment;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.environment = _: yen.environment;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.group = { };
-  sven.kinds.environment = {
+  yen.kinds.group = { };
+  yen.kinds.environment = {
     fields = {
       domain = lib.types.str;
-      base = maybe sven.kinds.environment; # settings it does not set come from here
-      grants = opt (listOf sven.kinds.group) [ ];
+      base = maybe yen.kinds.environment; # settings it does not set come from here
+      grants = opt (listOf yen.kinds.group) [ ];
       settings.timeZone = maybe lib.types.str;
     };
-    spawns.host = s: lib.filterAttrs (_: h: same h.environment s) sven.host;
+    spawns.host = s: lib.filterAttrs (_: h: same h.environment s) yen.host;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields = {
-      environment = sven.kinds.environment;
+      environment = yen.kinds.environment;
       settings.timeZone = maybe lib.types.str;
     };
-    spawns.user = s: lib.filterAttrs (_: u: meets u.groups s.environment.grants) sven.user; # access from data
+    spawns.user = s: lib.filterAttrs (_: u: meets u.groups s.environment.grants) yen.user; # access from data
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.user.fields.groups = listOf sven.kinds.group;
+  yen.kinds.user.fields.groups = listOf yen.kinds.group;
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/data.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.group = {
+  yen.group = {
     admins = { };
     devs = { };
   };
-  sven.environment.prod = {
+  yen.environment.prod = {
     domain = "example.com";
-    grants = [ sven.group.admins ];
+    grants = [ yen.group.admins ];
     settings.timeZone = "UTC";
   };
-  sven.environment.staging = {
+  yen.environment.staging = {
     domain = "staging.example.com";
-    base = sven.environment.prod;
+    base = yen.environment.prod;
     grants = [
-      sven.group.admins
-      sven.group.devs
+      yen.group.admins
+      yen.group.devs
     ];
   };
-  sven.host.web = {
-    environment = sven.environment.prod;
+  yen.host.web = {
+    environment = yen.environment.prod;
   };
-  sven.host.web-next = {
-    environment = sven.environment.staging;
+  yen.host.web-next = {
+    environment = yen.environment.staging;
     settings.timeZone = "Europe/Berlin";
   };
-  sven.host.api-next = {
-    environment = sven.environment.staging;
+  yen.host.api-next = {
+    environment = yen.environment.staging;
   };
-  sven.user.ana.groups = [ sven.group.admins ];
-  sven.user.dev.groups = [ sven.group.devs ];
+  yen.user.ana.groups = [ yen.group.admins ];
+  yen.user.dev.groups = [ yen.group.devs ];
 }
 ```
 
@@ -125,24 +125,24 @@ flowchart TD
 
 ## Settings cascade
 
-`sven.lib.cascade` takes the first value along host, environment, base environment:
+`yen.lib.cascade` takes the first value along host, environment, base environment:
 
 
 ```nix title="modules/base.nix" {4}
 # Settings cascade: the host, then its environment, then the environment's base.
-{ sven, ... }:
+{ yen, ... }:
 let
   setting =
     path: host:
-    sven.lib.cascade path [
+    yen.lib.cascade path [
       host
       host.environment
       (host.environment.base or null)
     ];
 in
 {
-  sven.aspects.base = {
-    at = sven.kinds.host;
+  yen.aspects.base = {
+    at = yen.kinds.host;
     nixos =
       { host, environment, ... }:
       {
@@ -160,16 +160,16 @@ in
         system.stateVersion = "25.05";
       };
   };
-  sven.aspects.time-zones = {
-    at = sven.kinds.host;
+  yen.aspects.time-zones = {
+    at = yen.kinds.host;
     out =
       { host, ... }:
       {
         timeZones.${host.name} = setting [ "settings" "timeZone" ] host;
       }; # goes up to the fleet
   };
-  sven.aspects.account = {
-    at = sven.kinds.user;
+  yen.aspects.account = {
+    at = yen.kinds.user;
     nixos =
       { user, ... }:
       {
@@ -188,7 +188,7 @@ in
 ```
 
 :::tip[Promote a host]
-Move `web-next` to prod with one edit: `environment = sven.environment.prod`. Its domain, its time zone default
+Move `web-next` to prod with one edit: `environment = yen.environment.prod`. Its domain, its time zone default
 and its users follow from the data.
 :::
 
@@ -196,7 +196,7 @@ and its users follow from the data.
 Every block on this page is a file of the template `environments`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#environments
+nix flake init -t github:vic/yen#environments
 ```
 
 <FileTree>

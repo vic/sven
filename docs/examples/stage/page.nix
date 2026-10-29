@@ -17,7 +17,7 @@
         args:
         import (dir + "/stage.nix") (
           {
-            sven = inputs.sven.outPath;
+            yen = inputs.yen.outPath;
             inherit (inputs) nixpkgs import-tree;
           }
           // args
@@ -27,7 +27,7 @@
     in
     [
       ''
-        Before you apply a change, stage it. `sven.lib.stage { base; change; rejected; grant; }` evaluates the fleet
+        Before you apply a change, stage it. `yen.lib.stage { base; change; rejected; grant; }` evaluates the fleet
         without and with the change. Nothing is applied. `ok` is true only when nothing new is wrong.
 
         The fleet is the one from [Invariants](/query/invariants/). A change is plain data, so an agent can write it as JSON:
@@ -42,7 +42,7 @@
 
         ## Grants only narrow
 
-        `sven.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may give elements.
+        `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may give elements.
         `narrow g h` keeps what both allow. No function makes a grant wider. An element outside the grant is refused,
         with `class = "authority"`: no edit by this author can fix it.
       ''
@@ -84,7 +84,7 @@
         args:
         import (dir + "/stage.nix") (
           {
-            sven = inputs.sven.outPath;
+            yen = inputs.yen.outPath;
             inherit (inputs) nixpkgs import-tree;
           }
           // args

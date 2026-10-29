@@ -1,44 +1,44 @@
 # CI from the fleet itself: every buildable config gives one job. `ci.json` is a generated file, so its check fails when the infra changes and nobody regenerated it.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
   job = system: name: attr: { ${name} = { inherit name attr system; }; };
 in
 {
-  sven.kinds.fleet.sinks.ci = {
-    reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet.sinks.ci = {
+    reduce = yen.lib.reduce.merge;
     out =
       { ci, ... }:
       {
         ci.matrix = lib.attrValues ci;
       };
   };
-  sven.aspects.ci-host = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.ci-host = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: !s.minimal)
     ];
     ci =
       { host, ... }:
       job host.system.name host.name "nixosConfigurations.${host.name}.config.system.build.toplevel";
   };
-  sven.aspects.ci-mac = {
-    at = sven.kinds.mac;
+  yen.aspects.ci-mac = {
+    at = yen.kinds.mac;
     ci =
       { mac, ... }:
       job mac.system.name mac.name "darwinConfigurations.${mac.name}.config.system.build.toplevel";
   };
-  sven.aspects.ci-home = {
-    at = sven.kinds.home;
+  yen.aspects.ci-home = {
+    at = yen.kinds.home;
     ci =
       { home, ... }:
       job home.system.name home.name "homeConfigurations.\"${home.name}\".activationPackage";
   };
-  sven.aspects.ci-shell = {
-    at = sven.kinds.system;
+  yen.aspects.ci-shell = {
+    at = yen.kinds.system;
     ci = { system, ... }: job system.name "devshell-${system.name}" "devShells.${system.name}.default";
   };
-  sven.aspects.ci-file = {
-    at = sven.system.x86_64-linux;
+  yen.aspects.ci-file = {
+    at = yen.system.x86_64-linux;
     files =
       { ci, ... }:
       {

@@ -1,33 +1,33 @@
 # Kinds are your nouns. `spawns` builds the tree from data. Sinks collect what aspects give.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) same is maybe;
+  inherit (yen.lib) same is maybe;
 in
 {
-  sven.kinds.fleet.spawns.env = _: sven.env;
-  sven.kinds.fleet.sinks.out.reduce = sven.lib.reduce.merge;
-  sven.kinds.env.fields.domain = lib.types.str;
-  sven.kinds.env.spawns.host = s: lib.filterAttrs (_: h: same h.env s) sven.host;
-  sven.kinds.host.fields = {
-    env = sven.kinds.env;
-    db = maybe sven.kinds.host;
+  yen.kinds.fleet.spawns.env = _: yen.env;
+  yen.kinds.fleet.sinks.out.reduce = yen.lib.reduce.merge;
+  yen.kinds.env.fields.domain = lib.types.str;
+  yen.kinds.env.spawns.host = s: lib.filterAttrs (_: h: same h.env s) yen.host;
+  yen.kinds.host.fields = {
+    env = yen.kinds.env;
+    db = maybe yen.kinds.host;
   };
-  sven.kinds.host.spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.on) sven.user;
-  sven.kinds.host.sinks.os.nixos =
+  yen.kinds.host.spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.on) yen.user;
+  yen.kinds.host.sinks.os.nixos =
     { os, ... }:
     {
       imports = os;
     }; # os feeds nixos
-  sven.kinds.host.sinks.nixos.out =
+  yen.kinds.host.sinks.nixos.out =
     { host, nixos, ... }:
     {
       nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
     };
-  sven.kinds.user.fields.on = is lib.isList;
-  sven.flake = { out, ... }: out;
+  yen.kinds.user.fields.on = is lib.isList;
+  yen.flake = { out, ... }: out;
 }

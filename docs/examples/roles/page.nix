@@ -19,7 +19,7 @@
 
         ## Tags for deploy tools
 
-        `sven.lib.holds` asks a predicate at a scope. One aspect turns the active roles into tags:
+        `yen.lib.holds` asks a predicate at a scope. One aspect turns the active roles into tags:
       ''
       (docs.file "modules/tags.nix")
       (docs.value r.flake.tags)

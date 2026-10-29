@@ -9,7 +9,7 @@
     [
       ''
         Some questions are rules: "a host serves when it runs a web server and is not drained; a host is drained when a host
-        it depends on is down." `sven.lib.datalog` solves ground rules with negation. Each rule is `{ head; pos; neg; }`.
+        it depends on is down." `yen.lib.datalog` solves ground rules with negation. Each rule is `{ head; pos; neg; }`.
         You ground the rules with Nix: one set per host.
       ''
       (docs.file "modules/fleet.nix")

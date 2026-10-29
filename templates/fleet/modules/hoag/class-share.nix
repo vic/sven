@@ -2,21 +2,21 @@
 # each member keeps only its delta, and a gate proves the shared build equals the full build (same toplevel drvPath).
 # The core is the elements equal at every member. A function element is never equal to another (Nix `==`), so
 # config-dependent content stays in the deltas, as den-hoag's `classInvariant` projection does.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib.reduce) entries;
+  inherit (yen.lib.reduce) entries;
 in
 {
-  sven.kinds.fleet.sinks.class-members.reduce = entries;
-  sven.kinds.host.sinks.nixos.class-members =
+  yen.kinds.fleet.sinks.class-members.reduce = entries;
+  yen.kinds.host.sinks.nixos.class-members =
     { host, nixos, ... }:
     {
       name = host.name;
       modules = nixos;
       inherit (host) channel system minimal;
     };
-  sven.aspects.class-share = {
-    at = sven.fleet.main;
+  yen.aspects.class-share = {
+    at = yen.fleet.main;
     out =
       { class-members, out, ... }:
       let

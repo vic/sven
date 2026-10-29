@@ -1,8 +1,8 @@
 # The page aspect: each page gives its .mdx, its sidebar entry, its template and its tests.
-# `docs` (sven.helpers.docs dir) writes Starlight markup: fences from the example's files, values from its queries, diagrams from its graph.
-{ sven, lib, ... }:
+# `docs` (yen.helpers.docs dir) writes Starlight markup: fences from the example's files, values from its queries, diagrams from its graph.
+{ yen, lib, ... }:
 let
-  repo = "https://github.com/vic/sven";
+  repo = "https://github.com/vic/yen";
   trim = lib.removeSuffix "\n";
   langOf =
     p:
@@ -156,7 +156,7 @@ let
     d.tip "Run this example" ''
       Every block on this page is a file of the template `${page.name}`. Copy it and run it:
 
-      ${d.sh "nix flake init -t github:vic/sven#${page.name}"}
+      ${d.sh "nix flake init -t github:vic/yen#${page.name}"}
 
       ${d.tree}
     '';
@@ -177,14 +177,14 @@ let
         lib.sort (
           a: b:
           if a.section.order == b.section.order then a.order < b.order else a.section.order < b.section.order
-        ) (lib.attrValues sven.page)
+        ) (lib.attrValues yen.page)
       );
   # the devshell commands, as data: pages list them (modules/devshell.nix)
-  commands = lib.concatMap (a: a.commands or [ ]) (lib.attrValues sven.aspects);
+  commands = lib.concatMap (a: a.commands or [ ]) (lib.attrValues yen.aspects);
   bodyOf =
     page:
     let
-      x = sven.helpers.example page.dir;
+      x = yen.helpers.example page.dir;
     in
     x.page.body {
       docs = docs page.dir;
@@ -203,7 +203,7 @@ let
   render =
     page:
     let
-      x = sven.helpers.example page.dir;
+      x = yen.helpers.example page.dir;
       d = docs page.dir;
     in
     lib.concatStringsSep "\n\n" (
@@ -220,7 +220,7 @@ let
     page:
     lib.concatStringsSep "\n\n" (
       [
-        "# ${(sven.helpers.example page.dir).page.plainTitle or page.title}"
+        "# ${(yen.helpers.example page.dir).page.plainTitle or page.title}"
         "<!-- Generated from docs/examples/${page.name}/page.nix. Edit there, then run `nix run .#write-files` in docs/. -->"
       ]
       ++ bodyOf page
@@ -229,7 +229,7 @@ let
   testsOf =
     page:
     let
-      x = sven.helpers.example page.dir;
+      x = yen.helpers.example page.dir;
       args = {
         inherit (x)
           r
@@ -257,17 +257,17 @@ let
     };
 in
 {
-  sven.helpers.docs = docs;
-  sven.aspects.page = {
-    at = sven.kinds.page;
+  yen.helpers.docs = docs;
+  yen.aspects.page = {
+    at = yen.kinds.page;
     files =
       { page, ... }:
       {
         files.file = {
           "src/content/docs/${page.route}.mdx".text = render page;
         }
-        // lib.optionalAttrs ((sven.helpers.example page.dir).page ? alsoAt) {
-          ${(sven.helpers.example page.dir).page.alsoAt}.text = plain page;
+        // lib.optionalAttrs ((yen.helpers.example page.dir).page ? alsoAt) {
+          ${(yen.helpers.example page.dir).page.alsoAt}.text = plain page;
         };
       };
     sidebar =
@@ -288,8 +288,8 @@ in
       };
   };
   # every internal link of every page resolves to a page: `/route/` or `/route/#anchor`
-  sven.aspects.links = {
-    at = sven.kinds.site;
+  yen.aspects.links = {
+    at = yen.kinds.site;
     tests =
       { ... }:
       let
@@ -299,10 +299,10 @@ in
           lib.concatMap (x: if lib.isList x then x else [ ]) (builtins.split ''([]][(]|href=")(/[^)"#]*)'' t);
         found = lib.unique (
           lib.filter (l: lib.hasPrefix "/" l) (
-            lib.concatMap (p: linksIn (render p)) (lib.attrValues sven.page)
+            lib.concatMap (p: linksIn (render p)) (lib.attrValues yen.page)
           )
         );
-        broken = lib.filter (l: !lib.elem l routes && !lib.hasPrefix "/sven.png" l) found;
+        broken = lib.filter (l: !lib.elem l routes && !lib.hasPrefix "/yen.png" l) found;
       in
       {
         site = {
@@ -315,15 +315,15 @@ in
       };
   };
   # the sidebar: sections in order, pages in order; the home page (path "index") is the splash, not in the sidebar
-  sven.aspects.sidebar = {
-    at = sven.kinds.site;
+  yen.aspects.sidebar = {
+    at = yen.kinds.site;
     files =
       { sidebar, ... }:
       let
         shown = lib.filter (e: e.item.slug != "index") sidebar;
         bySection = lib.groupBy (e: e.section.name) shown;
         sections = lib.sort (a: b: a.order < b.order) (
-          map (n: sven.section.${n}) (lib.attrNames bySection)
+          map (n: yen.section.${n}) (lib.attrNames bySection)
         );
       in
       {

@@ -1,13 +1,13 @@
-# The nix blocks of an issue, evaluated as one sven fleet: each block-N.nix in `blocks` is one module.
-# CI: nix-instantiate --eval --strict --json --restrict-eval -I sven=… -I nixpkgs=… -I blocks=… \
-#       --expr 'import ./docs/issue/eval.nix { sven = <sven>; nixpkgs = <nixpkgs>; blocks = <blocks>; }'
+# The nix blocks of an issue, evaluated as one yen fleet: each block-N.nix in `blocks` is one module.
+# CI: nix-instantiate --eval --strict --json --restrict-eval -I yen=… -I nixpkgs=… -I blocks=… \
+#       --expr 'import ./docs/issue/eval.nix { yen = <yen>; nixpkgs = <nixpkgs>; blocks = <blocks>; }'
 {
-  sven,
+  yen,
   nixpkgs,
   blocks,
 }:
 let
-  S = (import sven).lib;
+  S = (import yen).lib;
   files = map (f: blocks + "/${f}") (
     builtins.sort builtins.lessThan (
       builtins.filter (f: builtins.match "block-[0-9]+\\.nix" f != null) (

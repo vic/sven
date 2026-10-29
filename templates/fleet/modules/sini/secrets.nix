@@ -1,23 +1,23 @@
 # age-secrets: one sink name on three kinds. A body that reads `config` is a module element. Unfree names collapse in a set.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.user.sinks.age-secrets.homeManager =
+  yen.kinds.user.sinks.age-secrets.homeManager =
     { age-secrets, ... }:
     {
       imports = age-secrets;
     };
-  sven.kinds.cluster.sinks.age-secrets.k8s-manifests =
+  yen.kinds.cluster.sinks.age-secrets.k8s-manifests =
     { age-secrets, ... }:
     {
       imports = age-secrets;
     };
-  sven.kinds.host.sinks.age-secrets.nixos =
+  yen.kinds.host.sinks.age-secrets.nixos =
     { age-secrets, ... }:
     {
       imports = age-secrets;
     };
-  sven.aspects.attic = {
-    at = sven.host.lb;
+  yen.aspects.attic = {
+    at = yen.host.lb;
     age-secrets =
       { config, ... }:
       {
@@ -27,17 +27,17 @@
         };
       };
   };
-  sven.kinds.host.sinks.unfree = {
+  yen.kinds.host.sinks.unfree = {
     of = lib.types.str;
-    reduce = sven.lib.reduce.set;
+    reduce = yen.lib.reduce.set;
     os =
       { unfree, ... }:
       {
         nixpkgs.config.allowUnfreePredicate = p: lib.elem (lib.getName p) unfree;
       };
   };
-  sven.aspects.terraform-cli = {
-    at = sven.host.stage;
+  yen.aspects.terraform-cli = {
+    at = yen.host.stage;
     unfree = "terraform";
     nixos =
       { pkgs, ... }:

@@ -1,6 +1,6 @@
-{ sven, ... }:
+{ yen, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     all
     not
     within
@@ -8,21 +8,21 @@ let
     ;
 in
 {
-  sven.aspects = {
+  yen.aspects = {
     builder.at = s: (s.cores or 0) >= 16; # a function of the scope: a fact test
     cuda.at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: s.gpu)
     ]; # all of a list
     tiny.at = all [
-      sven.kinds.host
-      (not sven.aspects.builder)
+      yen.kinds.host
+      (not yen.aspects.builder)
     ]; # an aspect ref, negated
-    vm-tools.at = within sven.aspects.cuda; # a proper ancestor holds
-    vm-host.at = has sven.kinds.guest; # a child holds
+    vm-tools.at = within yen.aspects.cuda; # a proper ancestor holds
+    vm-host.at = has yen.kinds.guest; # a child holds
     monitored.at = [
-      sven.host.small
-      sven.aspects.vm-host
+      yen.host.small
+      yen.aspects.vm-host
     ]; # a list is "any"
   };
 }

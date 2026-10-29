@@ -3,10 +3,10 @@
 # or when the host it depends on is down. The db primary is a choice: two candidates, each primary unless the other
 # is (an even cycle). The well-founded model leaves both undefined; `stable` gives the two choices, and the fleet
 # takes the first. Any other undefined atom is an error: a policy must decide.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  D = sven.lib.datalog;
-  hosts = lib.filterAttrs (_: h: h ? addr && !(h.minimal or false)) sven.host;
+  D = yen.lib.datalog;
+  hosts = lib.filterAttrs (_: h: h ? addr && !(h.minimal or false)) yen.host;
   candidates = [
     "lb"
     "web-1"
@@ -32,7 +32,7 @@ let
         }) (h.dependsOn or [ ])
         ++ lib.optional (!h.maintenance) { head = "up:${n}"; }
         ++ lib.optional h.maintenance { head = "maintenance:${n}"; }
-        ++ lib.optional (lib.any (sven.lib.holds sven.aspects.nginx) (sven.lib.scopesOf h)) {
+        ++ lib.optional (lib.any (yen.lib.holds yen.aspects.nginx) (yen.lib.scopesOf h)) {
           head = "web:${n}";
         }
       ) hosts
@@ -47,10 +47,10 @@ let
   pick = prefix: map (lib.removePrefix prefix) (lib.filter (lib.hasPrefix prefix) choice);
 in
 {
-  sven.kinds.machine.fields.maintenance = sven.lib.opt lib.types.bool false;
+  yen.kinds.machine.fields.maintenance = yen.lib.opt lib.types.bool false;
   # for agents: why a host does not serve, and whether the db primary is decided (judge: supported, refuted, both, neither, unknown)
-  sven.aspects.serving-explain = {
-    at = sven.fleet.main;
+  yen.aspects.serving-explain = {
+    at = yen.fleet.main;
     out =
       { ... }:
       {
@@ -60,8 +60,8 @@ in
         };
       };
   };
-  sven.aspects.serving-policy = {
-    at = sven.host.lb;
+  yen.aspects.serving-policy = {
+    at = yen.host.lb;
     nixos.environment.etc = {
       "lb/serving".text = lib.concatStringsSep " " (pick "serves:");
       "db/primary".text = lib.concatStringsSep " " (pick "primary:");

@@ -1,15 +1,15 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.environment.prod.domain = "example.com";
-  sven.environment.lab.domain = "lab.example.com";
+  yen.environment.prod.domain = "example.com";
+  yen.environment.lab.domain = "lab.example.com";
 
-  sven.host.web = {
-    environment = sven.environment.prod;
-    backup = sven.host.db;
+  yen.host.web = {
+    environment = yen.environment.prod;
+    backup = yen.host.db;
   };
-  sven.host.db = {
-    environment = sven.environment.prod;
-    backup = sven.host.web;
+  yen.host.db = {
+    environment = yen.environment.prod;
+    backup = yen.host.web;
   }; # refs can point both ways
-  sven.host.test.environment = sven.environment.lab;
+  yen.host.test.environment = yen.environment.lab;
 }

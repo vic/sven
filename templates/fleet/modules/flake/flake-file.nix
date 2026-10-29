@@ -1,6 +1,6 @@
 # flake.nix is generated: each aspect declares the inputs it uses on the `flake-file` sink (github:vic/flake-file).
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -13,8 +13,8 @@ let
   };
 in
 {
-  sven.kinds.fleet.sinks.flake-file = {
-    reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet.sinks.flake-file = {
+    reduce = yen.lib.reduce.merge;
     out =
       { flake-file, ... }:
       let
@@ -33,13 +33,13 @@ in
         checks.x86_64-linux.flake-file = e.config.flake-file.check-flake-file pkgs;
       };
   };
-  sven.aspects.fleet-flake = {
-    at = sven.fleet.main;
+  yen.aspects.fleet-flake = {
+    at = yen.fleet.main;
     flake-file = {
-      description = "A sven fleet: Ren's fleet, sini's and Den's patterns, as queries";
+      description = "A yen fleet: Ren's fleet, sini's and Den's patterns, as queries";
       outputs = ''
         inputs:
-        inputs.sven.lib.mkFlake {
+        inputs.yen.lib.mkFlake {
           imports = [ (inputs.import-tree ./modules) ];
           _module.args = {
             inherit inputs;
@@ -52,7 +52,7 @@ in
         # Regenerate: nix run .#write-flake
       '';
       inputs = {
-        sven.url = "path:../..";
+        yen.url = "path:../..";
         import-tree.url = "github:denful/import-tree";
         flake-file.url = "github:vic/flake-file";
         nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
@@ -60,8 +60,8 @@ in
     };
   };
   # every other input comes from the aspect that uses it
-  sven.aspects.channel-inputs = {
-    at = sven.fleet.main;
+  yen.aspects.channel-inputs = {
+    at = yen.fleet.main;
     flake-file.inputs = {
       nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
       home-manager = follows "github:nix-community/home-manager/release-25.05";
@@ -72,8 +72,8 @@ in
       nix-darwin = follows "github:nix-darwin/nix-darwin/nix-darwin-25.05";
     };
   };
-  sven.aspects.platform-inputs = {
-    at = sven.fleet.main;
+  yen.aspects.platform-inputs = {
+    at = yen.fleet.main;
     flake-file.inputs = {
       colmena.url = "github:zhaofengli/colmena";
       nix-on-droid.url = "github:nix-community/nix-on-droid";

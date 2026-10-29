@@ -9,7 +9,7 @@
     [
       ''
         A home-manager module often needs its host's NixOS config: `{ osConfig, pkgs, ... }:`.
-        In sven, `osConfig` is a sink. Each host gives its realized config to it, and a module names it like any sink arg.
+        In yen, `osConfig` is a sink. Each host gives its realized config to it, and a module names it like any sink arg.
         `pkgs` stays open, so home-manager fills its own `pkgs`.
       ''
       (docs.fileWith "{16-28,58-61}" "modules/fleet.nix")

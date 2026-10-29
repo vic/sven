@@ -1,6 +1,6 @@
 {
   title = "Glossary";
-  description = "Each sven word, in one line, with the page that explains it.";
+  description = "Each yen word, in one line, with the page that explains it.";
   section = "reference";
   order = 3;
 
@@ -17,7 +17,7 @@
           ]
           [
             "instance"
-            "`sven.<kind>.<name>`: one thing of a kind"
+            "`yen.<kind>.<name>`: one thing of a kind"
             "[Kinds and fields](/concepts/kinds-fields/)"
           ]
           [

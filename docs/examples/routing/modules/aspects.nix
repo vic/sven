@@ -1,14 +1,14 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.accounts = {
+  yen.aspects.accounts = {
     at = [
-      sven.kinds.user
-      sven.kinds.home
+      yen.kinds.user
+      yen.kinds.home
     ];
     os = { scope, ... }: "account ${scope.name}";
   };
-  sven.aspects.records = {
-    at = sven.kinds.host;
+  yen.aspects.records = {
+    at = yen.kinds.host;
     dns = { host, ... }: "${host.name} A";
   };
 }

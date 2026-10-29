@@ -1,8 +1,8 @@
 # A secret by name, not by ref: `of` refuses it.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.shortcut = {
-    at = sven.host.db;
+  yen.aspects.shortcut = {
+    at = yen.host.db;
     secrets = "tls";
   };
 }

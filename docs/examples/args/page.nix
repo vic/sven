@@ -1,6 +1,6 @@
 {
   title = "Args";
-  description = "An element can be a function with named args. sven fills kinds, sinks and `scope`; other args stay open.";
+  description = "An element can be a function with named args. yen fills kinds, sinks and `scope`; other args stay open.";
   section = "concepts";
   order = 11;
 
@@ -13,7 +13,7 @@
     }:
     [
       ''
-        An element can be a function with named args. sven fills the args it knows:
+        An element can be a function with named args. yen fills the args it knows:
       ''
       (docs.table
         [ "Arg" "Value" ]
@@ -53,12 +53,12 @@
       ''
         ## Open args: modules for NixOS and home-manager
 
-        Args that sven does not know stay open. This is how a `nixos` element is a NixOS module: sven fills `host`,
+        Args that yen does not know stay open. This is how a `nixos` element is a NixOS module: yen fills `host`,
         and NixOS fills `pkgs`, `config` and `lib` later.
       ''
       (docs.file "variants/open.nix")
       (docs.caution "Overlays" ''
-        A bare `final: prev:` is a function of `final`, and sven has no `final`. That is an error.
+        A bare `final: prev:` is a function of `final`, and yen has no `final`. That is an error.
         Wrap it: `{ ... }: final: prev: …`.
       '')
     ];

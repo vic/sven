@@ -1,10 +1,10 @@
 ---
-{"description":"Import nixpkgs once per system, not once per host. Same systems, about a third less evaluation.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/shared-pkgs/page.nix","title":"Shared pkgs"}
+{"description":"Import nixpkgs once per system, not once per host. Same systems, about a third less evaluation.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/shared-pkgs/page.nix","title":"Shared pkgs"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-sven's own part of a host's evaluation is small: 1.4% on the reference fleet's `lb`. Most of the time goes to
+yen's own part of a host's evaluation is small: 1.4% on the reference fleet's `lb`. Most of the time goes to
 nixpkgs `pkgs` (56%) and the NixOS module system (36%). By default every host imports nixpkgs again.
 
 With `sharedPkgs = true`, a host reuses the `pkgs` of the first sharing host on its system (the leader),
@@ -14,7 +14,7 @@ through nixpkgs' `readOnlyPkgs` module. The `out` arg gives the leader's built `
 ```nix title="modules/fleet.nix" {15-23}
 # Hosts with `sharedPkgs` reuse the pkgs of the first sharing host (the leader): nixpkgs is imported once.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
@@ -23,14 +23,14 @@ let
   np = inputs.nixpkgs;
 in
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
+  yen.kinds.host = {
     fields = {
-      system = sven.lib.opt lib.types.str "x86_64-linux";
-      sharedPkgs = sven.lib.opt lib.types.bool false;
+      system = yen.lib.opt lib.types.str "x86_64-linux";
+      sharedPkgs = yen.lib.opt lib.types.bool false;
     };
     sinks.nixos.out =
       {
@@ -41,7 +41,7 @@ in
       }:
       let
         group = lib.sort (a: b: a < b) (
-          lib.attrNames (lib.filterAttrs (_: h: h.sharedPkgs && h.system == host.system) sven.host)
+          lib.attrNames (lib.filterAttrs (_: h: h.sharedPkgs && h.system == host.system) yen.host)
         ); # one group per system
         leader = lib.head group;
         follower = host.sharedPkgs && leader != host.name;
@@ -64,19 +64,19 @@ in
       };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
 ```nix title="modules/hosts.nix"
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.host = lib.genAttrs [ "app-1" "app-2" "app-3" ] (_: {
+  yen.host = lib.genAttrs [ "app-1" "app-2" "app-3" ] (_: {
     sharedPkgs = true;
   });
-  sven.aspects.app = {
-    at = sven.kinds.host;
+  yen.aspects.app = {
+    at = yen.kinds.host;
     nixos =
       { host, pkgs, ... }:
       {
@@ -91,9 +91,9 @@ in
       };
   };
   # docs differ when pkgs is shared: keep them off on sharing hosts
-  sven.aspects.shared-no-docs = {
-    at = sven.lib.all [
-      sven.kinds.host
+  yen.aspects.shared-no-docs = {
+    at = yen.lib.all [
+      yen.kinds.host
       (s: s.sharedPkgs)
     ];
     nixos.documentation = {
@@ -117,7 +117,7 @@ The docs check that every host's toplevel `drvPath` is the same both ways.
 | shared pkgs | 24.8 s | 29.3 M | 1.96 GB |
 
 Measured on the reference fleet, with the same `drvPath`s both ways
-([README](https://github.com/vic/sven/tree/main/templates/fleet#shared-pkgs-one-nixpkgs-per-channel-and-system)).
+([README](https://github.com/vic/yen/tree/main/templates/fleet#shared-pkgs-one-nixpkgs-per-channel-and-system)).
 
 
 :::caution[Two rules]
@@ -130,7 +130,7 @@ Measured on the reference fleet, with the same `drvPath`s both ways
 Every block on this page is a file of the template `shared-pkgs`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#shared-pkgs
+nix flake init -t github:vic/yen#shared-pkgs
 ```
 
 <FileTree>

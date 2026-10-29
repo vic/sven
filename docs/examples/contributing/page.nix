@@ -15,8 +15,8 @@
       ...
     }:
     let
-      reply = import (inputs.sven + "/docs/issue/eval.nix") {
-        inherit (inputs) sven nixpkgs;
+      reply = import (inputs.yen + "/docs/issue/eval.nix") {
+        inherit (inputs) yen nixpkgs;
         blocks = dir + "/issue";
       };
       byCategory = lib.groupBy (c: c.category) commands;
@@ -24,11 +24,11 @@
     [
       ''
         Thank you for helping. Bug reports, questions, docs fixes, examples and engine changes are all welcome.
-        sven is small, and every page of its docs is a tested example, so a good report or a good example helps everyone after you.
+        yen is small, and every page of its docs is a tested example, so a good report or a good example helps everyone after you.
 
         ## Open an issue: bring code
 
-        An issue must have a sven module that shows the problem. The issue form asks for one. This is not a formality:
+        An issue must have a yen module that shows the problem. The issue form asks for one. This is not a formality:
         CI evaluates every `nix` block of the issue as one fleet and comments the answer, often before a person reads it.
 
         Each block is one module of `modules/`. Declare the kinds it needs; `lib` is nixpkgs lib. For example:
@@ -45,8 +45,8 @@
         Run the same evaluation before you post, from the repository root, with your blocks in a directory as `block-1.nix`, `block-2.nix`:
       ''
       (docs.sh ''
-        nix-instantiate --eval --strict --json --restrict-eval -I sven=. -I nixpkgs=channel:nixos-25.05 -I blocks=./my-issue \
-          --expr 'import ./docs/issue/eval.nix { sven = <sven>; nixpkgs = <nixpkgs>; blocks = <blocks>; }'
+        nix-instantiate --eval --strict --json --restrict-eval -I yen=. -I nixpkgs=channel:nixos-25.05 -I blocks=./my-issue \
+          --expr 'import ./docs/issue/eval.nix { yen = <yen>; nixpkgs = <nixpkgs>; blocks = <blocks>; }'
       '')
       ''
         ## Send a pull request: exercise the examples
@@ -135,8 +135,8 @@
   checks =
     { inputs, dir, ... }:
     let
-      reply = import (inputs.sven + "/docs/issue/eval.nix") {
-        inherit (inputs) sven nixpkgs;
+      reply = import (inputs.yen + "/docs/issue/eval.nix") {
+        inherit (inputs) yen nixpkgs;
         blocks = dir + "/issue";
       };
     in

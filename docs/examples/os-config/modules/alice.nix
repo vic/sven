@@ -1,25 +1,25 @@
 # alice: an account on the server, and a standalone home that lives under the server.
-{ sven, ... }:
+{ yen, ... }:
 let
-  alice = sven.user.alice;
+  alice = yen.user.alice;
   hers = [
     alice
-    (s: s.kind == "home" && sven.lib.same s.user alice)
+    (s: s.kind == "home" && yen.lib.same s.user alice)
   ];
 in
 {
-  sven.user.alice.hosts = [ sven.host.server ];
-  sven.home."alice@server" = {
+  yen.user.alice.hosts = [ yen.host.server ];
+  yen.home."alice@server" = {
     user = alice;
-    on = sven.host.server;
+    on = yen.host.server;
     system = "x86_64-linux";
   };
 
-  sven.aspects.alice-account = {
+  yen.aspects.alice-account = {
     at = alice;
     nixos.users.users.alice.isNormalUser = true;
   };
-  sven.aspects.editors = {
+  yen.aspects.editors = {
     at = hers; # one module, in NixOS and standalone
     homeManager =
       { osConfig, pkgs, ... }: # osConfig: the host's sink; pkgs: home-manager's own
@@ -29,8 +29,8 @@ in
         home.stateVersion = "25.05";
       };
   };
-  sven.aspects.standalone = {
-    at = sven.kinds.home;
+  yen.aspects.standalone = {
+    at = yen.kinds.home;
     homeManager =
       { home, ... }:
       {

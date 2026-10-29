@@ -1,51 +1,51 @@
 # sini services: SSO identities per environment, a provider allow-list joined from fleet pools,
 # and a cluster aspect that reads a named host.
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
-  inherit (sven.lib) all opt;
-  inherit (sven.lib.reduce) entries;
+  inherit (yen.lib) all opt;
+  inherit (yen.lib.reduce) entries;
   named = n: lib.filter (e: e.value.name == n);
 in
 {
   # Users whose oauth groups meet the environment's grants: identities only, no unix account (helpers.usersOn).
-  sven.kinds.environment.sinks.idm-users.reduce = sven.lib.reduce.one;
-  sven.aspects.idm = {
-    at = sven.kinds.environment;
+  yen.kinds.environment.sinks.idm-users.reduce = yen.lib.reduce.one;
+  yen.aspects.idm = {
+    at = yen.kinds.environment;
     idm-users =
       { environment, ... }:
       lib.attrNames (
         lib.filterAttrs (
           _: u:
-          sven.helpers.meets (lib.filter (g: g.label == "oauth") (
-            sven.helpers.closure u.groups
+          yen.helpers.meets (lib.filter (g: g.label == "oauth") (
+            yen.helpers.closure u.groups
           )) environment.grants
-        ) sven.user
+        ) yen.user
       );
   };
 
   # ninfer: the provider admits named hosts (by the fleet address pool) and every host whose aspects include the client.
   # A named host with no address is an error, not a silent gap.
-  sven.kinds.machine.fields.settings.inference.clients = opt (sven.helpers.listOf lib.types.str) [ ];
-  sven.host.lb.settings.inference.clients = [ "web-1" ];
-  sven.kinds.fleet.sinks = {
+  yen.kinds.machine.fields.settings.inference.clients = opt (yen.helpers.listOf lib.types.str) [ ];
+  yen.host.lb.settings.inference.clients = [ "web-1" ];
+  yen.kinds.fleet.sinks = {
     host-addrs.reduce = entries;
     inference-clients.reduce = entries;
   };
-  sven.aspects.host-addrs = {
-    at = sven.kinds.host;
+  yen.aspects.host-addrs = {
+    at = yen.kinds.host;
     host-addrs =
       { host, ... }:
       {
         inherit (host) name addr;
       };
   };
-  sven.aspects.inference-client = {
-    at = sven.aspects.role-workstation;
+  yen.aspects.inference-client = {
+    at = yen.aspects.role-workstation;
     inference-clients = { host, ... }: host.addr;
   };
-  sven.aspects.inference = {
+  yen.aspects.inference = {
     at = all [
-      sven.kinds.host
+      yen.kinds.host
       (s: s.settings.inference.clients != [ ])
     ];
     nixos =
@@ -71,12 +71,12 @@ in
   };
 
   # A cluster aspect reads a named host directly: the hub is lb's system owner.
-  sven.aspects.guard = {
-    at = sven.cluster.axon;
+  yen.aspects.guard = {
+    at = yen.cluster.axon;
     k8s-manifests =
       { cluster, ... }:
       lib.optionalAttrs cluster.settings.guard.enable {
-        applications.guard.hub = "${sven.host.lb.system-owner.name}@lb";
+        applications.guard.hub = "${yen.host.lb.system-owner.name}@lb";
       };
   };
 }

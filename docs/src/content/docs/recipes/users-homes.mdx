@@ -1,41 +1,41 @@
 ---
-{"description":"home-manager inside NixOS and as a standalone home, from one aspect.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/users-homes/page.nix","title":"Users and homes"}
+{"description":"home-manager inside NixOS and as a standalone home, from one aspect.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/users-homes/page.nix","title":"Users and homes"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-A person uses several machines. Some run NixOS, some only home-manager. In sven the person is data,
+A person uses several machines. Some run NixOS, some only home-manager. In yen the person is data,
 and their home is one aspect that is active in both places.
 
 
 ```nix title="modules/fleet.nix" {17-20,22-28}
 # Hosts build NixOS and hold their users. Homes are standalone home-manager configurations.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.lib) same is;
+  inherit (yen.lib) same is;
 in
 {
-  sven.kinds.fleet = {
+  yen.kinds.fleet = {
     spawns = {
-      host = _: sven.host;
-      home = _: sven.home;
+      host = _: yen.host;
+      home = _: yen.home;
     };
-    sinks.out.reduce = sven.lib.reduce.merge;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host = {
-    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) sven.user;
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) yen.user;
     sinks.nixos.out =
       { host, nixos, ... }:
       {
         nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
       };
   };
-  sven.kinds.user = {
+  yen.kinds.user = {
     fields.hosts = is lib.isList;
     sinks.homeManager.nixos =
       { user, homeManager, ... }:
@@ -43,9 +43,9 @@ in
         home-manager.users.${user.name}.imports = homeManager;
       };
   };
-  sven.kinds.home = {
+  yen.kinds.home = {
     fields = {
-      user = sven.kinds.user;
+      user = yen.kinds.user;
       system = lib.types.str;
     };
     sinks.homeManager.out =
@@ -57,16 +57,16 @@ in
         };
       };
   };
-  sven.aspects.home-manager = {
-    at = sven.lib.has sven.kinds.user;
+  yen.aspects.home-manager = {
+    at = yen.lib.has yen.kinds.user;
     nixos = {
       imports = [ inputs.home-manager.nixosModules.home-manager ];
       home-manager.useGlobalPkgs = true;
     };
   };
 
-  sven.fleet.main = { };
-  sven.flake = { out, ... }: out;
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
 }
 ```
 
@@ -76,30 +76,30 @@ in
 
 ```nix title="modules/alice.nix" {6}
 # alice: an account on the server, and a standalone home for her laptop (any Linux, no NixOS).
-{ sven, ... }:
+{ yen, ... }:
 let
-  alice = sven.user.alice;
+  alice = yen.user.alice;
   # her own scopes, and every home that belongs to her
   hers = [
     alice
-    (s: s.kind == "home" && sven.lib.same s.user alice)
+    (s: s.kind == "home" && yen.lib.same s.user alice)
   ];
 in
 {
-  sven.user.alice.hosts = [ sven.host.server ];
-  sven.home."alice@laptop" = {
+  yen.user.alice.hosts = [ yen.host.server ];
+  yen.home."alice@laptop" = {
     user = alice;
     system = "x86_64-linux";
   };
 
-  sven.aspects.alice-account = {
+  yen.aspects.alice-account = {
     at = alice;
     nixos.users.users.alice = {
       isNormalUser = true;
       extraGroups = [ "wheel" ];
     };
   };
-  sven.aspects.alice-home = {
+  yen.aspects.alice-home = {
     at = hers; # one home config, in NixOS and standalone
     homeManager = {
       programs.git = {
@@ -109,8 +109,8 @@ in
       home.stateVersion = "25.05";
     };
   };
-  sven.aspects.standalone = {
-    at = sven.kinds.home;
+  yen.aspects.standalone = {
+    at = yen.kinds.home;
     homeManager =
       { home, ... }:
       {
@@ -122,11 +122,11 @@ in
 ```
 
 ```nix title="modules/machines.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.server = { };
-  sven.aspects.server = {
-    at = sven.host.server;
+  yen.host.server = { };
+  yen.aspects.server = {
+    at = yen.host.server;
     nixos = {
       networking.hostName = "server";
       boot.loader.grub.device = "nodev";
@@ -179,7 +179,7 @@ See [Routing and walls](/concepts/routing/#walls).
 Every block on this page is a file of the template `users-homes`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#users-homes
+nix flake init -t github:vic/yen#users-homes
 ```
 
 <FileTree>

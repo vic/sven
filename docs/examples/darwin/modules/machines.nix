@@ -1,10 +1,10 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.server = { };
-  sven.mac.studio = { };
+  yen.host.server = { };
+  yen.mac.studio = { };
 
-  sven.aspects.server = {
-    at = sven.host.server;
+  yen.aspects.server = {
+    at = yen.host.server;
     nixos = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {
@@ -15,8 +15,8 @@
       system.stateVersion = "25.05";
     };
   };
-  sven.aspects.studio = {
-    at = sven.mac.studio;
+  yen.aspects.studio = {
+    at = yen.mac.studio;
     darwin = {
       nixpkgs.hostPlatform = "aarch64-darwin";
       system.stateVersion = 6;

@@ -1,8 +1,8 @@
 # deploy is `one` per host; tags are a set; vars are generated-value plans, never values.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.deploy-record = {
-    at = sven.kinds.host;
+  yen.aspects.deploy-record = {
+    at = yen.kinds.host;
     deploy =
       { host, ... }:
       {
@@ -19,8 +19,8 @@
         ];
       };
   };
-  sven.aspects.ca = {
-    at = sven.fleet.main;
+  yen.aspects.ca = {
+    at = yen.fleet.main;
     vars.shared.ca.files = [
       "ca.crt"
       "ca.key"

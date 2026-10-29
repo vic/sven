@@ -1,29 +1,29 @@
 # Environments own hosts, macs and phones (parent-side spawns) and two pools.
 {
-  sven,
+  yen,
   lib,
   inputs,
   ...
 }:
 let
-  inherit (sven.helpers) listOf inEnv enum;
-  inherit (sven.lib) opt maybe;
+  inherit (yen.helpers) listOf inEnv enum;
+  inherit (yen.lib) opt maybe;
 in
 {
-  sven.kinds.environment = {
+  yen.kinds.environment = {
     fields = {
-      grants = listOf sven.kinds.group;
+      grants = listOf yen.kinds.group;
       edge = opt lib.types.bool false;
-      base = maybe sven.kinds.environment;
+      base = maybe yen.kinds.environment;
       settings.kernel.channel = maybe (enum [
         "lts"
         "latest"
       ]);
     };
     spawns = {
-      host = inEnv sven.host;
-      mac = inEnv sven.mac;
-      phone = inEnv sven.phone;
+      host = inEnv yen.host;
+      mac = inEnv yen.mac;
+      phone = inEnv yen.phone;
     };
     sinks.backends.of = lib.types.str; # lb reads it
     sinks.terraform = {
@@ -39,22 +39,22 @@ in
         };
     };
   };
-  sven.environment.prod = {
+  yen.environment.prod = {
     grants = [
-      sven.group.admin
-      sven.group.sso
+      yen.group.admin
+      yen.group.sso
     ];
     edge = true;
     settings.kernel.channel = "lts";
   };
-  sven.environment.staging = {
+  yen.environment.staging = {
     grants = [
-      sven.group.admin
-      sven.group.deploy
+      yen.group.admin
+      yen.group.deploy
     ];
-    base = sven.environment.prod;
+    base = yen.environment.prod;
   };
-  sven.environment.lab = {
+  yen.environment.lab = {
     grants = [ ];
   }; # apps for the shared-pkgs comparison: no users, no edge
 }

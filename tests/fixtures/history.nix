@@ -1,15 +1,15 @@
 # A fleet that changes between two commits: the history oracle reads it at both revisions.
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.kinds.top.spawns.host = _: sven.host;
-  sven.kinds.host.fields = {
-    port = sven.lib.is builtins.isInt;
-    validTo = sven.lib.opt (sven.lib.is builtins.isString) "9999-12-31";
+  yen.kinds.top.spawns.host = _: yen.host;
+  yen.kinds.host.fields = {
+    port = yen.lib.is builtins.isInt;
+    validTo = yen.lib.opt (yen.lib.is builtins.isString) "9999-12-31";
   };
-  sven.top.t = { };
-  sven.host.a = {
+  yen.top.t = { };
+  yen.host.a = {
     port = 2222;
     validTo = "2026-12-01";
   };
-  sven.host.b.port = 80;
+  yen.host.b.port = 80;
 }

@@ -8,7 +8,7 @@
     { docs, r, ... }:
     [
       ''
-        A person uses several machines. Some run NixOS, some only home-manager. In sven the person is data,
+        A person uses several machines. Some run NixOS, some only home-manager. In yen the person is data,
         and their home is one aspect that is active in both places.
       ''
       (docs.fileWith "{17-20,22-28}" "modules/fleet.nix")

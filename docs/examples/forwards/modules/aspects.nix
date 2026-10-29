@@ -1,11 +1,11 @@
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.aspects.ssh = {
-    at = sven.kinds.host;
+  yen.aspects.ssh = {
+    at = yen.kinds.host;
     ports = 22;
   };
-  sven.aspects.runner = {
-    at = sven.guest.ci;
+  yen.aspects.runner = {
+    at = yen.guest.ci;
     ports = 8080;
     config.runner.enable = true;
   };

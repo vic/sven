@@ -1,16 +1,16 @@
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 {
-  sven.kinds.fleet = {
-    spawns.host = _: sven.host;
-    sinks.out.reduce = sven.lib.reduce.merge;
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
   };
-  sven.kinds.host.fields.apps = sven.lib.is (v: lib.isList v && lib.all lib.isString v);
+  yen.kinds.host.fields.apps = yen.lib.is (v: lib.isList v && lib.all lib.isString v);
 
-  sven.fleet.main = { };
-  sven.host.lb.apps = [
+  yen.fleet.main = { };
+  yen.host.lb.apps = [
     "grafana"
     "loki"
     "prometheus"
   ];
-  sven.flake = { out, ... }: out;
+  yen.flake = { out, ... }: out;
 }

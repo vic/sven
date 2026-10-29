@@ -1,28 +1,28 @@
-# sven shacl oracles. Run: nix-instantiate --eval --strict tests/shacl.nix -A failed   (expect [ ])
+# yen shacl oracles. Run: nix-instantiate --eval --strict tests/shacl.nix -A failed   (expect [ ])
 let
-  sven = (import ../default.nix).lib;
-  rdf = sven.rdf;
+  yen = (import ../default.nix).lib;
+  rdf = yen.rdf;
   b = builtins;
 
   fix =
-    { sven, ... }:
+    { yen, ... }:
     {
-      sven.kinds.fleet = {
-        spawns.host = _: sven.host;
+      yen.kinds.fleet = {
+        spawns.host = _: yen.host;
       };
-      sven.kinds.host = {
+      yen.kinds.host = {
         fields = {
-          port = sven.lib.is b.isInt;
-          rack = sven.kinds.fleet;
+          port = yen.lib.is b.isInt;
+          rack = yen.kinds.fleet;
         };
       };
-      sven.fleet.main = { };
-      sven.host.web = {
+      yen.fleet.main = { };
+      yen.host.web = {
         port = 80;
-        rack = sven.fleet.main;
+        rack = yen.fleet.main;
       };
     };
-  fleet = ms: sven.eval { imports = ms; };
+  fleet = ms: yen.eval { imports = ms; };
   r = fleet [ fix ];
   r2 = fleet [ fix ];
   rRev = fleet (
@@ -31,9 +31,9 @@ let
       b.elemAt [
         fix
         (
-          { sven, ... }:
+          { yen, ... }:
           {
-            sven.host.db.port = 1;
+            yen.host.db.port = 1;
           }
         )
       ] (1 - i)
@@ -41,9 +41,9 @@ let
   );
   rFwd = fleet [
     (
-      { sven, ... }:
+      { yen, ... }:
       {
-        sven.host.db.port = 1;
+        yen.host.db.port = 1;
       }
     )
     fix
@@ -60,7 +60,7 @@ let
         b.filter b.isString (b.split "\n" s)
       )
     );
-  f = "<https://sven.dev/fleet/";
+  f = "<https://yen.dev/fleet/";
 in
 rec {
   checks = {
@@ -73,16 +73,16 @@ rec {
         rdf.shacl (fleet [
           fix
           (
-            { sven, ... }:
+            { yen, ... }:
             {
-              sven.kinds.ghost = { };
+              yen.kinds.ghost = { };
             }
           )
         ])
       ));
     ref-field-has-class = contains "field/rack> ; sh:maxCount 1 ; sh:class ${f}kind/fleet>" ttl;
     int-field-no-class = contains "field/port> ; sh:maxCount 1 ; . ;" ttl;
-    parent-class-from-spawner = contains "sven/parent> ; sh:class ${f}kind/fleet>" ttl;
+    parent-class-from-spawner = contains "yen/parent> ; sh:class ${f}kind/fleet>" ttl;
     int-triple-typed = has "${f}scope/fleet:main/host:web> ${f}field/port> \"80\"^^<http://www.w3.org/2001/XMLSchema#integer> ." tr;
     ref-triple-iri = has "${f}scope/fleet:main/host:web> ${f}field/rack> ${f}instance/fleet/main> ." tr;
     no-engine-key-triples = !(b.any (x: contains "field/(kind|name|key|parent|path|id|up|rup)>" x) tr);

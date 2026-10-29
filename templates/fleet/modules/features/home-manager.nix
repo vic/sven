@@ -1,11 +1,11 @@
 # One aspect, two platform keys: each key lands where its sink is.
-{ sven, ... }:
+{ yen, ... }:
 let
-  inherit (sven.lib) all within;
+  inherit (yen.lib) all within;
 in
 {
-  sven.aspects.hm-module = {
-    at = sven.helpers.machines;
+  yen.aspects.hm-module = {
+    at = yen.helpers.machines;
     nixos =
       { scope, ... }:
       {
@@ -17,14 +17,14 @@ in
         imports = [ scope.channel.home-manager.darwinModules.home-manager ];
       };
   };
-  sven.aspects.hm-state = {
-    at = sven.kinds.user;
+  yen.aspects.hm-state = {
+    at = yen.kinds.user;
     homeManager.home.stateVersion = "25.05";
   };
-  sven.aspects.hm-standalone = {
+  yen.aspects.hm-standalone = {
     at = all [
-      sven.kinds.user
-      (within sven.kinds.home)
+      yen.kinds.user
+      (within yen.kinds.home)
     ];
     homeManager =
       { user, ... }:
@@ -33,28 +33,28 @@ in
         home.homeDirectory = "/home/${user.name}";
       };
   };
-  sven.aspects.ssh-agent = {
+  yen.aspects.ssh-agent = {
     at = all [
-      sven.kinds.user
-      (within sven.helpers.linux)
+      yen.kinds.user
+      (within yen.helpers.linux)
     ];
     homeManager.services.ssh-agent.enable = true;
   }; # the home-manager service is Linux only
-  sven.aspects.htop = {
+  yen.aspects.htop = {
     at = all [
-      sven.user.alice
-      (within sven.host.web-1)
+      yen.user.alice
+      (within yen.host.web-1)
     ];
     homeManager.programs.htop.enable = true;
   }; # host-qualified
-  sven.aspects.tiling = {
-    at = sven.kinds.user;
+  yen.aspects.tiling = {
+    at = yen.kinds.user;
     homeDarwin.programs.aerospace.enable = true;
   }; # only mac users have homeDarwin
-  sven.aspects.dev = {
+  yen.aspects.dev = {
     at = [
-      sven.helpers.machines
-      sven.kinds.user
+      yen.helpers.machines
+      yen.kinds.user
     ];
     os =
       { pkgs, ... }:

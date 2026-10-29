@@ -1,27 +1,27 @@
 ---
-{"description":"Any value with `check` is a type. `opt`, `maybe` and `derive` add defaults.","editUrl":"https://github.com/vic/sven/blob/main/docs/examples/types/page.nix","title":"Types and defaults"}
+{"description":"Any value with `check` is a type. `opt`, `maybe` and `derive` add defaults.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/types/page.nix","title":"Types and defaults"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-sven has no type system of its own. A type is any value with `check = value: bool`.
+yen has no type system of its own. A type is any value with `check = value: bool`.
 `lib.types` from nixpkgs works, a kind works (see [Instances and refs](/concepts/instances-refs/)),
-and `sven.lib.is` makes a type from any function.
+and `yen.lib.is` makes a type from any function.
 
 
 | Constructor | Default |
 |---|---|
 | `lib.types.str`, any type | none: the field is required |
-| `sven.lib.opt type value` | `value` |
-| `sven.lib.maybe type` | `null` |
-| `sven.lib.derive type (self: …)` | computed from the instance itself |
-| `sven.lib.is (v: …)` | none: a type from a check function |
+| `yen.lib.opt type value` | `value` |
+| `yen.lib.maybe type` | `null` |
+| `yen.lib.derive type (self: …)` | computed from the instance itself |
+| `yen.lib.is (v: …)` | none: a type from a check function |
 
 ```nix title="modules/host.nix" {9-14}
-# A type is anything with `check = value: bool`. sven adds defaults on top of it.
-{ sven, lib, ... }:
+# A type is anything with `check = value: bool`. yen adds defaults on top of it.
+{ yen, lib, ... }:
 let
-  inherit (sven.lib)
+  inherit (yen.lib)
     opt
     maybe
     derive
@@ -29,7 +29,7 @@ let
     ;
 in
 {
-  sven.kinds.host.fields = {
+  yen.kinds.host.fields = {
     addr = lib.types.str; # required
     port = opt lib.types.port 22; # a default
     jump = maybe lib.types.str; # null by default
@@ -48,10 +48,10 @@ An instance gives only what it needs:
 
 
 ```nix title="modules/hosts.nix"
-{ sven, ... }:
+{ yen, ... }:
 {
-  sven.host.web.addr = "10.0.0.1";
-  sven.host.db = {
+  yen.host.web.addr = "10.0.0.1";
+  yen.host.db = {
     addr = "10.0.0.2";
     port = 2222;
     vpn = "vpn-database"; # an explicit value wins over `derive`
@@ -91,7 +91,7 @@ An explicit value always wins: `db` sets its own `vpn`.
 Every block on this page is a file of the template `types`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/sven#types
+nix flake init -t github:vic/yen#types
 ```
 
 <FileTree>

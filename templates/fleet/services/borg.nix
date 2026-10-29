@@ -1,17 +1,17 @@
 # A clan-style service shipped outside the fleet's modules (as from another flake). It is a function, so the
 # importer passes what it needs (clan's importApply). The server exports its address; each client reads it.
 { prefix }:
-{ sven, lib, ... }:
+{ yen, lib, ... }:
 let
   member =
     svc: role:
-    sven.lib.all [
-      sven.kinds.member
+    yen.lib.all [
+      yen.kinds.member
       (s: s.service == svc && s.role == role)
     ];
 in
 {
-  sven.helpers.clan.services.borg = {
+  yen.helpers.clan.services.borg = {
     roles = {
       client.interface.startAt = {
         type = lib.types.str;
@@ -35,7 +35,7 @@ in
       };
     };
   };
-  sven.aspects.borg-server = {
+  yen.aspects.borg-server = {
     at = member "borg" "server";
     exports =
       { scope, ... }:
@@ -47,7 +47,7 @@ in
         };
       };
   };
-  sven.aspects.borg-client = {
+  yen.aspects.borg-client = {
     at = member "borg" "client";
     nixos =
       {
@@ -57,7 +57,7 @@ in
         ...
       }:
       let
-        servers = sven.helpers.clan.selectExports {
+        servers = yen.helpers.clan.selectExports {
           service = "borg";
           instance = member.instance;
           role = "server";
