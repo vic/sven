@@ -262,7 +262,36 @@ let
     };
   });
 
+  # eval-modules: fixed modules first, then the sink's, given to lib.evalModules with specialArgs (a stub lib records them)
+  evalR = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.mods.sys = bat.eval-modules {
+          from = yen.kinds.box.sinks.mods;
+          lib.evalModules = a: { config = a; };
+          modules = [ "fixed" ];
+          specialArgs.x = 1;
+        };
+        yen.aspects.m = {
+          at = yen.box.a;
+          mods = "from-a";
+        };
+      }
+    )
+  ];
+
   checks = {
+    eval-modules =
+      evalR.flake.sys.a == [
+        {
+          modules = [
+            "fixed"
+            "from-a"
+          ];
+          specialArgs.x = 1;
+        }
+      ];
     mesh =
       meshR.errors == [ ]
       &&
