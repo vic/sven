@@ -1923,6 +1923,31 @@ let
         }
       ]
       && map (e: e.code) treeAll.errors == [ "tree-request" ];
+    # a plain element reads the children of its scope through `yen.lib.children`, as the `children` request does
+    lib-children =
+      (yen.eval (
+        { yen, ... }:
+        {
+          yen.kinds.top = {
+            spawns.host = _: {
+              b = { };
+              a = { };
+            };
+            sinks.kids = { };
+          };
+          yen.kinds.host = { };
+          yen.top.t = { };
+          yen.aspects.k = {
+            at = yen.kinds.top;
+            kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+          };
+        }
+      )).reduced.kids."top:t" == [
+        [
+          "a"
+          "b"
+        ]
+      ];
     error-codes =
       map (e: e.code) codesFix.errors == [
         "module"

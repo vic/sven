@@ -775,7 +775,7 @@ let
         else if q ? parent then
           orNull s.parent
         else if q ? children then
-          [ (filter (holds q.children) (childrenAt.${s.id} or [ ])) ]
+          [ (lib.children q.children s) ]
         else if q ? scopesOf then
           [ (lib.scopesOf q.scopesOf) ]
         else
@@ -1017,6 +1017,7 @@ let
           same = x: y: isRef x && isRef y && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
           nearest = k: nearest k.__kind;
           scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
+          children = p: s: filter (holds p) (childrenAt.${s.id} or [ ]); # the children of a scope where p holds, sorted
           cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
         };
       # ── schema: what a fleet declares, as JSON-safe data (no functions): for agents and docs ──
