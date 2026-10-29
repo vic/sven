@@ -735,16 +735,14 @@ let
       sinkOf = s: k: (kinds.${s.kind}.sinks or { }).${k} or null;
       sinkKeys =
         d:
-        filter (
-          k:
-          !elem k [
+        attrNames (
+          removeAttrs d [
             "at"
             "reduce"
             "of"
           ]
-        ) (attrNames d);
+        );
       sinkNames = uniq (concatMap (k: attrNames (k.sinks or { })) (b.attrValues kinds));
-      nearestFirst = s: s.rup;
       above = s: if s.parent == null then [ ] else s.parent.rup;
       receiverIn = k: first (r: sinkOf r k != null && holds ((sinkOf r k).at or (_: true)) r);
       given = concatMap (
@@ -778,15 +776,14 @@ let
                 }) (if one then 1 else length hs)
               )
               (
-                filter (
-                  k:
-                  !elem k [
+                attrNames (
+                  removeAttrs a [
                     "at"
                     "cycle"
                     "order"
                     "__aspect"
                   ]
-                ) (attrNames a)
+                )
               )
             ++
               concatMap
@@ -800,83 +797,53 @@ let
                     key = k;
                     from = s;
                     value = b.elemAt vs i;
-                    raw = i;
+                    raw = i; # position: a cycle may emit many
                   }) (length vs)
-                ) # raw = position: a cycle may emit many
+                )
                 (
-                  filter (
-                    k:
-                    !elem k [
+                  attrNames (
+                    removeAttrs o [
                       "tree"
                       "order"
                     ]
-                  ) (attrNames o)
+                  )
                 )
         ) aspectNames
       ) scopes;
-      direct = concatMap (
-        e:
-        let
-          to = receiverIn e.key (nearestFirst e.from);
-        in
-        if to == null then [ ] else [ (e // { inherit to; }) ]
-      ) (filter (e: e.key != "errors") given); # nobody reads it: nothing happens
+      direct = concatMap (e: map (to: e // { inherit to; }) (orNull (receiverIn e.key e.from.rup))) (
+        filter (e: e.key != "errors") given
+      ); # nobody reads it: nothing happens
+      fire = sink: r: {
+        key = "${sink}@${r.id}";
+        inherit sink r;
+      };
+      # what a fired sink gives on: each of its keys to that key's receiver (above it, for its own key)
+      feeds =
+        f:
+        concatMap (
+          k: map (to: { inherit k to; }) (orNull (receiverIn k (if k == f.sink then above f.r else f.r.rup)))
+        ) (sinkKeys (sinkOf f.r f.sink));
       fired = genericClosure {
         # which (sink, receiver) pairs fire: existence only
-        startSet = map (e: {
-          key = "${e.key}@${e.to.id}";
-          sink = e.key;
-          r = e.to;
-        }) direct;
-        operator =
-          f:
-          concatMap (
-            k:
-            let
-              t = receiverIn k (if k == f.sink then above f.r else nearestFirst f.r);
-            in
-            if t == null then
-              [ ]
-            else
-              [
-                {
-                  key = "${k}@${t.id}";
-                  sink = k;
-                  r = t;
-                }
-              ]
-          ) (sinkKeys (sinkOf f.r f.sink));
+        startSet = map (e: fire e.key e.to) direct;
+        operator = f: map (x: fire x.k x.to) (feeds f);
       };
       fromSinks = concatMap (
         f:
-        let
-          d = sinkOf f.r f.sink;
-        in
-        concatMap (
-          k:
-          let
-            to = receiverIn k (if k == f.sink then above f.r else nearestFirst f.r);
-          in
-          if to == null then
-            [ ]
-          else
-            [
-              {
-                origin = "sink ${f.sink}";
-                key = k;
-                from = f.r;
-                inherit to;
-                value = d.${k};
-              }
-            ]
-        ) (sinkKeys d)
+        map (x: {
+          origin = "sink ${f.sink}";
+          key = x.k;
+          from = f.r;
+          inherit (x) to;
+          value = (sinkOf f.r f.sink).${x.k};
+        }) (feeds f)
       ) fired;
       routed = direct ++ fromSinks;
       byTo = groupBy (e: "${e.key}@${e.to.id}") routed;
 
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
       isRen = n: n == "scope" || n == "tree" || kinds ? ${n} || elem n sinkNames;
-      nearest = k: s: first (x: x.kind == k) (nearestFirst s);
+      nearest = k: s: first (x: x.kind == k) s.rup;
       answer =
         s: q:
         if q ? nearest then
@@ -915,7 +882,7 @@ let
             name = n;
             value =
               let
-                r = receiverIn n (nearestFirst s);
+                r = receiverIn n s.rup;
               in
               if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ];
           }) sinkNames
@@ -1014,7 +981,7 @@ let
               else if kinds ? ${n} then
                 ((nearest n e.from).id or "")
               else if elem n sinkNames then
-                ((receiverIn n (nearestFirst e.from)).id or "") # a sink arg: the receiver it reads from
+                ((receiverIn n e.from.rup).id or "") # a sink arg: the receiver it reads from
               else
                 ""
             ) (attrNames (functionArgs e.value))
