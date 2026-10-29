@@ -199,6 +199,8 @@ let
     graphs = import ./lib/graphs.nix; # reach, transpose, topo, layers, sccs, cycles, paths, shortest over succ attrsets
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
     datalog = import ./lib/datalog.nix; # ground rules with negation: wfs (three values), stable, why
+    batteries = import ./lib/batteries.nix; # pool, gated, system: roles in, a yen module out; no names of their own
+    packs.nixos = import ./lib/packs/nixos.nix; # batteries filled with NixOS option paths
     # JSON-safe: functions and derivations become strings; toJSON then never fails
     jsonSafe =
       v:
@@ -823,11 +825,14 @@ let
           null;
       argAt =
         s: n: if n == "scope" || kinds ? ${n} then orNull (argScope s n) else (sourcesAt s [ ]).${n} or [ ];
-      isAttrsFn = f: functionArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
+      # nixpkgs lib.functionArgs rule: a functor with `__functionArgs` is a function. yen writes these (below) and reads them.
+      isFn = f: isFunction f || f ? __functionArgs;
+      fnArgs = f: f.__functionArgs or (functionArgs f);
+      isAttrsFn = f: fnArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
       fill =
         s: v:
         let
-          fa = functionArgs v;
+          fa = fnArgs v;
           mine = filter isRen (attrNames fa);
           asked = genAttrs mine (argAt s);
           none = filter (n: asked.${n} == [ ]) mine;
@@ -835,7 +840,7 @@ let
           got = mapAttrs (_: head) (removeAttrs asked none);
           rest = removeAttrs fa mine;
         in
-        if !isFunction v then
+        if !isFn v then
           { ok = v; }
         else if !isAttrsFn v then
           errWith s.id "bare function: wrap it as `{ ... }:`" {
@@ -867,11 +872,11 @@ let
       # ── the drivers ──
       idOf =
         e:
-        if !isFunction e.value then
+        if !isFn e.value then
           (if e ? raw then "${e.origin}|raw${toString e.raw}|${e.from.id}" else e.origin) # static content: once per receiver (Ren r13 rule 9)
         else
           "${e.origin}|"
-          + concatStringsSep "," (map (n: (argScope e.from n).id or "") (attrNames (functionArgs e.value)));
+          + concatStringsSep "," (map (n: (argScope e.from n).id or "") (attrNames (fnArgs e.value)));
       reduceAt =
         k: r:
         let
