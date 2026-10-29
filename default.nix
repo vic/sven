@@ -835,14 +835,19 @@ let
       ) unsorted;
 
       # ── map: fill the args yen answers; other args stay open (`__functionArgs`) ──
-      argAt =
+      # the scope an arg reads: the scope itself, the nearest instance of a kind, or a sink's receiver
+      argScope =
         s: n:
         if n == "scope" then
-          [ s ]
+          s
         else if kinds ? ${n} then
-          orNull (nearest n s)
+          nearest n s
+        else if elem n sinkNames then
+          receiverIn n s.rup
         else
-          (sourcesAt s [ ]).${n} or [ ];
+          null;
+      argAt =
+        s: n: if n == "scope" || kinds ? ${n} then orNull (argScope s n) else (sourcesAt s [ ]).${n} or [ ];
       isAttrsFn = f: functionArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
       fill =
         s: v:
@@ -886,19 +891,7 @@ let
           (if e ? raw then "${e.origin}|raw${toString e.raw}|${e.from.id}" else e.origin) # static content: once per receiver (Ren r13 rule 9)
         else
           "${e.origin}|"
-          + concatStringsSep "," (
-            map (
-              n:
-              if n == "scope" then
-                e.from.id
-              else if kinds ? ${n} then
-                ((nearest n e.from).id or "")
-              else if elem n sinkNames then
-                ((receiverIn n e.from.rup).id or "") # a sink arg: the receiver it reads from
-              else
-                ""
-            ) (attrNames (functionArgs e.value))
-          );
+          + concatStringsSep "," (map (n: (argScope e.from n).id or "") (attrNames (functionArgs e.value)));
       reduceAt =
         k: r:
         let
