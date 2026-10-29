@@ -45,6 +45,7 @@ let
     rejected = "a staged change was rejected before (its sha is in `rejected`)";
     two-answers = "one declaration leaf has two different values";
     unknown-aspect = "a query names an aspect that does not exist";
+    unknown-key = "a module, `yen` or a kind declares a key yen does not read (yen modules are not NixOS modules)";
     unknown-field = "an instance sets a field its kind does not declare";
     unknown-param = "a stored query is asked with a parameter it does not take";
     unknown-query = "`result.ask` names a stored query that does not exist";

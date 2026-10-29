@@ -53,6 +53,10 @@ let
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
   requestKinds = words "nearest parent children scopesOf holds";
+  # the only keys a module, its `yen` and a kind declare; any other key is an error, never ignored
+  moduleKeys = words "imports _module yen";
+  yenKeys = words "kinds aspects helpers queries invariants labels flake"; # and the kind names
+  kindKeys = words "fields spawns sinks";
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -1268,8 +1272,38 @@ let
             inherit (l) trust file prefix;
           }
         ) graph.edges;
+      # a key yen does not read is an error, not a silent no-op: yen modules are not NixOS modules.
+      # `from` is the module that declares the key
+      keyErrors =
+        let
+          bad =
+            from: path: known: xs:
+            map (
+              k:
+              errWith (from k) "`${k}` is not a key yen reads here" {
+                code = "unknown-key";
+                path = path ++ [ k ];
+                near = near k known;
+                want = known;
+                fix = "use one of the keys in `want`; yen modules are not NixOS modules";
+              }
+            ) (filter (k: !elem k known) xs);
+          files = path: k: concatStringsSep ", " (declaredIn (path ++ [ k ]));
+        in
+        concatMap (n: bad (_: n.key) [ ] moduleKeys (if isAttrs n.mod then attrNames n.mod else [ ])) (
+          filter (n: n ? mod) loaded
+        )
+        ++ bad (files [ ]) [ "yen" ] (yenKeys ++ kindNames) (attrNames top)
+        ++ concatMap (
+          k:
+          bad (files [
+            "kinds"
+            k
+          ]) [ "yen" "kinds" k ] kindKeys (attrNames top.kinds.${k})
+        ) kindNames;
       errorsAll =
         loadErrors
+        ++ keyErrors
         ++ declErrors [ ]
         ++ concatMap (k: concatMap (n: (inst k n [ ]).errors) (instNames k)) kindNames
         ++ treeErrors
