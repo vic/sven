@@ -43,6 +43,7 @@ let
   names = xs: attrNames (keySet xs); # sorted, no duplicates
   nest = path: v: if path == [ ] then v else { ${head path} = nest (b.tail path) v; };
   orNull = x: if x == null then [ ] else [ x ];
+  optional = c: x: if c then [ x ] else [ ];
   words = s: filter isString (b.split " " s); # "a b" is [ "a" "b" ]
   isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
   combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
@@ -142,16 +143,12 @@ let
         else if isLeaf a.${n} || isLeaf v then
           {
             value = a.${n};
-            errors =
-              if a.${n} == v then
-                [ ]
-              else
-                [
-                  (errWith "merge" "merge conflict at ${concatStringsSep "." p}" {
-                    code = "merge";
-                    path = p;
-                  })
-                ];
+            errors = optional (a.${n} != v) (
+              errWith "merge" "merge conflict at ${concatStringsSep "." p}" {
+                code = "merge";
+                path = p;
+              }
+            );
           }
         else
           mergeAt p a.${n} v
@@ -170,17 +167,13 @@ let
     set = es: pure (uniq (map (e: e.value) es));
     one = es: {
       value = if es == [ ] then null else (head es).value;
-      errors =
-        if length es == 1 then
-          [ ]
-        else
-          [
-            (errWith "one" "one: got ${toString (length es)} elements" {
-              code = "one";
-              got = length es;
-              want = 1;
-            })
-          ];
+      errors = optional (length es != 1) (
+        errWith "one" "one: got ${toString (length es)} elements" {
+          code = "one";
+          got = length es;
+          want = 1;
+        }
+      );
     };
     merge = foldl' (
       acc: e:
@@ -1284,16 +1277,11 @@ let
             n = b.substring 7 (b.stringLength e.origin) e.origin;
             l = labels.${n};
           in
-          if b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t then
-            [
-              {
-                edge = e;
-                aspect = n;
-                inherit (l) trust file prefix;
-              }
-            ]
-          else
-            [ ]
+          optional (b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t) {
+            edge = e;
+            aspect = n;
+            inherit (l) trust file prefix;
+          }
         ) graph.edges;
       errorsAll =
         loadErrors
@@ -1474,17 +1462,12 @@ let
       violations =
         if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
       refused =
-        (
-          if sha != null && elem sha rejected then
-            [
-              (errWith "stage" "this change was rejected before" {
-                code = "rejected";
-                class = "authority";
-                got = sha;
-              })
-            ]
-          else
-            [ ]
+        optional (sha != null && elem sha rejected) (
+          errWith "stage" "this change was rejected before" {
+            code = "rejected";
+            class = "authority";
+            got = sha;
+          }
         )
         ++ map (
           e:
