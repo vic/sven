@@ -43,13 +43,15 @@ let
   names = xs: attrNames (keySet xs); # sorted, no duplicates
   nest = path: v: if path == [ ] then v else { ${head path} = nest (b.tail path) v; };
   orNull = x: if x == null then [ ] else [ x ];
+  words = s: filter isString (b.split " " s); # "a b" is [ "a" "b" ]
   isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
-  combinators = [
-    "all"
-    "not"
-    "within"
-    "has"
-  ]; # `lib.all ps` is { __all = ps; }, and so on
+  combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
+  # keys the engine reads; the other keys of a sink, an aspect, a cycle output or a scope are data
+  sinkMeta = words "at reduce of";
+  aspectMeta = words "at cycle order __aspect";
+  outMeta = words "tree order";
+  scopeMeta = words "kind name key parent path id up rup __here";
+  requestKinds = words "nearest parent children scopesOf holds";
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -703,15 +705,7 @@ let
 
       # ── routing: nearest ancestor-or-self receiver (Cycle isolateSink tags the identity) ──
       sinkOf = s: k: (kinds.${s.kind}.sinks or { }).${k} or null;
-      sinkKeys =
-        d:
-        attrNames (
-          removeAttrs d [
-            "at"
-            "reduce"
-            "of"
-          ]
-        );
+      sinkKeys = d: attrNames (removeAttrs d sinkMeta);
       sinkNames = uniq (concatMap (k: attrNames (k.sinks or { })) (b.attrValues kinds));
       above = s: if s.parent == null then [ ] else s.parent.rup;
       receiverIn = k: first (r: sinkOf r k != null && holds ((sinkOf r k).at or (_: true)) r);
@@ -726,58 +720,37 @@ let
           if !active.${n}.${s.id} then
             [ ]
           else
-            concatMap
-              (
-                k:
-                let
-                  hs = answers [
-                    "aspects"
-                    n
-                    k
-                  ];
-                  one = length hs < 2 || all (x: isAttrs x && !isLeaf x) hs;
-                in
-                # data merges; functions from several files each apply
-                b.genList (i: {
-                  origin = "aspect ${n}" + (if one then "" else "#${toString i}");
-                  key = k;
-                  from = s;
-                  value = if one then a.${k} else b.elemAt hs i;
-                }) (if one then 1 else length hs)
-              )
-              (
-                attrNames (
-                  removeAttrs a [
-                    "at"
-                    "cycle"
-                    "order"
-                    "__aspect"
-                  ]
-                )
-              )
-            ++
-              concatMap
-                (
-                  k:
-                  let
-                    vs = toList o.${k};
-                  in
-                  b.genList (i: {
-                    origin = "aspect ${n}";
-                    key = k;
-                    from = s;
-                    value = b.elemAt vs i;
-                    raw = i; # position: a cycle may emit many
-                  }) (length vs)
-                )
-                (
-                  attrNames (
-                    removeAttrs o [
-                      "tree"
-                      "order"
-                    ]
-                  )
-                )
+            concatMap (
+              k:
+              let
+                hs = answers [
+                  "aspects"
+                  n
+                  k
+                ];
+                one = length hs < 2 || all (x: isAttrs x && !isLeaf x) hs;
+              in
+              # data merges; functions from several files each apply
+              b.genList (i: {
+                origin = "aspect ${n}" + (if one then "" else "#${toString i}");
+                key = k;
+                from = s;
+                value = if one then a.${k} else b.elemAt hs i;
+              }) (if one then 1 else length hs)
+            ) (attrNames (removeAttrs a aspectMeta))
+            ++ concatMap (
+              k:
+              let
+                vs = toList o.${k};
+              in
+              b.genList (i: {
+                origin = "aspect ${n}";
+                key = k;
+                from = s;
+                value = b.elemAt vs i;
+                raw = i; # position: a cycle may emit many
+              }) (length vs)
+            ) (attrNames (removeAttrs o outMeta))
         ) aspectNames
       ) scopes;
       direct = concatMap (e: map (to: e // { inherit to; }) (orNull (receiverIn e.key e.from.rup))) (
@@ -850,15 +823,7 @@ let
           in
           if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ]
         ); # a receiver with no element yet reduces to its empty value
-      known =
-        q:
-        any (k: q ? ${k}) [
-          "nearest"
-          "parent"
-          "children"
-          "scopesOf"
-          "holds"
-        ];
+      known = q: any (k: q ? ${k}) requestKinds;
       requestErrors = concatMap (
         s:
         concatMap (
@@ -1014,42 +979,26 @@ let
         # field values of each scope's instance: `ref:FIELD:ID:KIND:NAME` for a ref, `val:FIELD:ID:VALUE` for a string, int or bool
         ++ concatMap (
           s:
-          concatMap
-            (
-              f:
-              let
-                v = s.${f};
-                atom =
-                  x:
-                  if isRef x && isString x.kind then
-                    [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
-                  else if isString x || b.isInt x then
-                    [ "val:${f}:${s.id}:${toString x}" ]
-                  else
-                    [ ];
-              in
-              if isList v then
-                concatMap atom v
-              else if b.isBool v then
-                [ "val:${f}:${s.id}:${b.toJSON v}" ]
-              else
-                atom v
-            )
-            (
-              attrNames (
-                removeAttrs s [
-                  "kind"
-                  "name"
-                  "key"
-                  "parent"
-                  "path"
-                  "id"
-                  "up"
-                  "rup"
-                  "__here"
-                ]
-              )
-            )
+          concatMap (
+            f:
+            let
+              v = s.${f};
+              atom =
+                x:
+                if isRef x && isString x.kind then
+                  [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
+                else if isString x || b.isInt x then
+                  [ "val:${f}:${s.id}:${toString x}" ]
+                else
+                  [ ];
+            in
+            if isList v then
+              concatMap atom v
+            else if b.isBool v then
+              [ "val:${f}:${s.id}:${b.toJSON v}" ]
+            else
+              atom v
+          ) (attrNames (removeAttrs s scopeMeta))
         ) unsorted;
       check =
         let
@@ -1119,16 +1068,7 @@ let
           }
           // (if t ? __kind then { ref = t.__kind; } else { })
           // (
-            if
-              t ? default
-              && elem (b.typeOf t.default) [
-                "string"
-                "int"
-                "bool"
-                "null"
-                "list"
-              ]
-            then
+            if t ? default && elem (b.typeOf t.default) (words "string int bool null list") then
               { default = t.default; }
             else
               { }
@@ -1146,14 +1086,7 @@ let
         {
           reduce = if d ? reduce then d.reduce.name or "custom" else "list";
           of = if d ? of then typeName d.of else null;
-          feeds = attrNames (
-            removeAttrs d [
-              "reduce"
-              "of"
-              "at"
-              "out"
-            ]
-          );
+          feeds = attrNames (removeAttrs d (words "reduce of at out"));
           out = d ? out;
           conditional = d ? at;
         };
@@ -1166,31 +1099,13 @@ let
           scopes = length (filter (s: s.kind == k) scopes);
         }) (top.kinds or { });
         aspects = mapAttrs (n: a: {
-          keys = attrNames (
-            removeAttrs a [
-              "at"
-              "order"
-              "__aspect"
-            ]
-          );
+          keys = attrNames (removeAttrs a (words "at order __aspect"));
           cycle = a ? cycle;
           files = filesOf n;
           activeAt = length (filter (s: active.${n}.${s.id}) unsorted);
         }) aspects;
         invariants = attrNames yen.invariants;
-        queries = [
-          "errors"
-          "graph"
-          "scopes"
-          "active"
-          "reduced"
-          "undefined"
-          "declaredIn"
-          "facts"
-          "check"
-          "schema"
-          "flake"
-        ];
+        queries = words "errors graph scopes active reduced undefined declaredIn facts check schema flake";
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
       byId = byScope (s: s) unsorted;
@@ -1429,12 +1344,7 @@ let
           mapAttrs (
             n: i:
             static.jsonSafe (
-              mapAttrs (_: v: if isRef v then "${v.kind}:${v.name}" else v) (
-                removeAttrs i [
-                  "kind"
-                  "name"
-                ]
-              )
+              mapAttrs (_: v: if isRef v then "${v.kind}:${v.name}" else v) (removeAttrs i (words "kind name"))
             )
           ) instances.${k}
         ) kinds;
@@ -1727,12 +1637,7 @@ let
         noKind
       else
         fail "unknown op ${toString o.op}" {
-          near = near (toString o.op) [
-            "set"
-            "ref"
-            "place"
-            "new"
-          ];
+          near = near (toString o.op) (words "set ref place new");
         };
     validate = r: prog: b.concatLists (b.genList (i: opErrors r i (b.elemAt prog i)) (length prog));
     # the program as one yen module (a function: refs need `yen`)
