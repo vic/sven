@@ -297,6 +297,99 @@ let
       ({ nope }: { }) # module
     ];
   };
+  # what NixOS `config` (a fixpoint) expresses, in yen. Each line names the NixOS pattern.
+  configLike = yen.eval (
+    { yen, ... }:
+    let
+      one = yen.lib.reduce.one;
+    in
+    {
+      yen.kinds.fleet = {
+        spawns.host = _: yen.host;
+        sinks.addrs.reduce = yen.lib.reduce.merge; # a value every host gives, read by every host
+      };
+      yen.kinds.host = {
+        fields.addr = yen.lib.is builtins.isString;
+        fields.fqdn = yen.lib.derive (yen.lib.is builtins.isString) (i: "${i.name}.lan"); # default = f config
+        sinks = {
+          ports.reduce = yen.lib.reduce.set; # a list option many modules define
+          firewall.reduce = one;
+          settings.reduce = yen.lib.reduce.merge; # an attrset option, deep-merged
+          motd.reduce =
+            es: # mkForce / mkDefault: the lowest priority number wins
+            {
+              value = (builtins.head (builtins.sort (a: c: a.value.prio < c.value.prio) es)).value.text;
+              errors = [ ];
+            };
+          chain.reduce = one;
+          mid.reduce = one;
+          leaf.reduce = one;
+          peers.reduce = one;
+        };
+      };
+      yen.fleet.main = { };
+      yen.host = {
+        a.addr = "10.0.0.1";
+        b.addr = "10.0.0.2";
+      };
+      yen.aspects = {
+        # declared before what it reads: the order of definitions never matters
+        chain = {
+          at = yen.kinds.host;
+          chain = { mid, ... }: mid * 10;
+        };
+        mid = {
+          at = yen.kinds.host;
+          mid = { leaf, ... }: leaf + 1;
+        };
+        leaf = {
+          at = yen.kinds.host;
+          leaf = 1;
+        };
+        web = {
+          at = yen.host.a;
+          ports = 80;
+        };
+        ssh = {
+          at = yen.kinds.host;
+          ports = 22;
+        };
+        tls = {
+          at = yen.aspects.web; # mkIf config.services.web.enable
+          ports = 443;
+        };
+        fw = {
+          at = yen.kinds.host;
+          firewall = { ports, ... }: builtins.sort builtins.lessThan ports; # an option read from another option
+        };
+        base = {
+          at = yen.kinds.host;
+          settings.a = 1;
+          motd = {
+            prio = 1000;
+            text = "default";
+          };
+        };
+        tuned = {
+          at = yen.host.b;
+          settings.b.c = 2;
+          motd = {
+            prio = 50;
+            text = "forced";
+          };
+        };
+        addrs = {
+          at = yen.kinds.host;
+          addrs =
+            { host, ... }:
+            {
+              ${host.name} = host.addr;
+            };
+          peers = { host, addrs, ... }: removeAttrs addrs [ host.name ]; # nodes.<other>.config
+        };
+      };
+    }
+  );
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -1927,6 +2020,32 @@ let
         }
       ]
       && map (e: e.code) treeAll.errors == [ "tree-request" ];
+    # NixOS `config` parity (configLike): each test is one pattern a fixpoint `config` expresses
+    config-no-errors = msgs configLike == [ ];
+    config-aggregate = configLike.reduced.ports."fleet:main/host:b" == [ 22 ];
+    config-mkif =
+      b.sort b.lessThan configLike.reduced.ports."fleet:main/host:a" == [
+        22
+        80
+        443
+      ];
+    config-read-option =
+      configLike.reduced.firewall."fleet:main/host:a" == [
+        22
+        80
+        443
+      ];
+    config-default-from-config = (hostOf configLike).fqdn == "a.lan";
+    config-lazy-chain = configLike.reduced.chain."fleet:main/host:a" == 20;
+    config-deep-merge =
+      configLike.reduced.settings."fleet:main/host:b" == {
+        a = 1;
+        b.c = 2;
+      };
+    config-priority =
+      configLike.reduced.motd."fleet:main/host:a" == "default"
+      && configLike.reduced.motd."fleet:main/host:b" == "forced";
+    config-other-node = configLike.reduced.peers."fleet:main/host:a" == { b = "10.0.0.2"; };
     # a plain element reads the children of its scope through `yen.lib.children`, as the `children` request does
     lib-children =
       (yen.eval (
