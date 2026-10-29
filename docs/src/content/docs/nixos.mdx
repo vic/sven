@@ -1,0 +1,18 @@
+---
+{"description":"What NixOS users write by hand in every multi-host flake, and the yen form. Each page is a tested template.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/nixos-index/page.nix","title":"NixOS patterns"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+These pages start from patterns that NixOS users ask about on [NixOS Discourse](https://discourse.nixos.org):
+a `mkHost` function, `specialArgs`, home-manager inside and outside NixOS, `allowUnfreePredicate`, and
+configuration that depends on the other hosts. Each page shows the usual code and the yen form, and its checks
+evaluate the real NixOS and home-manager configurations.
+
+
+<CardGrid>
+<LinkCard title="Many hosts, one base" href="/nixos/hosts/" description="Replace the mkHost function, readDir ./hosts and specialArgs.hostname with host instances and aspects." />
+<LinkCard title="System and home in one feature" href="/nixos/system-and-home/" description="One feature with NixOS and home-manager parts: no sharedModules, no extraSpecialArgs, no mkIf on the platform." />
+<LinkCard title="Unfree packages from many files" href="/nixos/unfree/" description="Each feature names its unfree packages. One allowUnfreePredicate per host reads them all." />
+<LinkCard title="Facts from other hosts" href="/nixos/cross-host/" description="known_hosts, WireGuard peers and Syncthing devices built from the other hosts, without reading nixosConfigurations." />
+</CardGrid>

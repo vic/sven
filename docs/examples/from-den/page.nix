@@ -180,6 +180,9 @@
         (168 patterns), and den-hoag's laws, each with a check. See ${
           docs.fleet "modules/den/patterns.nix" null "den/patterns.nix"
         }.
+
+        For the shapes that real Den configurations use (every battery, `includes` and `provides`, custom classes, the
+        dendritic aspect patterns), see [Den patterns in yen](/den/).
       '')
     ];
 

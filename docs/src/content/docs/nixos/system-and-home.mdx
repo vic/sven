@@ -1,0 +1,247 @@
+---
+{"description":"One feature with NixOS and home-manager parts: no sharedModules, no extraSpecialArgs, no mkIf on the platform.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/nixos-system-and-home/page.nix","title":"System and home in one feature"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+A feature such as a desktop often has two parts: system configuration, and home-manager configuration for each
+user. The usual answers each have a cost:
+
+- `home-manager.sharedModules` in the NixOS module. It does not work for standalone home-manager, and a
+  module that is imported from two features is added two times.
+- `extraSpecialArgs` to give home-manager the values that NixOS gets from `specialArgs`. You write them two
+  times, and standalone home-manager needs a third copy.
+- `osConfig ? null` and `lib.mkIf (osConfig != null)`, because `osConfig` does not exist in standalone mode.
+- `lib.mkIf pkgs.stdenv.isLinux` to send a package list to the system on one machine and to the home on
+  another. A `mkIf` around `imports` causes infinite recursion.
+
+In yen, the feature is aspects. `at` says where each part goes. A user's home-manager content goes into each
+NixOS host that the user lives on. A standalone home builds its own `homeConfigurations` output.
+
+
+<Tabs>
+<TabItem label="fleet.nix">
+
+```nix title="modules/fleet.nix"
+# NixOS hosts hold users. A home is a standalone home-manager configuration, for a machine without NixOS.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (yen.lib) same is;
+in
+{
+  yen.kinds.fleet = {
+    spawns = {
+      host = _: yen.host;
+      home = _: yen.home;
+    };
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.hosts) yen.user;
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+  yen.kinds.user = {
+    fields.hosts = is lib.isList;
+    # a user's home-manager content goes into each NixOS host it lives on
+    sinks.homeManager.nixos =
+      { user, homeManager, ... }:
+      {
+        home-manager.users.${user.name}.imports = homeManager;
+      };
+  };
+  yen.kinds.home = {
+    fields = {
+      user = yen.kinds.user;
+      system = lib.types.str;
+    };
+    sinks.homeManager.out =
+      { home, homeManager, ... }:
+      {
+        homeConfigurations.${home.name} = inputs.home-manager.lib.homeManagerConfiguration {
+          pkgs = inputs.nixpkgs.legacyPackages.${home.system};
+          modules = homeManager;
+        };
+      };
+  };
+  yen.aspects.home-manager = {
+    at = yen.lib.has yen.kinds.user;
+    nixos = {
+      imports = [ inputs.home-manager.nixosModules.home-manager ];
+      home-manager.useGlobalPkgs = true;
+    };
+  };
+
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+</TabItem>
+<TabItem label="machines.nix">
+
+```nix title="modules/machines.nix"
+# ana has a NixOS desktop, and a work laptop with another Linux: there she has home-manager only.
+{ yen, ... }:
+{
+  yen.host.desk = { };
+  yen.user.ana.hosts = [ yen.host.desk ];
+  yen.home."ana@work" = {
+    user = yen.user.ana;
+    system = "x86_64-linux";
+  };
+
+  yen.aspects.desk = {
+    at = yen.host.desk;
+    nixos = {
+      networking.hostName = "desk";
+      boot.loader.grub.device = "nodev";
+      fileSystems."/" = {
+        device = "/dev/sda1";
+        fsType = "ext4";
+      };
+      nixpkgs.hostPlatform = "x86_64-linux";
+      system.stateVersion = "25.05";
+      users.users.ana.isNormalUser = true;
+    };
+  };
+  yen.aspects.home-base = {
+    at = [
+      yen.kinds.user
+      yen.kinds.home
+    ];
+    homeManager.home.stateVersion = "25.05";
+  };
+  yen.aspects.standalone = {
+    at = yen.kinds.home;
+    homeManager =
+      { home, ... }:
+      {
+        home.username = home.user.name;
+        home.homeDirectory = "/home/${home.user.name}";
+      };
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Two levels: the desktop and its users
+
+This is the *multi context aspect* of the
+[dendritic design guide](https://github.com/Doc-Steve/dendritic-design-with-flake-parts/wiki/Dendritic_Aspects).
+The home part is not a private module that the system part imports. It is an aspect at the users of every host
+that has the desktop. Two features that both need it do not import it two times: an aspect is given once per
+scope.
+
+
+```nix title="modules/gnome.nix"
+# One feature, two levels. The desktop is a system concern; its settings are a home concern of each user on it.
+{ yen, ... }:
+let
+  inherit (yen.lib) all within;
+in
+{
+  yen.aspects.gnome = {
+    at = yen.host.desk;
+    nixos.services.xserver.desktopManager.gnome.enable = true;
+  };
+  # no home-manager.sharedModules: the users of a host that has gnome get this
+  yen.aspects.gnome-home = {
+    at = all [
+      yen.kinds.user
+      (within yen.aspects.gnome)
+    ];
+    homeManager.dconf.settings."org/gnome/desktop/interface".color-scheme = "prefer-dark";
+  };
+}
+```
+
+## The same concern, a different level per machine
+
+On NixOS, fonts are system packages. On the work laptop there is no NixOS, so they go into the home. The two
+aspects have different `at`. No module looks at `pkgs.stdenv` to find out where it is.
+
+
+```nix title="modules/fonts.nix"
+# Fonts are a system concern on NixOS, and a home concern where there is no NixOS. `at` decides, not mkIf.
+{ yen, ... }:
+{
+  yen.aspects.fonts-system = {
+    at = yen.kinds.host;
+    nixos =
+      { pkgs, ... }:
+      {
+        fonts.packages = [ pkgs.inter ];
+      };
+  };
+  yen.aspects.fonts-home = {
+    at = yen.kinds.home;
+    homeManager =
+      { pkgs, ... }:
+      {
+        home.packages = [ pkgs.inter ];
+        fonts.fontconfig.enable = true;
+      };
+  };
+}
+```
+
+## Values for home-manager
+
+A home-manager module gets the same yen args as a NixOS module: the host, the user, and any sink. There is
+no `extraSpecialArgs`. To read the host's *NixOS options* from home-manager, see
+[osConfig in home-manager](/recipes/os-config/).
+
+
+```nix title="modules/args.nix"
+# A home-manager module reads its host and its user as args: no extraSpecialArgs, no osConfig.
+{ yen, ... }:
+{
+  yen.aspects.prompt = {
+    at = yen.lib.all [
+      yen.kinds.user
+      (yen.lib.within yen.kinds.host)
+    ];
+    homeManager =
+      { host, user, ... }:
+      {
+        home.sessionVariables.PROMPT_TAG = "${user.name}@${host.name}";
+      };
+  };
+}
+```
+
+:::note[What the checks prove]
+The desk has GNOME, and ana's home on the desk has its settings. Her home on the work laptop has neither.
+Fonts are system packages on the desk, and home packages on the laptop, and never both.
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `nixos-system-and-home`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#nixos-system-and-home
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - args.nix
+  - fleet.nix
+  - fonts.nix
+  - gnome.nix
+  - machines.nix
+
+</FileTree>
+:::

@@ -1,0 +1,210 @@
+---
+{"description":"den.batteries.forward and den.classes: a sink whose other keys give its content to a class, at a path.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/den-classes/page.nix","title":"Custom classes and forward"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+In Den, a custom class is a new aspect key, such as `nix` or `persist`, and `den.batteries.forward` sends its
+content into another class at a path: `fromClass`, `intoClass`, `intoPath`, `adaptArgs`. It is the fifth most
+used battery in public Den configurations.
+
+In yen a custom class is a sink. Aspects give elements to it by its name. The sink's other keys give the reduced
+content to other sinks, such as `nixos` or `homeManager`, and the function places it at any path. There is no
+`adaptArgs`: the function gets yen args, and the content is plain data.
+
+
+| Den forward | yen sink |
+|---|---|
+| `den.classes.nix` | `yen.kinds.<kind>.sinks.nix` |
+| `fromClass = _: "nix"` | the sink name |
+| `intoClass`, `each = [ "nixos" "homeManager" ]` | one key per target, on each kind that has the sink |
+| `intoPath = _: [ "nix" "settings" ]` | the attribute path in the key's function |
+| `adaptArgs` | not needed: yen args, such as `host`, are args of the key's function |
+
+## One class, two targets
+
+The same `nix` settings go to `nix.settings` of NixOS on hosts, and of home-manager on standalone homes.
+
+
+```nix title="modules/nix.nix"
+# Den: a `nix` class, forwarded with den.batteries.forward into nix.settings of nixos and of homeManager.
+# yen: a `nix` sink on each kind. Its other key gives the settings to the class of that kind.
+{ yen, ... }:
+let
+  merge = yen.lib.reduce.merge;
+in
+{
+  yen.kinds.host.sinks.nix = {
+    reduce = merge;
+    nixos =
+      { nix, ... }:
+      {
+        nix.settings = nix;
+      };
+  };
+  yen.kinds.home.sinks.nix = {
+    reduce = merge;
+    homeManager =
+      { nix, ... }:
+      {
+        nix.settings = nix;
+      };
+  };
+
+  # written once, for both
+  yen.aspects.nix-settings = {
+    at = [
+      yen.kinds.host
+      yen.kinds.home
+    ];
+    nix = {
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
+      warn-dirty = false;
+    };
+  };
+  yen.aspects.builders = {
+    at = yen.kinds.host;
+    nix.max-jobs = 4;
+  };
+}
+```
+
+## A class under a path
+
+This is also the *DRY aspect* of the
+[dendritic design guide](https://github.com/Doc-Steve/dendritic-design-with-flake-parts/wiki/Dendritic_Aspects),
+for options inside an attribute set of submodules. A feature writes `lan` content. The sink puts it under the
+interface that the host names, with `lib.mkMerge`, so two features never overwrite each other.
+
+
+```nix title="modules/lan.nix"
+# A class that lands under a path: forward's intoPath. `lan` content goes to networking.interfaces.<host.lan>.
+# Features add routes to the LAN without knowing the interface name.
+{ yen, lib, ... }:
+{
+  yen.kinds.host.sinks.lan.nixos =
+    { host, lan, ... }:
+    {
+      networking.interfaces.${host.lan} = lib.mkMerge lan;
+    };
+
+  yen.aspects.subnet-a = {
+    at = yen.kinds.host;
+    lan.ipv4.routes = [
+      {
+        address = "192.168.2.0";
+        prefixLength = 24;
+        via = "192.168.1.1";
+      }
+    ];
+  };
+  yen.aspects.server-address = {
+    at = yen.host.server;
+    lan.ipv4.addresses = [
+      {
+        address = "10.0.0.1";
+        prefixLength = 16;
+      }
+    ];
+  };
+}
+```
+
+<Tabs>
+<TabItem label="fleet.nix">
+
+```nix title="modules/fleet.nix"
+# A NixOS host, and a standalone home on a machine without NixOS.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+{
+  yen.kinds.fleet = {
+    spawns = {
+      host = _: yen.host;
+      home = _: yen.home;
+    };
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    fields.lan = lib.types.str; # the name of the LAN interface
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+  yen.kinds.home = {
+    fields.system = lib.types.str;
+    sinks.homeManager.out =
+      { home, homeManager, ... }:
+      {
+        homeConfigurations.${home.name} = inputs.home-manager.lib.homeManagerConfiguration {
+          pkgs = inputs.nixpkgs.legacyPackages.${home.system};
+          modules = homeManager;
+        };
+      };
+  };
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+
+  yen.host.server.lan = "enp86s0";
+  yen.home.ana.system = "x86_64-linux";
+  yen.aspects.machine = {
+    at = yen.host.server;
+    nixos = {
+      networking.hostName = "server";
+      boot.loader.grub.device = "nodev";
+      fileSystems."/" = {
+        device = "/dev/sda1";
+        fsType = "ext4";
+      };
+      nixpkgs.hostPlatform = "x86_64-linux";
+      system.stateVersion = "25.05";
+    };
+  };
+  yen.aspects.home = {
+    at = yen.home.ana;
+    homeManager =
+      { pkgs, ... }:
+      {
+        home.username = "ana";
+        home.homeDirectory = "/home/ana";
+        home.stateVersion = "25.05";
+        nix.package = pkgs.nix;
+      };
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+:::tip[More classes]
+The reference fleet has a `git` user sink that forwards into `homeManager`, and a `maid` sink that writes
+dotfiles with no home-manager: [den/custom-classes.nix](https://github.com/vic/yen/blob/main/templates/fleet/modules/den/custom-classes.nix).
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `den-classes`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#den-classes
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - fleet.nix
+  - lan.nix
+  - nix.nix
+
+</FileTree>
+:::

@@ -1,0 +1,182 @@
+---
+{"description":"known_hosts, WireGuard peers and Syncthing devices built from the other hosts, without reading nixosConfigurations.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/nixos-cross-host/page.nix","title":"Facts from other hosts"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Some configuration of a host is about the other hosts: SSH `knownHosts`, WireGuard peers, Syncthing devices,
+backup targets. The usual answers:
+
+- A hand-written list of hosts in a shared file. It goes out of date when you add a host.
+- `self.nixosConfigurations.<other>.config` through `specialArgs`. When two hosts read derived values from
+  each other, the evaluation can recurse without end.
+- The *collector aspect* of the
+  [dendritic design guide](https://github.com/Doc-Steve/dendritic-design-with-flake-parts/wiki/Dendritic_Aspects):
+  each host feature adds its own device to a shared NixOS module. It works, but every host gets every
+  contribution, its own included.
+
+In yen a host's public facts are fields of its instance. Every module can read `yen.host`: it is data, so
+nothing evaluates a NixOS system to read it.
+
+
+```nix title="modules/fleet.nix"
+# Each host carries its public facts as fields. Every module can read every host: they are data, not NixOS configs.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  str = lib.types.str;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    fields = {
+      sshKey = str;
+      wgKey = str;
+      wgIp = str;
+    };
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+
+  yen.host = {
+    nas = {
+      sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINas";
+      wgKey = "nas0wgPublicKey0000000000000000000000000000=";
+      wgIp = "10.9.0.1";
+    };
+    desk = {
+      sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDesk";
+      wgKey = "desk0wgPublicKey000000000000000000000000000=";
+      wgIp = "10.9.0.2";
+    };
+    laptop = {
+      sshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILap";
+      wgKey = "laptop0wgPublicKey0000000000000000000000000=";
+      wgIp = "10.9.0.3";
+    };
+  };
+  yen.aspects.machine = {
+    at = yen.kinds.host;
+    nixos =
+      { host, ... }:
+      {
+        networking.hostName = host.name;
+        boot.loader.grub.device = "nodev";
+        fileSystems."/" = {
+          device = "/dev/sda1";
+          fsType = "ext4";
+        };
+        nixpkgs.hostPlatform = "x86_64-linux";
+        system.stateVersion = "25.05";
+      };
+  };
+}
+```
+
+```nix title="modules/mesh.nix"
+# known_hosts and WireGuard peers: every other host, from its fields. No hosts list to keep in sync.
+{ yen, lib, ... }:
+let
+  others = host: lib.filterAttrs (n: _: n != host.name) yen.host;
+in
+{
+  yen.aspects.mesh = {
+    at = yen.kinds.host;
+    nixos =
+      { host, ... }:
+      {
+        programs.ssh.knownHosts = lib.mapAttrs (n: h: {
+          hostNames = [ n ];
+          publicKey = h.sshKey;
+        }) (others host);
+        networking.wireguard.interfaces.wg0 = {
+          ips = [ "${host.wgIp}/24" ];
+          privateKeyFile = "/var/lib/wireguard/private.key";
+          peers = lib.mapAttrsToList (_: h: {
+            publicKey = h.wgKey;
+            allowedIPs = [ "${h.wgIp}/32" ];
+          }) (others host);
+        };
+      };
+  };
+}
+```
+
+## Facts that only some hosts have
+
+A Syncthing device id exists only on hosts that run Syncthing. Each of them gives its id to the
+`syncthing-device` sink of the fleet. A host has no such sink, so the id goes up to the fleet. A Syncthing
+host then reads the sink as an arg. `entries` keeps who gave each id, so a host can leave out its own.
+
+
+```nix title="modules/syncthing.nix"
+# A fact that only some hosts have: each Syncthing host gives its device id. The ids go up to the fleet;
+# every Syncthing host reads them back and adds the others as devices.
+{ yen, lib, ... }:
+{
+  yen.kinds.fleet.sinks.syncthing-device.reduce = yen.lib.reduce.entries; # each id with the host that gave it
+
+  yen.aspects.syncthing = {
+    at = [
+      yen.host.nas
+      yen.host.desk
+    ];
+    nixos =
+      { host, syncthing-device, ... }:
+      {
+        services.syncthing = {
+          enable = true;
+          settings.devices = lib.listToAttrs (
+            map (e: lib.nameValuePair e.from.name { inherit (e.value) id; }) (
+              lib.filter (e: e.from.name != host.name) syncthing-device
+            )
+          );
+        };
+      };
+  };
+  # the ids, in each host's own file in a real fleet
+  yen.aspects.nas-id = {
+    at = yen.host.nas;
+    syncthing-device.id = "NAS1111-1111111-1111111-1111111-1111111-1111111-1111111-1111111";
+  };
+  yen.aspects.desk-id = {
+    at = yen.host.desk;
+    syncthing-device.id = "DESK222-2222222-2222222-2222222-2222222-2222222-2222222-2222222";
+  };
+}
+```
+
+:::note[Why there is no recursion]
+`yen.host` and the `syncthing-device` sink are yen data. They exist before any NixOS module runs. A NixOS
+module reads them, and never reads another host's NixOS `config`.
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `nixos-cross-host`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#nixos-cross-host
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - fleet.nix
+  - mesh.nix
+  - syncthing.nix
+
+</FileTree>
+:::

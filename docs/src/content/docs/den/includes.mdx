@@ -1,0 +1,265 @@
+---
+{"description":"How large Den configurations are written, and the same structure in yen: features in many files, hosts that pick features, user meta.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/den-includes/page.nix","title":"includes, provides and meta"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+This page follows the structure of [drupol/infra](https://github.com/drupol/infra), one of the largest public
+Den configurations: ten hosts, one user on most of them, and about a hundred feature files. The same shapes
+appear in most Den configurations on GitHub.
+
+
+| Den | yen |
+|---|---|
+| `den.aspects.base` written in 26 files | the same: `yen.aspects.base` in many files; nothing is lost, see below |
+| `den.default.includes = [ base ]` | `at = yen.kinds.host` on the aspect |
+| a host's `includes` or `provides.to-users.includes = [ desktop openssh … ]` | the host file adds the host to each feature's `at` |
+| `(den.aspects.facter ./facter.json)`, `(mount-cifs "//nas/media")` | a host field, and one aspect whose `at` tests the field |
+| `den.aspects.pol.provides.x280`, `host-aspects` | an aspect at `all [ yen.user.pol (within yen.host.x280) ]` |
+| `meta = { fullname; email; authorizedKeys; }`, read with `config.meta` | typed user fields, read as `user.fullname` or `yen.user.pol.fullname` |
+| `den.aspects.tools.provides.nix-trusted-user` | an aspect with its own name |
+| `hasAspect` | an aspect in a predicate: `at = all [ yen.kinds.user (within yen.aspects.gnome) ]` |
+
+```nix title="modules/fleet.nix"
+# Den's schema, declared. A user's `meta` attrs become typed fields; `facter ./facter.json` becomes a host field.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (yen.lib) opt is;
+  strs = lib.types.listOf lib.types.str;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    fields = {
+      system = opt lib.types.str "x86_64-linux";
+      shares = opt strs [ ]; # parameters of a parametric aspect
+    };
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+  yen.kinds.user.fields = {
+    hosts = is lib.isList;
+    fullname = lib.types.str;
+    authorizedKeys = opt strs [ ];
+  };
+
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+## One feature in many files
+
+Each file under `modules/base/` writes part of the `base` aspect. yen reads all of them. A NixOS module from
+each file reaches every host.
+
+
+<Tabs>
+<TabItem label="base/nix.nix">
+
+```nix title="modules/base/nix.nix"
+# One feature, many files: each file of modules/base/ adds to the same `base` aspect.
+{ yen, ... }:
+{
+  yen.aspects.base = {
+    at = yen.kinds.host; # den.default.includes: every host
+    nixos.nix.settings.experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+  };
+}
+```
+
+</TabItem>
+<TabItem label="base/i18n.nix">
+
+```nix title="modules/base/i18n.nix"
+{
+  yen.aspects.base.nixos.i18n.defaultLocale = "en_GB.UTF-8";
+}
+```
+
+</TabItem>
+<TabItem label="base/host.nix">
+
+```nix title="modules/base/host.nix"
+{
+  yen.aspects.base.nixos =
+    { host, ... }:
+    {
+      networking.hostName = host.name;
+      nixpkgs.hostPlatform = host.system;
+      system.stateVersion = "25.05";
+    };
+}
+```
+
+</TabItem>
+</Tabs>
+
+## Hosts pick features
+
+In Den, a host file lists the features it includes. In yen a feature has no `at` of its own, and each host file
+adds the host to the `at` of the features it wants. `at` from several files is a union, so the list stays in the
+host file, as in Den.
+
+
+```nix title="modules/features.nix"
+# Features without `at`: each host file says which ones it has.
+{ lib, ... }:
+{
+  yen.aspects.desktop.nixos.services.xserver.desktopManager.gnome.enable = true;
+  yen.aspects.openssh.nixos.services.openssh.enable = true;
+  # (den.aspects.mount-cifs "//nas/media"): the parameters are the host's `shares` field
+  yen.aspects.shares = {
+    at = s: (s.shares or [ ]) != [ ];
+    nixos =
+      { host, ... }:
+      {
+        fileSystems = lib.listToAttrs (
+          map (
+            share:
+            lib.nameValuePair "/mnt/${baseNameOf share}" {
+              device = share;
+              fsType = "cifs";
+              options = [ "noauto" ];
+            }
+          ) host.shares
+        );
+      };
+  };
+}
+```
+
+<Tabs>
+<TabItem label="hosts/x280.nix">
+
+```nix title="modules/hosts/x280.nix"
+# Den: provides.to-users.includes = with den.aspects; [ desktop openssh … ]. yen: the host joins each feature's `at`.
+{ yen, ... }:
+let
+  host = yen.host.x280;
+in
+{
+  yen.host.x280.shares = [ "//nas/media" ];
+  yen.aspects.desktop.at = [ host ];
+  yen.aspects.openssh.at = [ host ];
+  yen.aspects.x280 = {
+    at = host;
+    nixos = {
+      boot.loader.systemd-boot.enable = true;
+      fileSystems."/" = {
+        device = "/dev/disk/by-label/nixos";
+        fsType = "ext4";
+      };
+    };
+  };
+  # den.aspects.pol.provides.x280: pol's content, only on this host
+  yen.aspects.pol-on-x280 = {
+    at = yen.lib.all [
+      yen.user.pol
+      (yen.lib.within host)
+    ];
+    nixos.users.users.pol.extraGroups = [ "dialout" ];
+  };
+}
+```
+
+</TabItem>
+<TabItem label="hosts/rpi4.nix">
+
+```nix title="modules/hosts/rpi4.nix"
+{ yen, ... }:
+{
+  yen.host.rpi4.system = "aarch64-linux";
+  yen.aspects.openssh.at = [ yen.host.rpi4 ]; # `at` from two files is a union
+  yen.aspects.rpi4 = {
+    at = yen.host.rpi4;
+    nixos = {
+      boot.loader.generic-extlinux-compatible.enable = true;
+      fileSystems."/" = {
+        device = "/dev/disk/by-label/NIXOS_SD";
+        fsType = "ext4";
+      };
+    };
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+## User meta is fields
+
+Den users often keep a free-form `meta` attribute set and read it back with `config.meta`. In yen these are
+fields of the user kind. A missing `fullname` is an error at the user, and every file can read the value.
+
+
+```nix title="modules/users/pol.nix"
+# Den: den.aspects.pol = { config, ... }: { meta.fullname = …; user.description = config.meta.fullname; }.
+# yen: meta is fields of the instance. Any file reads them as `yen.user.pol.fullname`, or as the `user` arg.
+{ yen, ... }:
+{
+  yen.user.pol = {
+    hosts = [
+      yen.host.x280
+      yen.host.rpi4
+    ];
+    fullname = "Pol";
+    authorizedKeys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPol" ];
+  };
+  # define-user + primary-user, for every user
+  yen.aspects.account = {
+    at = yen.kinds.user;
+    nixos =
+      { user, ... }:
+      {
+        users.users.${user.name} = {
+          isNormalUser = true;
+          description = user.fullname;
+          extraGroups = [ "wheel" ];
+          openssh.authorizedKeys.keys = user.authorizedKeys;
+        };
+      };
+  };
+}
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `den-includes`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#den-includes
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - base/
+    - host.nix
+    - i18n.nix
+    - nix.nix
+  - features.nix
+  - fleet.nix
+  - hosts/
+    - rpi4.nix
+    - x280.nix
+  - users/
+    - pol.nix
+
+</FileTree>
+:::

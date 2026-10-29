@@ -1,0 +1,226 @@
+---
+{"description":"Replace the mkHost function, readDir ./hosts and specialArgs.hostname with host instances and aspects.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/nixos-hosts/page.nix","title":"Many hosts, one base"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Most flakes with more than one machine grow a `mkHost` function. It takes a host name, imports a shared module
+and `./hosts/${name}`, sets `networking.hostName`, and passes values in `specialArgs`. When there are many hosts,
+a `vars.nix` file merges defaults, then category values, then host values. Tools such as
+[easy-hosts](https://github.com/tgirlcloud/easy-hosts) add modules per class, per arch and per tag.
+
+
+```nix
+# flake.nix: the usual shape
+nixosConfigurations = lib.genAttrs (builtins.attrNames (builtins.readDir ./hosts)) (
+  name:
+  nixpkgs.lib.nixosSystem {
+    specialArgs = { inherit inputs; hostname = name; vars = getHostVars name; };
+    modules = [ ./common.nix ./hosts/${name} { networking.hostName = name; } ];
+  }
+);
+```
+
+In yen a host is an instance of a kind. The kind builds the NixOS system once. Shared configuration is an aspect
+at the kind. Host values are typed fields with defaults, and every NixOS module of an aspect can read them as
+the `host` arg.
+
+
+| Usual pattern | yen |
+|---|---|
+| `mkHost "tower"` | `yen.host.tower = { }` |
+| `builtins.readDir ./hosts` | import-tree: each file under `modules/hosts/` declares its host |
+| `specialArgs.hostname`, `specialArgs.vars` | `{ host, ... }:` in the NixOS module of any aspect |
+| `vars.nix`: defaults, category, host | `fields` with defaults; for layered values see [Environments](/recipes/environments/) |
+| easy-hosts `perArch`, `perClass`, `perTag` | an aspect whose `at` reads a field; see [Roles from data](/recipes/roles/) |
+| `nixos-rebuild switch --flake .#tower` | the same: the output name is the instance name |
+
+## The kind
+
+
+```nix title="modules/fleet.nix"
+# Hosts are data. One kind builds every NixOS system: no mkHost function, no readDir, no specialArgs.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (yen.lib) opt;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    # what a vars.nix file held: typed, with defaults
+    fields = {
+      system = opt (lib.types.enum [
+        "x86_64-linux"
+        "aarch64-linux"
+      ]) "x86_64-linux";
+      laptop = opt lib.types.bool false;
+    };
+    sinks.nixos.out =
+      { host, nixos, ... }:
+      {
+        nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
+      };
+  };
+
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+A wrong value fails at the instance that sets it, not deep in `nixpkgs.hostPlatform`. With
+`yen.host.tower.system = "x86-64-linux"`, the result has this error, as data:
+
+
+```nix title="result"
+[
+  {
+    class = "fixable";
+    code = "check";
+    error = "system fails its check";
+    fix = "give system a value of type enum";
+    from = "host:tower";
+    got = "x86-64-linux";
+    path = [
+      "system"
+    ];
+    want = "enum";
+  }
+]
+```
+
+## The base, per arch, per form
+
+
+```nix title="modules/base.nix"
+# What mkHost gave every host, and what easy-hosts gives per arch or per class: aspects at the host kind.
+{ yen, ... }:
+{
+  yen.aspects.base = {
+    at = yen.kinds.host;
+    nixos =
+      { host, ... }:
+      {
+        networking.hostName = host.name; # no specialArgs.hostname: the host is an arg
+        nixpkgs.hostPlatform = host.system;
+        nix.settings.experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+        system.stateVersion = "25.05";
+      };
+  };
+  # per arch: `at` reads a field
+  yen.aspects.arm = {
+    at = s: (s.system or null) == "aarch64-linux";
+    nixos.boot.loader.generic-extlinux-compatible.enable = true;
+  };
+  yen.aspects.laptop = {
+    at = s: s.laptop or false;
+    nixos.services.upower.enable = true;
+  };
+}
+```
+
+## One file per host
+
+
+<Tabs>
+<TabItem label="tower.nix">
+
+```nix title="modules/hosts/tower.nix"
+# One file per host: the instance and its own hardware. A new file is a new host.
+{ yen, ... }:
+{
+  yen.host.tower = { };
+  yen.aspects.tower = {
+    at = yen.host.tower;
+    nixos = {
+      boot.loader.systemd-boot.enable = true;
+      fileSystems."/" = {
+        device = "/dev/disk/by-label/nixos";
+        fsType = "ext4";
+      };
+    };
+  };
+}
+```
+
+</TabItem>
+<TabItem label="thinkpad.nix">
+
+```nix title="modules/hosts/thinkpad.nix"
+{ yen, ... }:
+{
+  yen.host.thinkpad.laptop = true;
+  yen.aspects.thinkpad = {
+    at = yen.host.thinkpad;
+    nixos = {
+      boot.loader.systemd-boot.enable = true;
+      fileSystems."/" = {
+        device = "/dev/disk/by-label/nixos";
+        fsType = "ext4";
+      };
+    };
+  };
+}
+```
+
+</TabItem>
+<TabItem label="pi.nix">
+
+```nix title="modules/hosts/pi.nix"
+{ yen, ... }:
+{
+  yen.host.pi.system = "aarch64-linux";
+  yen.aspects.pi = {
+    at = yen.host.pi;
+    nixos.fileSystems."/" = {
+      device = "/dev/disk/by-label/NIXOS_SD";
+      fsType = "ext4";
+    };
+  };
+}
+```
+
+</TabItem>
+</Tabs>
+
+A real host file usually imports its `hardware-configuration.nix` in its `nixos` key, next to the instance.
+
+
+:::note[What you stop writing]
+- The `mkHost` function, and the list of shared modules that every host repeats.
+- `specialArgs` and `extraSpecialArgs`: the `host` arg is in every module of an aspect, and in home-manager too.
+- `lib.mkIf (hostname == "pi")` in shared modules: the aspect's `at` says where it applies.
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `nixos-hosts`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#nixos-hosts
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - base.nix
+  - fleet.nix
+  - hosts/
+    - pi.nix
+    - thinkpad.nix
+    - tower.nix
+- variants/
+  - typo.nix
+
+</FileTree>
+:::
