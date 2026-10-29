@@ -1512,7 +1512,14 @@ let
         };
       in
       !s.ok
-      && s.violations == [ "bad:attic-on-mac:${studio}" ]
+      &&
+        s.violations == [
+          [
+            "bad"
+            "attic-on-mac"
+            studio
+          ]
+        ]
       && s.diff.active.added == [ "attic@${studio}" ]
       && b.isString s.render;
     agent-grant =
@@ -1686,9 +1693,20 @@ let
         };
       in
       !s.ok
-      && s.violations == [ "bad:db-cross-env:fleet:main/environment:lab/host:app-4" ]
       &&
-        r.check.whyNot "bad:db-cross-env:fleet:main/environment:lab/host:app-4" == [
+        s.violations == [
+          [
+            "bad"
+            "db-cross-env"
+            "fleet:main/environment:lab/host:app-4"
+          ]
+        ]
+      &&
+        r.check.whyNot [
+          "bad"
+          "db-cross-env"
+          "fleet:main/environment:lab/host:app-4"
+        ] == [
           {
             rule = null;
             reason = "no rule has this head";
@@ -1710,7 +1728,15 @@ let
             };
         };
       in
-      !s.ok && s.violations == [ "bad:addr-clash:10.0.1.1" ];
+      !s.ok
+      &&
+        s.violations == [
+          [
+            "bad"
+            "addr-clash"
+            "10.0.1.1"
+          ]
+        ];
     safety-trust-order =
       let
         s = yen.stage {
@@ -1723,7 +1749,15 @@ let
         };
       in
       !s.ok
-      && s.violations == [ "bad:trust-down:fleet:main/environment:lab/host:app-4:stage" ]
+      &&
+        s.violations == [
+          [
+            "bad"
+            "trust-down"
+            "fleet:main/environment:lab/host:app-4"
+            "stage"
+          ]
+        ]
       &&
         (yen.stage {
           base = fleet [ ];
@@ -1754,7 +1788,13 @@ let
         env = "staging";
       } == {
         safe = [ "stage" ];
-        refused.studio = [ "bad:attic-on-mac:fleet:main/environment:staging/mac:studio" ];
+        refused.studio = [
+          [
+            "bad"
+            "attic-on-mac"
+            "fleet:main/environment:staging/mac:studio"
+          ]
+        ];
       };
     clan-install-order =
       let

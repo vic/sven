@@ -25,6 +25,7 @@ let
     length
     listToAttrs
     mapAttrs
+    tail
     ;
 
   # ── tiny helpers (no nixpkgs) ──
@@ -53,10 +54,20 @@ let
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
   requestKinds = words "nearest parent children scopesOf holds";
-  factRelations = words "scope kind has edge error ref val"; # the atoms yen extracts: no rule may derive them
+  # the facts yen extracts, with their arity: no rule derives them
+  edbArity = {
+    scope = 1;
+    instance = 3;
+    kind = 2;
+    has = 2;
+    edge = 3;
+    error = 2;
+    ref = 4;
+    val = 3;
+  };
   # the only keys a module, its `yen` and a kind declare; any other key is an error, never ignored
   moduleKeys = words "imports _module yen";
-  yenKeys = words "kinds aspects helpers queries invariants labels flake"; # and the kind names
+  yenKeys = words "kinds aspects helpers queries invariants relations labels flake"; # and the kind names
   kindKeys = words "fields spawns sinks";
   uniqueBy =
     key: xs:
@@ -437,6 +448,7 @@ let
         helpers = top.helpers or { };
         queries = top.queries or { };
         invariants = top.invariants or { };
+        relations = top.relations or { }; # user relations a rule derives: `<name>.arity`
         inherit labelTable;
       }; # declarations an agent or the docs read
 
@@ -939,38 +951,104 @@ let
           inherit (e) origin;
         }) routed;
       }; # origin: "aspect x" or "sink y": who gave it
-      # ── facts and invariants: the fleet as ground atoms; `yen.invariants.<name>` gives Datalog rules over them.
-      # A true `bad:` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
+      # ── facts and invariants: the fleet as typed atoms `[ rel t… ]`; `yen.invariants.<name>` gives Datalog rules over them.
+      # A true `bad` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
+      # a field value: `[ "ref" FIELD ID KIND NAME ]` for a ref, `[ "val" FIELD ID VALUE ]` for a string, int or bool, one
+      # per list element (a path by its string). A float, function or derivation has no fact, so it is an error: an absence never passes on it
+      fieldAtoms = concatMap (
+        s:
+        concatMap (
+          f:
+          let
+            one =
+              x:
+              if isRef x && isString x.kind then
+                [
+                  {
+                    atom = [
+                      "ref"
+                      f
+                      s.id
+                      x.kind
+                      x.name
+                    ];
+                  }
+                ]
+              else if isString x || b.isInt x || b.isBool x then
+                [
+                  {
+                    atom = [
+                      "val"
+                      f
+                      s.id
+                      x
+                    ];
+                  }
+                ]
+              else if isPath x then
+                [
+                  {
+                    atom = [
+                      "val"
+                      f
+                      s.id
+                      (toString x)
+                    ];
+                  }
+                ] # a path is stated by its string
+              else if b.isFloat x || isFunction x || isAttrs x && x.type or null == "derivation" then
+                [
+                  {
+                    error = errWith s.id "field `${f}` holds a ${b.typeOf x}: no fact can state it" {
+                      code = "unencodable";
+                      path = [ f ];
+                      got = b.typeOf x;
+                      fix = "give the field a string, an int, a bool or a ref";
+                    };
+                  }
+                ]
+              else
+                [ ];
+          in
+          if isList s.${f} then concatMap one s.${f} else one s.${f}
+        ) (attrNames (removeAttrs s scopeMeta))
+      ) unsorted;
       facts =
-        map (s: "scope:${s.id}") scopes
-        ++ map (s: "kind:${s.kind}:${s.id}") scopes
-        ++ concatMap (n: map (s: "has:${n}:${s.id}") (filter (s: active.${n}.${s.id}) unsorted)) aspectNames
-        ++ map (e: "edge:${e.sink}:${e.from}:${e.to}") graph.edges
-        ++ map (e: "error:${e.code or "error"}:${e.from}") errorsAll
-        # field values of each scope's instance: `ref:FIELD:ID:KIND:NAME` for a ref, `val:FIELD:ID:VALUE` for a string, int or bool
+        map (s: [
+          "scope"
+          s.id
+        ]) scopes
+        ++ map (s: [
+          "instance"
+          s.id
+          s.kind
+          s.name
+        ]) scopes # a ref names KIND NAME: this finds its scopes
+        ++ map (s: [
+          "kind"
+          s.kind
+          s.id
+        ]) scopes
         ++ concatMap (
-          s:
-          concatMap (
-            f:
-            let
-              v = s.${f};
-              atom =
-                x:
-                if isRef x && isString x.kind then
-                  [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
-                else if isString x || b.isInt x then
-                  [ "val:${f}:${s.id}:${toString x}" ]
-                else
-                  [ ];
-            in
-            if isList v then
-              concatMap atom v
-            else if b.isBool v then
-              [ "val:${f}:${s.id}:${b.toJSON v}" ]
-            else
-              atom v
-          ) (attrNames (removeAttrs s scopeMeta))
-        ) unsorted;
+          n:
+          map (s: [
+            "has"
+            n
+            s.id
+          ]) (filter (s: active.${n}.${s.id}) unsorted)
+        ) aspectNames
+        ++ map (e: [
+          "edge"
+          e.sink
+          e.from
+          e.to
+        ]) graph.edges
+        ++ map (e: [
+          "error"
+          (e.code or "error")
+          e.from
+        ]) errorsFleet
+        ++ concatMap (x: if x ? atom then [ x.atom ] else [ ]) fieldAtoms;
       check =
         let
           D = static.datalog;
@@ -992,28 +1070,99 @@ let
               }
             else
               f;
-          # a rule may derive only its own relations: a head that spells an extracted fact would forge it
-          isFact = a: any (p: b.substring 0 (b.stringLength p + 1) a == "${p}:") factRelations;
-          allRules = concatMap rulesOf (attrNames invs);
-          forged = map (r: r.head) (filter (r: isFact r.head) allRules);
-          rules = filter (r: !isFact r.head) allRules;
-          mentioned = keySet (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules);
-          m = D.wfs (rules ++ D.facts (filter (a: mentioned ? ${a}) facts));
-          isBad = a: b.substring 0 4 a == "bad:";
+          # every relation a rule may name: the extracted ones, the comparisons, and the user's; `bad` takes any arity
+          arity = edbArity // mapAttrs (_: _: 2) D.comparisons // mapAttrs (_: r: r.arity) yen.relations;
+          isAtom =
+            a:
+            isList a
+            && a != [ ]
+            && isString (head a)
+            && all (t: isString t || b.isInt t || b.isBool t || D.isVar t) (tail a);
+          isCmp = a: D.comparisons ? ${head a};
+          varsOf = concatMap (a: map (t: t.var) (filter D.isVar (tail a)));
+          # the first thing wrong with a rule, as { code; error; got; }, or null
+          problem =
+            r:
+            let
+              atoms = [ r.head ] ++ r.pos or [ ] ++ r.neg or [ ];
+              bound = varsOf (filter (a: !isCmp a) (r.pos or [ ]));
+              free = filter (x: !elem x bound) (
+                varsOf ([ r.head ] ++ r.neg or [ ] ++ filter isCmp (r.pos or [ ]))
+              );
+              unknownRel = filter (a: !(arity ? ${head a}) && head a != "bad") atoms;
+              wrongArity = filter (a: arity ? ${head a} && length (tail a) != arity.${head a}) atoms;
+            in
+            if !(isAttrs r && r ? head) || !all isAtom atoms then
+              {
+                code = "bad-atom";
+                error = "an atom is a list [ rel t… ] of strings, ints, bools and { var = \"X\"; }";
+                got = static.jsonSafe r;
+              }
+            else if edbArity ? ${head r.head} || isCmp r.head then
+              {
+                code = "edb-head";
+                error = "a rule derives `${head r.head}`, a relation yen gives: a rule never states it";
+                got = r.head;
+              }
+            else if unknownRel != [ ] then
+              {
+                code = "unknown-relation";
+                error = "no relation ${head (head unknownRel)}: declare it in yen.relations";
+                got = head (head unknownRel);
+                near = near (head (head unknownRel)) (attrNames arity);
+              }
+            else if wrongArity != [ ] then
+              {
+                code = "arity";
+                error = "${head (head wrongArity)} takes ${toString arity.${head (head wrongArity)}} terms";
+                got = head wrongArity;
+              }
+            else if free != [ ] then
+              {
+                code = "unsafe-rule";
+                error = "variable ${head free} is not bound by a positive atom";
+                got = free;
+              }
+            else
+              null;
+          checked = concatMap (
+            n:
+            map (r: {
+              inherit n r;
+              p = problem r;
+            }) (rulesOf n)
+          ) (attrNames invs);
+          errors = map (
+            x:
+            errWith "invariant ${x.n}" x.p.error (
+              removeAttrs x.p [ "error" ]
+              // {
+                path = [
+                  "invariants"
+                  x.n
+                ];
+              }
+            )
+          ) (filter (x: x.p != null) checked);
+          ground = D.ground (map (x: x.r) (filter (x: x.p == null) checked)) facts;
+          key = b.toJSON;
+          mentioned = keySet (map key (concatMap (r: r.pos ++ r.neg) ground));
+          m = D.wfs (ground ++ D.facts (filter (a: mentioned ? ${key a}) facts));
+          isBad = a: head a == "bad";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
-          ground = rules ++ D.facts facts;
-          # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `ground`
+          program = ground ++ D.facts facts;
+          # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `program`
           model = m // {
-            true = m.true ++ filter (a: !(mentioned ? ${a})) facts;
+            true = m.true ++ filter (a: !(mentioned ? ${key a})) facts;
           };
         in
         {
-          inherit violations incomplete forged;
-          ok = violations == [ ] && incomplete == [ ] && forged == [ ];
-          why = D.why ground model;
-          whyNot = D.whyNot ground model;
-          proof = D.proof ground model;
+          inherit violations incomplete errors;
+          ok = violations == [ ] && incomplete == [ ];
+          why = D.why program model;
+          whyNot = D.whyNot program model;
+          proof = D.proof program model;
           invariants = attrNames invs;
         };
       lib =
@@ -1310,7 +1459,8 @@ let
             k
           ]) [ "yen" "kinds" k ] kindKeys (attrNames top.kinds.${k})
         ) kindNames;
-      errorsAll =
+      # every error but the invariants': the `error` facts read these, so a rule never reads its own errors
+      errorsFleet =
         loadErrors
         ++ keyErrors
         ++ declErrors [ ]
@@ -1321,7 +1471,9 @@ let
         ++ requestErrors
         ++ reduceErrors
         ++ emitted
-        ++ optional (!(flakeFill ? ok)) flakeFill;
+        ++ optional (!(flakeFill ? ok)) flakeFill
+        ++ concatMap (x: if x ? error then [ x.error ] else [ ]) fieldAtoms;
+      errorsAll = errorsFleet ++ check.errors;
       flakeFill = if top ? flake && scopes != [ ] then fill (head scopes) top.flake else { ok = null; };
       clean = errorsAll == [ ] && check.ok;
       self = {
@@ -1507,7 +1659,7 @@ let
           class = "authority";
           got = id;
         };
-      lawKeys = words "invariants labels flake";
+      lawKeys = words "invariants relations labels flake";
       law = filter (k: declared.declaredIn [ k ] != [ ]) lawKeys;
       errors = minus keyE changedResult.errors baseResult.errors;
       violations = filter (a: !elem a baseResult.check.violations) changedResult.check.violations;

@@ -126,7 +126,16 @@ in
       postgres-by-fact =
         result.active.postgres."fleet:main/env:prod/host:db"
         && !result.active.postgres."fleet:main/env:prod/host:web";
-      refused = !s.ok && s.violations == [ "bad:db-other-env:api" ];
+      refused =
+        !s.ok
+        &&
+          s.violations == [
+            [
+              "bad"
+              "db-other-env"
+              "fleet:main/env:lab/host:api"
+            ]
+          ];
     };
   e2e =
     { flake, ... }:

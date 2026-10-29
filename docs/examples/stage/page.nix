@@ -104,7 +104,16 @@
       d = S { change = "changes/desktop-on-web.json"; };
     in
     {
-      violation = !d.ok && d.violations == [ "bad:desktop-on-server:web" ];
+      violation =
+        !d.ok
+        &&
+          d.violations == [
+            [
+              "bad"
+              "desktop-on-server"
+              "fleet:main/host:web"
+            ]
+          ];
       clean = (S { change = "changes/postgres-on-thinkpad.json"; }).ok;
       grant =
         let

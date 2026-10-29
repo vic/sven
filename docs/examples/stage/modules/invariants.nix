@@ -1,27 +1,71 @@
-# Rules over `result.facts`. A true `bad:` atom is a violation. Facts: kind:K:ID, has:ASPECT:ID, val:FIELD:ID:VALUE, …
-{ yen, lib, ... }:
+# Rules over `result.facts`, as data. A fact is a list: [ "kind" K ID ], [ "has" ASPECT ID ], [ "val" FIELD ID VALUE ], …
+# A variable is { var = "X"; }; every string is a constant. A true [ "bad" … ] atom is a violation.
+{ ... }:
+let
+  v = x: { var = x; };
+in
 {
   # no server runs a desktop
-  yen.invariants.no-desktop-on-servers =
-    { scopes, ... }:
-    map (s: {
-      head = "bad:desktop-on-server:${s.name}";
-      pos = [ "has:desktop:${s.id}" ];
-    }) (lib.filter (s: s.kind == "host" && s.form == "server") scopes);
-  # no two hosts share an address: a rule across machines
-  yen.invariants.unique-addr =
-    { scopes, ... }:
-    let
-      hosts = lib.filter (s: s.kind == "host") scopes;
-    in
-    lib.concatMap (
-      a:
-      map (b: {
-        head = "bad:same-addr:${a.name}:${b.name}";
-        pos = [
-          "val:addr:${a.id}:${a.addr}"
-          "val:addr:${b.id}:${a.addr}"
-        ];
-      }) (lib.filter (b: a.name < b.name) hosts)
-    ) hosts;
+  yen.invariants.no-desktop-on-servers = [
+    {
+      head = [
+        "bad"
+        "desktop-on-server"
+        (v "H")
+      ];
+      pos = [
+        [
+          "val"
+          "form"
+          (v "H")
+          "server"
+        ]
+        [
+          "has"
+          "desktop"
+          (v "H")
+        ]
+      ];
+    }
+  ];
+  # no two hosts share an address: a rule across machines (`lt` keeps one of each pair)
+  yen.invariants.unique-addr = [
+    {
+      head = [
+        "bad"
+        "same-addr"
+        (v "A")
+        (v "B")
+      ];
+      pos = [
+        [
+          "kind"
+          "host"
+          (v "A")
+        ]
+        [
+          "kind"
+          "host"
+          (v "B")
+        ]
+        [
+          "val"
+          "addr"
+          (v "A")
+          (v "X")
+        ]
+        [
+          "val"
+          "addr"
+          (v "B")
+          (v "X")
+        ]
+        [
+          "lt"
+          (v "A")
+          (v "B")
+        ]
+      ];
+    }
+  ];
 }

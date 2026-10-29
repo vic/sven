@@ -396,6 +396,68 @@ let
     }
   );
   # rung 1 (vic/formally-verified.md): the law gates outputs and stage; grants by path segment, edges and values
+  # a variable is { var = "X"; }; every string is a constant
+  v = x: { var = x; };
+  nofw = id: [
+    "bad"
+    "no-firewall"
+    id
+  ];
+  hasFw = id: [
+    "has"
+    "firewall"
+    id
+  ];
+  cyc = [
+    "has"
+    "cyc"
+    "top:t"
+  ];
+  # every host has the firewall aspect
+  fwRules = [
+    {
+      head = [
+        "bad"
+        "no-firewall"
+        (v "H")
+      ];
+      pos = [
+        [
+          "kind"
+          "host"
+          (v "H")
+        ]
+      ];
+      neg = [
+        [
+          "has"
+          "firewall"
+          (v "H")
+        ]
+      ];
+    }
+  ];
+  codes = r: map (e: e.code) r.errors;
+  # rung 2 fixture: hosts `a` (tag "b:1") and `a:b` (tag "2"); `ok` is a user relation of arity 1
+  tagsWith =
+    rules: hosts:
+    yen.eval (
+      { yen, ... }:
+      {
+        yen.kinds.top.spawns.host = _: yen.host;
+        yen.kinds.host.fields.tag = yen.lib.is (_: true);
+        yen.top.t = { };
+        yen.host = {
+          a.tag = "b:1";
+          "a:b".tag = "2";
+        }
+        // hosts;
+        yen.relations.ok.arity = 1;
+        yen.invariants.r = rules;
+      }
+    );
+  tags = rules: tagsWith rules { };
+  rule2 = r: tags [ r ];
   rung1 = extra: {
     imports = [
       (
@@ -432,20 +494,27 @@ let
             fw = "on";
           };
           yen.aspects.cyc.at = [ ];
+          yen.relations = {
+            p.arity = 0;
+            q.arity = 0;
+          };
           yen.invariants.cycle = [
             {
-              head = "p";
-              pos = [ "has:cyc:top:t" ];
-              neg = [ "q" ];
+              head = [ "p" ];
+              pos = [ cyc ];
+              neg = [ [ "q" ] ];
             }
             {
-              head = "q";
-              pos = [ "has:cyc:top:t" ];
-              neg = [ "p" ];
+              head = [ "q" ];
+              pos = [ cyc ];
+              neg = [ [ "p" ] ];
             }
             {
-              head = "bad:cycle";
-              pos = [ "p" ];
+              head = [
+                "bad"
+                "cycle"
+              ];
+              pos = [ [ "p" ] ];
             }
           ];
           yen.flake.ok = true; # outputs exist only when the fleet is clean
@@ -714,13 +783,7 @@ let
         at = yen.host.a;
         fw = "on";
       };
-      yen.invariants.fw =
-        { scopes, ... }:
-        map (s: {
-          head = "bad:no-firewall:${s.id}";
-          pos = [ "kind:host:${s.id}" ];
-          neg = [ "has:firewall:${s.id}" ];
-        }) scopes;
+      yen.invariants.fw = fwRules;
     };
   ports =
     extra:
@@ -745,13 +808,7 @@ let
           at = yen.host.a;
           fw = "on";
         };
-        yen.invariants.fw =
-          { scopes, ... }:
-          map (s: {
-            head = "bad:no-firewall:${s.id}";
-            pos = [ "kind:host:${s.id}" ];
-            neg = [ "has:firewall:${s.id}" ];
-          }) scopes;
+        yen.invariants.fw = fwRules;
       }
     );
   rec1 = r: code: b.head (b.filter (e: e.code == code) r.errors);
@@ -799,7 +856,7 @@ let
       let
         r = ports { };
       in
-      r.check.violations == [ "bad:no-firewall:top:t/host:b" ]
+      r.check.violations == [ (nofw "top:t/host:b") ]
       && r.check.incomplete == [ ]
       && !r.check.ok
       && (ports (
@@ -815,19 +872,28 @@ let
     invariants-incomplete =
       let
         r = ports {
+          yen.relations.ok.arity = 1;
           yen.invariants.loop = [
             {
-              head = "bad:loop";
-              neg = [ "ok:loop" ];
+              head = loop;
+              neg = [ okLoop ];
             }
             {
-              head = "ok:loop";
-              neg = [ "bad:loop" ];
+              head = okLoop;
+              neg = [ loop ];
             }
           ];
         };
+        loop = [
+          "bad"
+          "loop"
+        ];
+        okLoop = [
+          "ok"
+          "loop"
+        ];
       in
-      r.check.incomplete == [ "bad:loop" ] && !b.elem "bad:loop" r.check.violations && !r.check.ok;
+      r.check.incomplete == [ loop ] && !b.elem loop r.check.violations && !r.check.ok;
     schema-exact =
       let
         s =
@@ -958,7 +1024,7 @@ let
             change = yen.change.set [ "host" "c" "port" ] 1;
           };
         in
-        v.violations == [ "bad:no-firewall:top:t/host:c" ] && v.errors == [ ] && !v.ok
+        v.violations == [ (nofw "top:t/host:c") ] && v.errors == [ ] && !v.ok
       );
     grants-narrow =
       let
@@ -1279,9 +1345,9 @@ let
           }
         );
       in
-      b.elem "val:port:top:t/host:a:22" r.facts
-      && b.elem "ref:peer:top:t/host:b:host:a" r.facts
-      && !(b.elem "ref:peer:top:t/host:a:host:b" r.facts);
+      b.elem [ "val" "port" "top:t/host:a" 22 ] r.facts
+      && b.elem [ "ref" "peer" "top:t/host:b" "host" "a" ] r.facts
+      && !(b.elem [ "ref" "peer" "top:t/host:a" "host" "b" ] r.facts);
     check-whynot =
       let
         r = ports (
@@ -1296,17 +1362,35 @@ let
         );
       in
       r.check.ok
-      && b.any (x: x.blocking == [ "has:firewall:top:t/host:b" ]) (
-        r.check.whyNot "bad:no-firewall:top:t/host:b"
-      )
-      && (r.check.proof "kind:host:top:t/host:a").atom == "kind:host:top:t/host:a"
-      && (ports { }).check.whyNot "bad:no-firewall:top:t/host:b" == [ ];
+      && b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot (nofw "top:t/host:b"))
+      &&
+        (r.check.proof [
+          "kind"
+          "host"
+          "top:t/host:a"
+        ]).atom == [
+          "kind"
+          "host"
+          "top:t/host:a"
+        ]
+      && (ports { }).check.whyNot (nofw "top:t/host:b") == [ ];
     # D10: explanations and the verdict read one model; a fact no rule mentions is still true
     explain-same-model =
       let
         c = (ports { }).check;
       in
-      !((c.proof "scope:top:t/host:a") ? status) && c.whyNot "scope:top:t/host:a" == [ ];
+      !(
+        (c.proof [
+          "scope"
+          "top:t/host:a"
+        ])
+          ? status
+      )
+      &&
+        c.whyNot [
+          "scope"
+          "top:t/host:a"
+        ] == [ ];
     program-validate =
       let
         r = ports { };
@@ -1403,7 +1487,7 @@ let
       && ok.diff.scopes.added == [ "top:t/host:c" ]
       && b.isString ok.sha
       && !bad.ok
-      && bad.violations == [ "bad:no-firewall:top:t/host:c" ]
+      && bad.violations == [ (nofw "top:t/host:c") ]
       && !(d [
         {
           op = "set";
@@ -1436,8 +1520,7 @@ let
           }
         ];
     invariants-why =
-      (b.head ((ports { }).check.why "bad:no-firewall:top:t/host:b")).neg
-      == [ "has:firewall:top:t/host:b" ];
+      (b.head ((ports { }).check.why (nofw "top:t/host:b"))).neg == [ (hasFw "top:t/host:b") ];
     graphs-reach =
       G.reach dag "app" == [
         "cache"
@@ -2154,8 +2237,17 @@ let
         {
           yen.invariants.no = [
             {
-              head = "bad:sshd-web";
-              pos = [ "has:sshd:top:t/host:web" ];
+              head = [
+                "bad"
+                "sshd-web"
+              ];
+              pos = [
+                [
+                  "has"
+                  "sshd"
+                  "top:t/host:web"
+                ]
+              ];
             }
           ];
         }
@@ -2171,8 +2263,17 @@ let
         {
           yen.invariants.no = [
             {
-              head = "bad:sshd-web";
-              pos = [ "has:sshd:top:t/host:web" ];
+              head = [
+                "bad"
+                "sshd-web"
+              ];
+              pos = [
+                [
+                  "has"
+                  "sshd"
+                  "top:t/host:web"
+                ]
+              ];
             }
           ];
         }
@@ -2189,12 +2290,125 @@ let
         };
       in
       r.flake == null && b.any (e: e.code == "arg" && e.want == "host") r.errors;
-    # D9: a rule head that spells an extracted fact is dropped and reported; the fleet is not ok
-    r1-forged-head =
+    # D9: a rule never derives a fact yen extracts; it is an error, and the fleet gives no outputs
+    r1-edb-head =
       let
-        r = yen.eval (rung1 [ { yen.invariants.f = [ { head = "has:fw:top:t/host:web"; } ]; } ]);
+        r = yen.eval (rung1 [
+          {
+            yen.invariants.f = [
+              {
+                head = [
+                  "has"
+                  "fw"
+                  "top:t/host:web"
+                ];
+              }
+            ];
+          }
+        ]);
       in
-      r.check.forged == [ "has:fw:top:t/host:web" ] && !r.check.ok && r.flake == null;
+      codes r == [ "edb-head" ] && r.flake == null;
+    # rung 2 (vic/formally-verified.md section 3): typed facts, relations, rules as data
+    # two hosts whose colon strings collide (D1): two facts, and a rule on one never fires on the other
+    r2-no-collision =
+      let
+        r = tags [
+          {
+            head = [
+              "bad"
+              "collide"
+            ];
+            pos = [
+              [
+                "val"
+                "tag"
+                "top:t/host:a:b"
+                "1"
+              ]
+            ];
+          }
+        ];
+      in
+      r.check.ok
+      && b.elem [ "val" "tag" "top:t/host:a" "b:1" ] r.facts
+      && b.elem [ "val" "tag" "top:t/host:a:b" "2" ] r.facts;
+    # the same rule with a variable binds over both hosts, and lt keeps one pair
+    r2-vars =
+      (tags [
+        {
+          head = [
+            "bad"
+            "pair"
+            (v "A")
+            (v "B")
+          ];
+          pos = [
+            [
+              "val"
+              "tag"
+              (v "A")
+              (v "X")
+            ]
+            [
+              "val"
+              "tag"
+              (v "B")
+              (v "Y")
+            ]
+            [
+              "lt"
+              (v "A")
+              (v "B")
+            ]
+          ];
+        }
+      ]).check.violations == [
+        [
+          "bad"
+          "pair"
+          "top:t/host:a"
+          "top:t/host:a:b"
+        ]
+      ];
+    r2-string-atom =
+      codes (rule2 {
+        head = "bad:x";
+      }) == [ "bad-atom" ];
+    r2-unknown-relation =
+      let
+        e =
+          b.head
+            (rule2 {
+              head = [
+                "okk"
+                "x"
+              ];
+            }).errors;
+      in
+      e.code == "unknown-relation" && e.near == [ "ok" ];
+    r2-arity =
+      codes (rule2 {
+        head = [ "ok" ];
+      }) == [ "arity" ];
+    r2-unsafe =
+      codes (rule2 {
+        head = [
+          "bad"
+          (v "X")
+        ];
+        neg = [
+          [
+            "has"
+            "fw"
+            (v "X")
+          ]
+        ];
+      }) == [ "unsafe-rule" ];
+    r2-unencodable =
+      let
+        r = tagsWith [ ] { "a:b".tag = 1.5; };
+      in
+      codes r == [ "unencodable" ] && (b.head r.errors).path == [ "tag" ];
     # D6: an undefined invariant is not ok
     r1-stage-incomplete =
       let
@@ -2207,7 +2421,14 @@ let
           ];
         } null;
       in
-      !s.ok && s.incomplete == [ "bad:cycle" ];
+      !s.ok
+      &&
+        s.incomplete == [
+          [
+            "bad"
+            "cycle"
+          ]
+        ];
     # D7: the law cannot be switched off
     r1-no-invariants-arg = !((b.functionArgs yen.stage) ? invariants);
     # D8: grants by path segment; added, removed and changed values all checked
@@ -2282,7 +2503,17 @@ let
     r1-grant-noop = (r1stage { } r1grant).refused == [ ];
     # D9: a change never declares the law
     r1-law-change =
-      map (e: e.code) (r1stage { yen.invariants.w = [ { head = "ok:web"; } ]; } null).refused == [
+      map (e: e.code)
+        (r1stage {
+          yen.invariants.w = [
+            {
+              head = [
+                "bad"
+                "web"
+              ];
+            }
+          ];
+        } null).refused == [
         "law-change"
       ];
     # D11: a program refused before is refused again

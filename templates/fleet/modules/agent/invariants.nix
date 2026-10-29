@@ -1,5 +1,5 @@
-# Fleet invariants: Datalog rules over the fleet's facts (`kind:K:ID`, `has:ASPECT:ID`, `edge:SINK:FROM:TO`,
-# `error:CODE:FROM`). A true `bad:` atom is a violation, an undefined one an incomplete answer. An agent reads
+# Fleet invariants: Datalog rules over the fleet's typed facts (`[ "kind" K ID ]`, `[ "has" ASPECT ID ]`, `[ "edge" SINK FROM TO ]`,
+# `[ "error" CODE FROM ]`). A true `[ "bad" … ]` atom is a violation, an undefined one an incomplete answer. An agent reads
 # `check` (nix eval --file query.nix check) before and after a change; `stage` refuses a change that adds a violation.
 { lib, ... }:
 let
@@ -17,18 +17,50 @@ in
     base =
       { scopes, ... }:
       map (s: {
-        head = "bad:no-base:${s.id}";
-        pos = [ "kind:${s.kind}:${s.id}" ];
-        neg = [ "has:base:${s.id}" ];
+        head = [
+          "bad"
+          "no-base"
+          s.id
+        ];
+        pos = [
+          [
+            "kind"
+            s.kind
+            s.id
+          ]
+        ];
+        neg = [
+          [
+            "has"
+            "base"
+            s.id
+          ]
+        ];
       }) (lib.filter machines scopes);
     # every machine is reachable for management: it runs sshd through the clan sshd instance
     ssh =
       { scopes, ... }:
       map
         (s: {
-          head = "bad:no-sshd:${s.id}";
-          pos = [ "kind:${s.kind}:${s.id}" ];
-          neg = [ "has:clan-sshd:${s.id}" ];
+          head = [
+            "bad"
+            "no-sshd"
+            s.id
+          ];
+          pos = [
+            [
+              "kind"
+              s.kind
+              s.id
+            ]
+          ];
+          neg = [
+            [
+              "has"
+              "clan-sshd"
+              s.id
+            ]
+          ];
         })
         (
           lib.filter (
@@ -44,8 +76,18 @@ in
     attic =
       { scopes, ... }:
       map (s: {
-        head = "bad:attic-on-mac:${s.id}";
-        pos = [ "has:attic:${s.id}" ];
+        head = [
+          "bad"
+          "attic-on-mac"
+          s.id
+        ];
+        pos = [
+          [
+            "has"
+            "attic"
+            s.id
+          ]
+        ];
       }) (lib.filter (s: s.kind == "mac") scopes);
 
     # ── between machines: what must hold across hosts, environments and services before anything deploys ──
@@ -61,16 +103,46 @@ in
           if x == null then
             [
               {
-                head = "bad:db-dangling:${s.id}";
-                pos = [ "kind:host:${s.id}" ];
+                head = [
+                  "bad"
+                  "db-dangling"
+                  s.id
+                ];
+                pos = [
+                  [
+                    "kind"
+                    "host"
+                    s.id
+                  ]
+                ];
               }
             ]
           else
             [
               {
-                head = "bad:db-cross-env:${s.id}";
-                pos = [ "ref:dbOn:${s.id}:host:${x.name}" ];
-                neg = [ "ref:environment:${x.id}:environment:${s.environment.name}" ];
+                head = [
+                  "bad"
+                  "db-cross-env"
+                  s.id
+                ];
+                pos = [
+                  [
+                    "ref"
+                    "dbOn"
+                    s.id
+                    "host"
+                    x.name
+                  ]
+                ];
+                neg = [
+                  [
+                    "ref"
+                    "environment"
+                    x.id
+                    "environment"
+                    s.environment.name
+                  ]
+                ];
               }
             ]
         )
@@ -92,8 +164,17 @@ in
         lib.mapAttrsToList (
           a: ss:
           lib.optional (lib.length ss > 1) {
-            head = "bad:addr-clash:${a}";
-            pos = map (s: "val:addr:${s.id}:${a}") ss;
+            head = [
+              "bad"
+              "addr-clash"
+              a
+            ];
+            pos = map (s: [
+              "val"
+              "addr"
+              s.id
+              a
+            ]) ss;
           }
         ) byAddr
       );
@@ -116,8 +197,21 @@ in
             x = hostScope d.name;
           in
           lib.optional (x != null && rank.${x.environment.name} < rank.${s.environment.name}) {
-            head = "bad:trust-down:${s.id}:${x.name}";
-            pos = [ "ref:dependsOn:${s.id}:host:${x.name}" ];
+            head = [
+              "bad"
+              "trust-down"
+              s.id
+              x.name
+            ];
+            pos = [
+              [
+                "ref"
+                "dependsOn"
+                s.id
+                "host"
+                x.name
+              ]
+            ];
           }
         ) (s.dependsOn or [ ])
       ) (lib.filter (s: s.kind == "host") scopes);

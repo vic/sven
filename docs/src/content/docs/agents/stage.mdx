@@ -70,7 +70,11 @@ nix eval --impure --json --file stage.nix --argstr change changes/desktop-on-web
   refused = [ ];
   sha = "a1969acc86001f4528de7a4ec227f9cf7a5af809fd2555b04adeed0dd6c04146";
   violations = [
-    "bad:desktop-on-server:web"
+    [
+      "bad"
+      "desktop-on-server"
+      "fleet:main/host:web"
+    ]
   ];
 }
 ```
