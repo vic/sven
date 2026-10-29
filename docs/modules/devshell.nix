@@ -153,6 +153,12 @@ in
         "run the CI stages locally, in order: fmt, engine, docs, fleet (fleet-check and the per-arch evals not included)"
         "for c in fmt-check engine-test engine-cost docs-test docs-e2e docs-check docs-build fleet-test fleet-e2e fleet-cost fleet-mcp; do echo \"== $c\"; $c; done"
       )
+      (cmd "ci" "test-all" "every *-test command: engine, docs, fleet (no e2e, no cost)"
+        "for c in engine-test docs-test fleet-test; do echo \"== $c\"; $c; done"
+      )
+      (cmd "ci" "check-all" "every *-check command: fmt, docs, fleet"
+        "for c in fmt-check docs-check fleet-check; do echo \"== $c\"; $c; done"
+      )
     ];
   };
 }

@@ -110,6 +110,8 @@ A change to the engine also needs a test in `tests/default.nix`. Keep the engine
 | Command | Group | What it does |
 |---|---|---|
 | `ci` | ci | run the CI stages locally, in order: fmt, engine, docs, fleet (fleet-check and the per-arch evals not included) |
+| `test-all` | ci | every *-test command: engine, docs, fleet (no e2e, no cost) |
+| `check-all` | ci | every *-check command: fmt, docs, fleet |
 | `docs-write` | docs | write the pages and the sidebar from examples/ |
 | `docs-test` | docs | the checks of every example (fast) |
 | `docs-e2e` | docs | real NixOS, nix-darwin and home-manager evaluations of the examples |

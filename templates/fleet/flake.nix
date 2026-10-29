@@ -36,7 +36,7 @@
     nix-on-droid.url = "github:nix-community/nix-on-droid";
     nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    yen.url = "path:../..";
     terranix.url = "github:terranix/terranix";
+    yen.url = "path:../..";
   };
 }

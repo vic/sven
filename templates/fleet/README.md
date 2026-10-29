@@ -1357,34 +1357,34 @@ flowchart LR
 ```mermaid
 flowchart LR
   n254d290cd5[("yen-mcp (nix run .#yen-mcp)")]
-  n72ed07ef7a("yen_ask")
-  n36a3b0f723("yen_check")
-  n5b32d793d2("yen_context")
-  nfd53204477("yen_declared_in")
-  n4ff85900f3("yen_errors")
-  n37ebbed2c7("yen_explain")
-  nadee744105("yen_export")
-  n6863971d9d("yen_impact")
-  nb0733c534d("yen_labels")
-  nd3c588724a("yen_program")
-  nb8b859f378("yen_queries")
-  n75d0bcd916("yen_schema")
-  n75cc57565d("yen_stage")
-  n0c5c6359b4("yen_why_not")
-  n254d290cd5 --> n72ed07ef7a
-  n254d290cd5 --> n36a3b0f723
-  n254d290cd5 --> n5b32d793d2
-  n254d290cd5 --> nfd53204477
-  n254d290cd5 --> n4ff85900f3
-  n254d290cd5 --> n37ebbed2c7
-  n254d290cd5 --> nadee744105
-  n254d290cd5 --> n6863971d9d
-  n254d290cd5 --> nb0733c534d
-  n254d290cd5 --> nd3c588724a
-  n254d290cd5 --> nb8b859f378
-  n254d290cd5 --> n75d0bcd916
-  n254d290cd5 --> n75cc57565d
-  n254d290cd5 --> n0c5c6359b4
+  nf3ef81de2f("yen_ask")
+  nf54195a4ac("yen_check")
+  n6a59d997e4("yen_context")
+  n66ec653a2d("yen_declared_in")
+  nffe30fe478("yen_errors")
+  n6df3350afa("yen_explain")
+  n724e51eaa4("yen_export")
+  nec98de0ce9("yen_impact")
+  na6be3937d8("yen_labels")
+  n1b9c14e078("yen_program")
+  ncc44a3e3ff("yen_queries")
+  n7aa4e78a07("yen_schema")
+  n07a598af03("yen_stage")
+  n53cf4e0ffd("yen_why_not")
+  n254d290cd5 --> nf3ef81de2f
+  n254d290cd5 --> nf54195a4ac
+  n254d290cd5 --> n6a59d997e4
+  n254d290cd5 --> n66ec653a2d
+  n254d290cd5 --> nffe30fe478
+  n254d290cd5 --> n6df3350afa
+  n254d290cd5 --> n724e51eaa4
+  n254d290cd5 --> nec98de0ce9
+  n254d290cd5 --> na6be3937d8
+  n254d290cd5 --> n1b9c14e078
+  n254d290cd5 --> ncc44a3e3ff
+  n254d290cd5 --> n7aa4e78a07
+  n254d290cd5 --> n07a598af03
+  n254d290cd5 --> n53cf4e0ffd
 ```
 
 **Labels** (`yen.labels`, by file path): `agent/` trust 1, `modules/` trust 3. Aspects declared under `agent/` and the elements they give (`r.floor 3`):
