@@ -261,13 +261,9 @@ let
         startSet = [ (node { inherit yen; } "root" root) ];
         operator =
           n:
-          let
-            imps = n.mod.imports or [ ];
-          in
-          if n ? mod then
-            b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt imps i)) (length imps)
-          else
-            [ ];
+          b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt n.mod.imports i)) (
+            length (n.mod.imports or [ ])
+          );
       };
       defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
@@ -819,13 +815,11 @@ let
       nearest = k: s: first (x: x.kind == k) s.rup;
       answer =
         s: q:
+        let
+          x = nearest q.nearest.__kind s;
+        in
         if q ? nearest then
-          (
-            let
-              x = nearest q.nearest.__kind s;
-            in
-            if x == null then err s.id "no ${q.nearest.__kind} above" else { ok = x; }
-          )
+          (if x == null then err s.id "no ${q.nearest.__kind} above" else { ok = x; })
         else if q ? parent then
           (if s.parent == null then err s.id "no parent" else { ok = s.parent; })
         else if q ? children then
