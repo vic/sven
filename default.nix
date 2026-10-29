@@ -1521,14 +1521,12 @@ let
   # data with no functions: it can be hashed, rendered as JSON and read back
   isData =
     v:
-    if isFunction v then
-      false
-    else if isList v then
+    if isList v then
       all isData v
     else if isAttrs v then
-      (if v ? __functor then false else all (k: isData v.${k}) (attrNames v))
+      !(v ? __functor) && all isData (b.attrValues v)
     else
-      true;
+      !isFunction v;
   # stage: an agent's change, in quarantine. Nothing changes; two evals compare. `ok` only when nothing new is wrong.
   stage =
     {
@@ -1769,6 +1767,11 @@ let
       }:
       let
         errs = validate r prog;
+        s = stage {
+          inherit base grant rejected;
+          r0 = r;
+          change = toModule prog;
+        };
       in
       if errs != [ ] then
         {
@@ -1777,17 +1780,7 @@ let
           errors = errs;
         }
       else
-        let
-          s = stage {
-            inherit base grant rejected;
-            r0 = r;
-            change = toModule prog;
-          };
-        in
-        removeAttrs s [
-          "render"
-          "sha"
-        ]
+        removeAttrs s [ "render" ]
         // {
           valid = true;
           sha = b.hashString "sha256" (b.toJSON prog);
