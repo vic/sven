@@ -43,6 +43,12 @@ let
   names = xs: attrNames (keySet xs); # sorted, no duplicates
   nest = path: v: if path == [ ] then v else { ${head path} = nest (b.tail path) v; };
   orNull = x: if x == null then [ ] else [ x ];
+  combinators = [
+    "all"
+    "not"
+    "within"
+    "has"
+  ]; # `lib.all ps` is { __all = ps; }, and so on
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -539,18 +545,10 @@ let
           concatMap refsOf p
         else if !isAttrs p then
           [ ]
-        else if p ? __all then
-          concatMap refsOf p.__all
-        else if p ? __not then
-          refsOf p.__not
-        else if p ? __within then
-          refsOf p.__within
-        else if p ? __has then
-          refsOf p.__has
         else if p ? __aspect then
           [ p.__aspect ]
         else
-          [ ];
+          concatMap (k: refsOf p."__${k}") (filter (k: p ? "__${k}") combinators);
       reach = mapAttrs (
         n: a:
         map (x: x.key) (genericClosure {
@@ -562,17 +560,17 @@ let
       tainted = mapAttrs (n: rs: cyclic.${n} || any (r: cyclic.${r}) rs) reach; # can be undefined: it reaches a cycle
       or3 =
         vs:
-        if any (v: v == true) vs then
+        if elem true vs then
           true
-        else if any (v: v == null) vs then
+        else if elem null vs then
           null
         else
           false;
       and3 =
         vs:
-        if any (v: v == false) vs then
+        if elem false vs then
           false
-        else if any (v: v == null) vs then
+        else if elem null vs then
           null
         else
           true;
@@ -595,7 +593,7 @@ let
           or3 (map (eval3 stack p.__within) (above s))
         else if isAttrs p && p ? __has then
           or3 (map (eval3 stack p.__has) (byParent.${s.id} or [ ]))
-        else if isFunction p || p ? __functor then
+        else if p ? __functor then
           p s
         else if p ? __kind then
           s.kind == p.__kind
@@ -643,23 +641,17 @@ let
         else
           eval3 [ ] p s == true; # fast paths: most predicates are functions, most sinks have no `at`
       # an aspect in the ref graph (it reads refs, or something reads it) goes through the memo; the others run directly
-      inRefs = listToAttrs (
-        map (n: {
-          name = n;
-          value = true;
-        }) (concatMap (n: if reach.${n} == [ ] then [ ] else [ n ] ++ reach.${n}) aspectNames)
-      );
-      active = mapAttrs (
-        n: a:
-        let
-          at = if inRefs ? ${n} then (s: s.__here.${n} == true) else holds (a.at or [ ]);
-        in
+      inRefs = keySet (concatMap (n: if reach.${n} == [ ] then [ ] else [ n ] ++ reach.${n}) aspectNames);
+      byScope =
+        f: ss:
         listToAttrs (
           map (s: {
             name = s.id;
-            value = at s;
-          }) unsorted
-        )
+            value = f s;
+          }) ss
+        );
+      active = mapAttrs (
+        n: a: byScope (if inRefs ? ${n} then (s: s.__here.${n} == true) else holds (a.at or [ ])) unsorted
       ) aspects;
       undefined = concatMap (
         s:
@@ -699,16 +691,13 @@ let
       # ── components: one cycle per (aspect, scope). Its own tree requests feed its sources ──
       cycleOuts = mapAttrs (
         n: a:
-        listToAttrs (
-          map (s: {
-            name = s.id;
-            value =
-              let
-                o = a.cycle (sourcesAt s (o.tree or [ ]));
-              in
-              o;
-          }) (filter (s: active.${n}.${s.id}) unsorted)
-        )
+        byScope (
+          s:
+          let
+            o = a.cycle (sourcesAt s (o.tree or [ ]));
+          in
+          o
+        ) (filter (s: active.${n}.${s.id}) unsorted)
       ) (b.removeAttrs aspects (filter (n: !(aspects.${n} ? cycle)) aspectNames));
       outAt = n: s: cycleOuts.${n}.${s.id} or { };
 
@@ -723,30 +712,20 @@ let
           else
             toList (aspects.${n}.order or [ ]) ++ toList ((outAt n s).order or [ ])
         ) orderNames;
-      orderOf =
-        s:
-        let
-          os = filter (o: b.isInt o || b.isFloat o) (ordersAt s);
-        in
-        if os == [ ] then 0 else head os;
-      orderErrors = concatMap (
-        s:
-        if all (o: b.isInt o || b.isFloat o) (ordersAt s) then
-          [ ]
-        else
-          [ (err s.id "order is not a number") ]
-      ) unsorted;
-      sortKeys = listToAttrs (
-        map (s: {
-          name = s.id;
-          value = (if s.parent == null then [ ] else sortKeys.${s.parent.id}) ++ [
-            [
-              (orderOf s)
-              s.key
-            ]
-          ];
-        }) unsorted
+      isNum = o: b.isInt o || b.isFloat o;
+      orderErrors = map (s: err s.id "order is not a number") (
+        filter (s: !all isNum (ordersAt s)) unsorted
       );
+      sortKeys = byScope (
+        s:
+        (if s.parent == null then [ ] else sortKeys.${s.parent.id})
+        ++ [
+          [
+            (b.head (filter isNum (ordersAt s) ++ [ 0 ]))
+            s.key
+          ]
+        ]
+      ) unsorted;
       scopes =
         b.seq (foldl' (_: s: sortKeys.${s.id}) null unsorted) # force keys breadth first: no deep thunk chain
           (b.sort (x: y: sortKeys.${x.id} < sortKeys.${y.id}) unsorted);
@@ -1341,12 +1320,7 @@ let
         ];
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
-      byId = listToAttrs (
-        map (s: {
-          name = s.id;
-          value = s;
-        }) unsorted
-      );
+      byId = byScope (s: s) unsorted;
       trace =
         d: p: s:
         let
