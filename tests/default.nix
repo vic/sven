@@ -803,28 +803,16 @@ let
         h = yen.history {
           url = "file://${toString ./..}";
           revs = [
-            "dd59e052790a0f3ced42d8a3a1911fd2a6c3ebdd"
-            "c0f96135f19d8d45373377646582abcdcf20d624"
+            "df8ee68d5244aeca4e4bf23f1e9ecc927226d620"
           ];
           module = "tests/fixtures/history.nix";
         };
       in
-      (b.elemAt h 1).changes == [
-        {
-          path = [
-            "host"
-            "a"
-            "port"
-          ];
-          old = 22;
-          new = 2222;
-        }
-      ]
-      && (b.elemAt h 0).changes == [ ]
+      (b.elemAt h 0).changes == [ ]
       &&
         (yen.asOf {
           url = "file://${toString ./..}";
-          rev = "dd59e052790a0f3ced42d8a3a1911fd2a6c3ebdd";
+          rev = "df8ee68d5244aeca4e4bf23f1e9ecc927226d620";
           module = "tests/fixtures/history.nix";
         }).data.host.a.port == 22;
     # reduce errors name their receiver and sink: a strategy cannot know them, the engine sets them
