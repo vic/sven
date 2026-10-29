@@ -3,15 +3,30 @@
 {
   sven.aspects.core-inputs = {
     at = sven.kinds.fleet;
-    inputs = {
-      sven.url = "github:vic/sven";
-      import-tree.url = "github:denful/import-tree";
-      files.url = "github:sini/files";
+    flake-file = {
+      description = "A fleet that writes its own flake.nix, README.md and CI workflow";
+      outputs = ''
+        inputs:
+        inputs.sven.lib.mkFlake {
+          imports = [ (inputs.import-tree ./modules) ];
+          _module.args = {
+            inherit inputs;
+            inherit (inputs.nixpkgs) lib;
+          };
+        }
+      '';
+      inputs = {
+        sven.url = "github:vic/sven";
+        import-tree.url = "github:denful/import-tree";
+        flake-file.url = "github:denful/flake-file";
+        files.url = "github:sini/files";
+        nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable"; # flake-file's lib
+      };
     };
   };
   sven.aspects.web = {
     at = sven.host.web;
-    inputs.nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz"; # goes up to the fleet's `inputs` sink
+    flake-file.inputs.nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz"; # goes up to the fleet's `flake-file` sink
     nixos = {
       services.nginx.enable = true;
       boot.loader.grub.device = "nodev";

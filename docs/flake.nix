@@ -37,6 +37,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     files.url = "github:sini/files";
+    flake-file.url = "github:denful/flake-file";
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     home-manager = {
       url = "github:nix-community/home-manager/release-25.05";
       inputs.nixpkgs.follows = "nixpkgs";
