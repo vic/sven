@@ -1003,13 +1003,17 @@ let
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
           ground = rules ++ D.facts facts;
+          # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `ground`
+          model = m // {
+            true = m.true ++ filter (a: !(mentioned ? ${a})) facts;
+          };
         in
         {
           inherit violations incomplete forged;
           ok = violations == [ ] && incomplete == [ ] && forged == [ ];
-          why = D.why ground m;
-          whyNot = D.whyNot ground m;
-          proof = D.proof ground m;
+          why = D.why ground model;
+          whyNot = D.whyNot ground model;
+          proof = D.proof ground model;
           invariants = attrNames invs;
         };
       lib =
@@ -1316,12 +1320,14 @@ let
         ++ orderErrors
         ++ requestErrors
         ++ reduceErrors
-        ++ emitted;
+        ++ emitted
+        ++ optional (!(flakeFill ? ok)) flakeFill;
+      flakeFill = if top ? flake && scopes != [ ] then fill (head scopes) top.flake else { ok = null; };
+      clean = errorsAll == [ ] && check.ok;
       self = {
         inherit
           scopes
           active
-          reduced
           graph
           undefined
           declaredIn
@@ -1347,12 +1353,10 @@ let
           ) instances.${k}
         ) kinds;
         errors = errorsAll;
-        # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs
-        flake =
-          if top ? flake && scopes != [ ] && errorsAll == [ ] && check.ok then
-            (fill (head scopes) top.flake).ok or null
-          else
-            null;
+        # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs, and no
+        # reduced sink values to build them from by hand (D13)
+        reduced = if clean then reduced else null;
+        flake = if clean then flakeFill.ok else null;
         # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.

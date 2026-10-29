@@ -200,7 +200,10 @@ let
     }
   );
   # every tree request at one node: parent, a nearest with no answer, children, scopesOf, holds, one unknown
-  treeAll = yen.eval (
+  treeAll = treeAllWith false;
+  treeAllWith =
+    bogus:
+    yen.eval (
     { yen, ... }:
     {
       yen.kinds.top.spawns.cluster = _: yen.cluster;
@@ -239,6 +242,8 @@ let
                 category = "holds";
                 holds = yen.kinds.node;
               }
+            ]
+            ++ b.filter (_: bogus) [
               {
                 category = "bad";
                 bogus = true;
@@ -513,7 +518,14 @@ let
   );
 
   # Den CI gaps closed: derived defaults, bad `at`, one key from many files, static once per receiver
-  gaps = yen.eval (
+  gaps = yen.eval gapsModule;
+  gapsBadAt = yen.eval {
+    imports = [
+      gapsModule
+      { yen.aspects.typo.at = "host"; }
+    ];
+  };
+  gapsModule =
     { yen, ... }:
     {
       imports = [
@@ -545,9 +557,7 @@ let
         ];
         nixos = "marker";
       };
-      yen.aspects.typo.at = "host";
-    }
-  );
+    };
   # aspect refs on cycles: three values (well-founded semantics)
   logic =
     cyclic:
@@ -1284,6 +1294,12 @@ let
       )
       && (r.check.proof "kind:host:top:t/host:a").atom == "kind:host:top:t/host:a"
       && (ports { }).check.whyNot "bad:no-firewall:top:t/host:b" == [ ];
+    # D10: explanations and the verdict read one model; a fact no rule mentions is still true
+    explain-same-model =
+      let
+        c = (ports { }).check;
+      in
+      !((c.proof "scope:top:t/host:a") ? status) && c.whyNot "scope:top:t/host:a" == [ ];
     program-validate =
       let
         r = ports { };
@@ -1968,8 +1984,8 @@ let
     good-flake =
       good.flake.nixosConfigurations.lb == [ { environment.etc.motd.text = "/var/lib/motd"; } ];
     neg-missing-addr = has noAddr "missing addr";
-    neg-missing-addr-no-flake-break =
-      noAddr.reduced.persist."fleet:main/host:lb" == [ "/var/lib/motd" ];
+    # D13: an error withholds the outputs and the reduced values (good-persist reads them on the clean fleet)
+    neg-missing-addr-withholds = noAddr.reduced == null && noAddr.flake == null;
     neg-unknown-field = has (yen.eval (fleet {
       addr = "a";
       adr = "b";
@@ -2085,7 +2101,9 @@ let
           bad = [ ];
         }
       ]
-      && map (e: e.code) treeAll.errors == [ "tree-request" ];
+      && treeAll.errors == [ ]
+      && map (e: e.code) (treeAllWith true).errors == [ "tree-request" ]
+      && (treeAllWith true).reduced == null;
     # yen modules are not NixOS modules: a key yen does not read is an error, at every level
     unknown-keys =
       map (e: { inherit (e) code from path; })
@@ -2140,6 +2158,30 @@ let
         { yen.host.web.port = 1; }
         { yen.host.web.port = 2; }
       ])).flake == null;
+    # D13: a fleet that is not clean gives no reduced values to build outputs from by hand
+    r1-violation-no-reduced =
+      (yen.eval (rung1 [
+        {
+          yen.invariants.no = [
+            {
+              head = "bad:sshd-web";
+              pos = [ "has:sshd:top:t/host:web" ];
+            }
+          ];
+        }
+      ])).reduced == null
+      && (yen.eval (rung1 [ ])).reduced.nixos ? "top:t/host:web";
+    # a flake that cannot be filled is an error record, never a silent null
+    flake-fill-error =
+      let
+        r = yen.eval {
+          yen.kinds.top.spawns = { };
+          yen.kinds.host = { };
+          yen.top.t = { };
+          yen.flake = { host, ... }: host; # no host under top: the arg has no answer
+        };
+      in
+      r.flake == null && b.any (e: e.code == "arg" && e.want == "host") r.errors;
     # D9: a rule head that spells an extracted fact is dropped and reported; the fleet is not ok
     r1-forged-head =
       let
@@ -2319,7 +2361,7 @@ let
       && msgs sinkArgs == [ ]; # a and c read one tag: once
     gap-static-once-per-receiver =
       b.length (b.filter (v: v == "marker") gaps.reduced.nixos."fleet:main/host:h1") == 1;
-    gap-bad-at = has gaps "`at` holds a string, not a predicate";
+    gap-bad-at = has gapsBadAt "`at` holds a string, not a predicate";
     graph-edges = b.elem {
       sink = "persist";
       from = "fleet:main/host:lb";

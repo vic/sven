@@ -880,8 +880,8 @@ let
           }
         );
       in
-      lib.length p.reduced.nixos.${lb} > 0
-      && !(builtins.tryEval (builtins.deepSeq p.reduced.nixos.${web2} true)).success;
+      # the tree stays lazy; values need a verdict (D13), and a throwing sibling leaves none
+      lib.length p.scopes == lib.length r.scopes && !(builtins.tryEval (p.reduced == null)).success;
 
     # ── Den CI usage patterns (vic/den-patterns.md) ──
     den-cartesian-and-transitive =
@@ -1156,10 +1156,10 @@ let
         "borg"
         "site"
       ]
-      &&
-        lib.sort (a: b: a < b) (
-          map (e: e.service) (
-            (with' (
+      # a forged export is an error, and an erroring fleet gives no reduced values (D13)
+      && (
+        let
+          f = with' (
               { yen, ... }:
               {
                 yen.aspects.forge = {
@@ -1172,13 +1172,10 @@ let
                   };
                 };
               }
-            )).reduced.exports."fleet:main"
-          )
-        ) == [
-          "borg"
-          "site"
-          "sshd"
-        ];
+          );
+        in
+        hasMsg f ".*service sshd does not export service" && f.reduced == null
+      );
     clan-exports-per-instance =
       let
         x = with' (
@@ -1322,7 +1319,7 @@ let
             { ... }:
             {
               yen.instance.ghost = {
-                module = "banner";
+                module = "site"; # no instance limit: the fleet stays clean, so its reduced warnings are readable
                 roles.default.tags = [ "nobody" ];
               };
             }
