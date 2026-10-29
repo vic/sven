@@ -574,14 +574,12 @@ let
             reduce = "list";
             of = null;
             feeds = [ ];
-            out = false;
             conditional = false;
           };
           tags = {
             reduce = "set";
             of = null;
             feeds = [ ];
-            out = false;
             conditional = false;
           };
         };

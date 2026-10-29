@@ -1056,8 +1056,7 @@ let
         {
           reduce = if d ? reduce then d.reduce.name or "custom" else "list";
           of = if d ? of then typeName d.of else null;
-          feeds = attrNames (removeAttrs d (words "reduce of at out"));
-          out = d ? out;
+          feeds = attrNames (removeAttrs d sinkMeta);
           conditional = d ? at;
         };
       schema = {
