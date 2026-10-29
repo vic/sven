@@ -29,29 +29,20 @@ let
 
   # ── tiny helpers (no nixpkgs) ──
   toList = v: if isList v then v else [ v ];
-  reverse = xs: b.genList (i: b.elemAt xs (length xs - 1 - i)) (length xs);
-  first =
-    p: xs:
-    foldl' (
-      a: x:
-      if a != null then
-        a
-      else if p x then
-        x
-      else
-        null
-    ) null xs;
+  first = p: foldl' (a: x: if a == null && p x then x else a) null; # stops calling p at the first hit
   uniq = foldl' (acc: x: if elem x acc then acc else acc ++ [ x ]) [ ];
-  names =
-    xs:
-    attrNames (
-      listToAttrs (
-        map (n: {
-          name = n;
-          value = null;
-        }) xs
-      )
+  genAttrs =
+    xs: f:
+    listToAttrs (
+      map (n: {
+        name = n;
+        value = f n;
+      }) xs
     );
+  keySet = xs: genAttrs xs (_: true);
+  names = xs: attrNames (keySet xs); # sorted, no duplicates
+  nest = path: v: if path == [ ] then v else { ${head path} = nest (b.tail path) v; };
+  orNull = x: if x == null then [ ] else [ x ];
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -324,12 +315,7 @@ let
         else if hs == [ ] then
           null
         else if isAttrs (head hs) && !isLeaf (head hs) then
-          listToAttrs (
-            map (n: {
-              name = n;
-              value = decl (path ++ [ n ]);
-            }) (names (attrsIn hs))
-          )
+          genAttrs (names (attrsIn hs)) (n: decl (path ++ [ n ]))
         else
           head hs;
       declErrors =
@@ -353,25 +339,17 @@ let
             })
           ];
       top = decl [ ];
-      kindNames = attrNames (top.kinds or { });
-      aspectNames = attrNames (top.aspects or { });
-      kinds = listToAttrs (
-        map (k: {
-          name = k;
-          value = top.kinds.${k} // {
-            __kind = k;
-            check = v: isAttrs v && (v.kind or null) == k;
-          };
-        }) kindNames
-      ); # a kind is a type: its instances pass
-      aspects = listToAttrs (
-        map (n: {
-          name = n;
-          value = top.aspects.${n} // {
-            __aspect = n;
-          };
-        }) aspectNames
-      );
+      kinds = mapAttrs (
+        k: d:
+        d
+        // {
+          __kind = k;
+          check = checkOf { __kind = k; };
+        }
+      ) (top.kinds or { }); # a kind is a type: its instances pass
+      aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
+      kindNames = attrNames kinds;
+      aspectNames = attrNames aspects;
 
       # ── instance data: typed paths. Answers first, then the type defaults; a failed check reads as null ──
       typesAt =
@@ -384,9 +362,12 @@ let
           ]
           ++ path
         );
-      dataAt =
+      # one walk per instance path gives its value and its errors
+      inst =
         k: n: path:
         let
+          ts = typesAt k path;
+          tys = filter isType ts;
           hits = answers (
             [
               k
@@ -394,130 +375,72 @@ let
             ]
             ++ path
           );
-          d = first (t: isAttrs t && (t ? default || t ? defaultFrom)) (typesAt k path);
-        in
-        if hits != [ ] then
-          { ok = head hits; }
-        else if d != null then
-          { ok = if d ? defaultFrom then d.defaultFrom instances.${k}.${n} else d.default; }
-        else
-          { };
-      view =
-        k: n: path:
-        let
-          ts = typesAt k path;
-          tys = filter isType ts;
-          r = dataAt k n path;
-        in
-        if tys != [ ] then
-          (if r ? ok && all (t: checkOf t r.ok) tys then r.ok else null)
-        else if path != [ ] && ts == [ ] then
-          null
-        else
-          listToAttrs (
-            map
-              (f: {
-                name = f;
-                value = view k n (path ++ [ f ]);
-              })
-              (
-                names (
-                  attrsIn (
-                    answers (
-                      [
-                        k
-                        n
-                      ]
-                      ++ path
-                    )
-                    ++ ts
-                  )
-                )
-              )
-          );
-      instErrors =
-        k: n: path:
-        let
-          ts = typesAt k path;
-          tys = filter isType ts;
-          r = dataAt k n path;
+          d = first (t: isAttrs t && (t ? default || t ? defaultFrom)) ts;
+          r =
+            if hits != [ ] then
+              { ok = head hits; }
+            else if d != null then
+              { ok = if d ? defaultFrom then d.defaultFrom instances.${k}.${n} else d.default; }
+            else
+              { };
           id = "${k}:${n}";
           p = concatStringsSep "." path;
+          bad = first (t: !checkOf t r.ok) tys;
+          kr = first (t: t ? __kind) tys;
+          fail = e: {
+            value = null;
+            errors = [ (errWith id e.error (removeAttrs e [ "error" ] // { inherit path; })) ];
+          };
+          sub = genAttrs (names (attrsIn (hits ++ ts))) (f: inst k n (path ++ [ f ]));
         in
-        if tys != [ ] then
-          (
-            if !(r ? ok) then
-              [
-                (errWith id "missing ${p}" {
-                  code = "missing";
-                  inherit path;
-                  want = typeName (head tys);
-                  fix = "set ${id}.${p}";
-                })
-              ]
-            else if all (t: checkOf t r.ok) tys then
-              [ ]
-            else
-              [
-                (
-                  let
-                    bad = first (t: !checkOf t r.ok) tys;
-                    kr = first (t: t ? __kind) tys;
-                  in
-                  errWith id (if kr != null then "${p} wants a ${kr.__kind} ref" else "${p} fails its check") {
-                    code = if kr != null then "ref" else "check";
-                    inherit path;
-                    got = if isFunction r.ok then "<function>" else r.ok;
-                    want = typeName bad;
-                    fix =
-                      if kr != null then
-                        "use yen.${kr.__kind}.<name>, not a string"
-                      else
-                        "give ${p} a value of type ${typeName bad}";
-                  }
-                )
-              ]
-          )
+        if tys != [ ] && !(r ? ok) then
+          fail {
+            error = "missing ${p}";
+            code = "missing";
+            want = typeName (head tys);
+            fix = "set ${id}.${p}";
+          }
+        else if tys != [ ] && bad != null then
+          fail {
+            error = if kr != null then "${p} wants a ${kr.__kind} ref" else "${p} fails its check";
+            code = if kr != null then "ref" else "check";
+            got = if isFunction r.ok then "<function>" else r.ok;
+            want = typeName bad;
+            fix =
+              if kr != null then
+                "use yen.${kr.__kind}.<name>, not a string"
+              else
+                "give ${p} a value of type ${typeName bad}";
+          }
+        else if tys != [ ] then
+          {
+            value = r.ok;
+            errors = [ ];
+          }
         else if path != [ ] && ts == [ ] then
-          [
-            (
-              let
-                known = (attrsIn (typesAt k (b.genList (i: b.elemAt path i) (length path - 1))));
-              in
-              errWith id "unknown field ${p}" {
-                code = "unknown-field";
-                inherit path;
-                near = near (b.elemAt path (length path - 1)) (names known);
-                fix = "declare yen.kinds.${k}.fields.${p}, or use a declared field";
-              }
-            )
-          ]
+          fail {
+            error = "unknown field ${p}";
+            code = "unknown-field";
+            near = near (b.elemAt path (length path - 1)) (
+              names (attrsIn (typesAt k (b.genList (b.elemAt path) (length path - 1))))
+            );
+            fix = "declare yen.kinds.${k}.fields.${p}, or use a declared field";
+          }
         else
-          concatMap (f: instErrors k n (path ++ [ f ])) (
-            names (
-              attrsIn (
-                answers (
-                  [
-                    k
-                    n
-                  ]
-                  ++ path
-                )
-                ++ ts
-              )
-            )
-          );
+          {
+            value = mapAttrs (_: x: x.value) sub;
+            errors = concatMap (x: x.errors) (b.attrValues sub);
+          };
       instNames = k: attrNames (top.${k} or { });
       instances = mapAttrs (
         k: _:
-        listToAttrs (
-          map (n: {
+        genAttrs (instNames k) (
+          n:
+          (inst k n [ ]).value
+          // {
+            kind = k;
             name = n;
-            value = view k n [ ] // {
-              kind = k;
-              name = n;
-            };
-          }) (instNames k)
+          }
         )
       ) kinds;
       yen = instances // {
@@ -843,7 +766,7 @@ let
         ) (attrNames d);
       sinkNames = uniq (concatMap (k: attrNames (k.sinks or { })) (b.attrValues kinds));
       nearestFirst = s: s.rup;
-      above = s: if s.parent == null then [ ] else reverse s.parent.up;
+      above = s: if s.parent == null then [ ] else s.parent.rup;
       receiverIn = k: first (r: sinkOf r k != null && holds ((sinkOf r k).at or (_: true)) r);
       given = concatMap (
         s:
@@ -1665,7 +1588,7 @@ let
       errorsAll =
         loadErrors
         ++ declErrors [ ]
-        ++ concatMap (k: concatMap (n: instErrors k n [ ]) (instNames k)) kindNames
+        ++ concatMap (k: concatMap (n: (inst k n [ ]).errors) (instNames k)) kindNames
         ++ treeErrors
         ++ atErrors
         ++ orderErrors
@@ -1754,7 +1677,7 @@ let
   # grants that only narrow: a grant names scope id prefixes and sinks (null: every sink). Two grants meet: a scope
   # stays when one prefix holds the other (the longer is kept), sinks intersect. There is no way to widen.
   hasPrefix = p: s: b.substring 0 (b.stringLength p) s == p;
-  grants = rec {
+  grants = {
     grant =
       {
         scopes,
@@ -2048,7 +1971,7 @@ let
       prog:
       { yen, ... }:
       let
-        nest = path: v: b.foldl' (acc: k: { ${k} = acc; }) v (reverse path);
+
         refOf = x: if isAttrs x && x ? ref then yen.${x.ref.kind}.${x.ref.name} else x;
         one =
           o:
@@ -2101,7 +2024,7 @@ let
   };
   # a change as data: set one declaration path (`change.set [ "host" "web-1" "port" ] 8080`)
   change = {
-    set = path: value: { yen = b.foldl' (acc: k: { ${k} = acc; }) value (reverse path); };
+    set = path: value: { yen = nest path value; };
   };
 in
 {
