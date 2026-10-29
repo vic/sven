@@ -460,7 +460,7 @@ let
         helpers = top.helpers or { };
         queries = top.queries or { };
         invariants = top.invariants or { };
-        labelTable = top.labels or { };
+        inherit labelTable;
       }; # declarations an agent or the docs read
 
       # ── the scope tree: nested cycles. key = what the parent spawned; identity = keys from the root ──
@@ -1297,13 +1297,18 @@ let
             ];
           };
       # ── the agent surface: JSON-safe answers, every list says when it was cut ──
-      cut = max: xs: {
-        items = b.genList (i: b.elemAt xs i) (if length xs < max then length xs else max);
-        truncated = {
+      cut =
+        max: xs:
+        let
           shown = if length xs < max then length xs else max;
-          of = length xs;
+        in
+        {
+          items = b.genList (b.elemAt xs) shown;
+          truncated = {
+            inherit shown;
+            of = length xs;
+          };
         };
-      };
       context =
         id:
         {
@@ -1395,67 +1400,48 @@ let
       labelTable = top.labels or { };
       labelOf =
         n:
+        foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null (
+          concatMap
+            (
+              f:
+              map (
+                p:
+                labelTable.${p}
+                // {
+                  prefix = p;
+                  file = f;
+                }
+              ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
+            )
+            (declaredIn [
+              "aspects"
+              n
+            ])
+        );
+      labels =
         let
-          files = declaredIn [
-            "aspects"
-            n
-          ];
-          ms = concatMap (
-            f:
-            map (
-              p:
-              labelTable.${p}
-              // {
-                prefix = p;
-                file = f;
-              }
-            ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
-          ) files;
+          ls = mapAttrs (n: _: labelOf n) aspects;
         in
-        if ms == [ ] then
-          null
-        else
-          foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null ms;
-      labels = listToAttrs (
-        concatMap (
-          n:
-          let
-            l = labelOf n;
-          in
-          if l == null then
-            [ ]
-          else
-            [
-              {
-                name = n;
-                value = l;
-              }
-            ]
-        ) aspectNames
-      );
+        removeAttrs ls (filter (n: ls.${n} == null) aspectNames);
       floor =
         t:
-        map
-          (
-            e:
-            let
-              n = b.substring 7 (b.stringLength e.origin) e.origin;
-            in
-            {
-              edge = e;
-              aspect = n;
-              inherit (labels.${n}) trust file prefix;
-            }
-          )
-          (
-            filter (
-              e:
-              let
-                n = b.substring 7 (b.stringLength e.origin) e.origin;
-              in
-              b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (labels.${n}.trust or 0) < t
-            ) graph.edges
-          );
+        concatMap (
+          e:
+          let
+            n = b.substring 7 (b.stringLength e.origin) e.origin;
+            l = labels.${n};
+          in
+          if b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t then
+            [
+              {
+                edge = e;
+                aspect = n;
+                inherit (l) trust file prefix;
+              }
+            ]
+          else
+            [ ]
+        ) graph.edges;
       errorsAll =
         loadErrors
         ++ declErrors [ ]
