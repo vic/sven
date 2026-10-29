@@ -43,6 +43,7 @@ let
   names = xs: attrNames (keySet xs); # sorted, no duplicates
   nest = path: v: if path == [ ] then v else { ${head path} = nest (b.tail path) v; };
   orNull = x: if x == null then [ ] else [ x ];
+  isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
   combinators = [
     "all"
     "not"
@@ -600,7 +601,7 @@ let
           else
             eval3 (stack ++ [ f ]) (aspects.${q}.at or [ ]) s
         else
-          p ? kind && p ? name && s.kind == p.kind && s.name == p.name;
+          isRef p && s.kind == p.kind && s.name == p.name;
       frame = q: s: {
         key = "${q}@${s.id}";
         neg = false;
@@ -655,11 +656,7 @@ let
           (
             filter (
               p:
-              !(
-                isFunction p
-                || isList p
-                || isAttrs p && (p ? __functor || p ? __kind || p ? __aspect || p ? kind && p ? name)
-              )
+              !(isFunction p || isList p || isAttrs p && (p ? __functor || p ? __kind || p ? __aspect || isRef p))
             ) (toList (aspects.${n}.at or [ ]))
           )
       ) aspectNames;
@@ -1025,7 +1022,7 @@ let
                 v = s.${f};
                 atom =
                   x:
-                  if isAttrs x && x ? kind && x ? name && isString x.kind then
+                  if isRef x && isString x.kind then
                     [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
                   else if isString x || b.isInt x then
                     [ "val:${f}:${s.id}:${toString x}" ]
@@ -1058,7 +1055,7 @@ let
       check =
         let
           D = static.datalog;
-          invs = top.invariants or { };
+          invs = yen.invariants;
           rulesOf =
             n:
             let
@@ -1109,8 +1106,7 @@ let
             floor
             schema
             ; # queries readable inside the fleet (docs); `check` and `context` read errors, so not here
-          same =
-            x: y: isAttrs x && isAttrs y && x ? kind && y ? kind && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
+          same = x: y: isRef x && isRef y && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
           nearest = k: nearest k.__kind;
           scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
           cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
@@ -1182,7 +1178,7 @@ let
           files = filesOf n;
           activeAt = length (filter (s: active.${n}.${s.id}) unsorted);
         }) aspects;
-        invariants = attrNames (top.invariants or { });
+        invariants = attrNames yen.invariants;
         queries = [
           "errors"
           "graph"
@@ -1337,8 +1333,17 @@ let
                   via = e.sink;
                 }) (step x.key);
           };
-          hits = b.sort (p: q: p.depth < q.depth || p.depth == q.depth && p.key < q.key) (
-            filter (x: x.key != id) reached
+          c = cut max (
+            map
+              (x: {
+                scope = x.key;
+                inherit (x) depth via;
+              })
+              (
+                b.sort (p: q: p.depth < q.depth || p.depth == q.depth && p.key < q.key) (
+                  filter (x: x.key != id) reached
+                )
+              )
           );
         in
         if !(byId ? ${id}) then
@@ -1346,14 +1351,6 @@ let
         else if bad != [ ] then
           unknown "impact" "sink" (head bad) sinkNames
         else
-          let
-            c = cut max (
-              map (x: {
-                scope = x.key;
-                inherit (x) depth via;
-              }) hits
-            );
-          in
           {
             reached = c.items;
             inherit (c) truncated;
@@ -1436,7 +1433,7 @@ let
           mapAttrs (
             n: i:
             static.jsonSafe (
-              mapAttrs (_: v: if isAttrs v && v ? kind && v ? name then "${v.kind}:${v.name}" else v) (
+              mapAttrs (_: v: if isRef v then "${v.kind}:${v.name}" else v) (
                 removeAttrs i [
                   "kind"
                   "name"
@@ -1460,11 +1457,11 @@ let
             required = filter (a: !fa.${a}) ps;
             optional = filter (a: fa.${a}) ps;
           }
-        ) (top.queries or { });
+        ) yen.queries;
         ask =
           n: args:
-          if !((top.queries or { }) ? ${n}) then
-            unknown "ask" "query" n (attrNames (top.queries or { }))
+          if !(yen.queries ? ${n}) then
+            unknown "ask" "query" n (attrNames yen.queries)
           else
             let
               q = self.queries.${n};
@@ -1483,7 +1480,7 @@ let
                 near = near (head extra) (q.required ++ q.optional);
               }
             else
-              static.jsonSafe (top.queries.${n} (args // { r = self; }));
+              static.jsonSafe (yen.queries.${n} (args // { r = self; }));
       };
     in
     self;
