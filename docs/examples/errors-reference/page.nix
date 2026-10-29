@@ -40,7 +40,7 @@ let
     missing = "a required field has no value";
     missing-param = "a stored query is asked without a required parameter";
     one = "`one`: 0 or 2+ elements";
-    outside-grant = "a staged change gives an element outside its grant";
+    outside-grant = "a staged change can reach a scope outside its grant";
     program = "a change program op is not valid";
     ref = "a field wants an instance ref and got something else";
     rejected = "a staged change was rejected before (its sha is in `rejected`)";

@@ -23,9 +23,11 @@ before you build it and before you deploy it.
 
 - **Rules across machines.** Write your invariants once, as logic over your fleet. Yen checks them on every
   evaluation. A rule that cannot be decided is a failure, never a pass.
-- **No outputs from a broken fleet.** An error or a broken rule and Yen gives no flake outputs.
+- **Nothing to build from a broken fleet.** An error or a broken rule and Yen gives no outputs, and no values
+  to build them from by hand.
 - **Agents that cannot break the law.** An agent's change is staged: Yen evaluates the fleet with and without it,
-  applies nothing, and refuses it with the rule it breaks. A change can never touch your rules.
+  applies nothing, and refuses it with the rule it breaks. A change can never touch your rules, and a grant
+  keeps it in its lane: anything it could reach outside the grant is refused.
 - **Answers, not stack traces.** Every answer is plain data an agent can read: errors with fixes, why a rule fires,
   why it does not. Agents ask through queries or an MCP server.
 - **Your words, not ours.** Yen does not know what a host or a service is. You name your own nouns and facts.
@@ -36,7 +38,8 @@ before you build it and before you deploy it.
 
 Yen is young, and we say plainly what is not done yet. Each step lands with its own tests:
 
-- **Changes stay in their lane.** An agent's change is refused when its effects reach anything outside its grant.
+- **Precise grants.** Today a grant is coarse: a change that declares anything is refused everywhere outside it.
+  Next, Yen sees every read, so a grant refuses only what the change really reaches.
 - **Typed facts and rules as data.** Facts that cannot collide, and rules Yen can inspect.
 - **Certificates.** Each verdict ships with evidence that a small, trusted checker re-verifies.
 - **Types as proofs.** A typed value carries the proof of its own check.

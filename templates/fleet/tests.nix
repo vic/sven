@@ -1528,18 +1528,19 @@ let
             grant = g;
           };
       in
-      (st {
+      # D14-A: a change can reach every scope, so each scope outside the grant is refused, never one inside it
+      lib.all (e: e.code == "outside-grant" && !(lib.hasPrefix "${S}/" e.got) && e.got != S) (st {
         kind = "host";
         name = "stage";
-      }).refused == [ ]
-      &&
-        lib.unique (
-          map (e: e.code)
-            (st {
-              kind = "host";
-              name = "web-1";
-            }).refused
-        ) == [ "outside-grant" ];
+      }).refused
+      && (st {
+        kind = "host";
+        name = "stage";
+      }).refused != [ ]
+      && lib.any (e: lib.hasSuffix "/host:web-1" e.got) (st {
+        kind = "host";
+        name = "web-1";
+      }).refused;
     agent-explain =
       let
         e = r.explain "attic" lb 2;

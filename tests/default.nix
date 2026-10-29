@@ -461,6 +461,12 @@ let
       inherit change grant;
     };
   r1grant = yen.grant { scopes = [ "top:t/host:web" ]; };
+  r1outside = s: b.sort b.lessThan (map (e: e.got) (b.filter (e: e.code == "outside-grant") s.refused));
+  r1others = [
+    "top:t"
+    "top:t/host:db"
+    "top:t/host:webhook"
+  ];
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -2217,22 +2223,55 @@ let
         to = "top:t/host:web/user:a";
         sink = "fw";
       };
+    # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
+    # scope: each scope outside the grant is refused, once (vic/quorum/r3-impact.md)
     r1-grant-added =
-      map (e: e.code)
-        (r1stage {
-          yen.aspects.extra = {
-            at = {
-              kind = "host";
-              name = "webhook";
-            };
-            fw = "x";
+      r1outside (r1stage {
+        yen.aspects.extra = {
+          at = {
+            kind = "host";
+            name = "webhook";
           };
-        } r1grant).refused == [ "outside-grant" ];
-    r1-grant-removed =
-      map (e: e.code) (r1stage { yen.host.db.bypass = true; } r1grant).refused == [ "outside-grant" ];
-    r1-grant-changed =
-      map (e: e.code) (r1stage { yen.host.db.port = 2222; } r1grant).refused == [ "outside-grant" ];
-    r1-grant-inside = (r1stage { yen.host.web.port = 2222; } r1grant).refused == [ ];
+          fw = "x";
+        };
+      } r1grant) == r1others;
+    r1-grant-removed = r1outside (r1stage { yen.host.db.bypass = true; } r1grant) == r1others;
+    r1-grant-changed = r1outside (r1stage { yen.host.db.port = 2222; } r1grant) == r1others;
+    r1-grant-inside = r1outside (r1stage { yen.host.web.port = 2222; } r1grant) == r1others;
+    # the closure channel: db reads web's port through `yen`; a change at web reaches db
+    r1-grant-closure =
+      let
+        s = yen.stage {
+          base = rung1 [
+            (
+              { yen, ... }:
+              {
+                yen.aspects.peer = {
+                  at = yen.host.db;
+                  fw = "${toString yen.host.web.port}";
+                };
+              }
+            )
+          ];
+          change = {
+            yen.host.web.port = 2222;
+          };
+          grant = r1grant;
+        };
+      in
+      b.elem "top:t/host:db" (r1outside s);
+    r1-grant-whole = (r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; })).refused == [ ];
+    r1-grant-sinks =
+      r1outside (r1stage { yen.host.web.port = 2222; } (yen.grant {
+        scopes = [ "top:t" ];
+        sinks = [ "fw" ];
+      })) == [
+        "top:t"
+        "top:t/host:db"
+        "top:t/host:web"
+        "top:t/host:webhook"
+      ];
+    r1-grant-noop = (r1stage { } r1grant).refused == [ ];
     # D9: a change never declares the law
     r1-law-change =
       map (e: e.code) (r1stage { yen.invariants.w = [ { head = "ok:web"; } ]; } null).refused == [

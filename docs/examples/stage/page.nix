@@ -42,9 +42,12 @@
 
         ## Grants only narrow
 
-        `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may give elements.
-        `narrow g h` keeps what both allow. No function makes a grant wider. An element outside the grant is refused,
-        with `class = "authority"`: no edit by this author can fix it.
+        `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may reach. A prefix covers a scope
+        and the scopes under it, by path segment. `narrow g h` keeps what both allow. No function makes a grant wider.
+
+        Every yen module can read the whole fleet through `yen`, so a change that declares anything can reach every scope
+        and every sink. yen refuses each scope the grant does not cover, with `class = "authority"`: no edit by this
+        author can fix it. This is coarse, and it is sound: a value that one scope reads from another never escapes the grant.
       ''
       (docs.file "changes/postgres-on-thinkpad.json")
       (docs.value
@@ -104,11 +107,16 @@
       violation = !d.ok && d.violations == [ "bad:desktop-on-server:web" ];
       clean = (S { change = "changes/postgres-on-thinkpad.json"; }).ok;
       grant =
-        map (e: e.code)
-          (S {
-            change = "changes/postgres-on-thinkpad.json";
-            grant = engine.grant { scopes = [ "fleet:main/host:db" ]; };
-          }).refused == [ "outside-grant" ];
+        let
+          r =
+            (S {
+              change = "changes/postgres-on-thinkpad.json";
+              grant = engine.grant { scopes = [ "fleet:main/host:db" ]; };
+            }).refused;
+        in
+        builtins.all (e: e.code == "outside-grant") r
+        && builtins.elem "fleet:main/host:thinkpad" (map (e: e.got) r)
+        && !(builtins.elem "fleet:main/host:db" (map (e: e.got) r));
       rejected =
         map (e: e.code)
           (S {

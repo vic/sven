@@ -1493,47 +1493,17 @@ let
         edges = delta keyG (r: r.graph.edges);
         active = delta (x: x) activeList;
       };
-      # what the change itself declares: no value comparison (reduced values can hold functions and cycles).
-      # Instance data it declares changes that instance's scopes; an aspect key it declares changes where it routes.
-      # shortcut: direct changes only; a value that reaches other scopes through a sink read or a kind arg is not
-      # followed (bead "transitive impact of a staged change"), upgrade with an impact closure over edges + children
+      # what the change itself declares: no value comparison (reduced values can hold functions and cycles)
       declared = eval change;
-      changedValues =
-        concatMap (
-          s:
-          optional
-            (
-              declared.declaredIn [
-                s.kind
-                s.name
-              ] != [ ]
-            )
-            {
-              k = "data";
-              to = s.id;
-            }
-        ) changedResult.scopes
-        ++ concatMap (
-          e:
-          optional
-            (
-              declared.declaredIn [
-                "aspects"
-                (b.substring 7 (b.stringLength e.origin) e.origin)
-                e.sink
-              ] != [ ]
-            )
-            {
-              k = e.sink;
-              inherit (e) to;
-            }
-        ) (filter (e: b.substring 0 7 e.origin == "aspect ") changedResult.graph.edges);
+      # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
+      # scope and every sink. shortcut: sound but coarse; R-yen (yen-704.27) makes reads visible, then grants narrow again
+      reaches = any (k: declared.declaredIn [ k ] != [ ]) (yenKeys ++ attrNames changedResult.schema.kinds);
       outside =
-        what: e:
-        errWith (e.from or "stage") "the change ${what} ${e.sink} at ${e.to}, outside the grant" {
+        id:
+        errWith "stage" "the change can reach ${id}, outside the grant" {
           code = "outside-grant";
           class = "authority";
-          got = e;
+          got = id;
         };
       lawKeys = words "invariants labels flake";
       law = filter (k: declared.declaredIn [ k ] != [ ]) lawKeys;
@@ -1556,32 +1526,11 @@ let
             path = [ k ];
           }
         ) law
-        ++ (
-          if grant == null then
-            [ ]
-          else
-            # one refusal per scope outside the grant: an edge it adds or removes is also a change there
-            map (x: outside x.what x.e) (
-              uniqueBy (x: x.e.to) (
-                filter (x: !grants.allowed grant x.e) (
-                  map (e: {
-                    what = "gives";
-                    inherit e;
-                  }) diff.edges.added
-                  ++ map (e: {
-                    what = "removes";
-                    inherit e;
-                  }) diff.edges.removed
-                  ++ map (x: {
-                    what = "changes";
-                    e = {
-                      sink = x.k;
-                      inherit (x) to;
-                    };
-                  }) changedValues
-                )
-              )
-            )
+        # one refusal per scope, before or after the change, that the grant does not cover for every sink
+        ++ map outside (
+          filter (id: grant != null && reaches && !grants.allowed grant { to = id; sink = null; }) (
+            attrNames (keySet (ids baseResult ++ ids changedResult))
+          )
         );
     in
     {

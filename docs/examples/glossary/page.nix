@@ -127,7 +127,7 @@
           ]
           [
             "grant"
-            "where a change may give elements; grants only narrow"
+            "where a change may reach; grants only narrow"
             "[Stage a change](/agents/stage/#grants-only-narrow)"
           ]
           [

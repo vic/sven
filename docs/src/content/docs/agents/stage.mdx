@@ -19,7 +19,7 @@ The fleet is the one from [Invariants](/query/invariants/). A change is plain da
 #   nix eval --impure --json --file stage.nix --argstr change changes/desktop-on-web.json
 {
   change,
-  grant ? null, # where the change may give elements: yen.lib.grant { scopes = [ … ]; }
+  grant ? null, # where the change may reach: yen.lib.grant { scopes = [ … ]; }
   rejected ? [ ], # sha256 of changes refused before
   yen ? builtins.fetchTarball "https://github.com/vic/yen/archive/main.tar.gz",
   nixpkgs ? builtins.fetchTarball "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz",
@@ -80,9 +80,12 @@ the diff (scopes, routed elements, active aspects) and the change's `sha`.
 
 ## Grants only narrow
 
-`yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may give elements.
-`narrow g h` keeps what both allow. No function makes a grant wider. An element outside the grant is refused,
-with `class = "authority"`: no edit by this author can fix it.
+`yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may reach. A prefix covers a scope
+and the scopes under it, by path segment. `narrow g h` keeps what both allow. No function makes a grant wider.
+
+Every yen module can read the whole fleet through `yen`, so a change that declares anything can reach every scope
+and every sink. yen refuses each scope the grant does not cover, with `class = "authority"`: no edit by this
+author can fix it. This is coarse, and it is sound: a value that one scope reads from another never escapes the grant.
 
 
 ```json title="changes/postgres-on-thinkpad.json"
@@ -94,14 +97,25 @@ with `class = "authority"`: no edit by this author can fix it.
   {
     class = "authority";
     code = "outside-grant";
-    error = "the change gives services at fleet:main/host:thinkpad, outside the grant";
-    from = "fleet:main/host:thinkpad";
-    got = {
-      from = "fleet:main/host:thinkpad";
-      origin = "aspect postgres";
-      sink = "services";
-      to = "fleet:main/host:thinkpad";
-    };
+    error = "the change can reach fleet:main, outside the grant";
+    from = "stage";
+    got = "fleet:main";
+    path = [ ];
+  }
+  {
+    class = "authority";
+    code = "outside-grant";
+    error = "the change can reach fleet:main/host:thinkpad, outside the grant";
+    from = "stage";
+    got = "fleet:main/host:thinkpad";
+    path = [ ];
+  }
+  {
+    class = "authority";
+    code = "outside-grant";
+    error = "the change can reach fleet:main/host:web, outside the grant";
+    from = "stage";
+    got = "fleet:main/host:web";
     path = [ ];
   }
 ]

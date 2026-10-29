@@ -282,7 +282,7 @@ An unknown aspect or scope gives an error record with `near`: the names it was p
 yen.invariants.attic = { scopes, ... }: map (s: { head = "bad:attic-on-mac:${s.id}"; pos = [ "has:attic:${s.id}" ]; }) (lib.filter (s: s.kind == "mac") scopes);
 ```
 
-**Changes go through `stage`.** `yen.lib.stage { base; change; rejected ? [ ]; grant ? null; }` evaluates the fleet without and with the change. Nothing is applied. It returns the new errors, the new violations, a diff (scopes, routed elements, active aspects), the change's `sha` and the `refused` list. `ok` is true only when nothing new is wrong. A change in `rejected`, and an element outside the grant, are refused with `class = "authority"`. `render` is the change as JSON, so it can be read back and staged again.
+**Changes go through `stage`.** `yen.lib.stage { base; change; rejected ? [ ]; grant ? null; }` evaluates the fleet without and with the change. Nothing is applied. It returns the new errors, the new violations, a diff (scopes, routed elements, active aspects), the change's `sha` and the `refused` list. `ok` is true only when nothing new is wrong. A change in `rejected`, and a change that can reach a scope outside the grant, are refused with `class = "authority"`. `render` is the change as JSON, so it can be read back and staged again.
 
 ```nix
 yen.lib.stage { base = fleet; change = { yen.aspects.attic.at = [ { kind = "mac"; name = "studio"; } ]; }; }
@@ -327,7 +327,7 @@ result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 # { safe = [ "stage" ]; refused.studio = [ "bad:attic-on-mac:fleet:main/environment:staging/mac:studio" ]; }
 ```
 
-**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may give elements. `narrow g h` keeps what both allow. No function makes a grant wider. A staged change that gives an element outside its grant is refused.
+**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may reach. `narrow g h` keeps what both allow. No function makes a grant wider. A module can read the whole fleet through `yen`, so a staged change that declares anything is refused at every scope outside its grant.
 
 ## Patterns in this fleet
 
