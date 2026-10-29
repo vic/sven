@@ -1599,14 +1599,13 @@ let
       minus =
         k: xs: ys:
         let
-          has = listToAttrs (
-            map (y: {
-              name = k y;
-              value = true;
-            }) ys
-          );
+          has = keySet (map k ys);
         in
         filter (x: !(has ? ${k x})) xs;
+      delta = k: f: {
+        added = minus k (f r1) (f r0);
+        removed = minus k (f r0) (f r1);
+      };
       ids = r: map (s: s.id) r.scopes;
       activeList =
         r:
@@ -1620,7 +1619,12 @@ let
           b.hashString "sha256" (b.toJSON change)
         else
           null;
-      newEdges = minus keyG r1.graph.edges r0.graph.edges;
+      diff = {
+        scopes = delta (x: x) ids;
+        edges = delta keyG (r: r.graph.edges);
+        active = delta (x: x) activeList;
+      };
+      newEdges = diff.edges.added;
       errors = minus keyE r1.errors r0.errors;
       bad = if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
       refused =
@@ -1651,23 +1655,14 @@ let
         );
     in
     {
-      inherit errors refused sha;
+      inherit
+        errors
+        refused
+        sha
+        diff
+        ;
       violations = bad;
       ok = errors == [ ] && bad == [ ] && refused == [ ];
-      diff = {
-        scopes = {
-          added = minus (x: x) (ids r1) (ids r0);
-          removed = minus (x: x) (ids r0) (ids r1);
-        };
-        edges = {
-          added = newEdges;
-          removed = minus keyG r0.graph.edges r1.graph.edges;
-        };
-        active = {
-          added = minus (x: x) (activeList r1) (activeList r0);
-          removed = minus (x: x) (activeList r0) (activeList r1);
-        };
-      };
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
   # field changes between two `data` answers: [ { path; old; new; } ], sorted by path
