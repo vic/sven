@@ -69,7 +69,8 @@ let
       why = r.check.why args.atom;
     };
     program = yen.lib.program.dryRun {
-      inherit base r;
+      inherit base;
+      result = r;
       prog = args.program;
     };
   };

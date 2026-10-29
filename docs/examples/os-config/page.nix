@@ -29,11 +29,11 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       both =
-        r.active.editors."fleet:main/host:server/home:alice@server"
-        && r.active.editors."fleet:main/host:server/user:alice";
+        result.active.editors."fleet:main/host:server/home:alice@server"
+        && result.active.editors."fleet:main/host:server/user:alice";
     };
   e2e =
     { flake, ... }:

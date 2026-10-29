@@ -70,7 +70,7 @@ in
 
 ## What does this scope reach?
 
-`r.impact id { hops; sinks; max; }` follows routed elements from a scope, by depth. `web` gives a backend
+`result.impact id { hops; sinks; max; }` follows routed elements from a scope, by depth. `web` gives a backend
 to its environment, and the environment gives DNS to the fleet:
 
 
@@ -130,7 +130,7 @@ so `web-old` and `web-next` have no scope:
 ## Transaction time
 
 `yen.lib.asOf { url; rev; module; }` evaluates the fleet at a git revision. `yen.lib.history { url; revs; module; }`
-lists each revision with the field changes from the one before (`diffData` over `r.data`). The engine's own tests
+lists each revision with the field changes from the one before (`diffData` over `result.data`). The engine's own tests
 run both on this repository: see [tests/default.nix](https://github.com/vic/yen/blob/main/tests/default.nix).
 
 

@@ -52,7 +52,7 @@
       ''
         ## Checked against the schema
 
-        `validate r prog` checks each op before anything runs: kinds, fields and aspects must exist, with `near` for typos.
+        `validate result prog` checks each op before anything runs: kinds, fields and aspects must exist, with `near` for typos.
         `dryRun` validates first, and stages only a valid program:
       ''
       (docs.file "programs/typos.json")
@@ -61,7 +61,7 @@
         [ "Function" "Use" ]
         [
           [
-            "`validate r prog`"
+            "`validate result prog`"
             "error records, `[ ]` when the program is valid"
           ]
           [

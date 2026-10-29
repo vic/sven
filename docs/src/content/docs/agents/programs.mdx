@@ -82,7 +82,7 @@ Writing Nix is a poor interface for an agent: it can write anything, and a typo 
 
 ## Checked against the schema
 
-`validate r prog` checks each op before anything runs: kinds, fields and aspects must exist, with `near` for typos.
+`validate result prog` checks each op before anything runs: kinds, fields and aspects must exist, with `near` for typos.
 `dryRun` validates first, and stages only a valid program:
 
 
@@ -124,7 +124,7 @@ Writing Nix is a poor interface for an agent: it can write anything, and a typo 
 
 | Function | Use |
 |---|---|
-| `validate r prog` | error records, `[ ]` when the program is valid |
+| `validate result prog` | error records, `[ ]` when the program is valid |
 | `toModule prog` | the program as a yen module, to import |
 | `dryRun { base; prog; grant; rejected; }` | validate, then [stage](/agents/stage/) |
 | `render prog` | JSON, to store or send |

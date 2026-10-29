@@ -55,14 +55,14 @@
     {
       inputs,
       dir,
-      r,
+      result,
       ...
     }:
     let
       q = import (dir + "/default.nix") { inherit (inputs) yen nixpkgs import-tree; };
     in
     {
-      same-queries = q.errors == [ ] && q.graph == r.graph;
+      same-queries = q.errors == [ ] && q.graph == result.graph;
     };
   e2e =
     {

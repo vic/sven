@@ -9,7 +9,7 @@ so a tool, a script or a model reads it the same way.
 
 ## One call to start
 
-`r.agent` is the schema, the errors, the invariant check and the counts, JSON-safe:
+`result.agent` is the schema, the errors, the invariant check and the counts, JSON-safe:
 
 
 ```nix title="result"
@@ -117,7 +117,7 @@ so a tool, a script or a model reads it the same way.
 
 ## Why is an aspect active, or not?
 
-`r.explain aspect id depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
+`result.explain aspect id depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
 there, and its files. Past the depth, `kids = "cut"`.
 
 
@@ -173,7 +173,7 @@ An aspect declared in several files takes the lowest trust of them.
 }
 ```
 
-`r.labels` gives each labelled aspect. `r.floor 3` lists every routed element of an aspect below trust 3,
+`result.labels` gives each labelled aspect. `result.floor 3` lists every routed element of an aspect below trust 3,
 with its file: what a reviewer reads first.
 
 

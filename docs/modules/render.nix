@@ -189,7 +189,7 @@ let
     x.page.body {
       docs = docs page.dir;
       inherit (x)
-        r
+        result
         flake
         variant
         only
@@ -232,7 +232,7 @@ let
       x = yen.helpers.example page.dir;
       args = {
         inherit (x)
-          r
+          result
           flake
           variant
           only
@@ -245,10 +245,12 @@ let
       };
       own = (x.page.checks or (_: { })) args;
       auto =
-        lib.optionalAttrs (x.r != null) { no-errors = (x.page.errors or false) || x.r.errors == [ ]; }
+        lib.optionalAttrs (x.result != null) {
+          no-errors = (x.page.errors or false) || x.result.errors == [ ];
+        }
         // lib.optionalAttrs x.template {
           inputs-known = x.inputsKnown;
-          flake-is-eval = lib.attrNames x.flake == lib.attrNames x.r.flake;
+          flake-is-eval = lib.attrNames x.flake == lib.attrNames x.result.flake;
         };
     in
     {

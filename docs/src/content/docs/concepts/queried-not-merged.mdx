@@ -36,7 +36,7 @@ Here two feature files declare settings at two paths of one field. Neither file 
 </Tabs>
 
 A read of `host.settings.k3s.role` looks at the instance, then at the type default. It never reads `zfs.nix`.
-`r.declaredIn` answers which files declare a path:
+`result.declaredIn` answers which files declare a path:
 
 
 ```nix title="result"

@@ -5,7 +5,7 @@
   order = 5;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         A scope is one instance at one place in the tree. The root kind is the kind that no kind spawns.
@@ -16,7 +16,7 @@
       ''
         The tree comes from the data. Nothing lists the children by hand:
       ''
-      (docs.scopes r)
+      (docs.scopes result)
       ''
         ## Identity is a path
 
@@ -24,9 +24,9 @@
         One instance can live in several places. `alice` has two scopes, one under each of her hosts.
         Names need not be unique.
 
-        `r.scopes` gives the scopes in order:
+        `result.scopes` gives the scopes in order:
       ''
-      (docs.value (map (s: s.id) r.scopes))
+      (docs.value (map (s: s.id) result.scopes))
       ''
         ## Order
 
@@ -47,10 +47,10 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
-      alice-twice = builtins.length (builtins.filter (s: s.name == "alice") r.scopes) == 2;
-      web-before-db = builtins.elemAt (map (s: s.name) r.scopes) 5 == "web";
-      flake = r.flake.scopes == map (s: s.id) r.scopes;
+      alice-twice = builtins.length (builtins.filter (s: s.name == "alice") result.scopes) == 2;
+      web-before-db = builtins.elemAt (map (s: s.name) result.scopes) 5 == "web";
+      flake = result.flake.scopes == map (s: s.id) result.scopes;
     };
 }

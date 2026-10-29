@@ -6,7 +6,7 @@
   badge = "advanced";
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         Some values are not written but found: a port no other app uses, memory that fits a host, a database host in the
@@ -15,7 +15,7 @@
       ''
       (docs.file "modules/fleet.nix")
       (docs.fileWith "{6-12}" "modules/ports.nix")
-      (docs.value r.flake.ports)
+      (docs.value result.flake.ports)
       ''
         `grafana` can never take 8080: `prometheus` must be lower. The same relation, read backward, says so.
       ''
@@ -73,9 +73,9 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     let
-      p = r.flake.ports;
+      p = result.flake.ports;
     in
     {
       first =

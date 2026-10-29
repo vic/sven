@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -25,11 +25,11 @@
       (docs.tabs [
         {
           label = "secretsPlan";
-          body = docs.value r.flake.secretsPlan;
+          body = docs.value result.flake.secretsPlan;
         }
         {
           label = "errors";
-          body = docs.value (map (e: e.error) r.errors);
+          body = docs.value (map (e: e.error) result.errors);
         }
       ])
       ''
@@ -48,14 +48,15 @@
   errors = true; # old-token has no owner, on purpose
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       web =
-        map (s: s.name) r.flake.secretsPlan.web == [
+        map (s: s.name) result.flake.secretsPlan.web == [
           "db-password"
           "tls"
         ];
-      orphan = map (e: e.error) r.errors == [ "secret old-token (secrets/old-token.age) has no owner" ];
+      orphan =
+        map (e: e.error) result.errors == [ "secret old-token (secrets/old-token.age) has no owner" ];
       by-name = builtins.length (variant "variants/by-name.nix").errors == 2;
     };
 }

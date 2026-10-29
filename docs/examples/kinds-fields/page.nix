@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -26,7 +26,7 @@
         ([Sinks](/concepts/sinks/) explains how):
       ''
       (docs.file "modules/report.nix")
-      (docs.value r.flake.report)
+      (docs.value result.flake.report)
       ''
         ## Fields are strict
 
@@ -36,21 +36,21 @@
       ''
       (docs.file "variants/typo.nix")
       ''
-        `r.errors` now has three records. `near` names the field you probably meant:
+        `result.errors` now has three records. `near` names the field you probably meant:
       ''
       (docs.value (variant "variants/typo.nix").errors)
       (docs.tip "Ask the schema" ''
-        `r.schema` describes every kind as data: fields with their type names, spawns and sinks.
-        `r.data` gives every instance. Both print as JSON, for tools and agents.
+        `result.schema` describes every kind as data: fields with their type names, spawns and sinks.
+        `result.data` gives every instance. Both print as JSON, for tools and agents.
       '')
-      (docs.value r.schema.kinds.host.fields)
+      (docs.value result.schema.kinds.host.fields)
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       report =
-        r.flake.report == {
+        result.flake.report == {
           db = "10.0.0.2 (16 cores)";
           web = "10.0.0.1 (4 cores)";
         };

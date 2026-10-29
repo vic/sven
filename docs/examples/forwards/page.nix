@@ -5,7 +5,7 @@
   order = 10;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         The keys of a sink, other than `reduce`, `of`, `at` and `out`, give elements to other sinks.
@@ -22,8 +22,8 @@
       ''
         The guest's config arrives inside the host's config, under `vms.ci`:
       ''
-      (docs.value r.flake.config)
-      (docs.routes r)
+      (docs.value result.flake.config)
+      (docs.routes result)
       (docs.tip "One sink for two systems" ''
         Forwards let one sink serve several targets. A fleet can give `os` elements and forward them to `nixos` on a host
         and to `darwin` on a mac. Aspects write `os` once. See [nix-darwin machines](/recipes/darwin/).
@@ -31,11 +31,11 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
-      host = r.flake.config.server.firewall.allowedTCPPorts == [ 22 ];
+      host = result.flake.config.server.firewall.allowedTCPPorts == [ 22 ];
       guest-up =
-        r.flake.config.server.vms.ci == {
+        result.flake.config.server.vms.ci == {
           firewall.allowedTCPPorts = [ 8080 ];
           runner.enable = true;
         };

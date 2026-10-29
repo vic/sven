@@ -7,27 +7,27 @@
 {
   yen.queries = {
     hostsIn =
-      { env, r }:
+      { env, result }:
       map (s: s.name) (
-        lib.filter (s: s.kind == "host" && lib.hasInfix "/environment:${env}/" s.id) r.scopes
+        lib.filter (s: s.kind == "host" && lib.hasInfix "/environment:${env}/" s.id) result.scopes
       );
     aspectsOn =
-      { host, r }:
+      { host, result }:
       let
-        s = lib.findFirst (x: x.kind == "host" && x.name == host) null r.scopes;
+        s = lib.findFirst (x: x.kind == "host" && x.name == host) null result.scopes;
       in
-      if s == null then [ ] else lib.filter (n: r.active.${n}.${s.id}) (lib.attrNames r.active);
+      if s == null then [ ] else lib.filter (n: result.active.${n}.${s.id}) (lib.attrNames result.active);
     errorsBy =
       {
         code ? null,
-        r,
+        result,
       }:
-      lib.filter (e: code == null || e.code == code) r.errors;
+      lib.filter (e: code == null || e.code == code) result.errors;
     # clan install order: in a service instance, each client machine waits for the servers (yen.lib.graphs.layers)
     installOrder =
-      { instance, r }:
+      { instance, result }:
       let
-        ms = lib.filter (s: s.kind == "member" && lib.hasPrefix "${instance}." s.name) r.scopes;
+        ms = lib.filter (s: s.kind == "member" && lib.hasPrefix "${instance}." s.name) result.scopes;
         role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: lib.hasSuffix ".${rl}" s.name) ms));
         servers = role "server";
       in

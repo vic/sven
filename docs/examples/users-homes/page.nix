@@ -5,7 +5,7 @@
   order = 1;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         A person uses several machines. Some run NixOS, some only home-manager. In yen the person is data,
@@ -21,8 +21,8 @@
       ''
         `alice-home` is active at alice's user scope and at her home:
       ''
-      (docs.value r.active.alice-home)
-      (docs.scopes r)
+      (docs.value result.active.alice-home)
+      (docs.scopes result)
       (docs.sh ''
         sudo nixos-rebuild switch --flake .#server
         home-manager switch --flake '.#alice@laptop'
@@ -35,11 +35,11 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       both =
-        r.active.alice-home."fleet:main/home:alice@laptop"
-        && r.active.alice-home."fleet:main/host:server/user:alice";
+        result.active.alice-home."fleet:main/home:alice@laptop"
+        && result.active.alice-home."fleet:main/host:server/user:alice";
     };
   e2e =
     { flake, ... }:

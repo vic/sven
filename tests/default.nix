@@ -276,6 +276,10 @@ let
             at = yen.kinds.top;
             port = x: x; # bare-function
           };
+          yen.aspects.treeArg = {
+            at = yen.kinds.top;
+            port = { tree, ... }: 1; # arg: `tree` is a cycle source
+          };
           yen.aspects.noArg = {
             at = yen.kinds.top;
             port = { host, ... }: 1; # arg: no host above top
@@ -860,13 +864,13 @@ let
       let
         r = ports {
           yen.queries = {
-            portOf = { host, r, ... }: (b.head (b.filter (s: s.name == host) r.scopes)).port;
+            portOf = { host, result, ... }: (b.head (b.filter (s: s.name == host) result.scopes)).port;
             count =
               {
                 kind ? "host",
-                r,
+                result,
               }:
-              b.length (b.filter (s: s.kind == kind) r.scopes);
+              b.length (b.filter (s: s.kind == kind) result.scopes);
           };
         };
       in
@@ -1035,8 +1039,8 @@ let
         };
       in
       w.dropped == [ ./fixtures/without/db.nix ]
-      && b.all (s: s.name != "db") w.r.scopes
-      && b.any (s: s.name == "web") w.r.scopes
+      && b.all (s: s.name != "db") w.result.scopes
+      && b.any (s: s.name == "web") w.result.scopes
       &&
         (yen.without {
           files = [
@@ -1923,6 +1927,31 @@ let
         }
       ]
       && map (e: e.code) treeAll.errors == [ "tree-request" ];
+    # a plain element reads the children of its scope through `yen.lib.children`, as the `children` request does
+    lib-children =
+      (yen.eval (
+        { yen, ... }:
+        {
+          yen.kinds.top = {
+            spawns.host = _: {
+              b = { };
+              a = { };
+            };
+            sinks.kids = { };
+          };
+          yen.kinds.host = { };
+          yen.top.t = { };
+          yen.aspects.k = {
+            at = yen.kinds.top;
+            kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+          };
+        }
+      )).reduced.kids."top:t" == [
+        [
+          "a"
+          "b"
+        ]
+      ];
     error-codes =
       map (e: e.code) codesFix.errors == [
         "module"
@@ -1932,8 +1961,10 @@ let
         "of"
         "bare-function"
         "arg"
+        "arg"
       ]
       && (b.elemAt codesFix.errors 6).want == "host"
+      && (b.elemAt codesFix.errors 7).error == "aspect treeArg: arg `tree` is a cycle source"
       && (b.elemAt codesFix.errors 5).error == "aspect bare: bare function: wrap it as `{ ... }:`";
     unread-sink-no-error =
       msgs (

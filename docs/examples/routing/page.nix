@@ -5,7 +5,7 @@
   order = 9;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         An aspect does not say who receives its elements. The tree does. An element goes to the nearest
@@ -16,7 +16,7 @@
       (docs.fileWith "{17,23}" "modules/fleet.nix")
       (docs.file "modules/instances.nix")
       (docs.file "modules/aspects.nix")
-      (docs.value r.flake)
+      (docs.value result.flake)
       (docs.table
         [ "Element" "Given at" "Received at" "Why" ]
         [
@@ -47,9 +47,9 @@
         ]
       )
       ''
-        The routes, drawn from `r.graph.edges`:
+        The routes, drawn from `result.graph.edges`:
       ''
-      (docs.routes r)
+      (docs.routes result)
       ''
         ## Walls
 
@@ -58,19 +58,19 @@
       ''
       (docs.file "modules/walls.nix")
       ''
-        `r.reduced.packages` shows both receivers. Only the host gives its packages to the flake:
+        `result.reduced.packages` shows both receivers. Only the host gives its packages to the flake:
       ''
-      (docs.value r.reduced.packages)
+      (docs.value result.reduced.packages)
       (docs.note "A sink nobody reads" ''
         A sink that nobody reads is not an error. Nothing happens. Laziness means it costs nothing either.
       '')
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       flake =
-        r.flake == {
+        result.flake == {
           dns = {
             fleet = [ "box A" ];
             prod = [ "web A" ];
@@ -81,6 +81,6 @@
           };
           packages.web = [ "vim for alice" ];
         };
-      wall = r.reduced.packages."fleet:main/environment:prod/host:web/home:bob" == [ "vim for bob" ];
+      wall = result.reduced.packages."fleet:main/environment:prod/host:web/home:bob" == [ "vim for bob" ];
     };
 }

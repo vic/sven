@@ -1,33 +1,33 @@
 {
   title = "Stored queries";
-  description = "Name a question once with `yen.queries`, then ask it with `r.ask` from Nix, the CLI or an agent.";
+  description = "Name a question once with `yen.queries`, then ask it with `result.ask` from Nix, the CLI or an agent.";
   section = "query";
   order = 6;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
-        A stored query names a question about the fleet. `r` is the eval result. The other formal args are its parameters:
+        A stored query names a question about the fleet. `result` is the eval result, the same `result` as outside the fleet: yen passes it when the query is asked with `result.ask`. The other formal args are its parameters:
         required, unless they have a default.
       ''
       (docs.file "modules/queries.nix")
       ''
-        `r.queries` lists them with their parameters:
+        `result.queries` lists them with their parameters:
       ''
-      (docs.value r.queries)
+      (docs.value result.queries)
       ''
-        `r.ask name args` answers:
+        `result.ask name args` answers:
       ''
       (docs.tabs [
         {
           label = ''ask "aspectsOn" { host = "web"; }'';
-          body = docs.value (r.ask "aspectsOn" { host = "web"; });
+          body = docs.value (result.ask "aspectsOn" { host = "web"; });
         }
         {
           label = ''ask "hostsWith" { aspect = "git"; kind = "user"; }'';
           body = docs.value (
-            r.ask "hostsWith" {
+            result.ask "hostsWith" {
               aspect = "git";
               kind = "user";
             }
@@ -40,11 +40,11 @@
       (docs.tabs [
         {
           label = "missing parameter";
-          body = docs.value (r.ask "aspectsOn" { });
+          body = docs.value (result.ask "aspectsOn" { });
         }
         {
           label = "unknown query";
-          body = docs.value (r.ask "aspectsOff" { host = "web"; });
+          body = docs.value (result.ask "aspectsOff" { host = "web"; });
         }
       ])
       (docs.sh ''nix eval --impure --json --expr '(import ./query.nix).ask "aspectsOn" { host = "web"; }' '')
@@ -55,19 +55,19 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       ask =
-        r.ask "aspectsOn" { host = "web"; } == [
+        result.ask "aspectsOn" { host = "web"; } == [
           "git"
           "nginx"
         ];
       optional =
-        r.queries.hostsWith == {
+        result.queries.hostsWith == {
           optional = [ "kind" ];
           required = [ "aspect" ];
         };
-      missing = (r.ask "aspectsOn" { }).code == "missing-param";
-      near = (r.ask "aspectsOff" { host = "web"; }).near == [ "aspectsOn" ];
+      missing = (result.ask "aspectsOn" { }).code == "missing-param";
+      near = (result.ask "aspectsOff" { host = "web"; }).near == [ "aspectsOn" ];
     };
 }

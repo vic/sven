@@ -5,7 +5,7 @@
   order = 6;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         An aspect is one feature. It is active at every scope where its `at` predicate holds.
@@ -32,9 +32,9 @@
         }
       ])
       ''
-        `nginx` is active at both hosts, never at the users. Read it with `r.active.nginx`:
+        `nginx` is active at both hosts, never at the users. Read it with `result.active.nginx`:
       ''
-      (docs.value r.active.nginx)
+      (docs.value result.active.nginx)
       ''
         ## Static content lands once
 
@@ -42,7 +42,7 @@
         Content that names the scope (`{ user, ... }:`) lands once per scope: each user gives its own dotfiles.
       ''
       (docs.file "modules/shells.nix")
-      (docs.value r.flake.packages)
+      (docs.value result.flake.packages)
       (docs.caution "Aspects do not flow down" ''
         An aspect is active only where `at` holds. It never reaches the children of that scope:
         a host profile does not reach the users or guests of the host. Elements go up, never down.
@@ -53,15 +53,15 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       union =
-        r.active.nginx."fleet:main/host:web"
-        && r.active.nginx."fleet:main/host:db"
-        && !r.active.nginx."fleet:main/host:web/user:bob";
-      zsh-once = builtins.length (builtins.filter (p: p == "zsh") r.flake.packages.web) == 1;
+        result.active.nginx."fleet:main/host:web"
+        && result.active.nginx."fleet:main/host:db"
+        && !result.active.nginx."fleet:main/host:web/user:bob";
+      zsh-once = builtins.length (builtins.filter (p: p == "zsh") result.flake.packages.web) == 1;
       dotfiles =
-        builtins.elem "dotfiles-alice" r.flake.packages.web
-        && builtins.elem "dotfiles-bob" r.flake.packages.db;
+        builtins.elem "dotfiles-alice" result.flake.packages.web
+        && builtins.elem "dotfiles-bob" result.flake.packages.db;
     };
 }

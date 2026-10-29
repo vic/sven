@@ -6,7 +6,7 @@
   badge = "advanced";
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         A service such as backup has roles: one server, many clients. The instance says which machine takes which role.
@@ -18,7 +18,7 @@
         per instance (clan's `perInstance`). An aspect at a machine that `has` a member runs once per machine (`perMachine`).
       ''
       (docs.fileWith "{5-7,35}" "modules/kinds.nix")
-      (docs.scopes r)
+      (docs.scopes result)
       ''
         ## Members exchange data
 
@@ -26,7 +26,7 @@
         as itself. The server reads the entries and builds its allow list:
       ''
       (docs.fileWith "{8,14}" "modules/backup.nix")
-      (docs.value r.flake.config)
+      (docs.value result.flake.config)
       (docs.tip "The full model" ''
         The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
         typed role settings with errors, exports per service with owner overrides, install order, and vars generators.
@@ -34,15 +34,15 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       allow =
-        r.flake.config.nas.backup.allow == [
+        result.flake.config.nas.backup.allow == [
           "10.0.0.1"
           "10.0.0.2"
         ];
       members =
-        map (s: s.id) (builtins.filter (s: s.kind == "member") r.scopes) == [
+        map (s: s.id) (builtins.filter (s: s.kind == "member") result.scopes) == [
           "fleet:main/host:db/member:backup.client"
           "fleet:main/host:nas/member:backup.server"
           "fleet:main/host:web/member:backup.client"

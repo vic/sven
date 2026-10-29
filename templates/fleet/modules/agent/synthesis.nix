@@ -8,7 +8,7 @@
 let
   K = yen.lib.krn;
   machinesIn =
-    r: env:
+    result: env:
     lib.filter (
       s:
       lib.elem s.kind [
@@ -17,17 +17,17 @@ let
       ]
       && s.parent.kind == "environment"
       && s.parent.name == env
-    ) r.scopes;
+    ) result.scopes;
 in
 {
   yen.queries = {
     freePort =
-      { host, r }:
+      { host, result }:
       let
-        id = (lib.findFirst (s: s.kind == "host" && s.name == host) { id = ""; } r.scopes).id;
+        id = (lib.findFirst (s: s.kind == "host" && s.name == host) { id = ""; } result.scopes).id;
         used = lib.concatMap (
           m: lib.attrValues (builtins.fromJSON (m.environment.etc."apps/ports".text or "{}"))
-        ) (r.reduced.nixos.${id} or [ ]);
+        ) (result.reduced.nixos.${id} or [ ]);
         a = K.run 1 (q: [ (K.infd [ q ] 8080 8099) ] ++ map (p: K.neqfd q p) used ++ [ (K.label [ q ]) ]);
       in
       if a == [ ] then
@@ -41,13 +41,13 @@ in
           inherit used;
         };
     placeDb =
-      { host, r }:
+      { host, result }:
       let
         rows = map (s: {
           name = s.name;
           env = s.parent.name;
           db = s.dbRole or false;
-        }) (lib.filter (s: s.kind == "host" && s.parent.kind == "environment") r.scopes);
+        }) (lib.filter (s: s.kind == "host" && s.parent.kind == "environment") result.scopes);
       in
       K.runAll (
         q:
@@ -76,14 +76,14 @@ in
       {
         aspect,
         env,
-        r,
+        result,
       }:
       let
         try =
           s:
           yen.lib.program.dryRun {
-            base = r.root;
-            inherit r;
+            base = result.root;
+            inherit result;
             prog = [
               {
                 op = "place";
@@ -95,7 +95,7 @@ in
         tried = map (s: {
           inherit (s) name;
           d = try s;
-        }) (machinesIn r env);
+        }) (machinesIn result env);
       in
       {
         safe = map (x: x.name) (lib.filter (x: x.d.ok) tried);

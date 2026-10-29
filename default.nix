@@ -765,7 +765,7 @@ let
       byTo = groupBy (e: "${e.key}@${e.to.id}") routed;
 
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
-      isRen = n: n == "scope" || n == "tree" || kinds ? ${n} || elem n sinkNames;
+      isRen = n: n == "scope" || kinds ? ${n} || elem n sinkNames; # `tree` is a cycle source, never an element arg
       nearest = k: s: first (x: x.kind == k) s.rup;
       # what a tree request answers at a scope: a list, empty when nothing answers (Cycle: no source, no emission)
       answer =
@@ -775,7 +775,7 @@ let
         else if q ? parent then
           orNull s.parent
         else if q ? children then
-          [ (filter (holds q.children) (childrenAt.${s.id} or [ ])) ]
+          [ (lib.children q.children s) ]
         else if q ? scopesOf then
           [ (lib.scopesOf q.scopesOf) ]
         else
@@ -836,6 +836,12 @@ let
           errWith s.id "bare function: wrap it as `{ ... }:`" {
             code = "bare-function";
             fix = "write `{ ... }:` so yen knows which args to fill";
+          }
+        else if fa ? tree then
+          errWith s.id "arg `tree` is a cycle source" {
+            code = "arg";
+            want = "tree";
+            fix = "ask the tree from a `cycle`: `cycle = { tree, ... }: { tree = [ … ]; <sink> = …; }`";
           }
         else if missing != [ ] then
           errWith s.id "arg `${head missing}` has no answer" {
@@ -1017,6 +1023,7 @@ let
           same = x: y: isRef x && isRef y && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
           nearest = k: nearest k.__kind;
           scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
+          children = p: s: filter (holds p) (childrenAt.${s.id} or [ ]); # the children of a scope where p holds, sorted
           cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
         };
       # ── schema: what a fleet declares, as JSON-safe data (no functions): for agents and docs ──
@@ -1302,14 +1309,14 @@ let
         ) kinds;
         errors = errorsAll;
         flake = if top ? flake && scopes != [ ] then (fill (head scopes) top.flake).ok or null else null;
-        # stored queries: `yen.queries.<name> = { host, r, ... }: …`. `r` is this result; the other formals are the
+        # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.
         queries = mapAttrs (
           n: f:
           let
             fa = functionArgs f;
-            ps = filter (a: a != "r") (attrNames fa);
+            ps = filter (a: a != "result") (attrNames fa);
           in
           {
             required = filter (a: !fa.${a}) ps;
@@ -1338,7 +1345,7 @@ let
                 near = near (head extra) (q.required ++ q.optional);
               }
             else
-              static.jsonSafe (yen.queries.${n} (args // { r = self; }));
+              static.jsonSafe (yen.queries.${n} (args // { result = self; }));
       };
     in
     self;
@@ -1396,11 +1403,11 @@ let
       rejected ? [ ],
       grant ? null,
       invariants ? true,
-      r0 ? eval base,
-    }: # r0: the base already evaluated
+      baseResult ? eval base,
+    }: # baseResult: the base already evaluated
     let
 
-      r1 = eval {
+      changedResult = eval {
         imports = [
           base
           change
@@ -1415,8 +1422,8 @@ let
         in
         filter (x: !(has ? ${k x})) xs;
       delta = k: f: {
-        added = minus k (f r1) (f r0);
-        removed = minus k (f r0) (f r1);
+        added = minus k (f changedResult) (f baseResult);
+        removed = minus k (f baseResult) (f changedResult);
       };
       ids = r: map (s: s.id) r.scopes;
       activeList =
@@ -1436,9 +1443,12 @@ let
         edges = delta keyG (r: r.graph.edges);
         active = delta (x: x) activeList;
       };
-      errors = minus keyE r1.errors r0.errors;
+      errors = minus keyE changedResult.errors baseResult.errors;
       violations =
-        if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
+        if invariants then
+          filter (a: !elem a baseResult.check.violations) changedResult.check.violations
+        else
+          [ ];
       refused =
         optional (sha != null && elem sha rejected) (
           errWith "stage" "this change was rejected before" {
@@ -1529,7 +1539,7 @@ let
     in
     {
       dropped = filter (f: elem (toString f) hit) files;
-      r = eval (mk keep);
+      result = eval (mk keep);
     };
   # change programs: a change as a list of data ops, so an agent can write, check, show and replay it.
   #   { op = "set"; path; value; }          one declaration path gets a value
@@ -1598,13 +1608,13 @@ let
         prog,
         grant ? null,
         rejected ? [ ],
-        r ? eval base,
+        result ? eval base,
       }:
       let
-        errs = validate r prog;
+        errs = validate result prog;
         s = stage {
           inherit base grant rejected;
-          r0 = r;
+          baseResult = result;
           change = toModule prog;
         };
       in

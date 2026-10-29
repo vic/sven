@@ -5,7 +5,7 @@
   order = 2;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         yen has no type system of its own. A type is any value with `check = value: bool`.
@@ -46,7 +46,7 @@
       ''
         The read of a field looks at the instance first, then at the default, then checks the value:
       ''
-      (docs.value r.flake.report)
+      (docs.value result.flake.report)
       (docs.note "Derived defaults" ''
         `derive` gets the instance as `self`, so a default can read other fields or the instance name.
         An explicit value always wins: `db` sets its own `vpn`.
@@ -54,10 +54,10 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       web =
-        r.flake.report.web == {
+        result.flake.report.web == {
           channel = "lts";
           jump = null;
           port = 22;
@@ -65,7 +65,7 @@
           vpn = "vpn-web";
         };
       db =
-        r.flake.report.db == {
+        result.flake.report.db == {
           channel = "latest";
           jump = null;
           port = 2222;

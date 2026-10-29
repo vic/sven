@@ -5,7 +5,7 @@
   order = 7;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         Some repo files are views of your fleet: the flake's inputs, a README with the host diagram, a CI workflow.
@@ -44,16 +44,16 @@
     ];
 
   checks =
-    { r, dir, ... }:
+    { result, dir, ... }:
     let
-      gen = (builtins.head r.reduced.files."fleet:main").files.file;
+      gen = (builtins.head result.reduced.files."fleet:main").files.file;
     in
     {
       readme = gen."README.md".text == builtins.readFile (dir + "/README.md");
       readme-mermaid = builtins.match ".*```mermaid\n.*" gen."README.md".text != null;
       ci = gen.".github/workflows/ci.yml".text == builtins.readFile (dir + "/.github/workflows/ci.yml");
       inputs =
-        builtins.attrNames r.reduced.flake-file."fleet:main".inputs == [
+        builtins.attrNames result.reduced.flake-file."fleet:main".inputs == [
           "files"
           "flake-file"
           "import-tree"

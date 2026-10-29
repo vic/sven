@@ -5,7 +5,7 @@
   order = 2;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         An environment owns its hosts. It gives them a domain and default settings, and it decides which people
@@ -16,14 +16,14 @@
       ''
         Users are not listed per host. A user lives on a host when one of their groups is in the environment's `grants`:
       ''
-      (docs.scopes r)
+      (docs.scopes result)
       ''
         ## Settings cascade
 
         `yen.lib.cascade` takes the first value along host, environment, base environment:
       ''
       (docs.fileWith "{6-9}" "modules/base.nix")
-      (docs.value r.flake.timeZones)
+      (docs.value result.flake.timeZones)
       (docs.tip "Promote a host" ''
         Move `web-next` to prod with one edit: `environment = yen.environment.prod`. Its domain, its time zone default
         and its users follow from the data.
@@ -31,15 +31,15 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       zones =
-        r.flake.timeZones == {
+        result.flake.timeZones == {
           api-next = "UTC";
           web = "UTC";
           web-next = "Europe/Berlin";
         };
-      access = builtins.length (builtins.filter (s: s.name == "dev") r.scopes) == 2;
+      access = builtins.length (builtins.filter (s: s.name == "dev") result.scopes) == 2;
     };
   e2e =
     { flake, ... }:

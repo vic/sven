@@ -7,7 +7,7 @@
   body =
     {
       docs,
-      r,
+      result,
       variant,
       ...
     }:
@@ -59,7 +59,7 @@
       ''
         And each sink reduces them:
       ''
-      (docs.value r.flake.web)
+      (docs.value result.flake.web)
       ''
         ## When a reduce fails
 
@@ -84,10 +84,10 @@
     ];
 
   checks =
-    { r, variant, ... }:
+    { result, variant, ... }:
     {
       reduced =
-        r.flake.web == {
+        result.flake.web == {
           admin = "alice";
           groups = [
             "audio"

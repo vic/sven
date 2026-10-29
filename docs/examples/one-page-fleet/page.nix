@@ -16,7 +16,7 @@ in
       inputs,
       dir,
       engine,
-      r,
+      result,
       ...
     }:
     let
@@ -65,7 +65,7 @@ in
       ''
         Ask it. The tree comes from the data:
       ''
-      (docs.value (map (s: s.id) r.scopes))
+      (docs.value (map (s: s.id) result.scopes))
       ''
         ## Change it safely
 
@@ -105,7 +105,7 @@ in
 
   checks =
     {
-      r,
+      result,
       inputs,
       dir,
       engine,
@@ -124,10 +124,10 @@ in
       };
     in
     {
-      ok = r.check.ok;
+      ok = result.check.ok;
       postgres-by-fact =
-        r.active.postgres."fleet:main/env:prod/host:db"
-        && !r.active.postgres."fleet:main/env:prod/host:web";
+        result.active.postgres."fleet:main/env:prod/host:db"
+        && !result.active.postgres."fleet:main/env:prod/host:web";
       refused = !s.ok && s.violations == [ "bad:db-other-env:api" ];
     };
   e2e =

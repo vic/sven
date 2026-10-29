@@ -1,18 +1,18 @@
-# A stored query names a question. `r` is the eval result; the other args are its parameters.
+# A stored query names a question. `result` is the eval result; the other args are its parameters.
 { yen, lib, ... }:
 {
   yen.queries = {
     aspectsOn =
-      { r, host }:
+      { result, host }:
       lib.sort (a: b: a < b) (
-        lib.filter (a: r.active.${a}."fleet:main/host:${host}" or false) (lib.attrNames r.active)
+        lib.filter (a: result.active.${a}."fleet:main/host:${host}" or false) (lib.attrNames result.active)
       );
     hostsWith =
       {
-        r,
+        result,
         aspect,
         kind ? "host",
       }:
-      map (s: s.name) (lib.filter (s: s.kind == kind && r.active.${aspect}.${s.id}) r.scopes);
+      map (s: s.name) (lib.filter (s: s.kind == kind && result.active.${aspect}.${s.id}) result.scopes);
   };
 }

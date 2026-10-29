@@ -43,7 +43,7 @@ in
       engine = inputs.yen.lib; # stage, program, without: functions of a module
       page = import (dir + "/page.nix");
       # the eval result: every query of the example fleet
-      r = if has "modules" then inputs.yen.lib.eval module else null;
+      result = if has "modules" then inputs.yen.lib.eval module else null;
       # the example with one more file (a `variants/` file, outside `modules/`): what a change does
       variant =
         f:

@@ -5,7 +5,7 @@
   order = 3;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         Some questions are rules: "a host serves when it runs a web server and is not drained; a host is drained when a host
@@ -14,7 +14,7 @@
       ''
       (docs.file "modules/fleet.nix")
       (docs.fileWith "{7-12}" "modules/policy.nix")
-      (docs.value r.flake.serving)
+      (docs.value result.flake.serving)
       (docs.table
         [ "Function" "Answer" ]
         [
@@ -59,9 +59,9 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     let
-      s = r.flake.serving;
+      s = result.flake.serving;
     in
     {
       serves = s.serves == [ "web-1" ];

@@ -5,7 +5,7 @@
   order = 1;
 
   body =
-    { docs, r, ... }:
+    { docs, result, ... }:
     [
       ''
         yen is a query language for Nix configurations. You declare data and behavior in plain Nix files.
@@ -77,18 +77,18 @@
         **Sinks.** Each aspect key gives one element to the sink of that name. The `packages` sink of each machine
         reduces its elements with `set`, so `git` arrives twice at `studio` and stays once:
       ''
-      (docs.value r.reduced.packages)
+      (docs.value result.reduced.packages)
       ''
-        The scope tree and the routed elements, drawn from `r.graph`:
+        The scope tree and the routed elements, drawn from `result.graph`:
       ''
       (docs.tabs [
         {
           label = "Scopes";
-          body = docs.scopes r;
+          body = docs.scopes result;
         }
         {
           label = "Routed elements";
-          body = docs.routes r;
+          body = docs.routes result;
         }
       ])
       ''
@@ -119,10 +119,10 @@
     ];
 
   checks =
-    { r, ... }:
+    { result, ... }:
     {
       packages =
-        r.reduced.packages == {
+        result.reduced.packages == {
           "office:main/machine:reception" = [ "git" ];
           "office:main/machine:studio" = [
             "git"
@@ -130,7 +130,7 @@
           ];
         };
       inventory =
-        r.flake.inventory.studio == [
+        result.flake.inventory.studio == [
           "git"
           "gimp"
         ];

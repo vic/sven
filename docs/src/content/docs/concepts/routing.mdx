@@ -130,7 +130,7 @@ in
 | `dns` | host `web` | environment `prod` | `prod` is public, so its `dns` sink holds |
 | `dns` | host `box` | fleet `main` | `lab` is not public; the next receiver is the fleet |
 
-The routes, drawn from `r.graph.edges`:
+The routes, drawn from `result.graph.edges`:
 
 
 ```mermaid
@@ -177,7 +177,7 @@ can keep its packages away from the host:
 }
 ```
 
-`r.reduced.packages` shows both receivers. Only the host gives its packages to the flake:
+`result.reduced.packages` shows both receivers. Only the host gives its packages to the flake:
 
 
 ```nix title="result"
