@@ -859,10 +859,8 @@ let
           { ok = filter (holds q.children) (childrenAt.${s.id} or [ ]); }
         else if q ? scopesOf then
           { ok = filter (x: x.kind == q.scopesOf.kind && x.name == q.scopesOf.name) scopes; }
-        else if q ? holds then
-          { ok = holds q.holds s; }
         else
-          err s.id "unknown tree request";
+          { ok = holds q.holds s; };
       sourcesAt =
         s: requests:
         {
@@ -875,26 +873,26 @@ let
                 r = answer s q;
               in
               if q.category or null == c && r ? ok then [ r.ok ] else [ ]
-            ) requests;
+            ) (filter known requests);
         }
-        // listToAttrs (
-          map (n: {
-            name = n;
-            value =
-              let
-                r = receiverIn n s.rup;
-              in
-              if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ];
-          }) sinkNames
+        // genAttrs sinkNames (
+          n: map (r: (memo.${n}.${r.id} or (reduceAt n r)).value) (orNull (receiverIn n s.rup))
         ); # a receiver with no element yet reduces to its empty value
+      known =
+        q:
+        any (k: q ? ${k}) [
+          "nearest"
+          "parent"
+          "children"
+          "scopesOf"
+          "holds"
+        ];
       requestErrors = concatMap (
         s:
         concatMap (
           n:
           map (_: err s.id "aspect ${n}: unknown tree request") (
-            filter (q: !(q ? nearest || q ? parent || q ? children || q ? scopesOf || q ? holds)) (
-              toList ((outAt n s).tree or [ ])
-            )
+            filter (q: !known q) (toList ((outAt n s).tree or [ ]))
           )
         ) (attrNames cycleOuts)
       ) unsorted;
@@ -905,12 +903,7 @@ let
         if n == "scope" then
           [ s ]
         else if kinds ? ${n} then
-          (
-            let
-              x = nearest n s;
-            in
-            if x == null then [ ] else [ x ]
-          )
+          orNull (nearest n s)
         else
           (sourcesAt s [ ]).${n} or [ ];
       isAttrsFn = f: functionArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
@@ -927,27 +920,10 @@ let
           let
             fa = functionArgs v;
             mine = filter isRen (attrNames fa);
-            asked = listToAttrs (
-              map (n: {
-                name = n;
-                value = argAt s n;
-              }) mine
-            );
-            missing = filter (n: asked.${n} == [ ] && !fa.${n}) mine;
-            got = listToAttrs (
-              concatMap (
-                n:
-                if asked.${n} == [ ] then
-                  [ ]
-                else
-                  [
-                    {
-                      name = n;
-                      value = head asked.${n};
-                    }
-                  ]
-              ) mine
-            );
+            asked = genAttrs mine (argAt s);
+            none = filter (n: asked.${n} == [ ]) mine;
+            missing = filter (n: !fa.${n}) none;
+            got = mapAttrs (_: head) (removeAttrs asked none);
             rest = b.removeAttrs fa mine;
           in
           if missing != [ ] then
@@ -1043,17 +1019,7 @@ let
       # ── run: sinks feed drivers, drivers feed sources, Nix laziness closes the loop. Every output is a query ──
       receivers = k: filter (s: byTo ? "${k}@${s.id}") scopes;
       # one reduction per (sink, receiver), shared by the `reduced` query, the errors and every arg that reads the sink
-      memo = listToAttrs (
-        map (k: {
-          name = k;
-          value = listToAttrs (
-            map (r: {
-              name = r.id;
-              value = reduceAt k r;
-            }) (receivers k)
-          );
-        }) sinkNames
-      );
+      memo = genAttrs sinkNames (k: byScope (reduceAt k) (receivers k));
       reduced = mapAttrs (_: mapAttrs (_: x: x.value)) memo;
       reduceErrors = concatMap (k: concatMap (r: memo.${k}.${r.id}.errors) (receivers k)) sinkNames;
       graph = {
