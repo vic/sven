@@ -1208,30 +1208,27 @@ let
             }
             // x;
           kids = f: if d == 0 then "cut" else f (d - 1);
+          sub = ps: { kids = kids (d': map (q: trace d' q s) ps); }; # the same scope
+          at = ss: q: { kids = kids (d': map (x: { scope = x.id; } // trace d' q x) ss); }; # other scopes
         in
         if isFunction p then
           node "function" { }
         else if isList p then
-          node "any" { kids = kids (d': map (q: trace d' q s) p); }
+          node "any" (sub p)
         else if p ? __all then
-          node "all" { kids = kids (d': map (q: trace d' q s) p.__all); }
+          node "all" (sub p.__all)
         else if p ? __not then
-          node "not" { kids = kids (d': [ (trace d' p.__not s) ]); }
+          node "not" (sub [ p.__not ])
         else if p ? __within then
-          node "within" { kids = kids (d': map (x: { scope = x.id; } // trace d' p.__within x) (above s)); }
+          node "within" (at (above s) p.__within)
         else if p ? __has then
-          node "has" {
-            kids = kids (d': map (x: { scope = x.id; } // trace d' p.__has x) (below s));
-          }
+          node "has" (at (below s) p.__has)
         else if p ? __functor then
           node "function" { }
         else if p ? __kind then
           node "kind" { kind = p.__kind; }
         else if p ? __aspect then
-          node "aspect" {
-            aspect = p.__aspect;
-            kids = kids (d': [ (trace d' (aspects.${p.__aspect}.at or [ ]) s) ]);
-          }
+          node "aspect" ({ aspect = p.__aspect; } // sub [ (aspects.${p.__aspect}.at or [ ]) ])
         else
           node "instance" { instance = "${p.kind or "?"}:${p.name or "?"}"; };
       explain =
