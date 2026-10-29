@@ -13,8 +13,4 @@
       yen.host.db
     ];
   };
-  yen.secret.old-token = {
-    file = "secrets/old-token.age";
-    owners = [ ];
-  };
 }

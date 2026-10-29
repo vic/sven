@@ -35,6 +35,7 @@ let
     order = "an `order` answer is not a number";
     spawns = "a `spawns` function gives no attrset, or an instance in it is no attrset";
     tree-request = "a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds)";
+    law-change = "a staged change declares `invariants`, `labels` or `flake`: the law is the owner's, never a change's";
     merge = "`merge`: two different leaves at one path";
     missing = "a required field has no value";
     missing-param = "a stored query is asked without a required parameter";

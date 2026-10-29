@@ -39,17 +39,6 @@ by this author can.
       "bakup"
     ];
   }
-  {
-    class = "fixable";
-    code = "duplicate-addr";
-    error = "10.0.0.1 is the address of db and web";
-    fix = "give each host its own addr";
-    from = "fleet:main";
-    got = "10.0.0.1";
-    path = [
-      "addr"
-    ];
-  }
 ]
 ```
 
@@ -57,7 +46,7 @@ by this author can.
 
 An aspect key `errors` gives records, or plain messages. yen sets `from` to the scope that gave it: an aspect cannot
 report for another scope. A record without `class` is `fixable`.
-This fleet has two hosts with one address:
+Here `unique-addr` checks that no two hosts share an address:
 
 
 ```nix title="modules/fleet.nix"
@@ -79,7 +68,7 @@ This fleet has two hosts with one address:
 
   yen.fleet.main = { };
   yen.host.web.addr = "10.0.0.1";
-  yen.host.db.addr = "10.0.0.1";
+  yen.host.db.addr = "10.0.0.2";
   yen.host.scratch = {
     addr = "10.0.0.9";
     backup = false;
@@ -120,12 +109,22 @@ in
 }
 ```
 
+A new host with the address of `web` gives an error record:
+
+
+```nix title="variants/duplicate.nix"
+# A second host with the address of web. The `unique-addr` check reports it, and the fleet gives no outputs.
+{
+  yen.host.cache.addr = "10.0.0.1";
+}
+```
+
 ```nix title="result"
 [
   {
     class = "fixable";
     code = "duplicate-addr";
-    error = "10.0.0.1 is the address of db and web";
+    error = "10.0.0.1 is the address of cache and web";
     fix = "give each host its own addr";
     from = "fleet:main";
     got = "10.0.0.1";
@@ -134,6 +133,14 @@ in
     ];
   }
 ]
+```
+
+A fleet with an error gives no outputs. Its `flake` is `null` until `errors` is `[ ]` and every invariant
+holds, so nothing can build it:
+
+
+```nix title="result"
+null
 ```
 
 ## Warnings
@@ -167,6 +174,7 @@ nix flake init -t github:vic/yen#errors
   - checks.nix
   - fleet.nix
 - variants/
+  - duplicate.nix
   - typo.nix
 
 </FileTree>

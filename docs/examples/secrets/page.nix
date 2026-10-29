@@ -22,16 +22,15 @@
         One component delivers each secret to its owners. Another reports secrets that nobody owns:
       ''
       (docs.file "modules/deliver.nix")
-      (docs.tabs [
-        {
-          label = "secretsPlan";
-          body = docs.value result.flake.secretsPlan;
-        }
-        {
-          label = "errors";
-          body = docs.value (map (e: e.error) result.errors);
-        }
-      ])
+      (docs.value result.flake.secretsPlan)
+      ''
+        A secret that nobody owns is an error, and a fleet with an error gives no outputs (`flake` is `null`):
+      ''
+      (docs.file "variants/orphan.nix")
+      (docs.value {
+        errors = map (e: e.error) (variant "variants/orphan.nix").errors;
+        inherit (variant "variants/orphan.nix") flake;
+      })
       ''
         ## Refs, not names
 
@@ -45,8 +44,6 @@
       '')
     ];
 
-  errors = true; # old-token has no owner, on purpose
-
   checks =
     { result, variant, ... }:
     {
@@ -56,7 +53,9 @@
           "tls"
         ];
       orphan =
-        map (e: e.error) result.errors == [ "secret old-token (secrets/old-token.age) has no owner" ];
-      by-name = builtins.length (variant "variants/by-name.nix").errors == 2;
+        map (e: e.error) (variant "variants/orphan.nix").errors
+        == [ "secret old-token (secrets/old-token.age) has no owner" ]
+        && (variant "variants/orphan.nix").flake == null;
+      by-name = map (e: e.code) (variant "variants/by-name.nix").errors == [ "of" ];
     };
 }

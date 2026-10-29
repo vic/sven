@@ -1529,7 +1529,6 @@ let
               yen.aspects.attic.at = [ to ];
             };
             grant = g;
-            invariants = false;
           };
       in
       (st {
