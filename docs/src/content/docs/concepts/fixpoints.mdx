@@ -1,0 +1,267 @@
+---
+{"description":"Like NixOS `config`, a yen fleet is a fixpoint. Unlike `config`, every dependency is a routed edge you can query.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/fixpoints/page.nix","title":"Fixpoints and dependencies"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+In NixOS, `config` is a fixpoint: every module reads the final `config`, and Nix laziness computes each value
+when something reads it. A yen fleet is a fixpoint too, in two layers:
+
+- **Declarations.** Every module gets `yen`, which is computed from the declarations of all modules,
+  its own too. A module reads `yen.host.a.addr` from any file, as a NixOS module reads `config.x`.
+- **Results.** An element reads the reduced value of a sink through an arg. That value can hold elements
+  that read other sinks. Sinks feed sources and sources feed sinks; laziness closes the loop.
+
+The order of the files and of the definitions never matters.
+
+## Each NixOS pattern, in yen
+
+This fleet has two hosts. Each sink plays the part of one NixOS option:
+
+
+```nix title="modules/fleet.nix"
+# Two hosts. Each sink is one NixOS option: many files give to it, the engine reduces it.
+{ yen, ... }:
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.addrs.reduce = yen.lib.reduce.merge; # a fleet-level sink: every host gives, every host reads
+  };
+  yen.kinds.host = {
+    fields.addr = yen.lib.is builtins.isString;
+    fields.fqdn = yen.lib.derive (yen.lib.is builtins.isString) (i: "${i.name}.lan"); # a default from the instance
+    sinks = {
+      ports.reduce = yen.lib.reduce.set;
+      firewall.reduce = yen.lib.reduce.one;
+      settings.reduce = yen.lib.reduce.merge;
+      motd.reduce = es: {
+        # the lowest priority number wins, like mkForce over mkDefault
+        value = (builtins.head (builtins.sort (a: c: a.value.prio < c.value.prio) es)).value.text;
+        errors = [ ];
+      };
+      peers.reduce = yen.lib.reduce.one;
+    };
+  };
+  yen.fleet.main = { };
+  yen.flake =
+    { addrs, ... }:
+    {
+      inherit addrs;
+    }; # the flake outputs read a sink too
+  yen.host = {
+    a.addr = "10.0.0.1";
+    b.addr = "10.0.0.2";
+  };
+}
+```
+
+```nix title="modules/aspects.nix"
+# Each aspect is one NixOS pattern. None of them knows the files that read it.
+{ yen, ... }:
+{
+  yen.aspects = {
+    fw = {
+      at = yen.kinds.host;
+      firewall = { ports, ... }: builtins.sort builtins.lessThan ports; # reads another option: config.ports
+    };
+    ssh = {
+      at = yen.kinds.host;
+      ports = 22;
+    };
+    web = {
+      at = yen.host.a;
+      ports = 80;
+    };
+    tls = {
+      at = yen.aspects.web; # mkIf: active where web is
+      ports = 443;
+    };
+    base = {
+      at = yen.kinds.host;
+      settings.log.level = "info";
+      motd = {
+        prio = 1000;
+        text = "welcome";
+      };
+    };
+    tuned = {
+      at = yen.host.b;
+      settings.log.file = "/var/log/b";
+      motd = {
+        prio = 50;
+        text = "maintenance";
+      };
+    };
+    addrs = {
+      at = yen.kinds.host;
+      addrs =
+        { host, ... }:
+        {
+          ${host.name} = host.addr;
+        };
+      peers = { host, addrs, ... }: removeAttrs addrs [ host.name ]; # the other nodes, through the fleet
+    };
+  };
+}
+```
+
+| NixOS | yen | Here |
+|---|---|---|
+| a list option many modules define | a sink; each aspect gives an element | `ports` |
+| `mkIf config.services.web.enable` | `at` refers to an aspect | `tls.at = yen.aspects.web` |
+| an option read from another option | a sink arg | `firewall = { ports, ... }: …` |
+| a default computed from `config` | `yen.lib.derive` | `fqdn` |
+| attrsets merged from many modules | `reduce.merge` | `settings` |
+| `mkForce` and `mkDefault` | a `reduce` that picks by priority | `motd` |
+| `nodes.<other>.config` | give to a sink above both hosts, read it back | `addrs`, `peers` |
+
+```nix title="result"
+{
+  addrs = {
+    "fleet:main" = {
+      a = "10.0.0.1";
+      b = "10.0.0.2";
+    };
+  };
+  firewall = {
+    "fleet:main/host:a" = [
+      22
+      80
+      443
+    ];
+    "fleet:main/host:b" = [
+      22
+    ];
+  };
+  motd = {
+    "fleet:main/host:a" = "welcome";
+    "fleet:main/host:b" = "maintenance";
+  };
+  peers = {
+    "fleet:main/host:a" = {
+      b = "10.0.0.2";
+    };
+    "fleet:main/host:b" = {
+      a = "10.0.0.1";
+    };
+  };
+  ports = {
+    "fleet:main/host:a" = [
+      22
+      443
+      80
+    ];
+    "fleet:main/host:b" = [
+      22
+    ];
+  };
+  settings = {
+    "fleet:main/host:a" = {
+      log = {
+        level = "info";
+      };
+    };
+    "fleet:main/host:b" = {
+      log = {
+        file = "/var/log/b";
+        level = "info";
+      };
+    };
+  };
+}
+```
+
+## Dependencies are edges
+
+In NixOS, any module can read any option, so a dependency is a read hidden in a function. Nothing lists it,
+and "what changes if I change this?" has no answer before you evaluate.
+
+In yen, an element reads only what reaches its scope: its own scope, the nearest scope of a kind, and the
+sinks of its receivers. A value goes from one scope to another only as a routed element, and each routed
+element is an edge of `graph`, with the aspect that gave it. Here, `peers` on `a` reads what `b` gave to
+the fleet:
+
+
+```nix title="result"
+[
+  {
+    from = "fleet:main/host:a";
+    origin = "aspect addrs";
+    sink = "addrs";
+    to = "fleet:main";
+  }
+  {
+    from = "fleet:main/host:b";
+    origin = "aspect addrs";
+    sink = "addrs";
+    to = "fleet:main";
+  }
+]
+```
+
+## Where routing helps
+
+Because the edges are the dependencies, these questions are queries, not a search:
+
+- `result.impact id { }`: the scopes a scope's elements reach, by depth. See [History](/agents/history/).
+- `result.explain aspect id depth`: why an aspect is or is not active at a scope.
+- A grant limits the scopes and sinks a change may give to. It can check a change because every new
+  dependency is a new edge. See [Stage a change](/agents/stage/).
+- Labels: an element carries the trust of the files that declare its aspect. See
+  [Agent surface](/agents/agent-surface/).
+
+A read of any value of any scope would add dependencies that are not edges, and these answers would miss
+them. So yen has no such read. To read another host's value, give it to a sink of a scope above both hosts,
+as `addrs` does.
+
+## What yen does not do
+
+NixOS resolves two values for one option with priorities: `mkForce` wins. yen never overrides data: two
+different values for one declared leaf are an error, and you keep one. For values that many files give,
+the sink's `reduce` decides, as `motd` does above.
+
+
+```nix title="variants/override.nix"
+# A second, different value for one declared leaf. NixOS: mkForce wins. yen: two answers.
+{ yen, ... }:
+{
+  yen.host.a.addr = "10.0.0.9";
+}
+```
+
+```nix title="result"
+[
+  {
+    code = "two-answers";
+    path = [
+      "host"
+      "a"
+      "addr"
+    ];
+  }
+]
+```
+
+:::note[Structure from results]
+In NixOS, `imports` cannot depend on `config`. In yen, `spawns` can depend on whether an aspect holds:
+`yen.lib.holds`. See [Predicates](/concepts/predicates/).
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `fixpoints`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#fixpoints
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - aspects.nix
+  - fleet.nix
+- variants/
+  - override.nix
+
+</FileTree>
+:::
