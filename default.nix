@@ -403,10 +403,7 @@ let
                 "give ${p} a value of type ${typeName bad}";
           }
         else if tys != [ ] then
-          {
-            value = r.ok;
-            errors = [ ];
-          }
+          pure r.ok
         else if path != [ ] && ts == [ ] then
           fail {
             error = "unknown field ${p}";
