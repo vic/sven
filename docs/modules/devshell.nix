@@ -55,16 +55,13 @@ in
       (cmd "docs" "docs-write" "write the pages and the sidebar from examples/"
         "cd docs && nix run .#write-files"
       )
-      (cmd "flake" "each-flake"
-        "run command in every flake.nix directory that has it"
-        ''
-          system=$(nix eval --impure --raw --expr builtins.currentSystem)
-          git ls-files -z '*flake.nix' | xargs -0 -n1 dirname | sort | while read -r dir; do
-            echo "== $dir"
-            (cd "$dir" && bash -c "$@")
-          done
-        ''
-      )
+      (cmd "flake" "each-flake" "run command in every flake.nix directory that has it" ''
+        system=$(nix eval --impure --raw --expr builtins.currentSystem)
+        git ls-files -z '*flake.nix' | xargs -0 -n1 dirname | sort | while read -r dir; do
+          echo "== $dir"
+          (cd "$dir" && bash -c "$@")
+        done
+      '')
       (cmd "docs" "docs-test" "the checks of every example (fast)"
         "cd docs && ${empty "failed" "nix eval --impure --file tests.nix failed"}"
       )
