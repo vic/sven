@@ -1583,12 +1583,10 @@ let
         else
           [ ]
       else if o.op == "place" then
-        (
-          if r.schema.aspects ? ${o.aspect or ""} then
-            [ ]
-          else
-            fail "no aspect ${o.aspect or "?"}" { near = near (o.aspect or "") (attrNames r.schema.aspects); }
-        )
+        if r.schema.aspects ? ${o.aspect or ""} then
+          [ ]
+        else
+          fail "no aspect ${o.aspect or "?"}" { near = near (o.aspect or "") (attrNames r.schema.aspects); }
       else if o.op == "new" then
         noKind
       else
@@ -1601,7 +1599,6 @@ let
       prog:
       { yen, ... }:
       let
-
         refOf = x: if isAttrs x && x ? ref then yen.${x.ref.kind}.${x.ref.name} else x;
         one =
           o:
