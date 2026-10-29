@@ -9,12 +9,14 @@
     hostsIn =
       { env, result }:
       map (s: s.name) (
-        lib.filter (s: s.kind == "host" && lib.hasInfix "/environment:${env}/" s.id) result.scopes
+        lib.filter (
+          s: yen.lib.holds yen.kinds.host s && lib.hasInfix "/environment:${env}/" s.id
+        ) result.scopes
       );
     aspectsOn =
       { host, result }:
       let
-        s = lib.findFirst (x: x.kind == "host" && x.name == host) null result.scopes;
+        s = lib.findFirst (x: yen.lib.holds yen.kinds.host x && x.name == host) null result.scopes;
       in
       if s == null then [ ] else lib.filter (n: result.active.${n}.${s.id}) (lib.attrNames result.active);
     errorsBy =
@@ -27,7 +29,9 @@
     installOrder =
       { instance, result }:
       let
-        ms = lib.filter (s: s.kind == "member" && lib.hasPrefix "${instance}." s.name) result.scopes;
+        ms = lib.filter (
+          s: yen.lib.holds yen.kinds.member s && lib.hasPrefix "${instance}." s.name
+        ) result.scopes;
         role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: lib.hasSuffix ".${rl}" s.name) ms));
         servers = role "server";
       in

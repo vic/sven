@@ -75,7 +75,9 @@ in
       );
     ids = lib.listToAttrs (
       lib.imap0 (i: n: lib.nameValuePair n i) (
-        lib.sort (a: b: a < b) (map (s: s.name) (lib.filter (s: s.kind == "host") yen.lib.graph.scopes))
+        lib.sort (a: b: a < b) (
+          map (s: s.name) (lib.filter (s: yen.lib.holds yen.kinds.host s) yen.lib.graph.scopes)
+        )
       )
     ); # deterministic: sorted host scope names
   };

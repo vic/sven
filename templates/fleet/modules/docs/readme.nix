@@ -11,9 +11,7 @@ let
     let
       d = yen.kinds.${k};
     in
-    "| `${k}` | ${code (names (d.fields or { }))} | ${code (names (d.spawns or { }))} | ${code (names (d.sinks or { }))} | ${
-      toString (lib.length (lib.filter (s: s.kind == k) g.scopes))
-    } |";
+    "| `${k}` | ${code (names (d.fields or { }))} | ${code (names (d.spawns or { }))} | ${code (names (d.sinks or { }))} | ${toString (lib.length (lib.filter (yen.lib.holds d) g.scopes))} |";
   kinds = ''
     ## This fleet, live
     Generated from the fleet's queries: ${toString (lib.length g.scopes)} scopes, ${toString (lib.length (lib.attrNames yen.kinds))} kinds, ${toString (lib.length (lib.attrNames yen.aspects))} aspects, ${toString (lib.length g.edges)} routed elements.
@@ -78,15 +76,17 @@ let
   envOf =
     s:
     lib.findFirst (e: lib.hasPrefix "${e.id}/" s.id) null (
-      lib.filter (e: e.kind == "environment") g.scopes
+      lib.filter (e: yen.lib.holds yen.kinds.environment e) g.scopes
     );
   fleetMap = {
     nodes = map (s: {
       inherit (s) id kind;
-      label = if s.kind == "environment" then "environment ${s.name}" else s.name;
+      label = if yen.lib.holds yen.kinds.environment s then "environment ${s.name}" else s.name;
       group =
         if
-          s.kind != "environment" && envOf s != null && kindOf.${parentOf s.id} or null == "environment"
+          !(yen.lib.holds yen.kinds.environment s)
+          && envOf s != null
+          && kindOf.${parentOf s.id} or null == "environment"
         then
           (envOf s).id
         else
@@ -104,12 +104,6 @@ let
   };
 
   # sink forwarding: a sink's key that names another sink feeds it (dashed); `out` reaches flake outputs with live receivers
-  meta = [
-    "reduce"
-    "of"
-    "at"
-    "out"
-  ];
   sinkDecls = lib.concatLists (
     lib.mapAttrsToList (
       k: d:
@@ -117,23 +111,18 @@ let
         kind = k;
         name = n;
         decl = if lib.isAttrs v then v else { };
+        feeds = lib.remove "out" yen.lib.schema.kinds.${k}.sinks.${n}.feeds; # the engine says which keys feed sinks
       }) (d.sinks or { })
     ) yen.kinds
   );
   receiversOf = sink: sorted (map (e: nameOf.${e.to}) (lib.filter (e: e.sink == sink) g.edges));
   forwards = {
     nodes =
-      map
-        (n: {
-          id = "sink:${n}";
-          label = n;
-          kind = "sink";
-        })
-        (
-          sorted (
-            map (d: d.name) sinkDecls ++ lib.concatMap (d: lib.subtractLists meta (names d.decl)) sinkDecls
-          )
-        )
+      map (n: {
+        id = "sink:${n}";
+        label = n;
+        kind = "sink";
+      }) (sorted (map (d: d.name) sinkDecls ++ lib.concatMap (d: d.feeds) sinkDecls))
       ++ [
         {
           id = "flake";
@@ -149,7 +138,7 @@ let
           to = "sink:${t}";
           label = d.kind;
           live = false;
-        }) (lib.subtractLists meta (names d.decl))
+        }) d.feeds
         ++ lib.optional (d.decl ? out) {
           from = "sink:${d.name}";
           to = "flake";
@@ -193,7 +182,7 @@ let
   };
 
   # clan instances: instance (service) to the machines of each role
-  members = lib.filter (s: s.kind == "member") g.scopes;
+  members = lib.filter (s: yen.lib.holds yen.kinds.member s) g.scopes;
   instanceOf = s: lib.head (lib.splitString "." s.name);
   clan = {
     nodes =
@@ -308,14 +297,11 @@ let
   );
 
   # summary tables
-  machineScopes = lib.filter (
-    s:
-    lib.elem s.kind [
-      "host"
-      "mac"
-      "guest"
-    ]
-  ) g.scopes;
+  machineScopes = lib.filter (yen.lib.holds [
+    yen.kinds.host
+    yen.kinds.mac
+    yen.kinds.guest
+  ]) g.scopes;
   aspectsAt =
     s:
     sorted (
@@ -323,7 +309,7 @@ let
         lib.filter (e: e.from == s.id && lib.hasPrefix "aspect " e.origin) g.edges
       )
     ); # aspects that gave elements here (projected hasAspect)
-  under = p: k: lib.filter (s: s.kind == k && lib.hasPrefix "${p.id}/" s.id) g.scopes;
+  under = p: k: lib.filter (s: yen.lib.holds k s && lib.hasPrefix "${p.id}/" s.id) g.scopes;
   summary = ''
     ### Summary
     | Environment | Machines | Users | Clusters |
@@ -334,16 +320,16 @@ let
         short (
           map (s: s.name) (
             lib.concatMap (under e) [
-              "host"
-              "mac"
-              "guest"
+              yen.kinds.host
+              yen.kinds.mac
+              yen.kinds.guest
             ]
           )
         )
-      } | ${toString (lib.length (sorted (map (s: s.name) (under e "user"))))} | ${
-        short (map (s: s.name) (under e "cluster"))
+      } | ${toString (lib.length (sorted (map (s: s.name) (under e yen.kinds.user))))} | ${
+        short (map (s: s.name) (under e yen.kinds.cluster))
       } |"
-    ) (lib.filter (s: s.kind == "environment") g.scopes)}
+    ) (lib.filter (s: yen.lib.holds yen.kinds.environment s) g.scopes)}
 
     | Machine | Kind | Aspects giving elements | Some aspects |
     |---|---|---|---|

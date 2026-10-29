@@ -322,7 +322,7 @@ filter or a rename is a plain function in the reader:
     { host, firewall, ... }:
     {
       userPorts.${host.name} = lib.concatMap (e: e.value.ports) (
-        lib.filter (e: e.from.kind == "user") firewall
+        lib.filter (e: yen.lib.holds yen.kinds.user e.from) firewall
       );
     };
 }

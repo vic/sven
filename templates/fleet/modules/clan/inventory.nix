@@ -11,7 +11,7 @@ let
     m:
     [
       "all"
-      (if m.kind == "mac" then "darwin" else "nixos")
+      (if yen.lib.holds yen.kinds.mac m then "darwin" else "nixos")
     ]
     ++ m.labels;
   roleHas =
@@ -73,7 +73,7 @@ in
   yen.kinds.fleet.sinks.exports.reduce =
     es:
     let
-      isMember = e: e.from.kind == "member";
+      isMember = e: yen.lib.holds yen.kinds.member e.from;
       overrides = map (e: e.value) (lib.filter (e: !isMember e) es);
       keyOf = x: "${x.service}:${x.instance}:${x.role}:${x.machine}";
       own = map (e: {

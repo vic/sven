@@ -11,7 +11,7 @@ let
     opt
     maybe
     ;
-  machineOf = s: if s.kind == "member" then s.parent else s;
+  machineOf = s: if yen.lib.holds yen.kinds.member s then s.parent else s;
   keyOf = g: if g.share or false then g.name else "${g.name}@${g.machine}";
   publicValue =
     m: gen: file: default:
