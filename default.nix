@@ -208,21 +208,16 @@ let
     # JSON-safe: functions and derivations become strings; toJSON then never fails
     jsonSafe =
       v:
-      if b.isFunction v then
+      if isAttrs v && (v.type or null) == "derivation" then
+        "<derivation ${v.name or "?"}>"
+      else if isFunction v || isAttrs v && v ? __functor then
         "<function>"
-      else if b.isPath v then
+      else if isPath v then
         toString v
-      else if b.isList v then
+      else if isList v then
         map static.jsonSafe v
-      else if b.isAttrs v then
-        (
-          if (v.type or null) == "derivation" then
-            "<derivation ${v.name or "?"}>"
-          else if v ? __functor then
-            "<function>"
-          else
-            b.mapAttrs (_: static.jsonSafe) v
-        )
+      else if isAttrs v then
+        mapAttrs (_: static.jsonSafe) v
       else
         v;
     agent = r: r.agent;
@@ -286,6 +281,12 @@ let
               != null
           ) loaded
         );
+      filesOf =
+        n:
+        declaredIn [
+          "aspects"
+          n
+        ];
       loadErrors = map (n: err "module" n.error) (filter (n: n ? error) loaded);
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
@@ -1198,10 +1199,7 @@ let
             ]
           );
           cycle = a ? cycle;
-          files = declaredIn [
-            "aspects"
-            n
-          ];
+          files = filesOf n;
           activeAt = length (filter (s: active.${n}.${s.id}) unsorted);
         }) aspects;
         invariants = attrNames (top.invariants or { });
@@ -1280,10 +1278,7 @@ let
               inherit (e) sink;
               to = e.to;
             }) (filter (e: e.origin == "aspect ${n}" && e.from == id) graph.edges);
-            files = declaredIn [
-              "aspects"
-              n
-            ];
+            files = filesOf n;
           };
       # ── the agent surface: JSON-safe answers, every list says when it was cut ──
       cut =
@@ -1390,22 +1385,17 @@ let
       labelOf =
         n:
         foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null (
-          concatMap
-            (
-              f:
-              map (
-                p:
-                labelTable.${p}
-                // {
-                  prefix = p;
-                  file = f;
-                }
-              ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
-            )
-            (declaredIn [
-              "aspects"
-              n
-            ])
+          concatMap (
+            f:
+            map (
+              p:
+              labelTable.${p}
+              // {
+                prefix = p;
+                file = f;
+              }
+            ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
+          ) (filesOf n)
         );
       labels =
         let
