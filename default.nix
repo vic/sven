@@ -1477,9 +1477,9 @@ let
         edges = delta keyG (r: r.graph.edges);
         active = delta (x: x) activeList;
       };
-      newEdges = diff.edges.added;
       errors = minus keyE r1.errors r0.errors;
-      bad = if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
+      violations =
+        if invariants then filter (a: !elem a r0.check.violations) r1.check.violations else [ ];
       refused =
         (
           if sha != null && elem sha rejected then
@@ -1493,29 +1493,25 @@ let
           else
             [ ]
         )
-        ++ (
-          if grant == null then
-            [ ]
-          else
-            map (
-              e:
-              errWith e.from "the change gives ${e.sink} to ${e.to}, outside the grant" {
-                code = "outside-grant";
-                class = "authority";
-                got = e;
-              }
-            ) (filter (e: !grants.allowed grant e) newEdges)
-        );
+        ++ map (
+          e:
+          errWith e.from "the change gives ${e.sink} to ${e.to}, outside the grant" {
+            code = "outside-grant";
+            class = "authority";
+            got = e;
+          }
+        ) (filter (e: grant != null && !grants.allowed grant e) diff.edges.added);
     in
     {
       inherit
         errors
         refused
         sha
+        violations
         diff
         ;
-      violations = bad;
-      ok = errors == [ ] && bad == [ ] && refused == [ ];
+
+      ok = errors == [ ] && violations == [ ] && refused == [ ];
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
   # field changes between two `data` answers: [ { path; old; new; } ], sorted by path
