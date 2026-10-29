@@ -10,7 +10,7 @@ ancestor-or-self scope that has the sink, and where the sink's `at` holds.
 This example has a fleet, two environments, two hosts, a user and a home:
 
 
-```nix title="modules/fleet.nix" {17,30}
+```nix title="modules/fleet.nix" {17,23}
 # fleet > environment > host > user and home. Who receives an element depends on where the sinks are.
 { yen, lib, ... }:
 let

@@ -37,7 +37,7 @@
           ]
         ]
       )
-      (docs.fileWith "{9-14}" "modules/host.nix")
+      (docs.fileWith "{13-14}" "modules/host.nix")
       ''
         Fields can nest. `settings.kernel.channel` is one field at a path, with its own type and default.
         An instance gives only what it needs:

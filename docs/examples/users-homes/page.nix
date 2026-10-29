@@ -11,12 +11,12 @@
         A person uses several machines. Some run NixOS, some only home-manager. In yen the person is data,
         and their home is one aspect that is active in both places.
       ''
-      (docs.fileWith "{17-20,22-28}" "modules/fleet.nix")
+      (docs.fileWith "{15,20}" "modules/fleet.nix")
       ''
         - A `user` lives under each host in its `hosts`. Its `homeManager` sink forwards into the host's NixOS.
         - A `home` lives under the fleet. Its `homeManager` sink builds `homeConfigurations.<name>`.
       ''
-      (docs.fileWith "{6}" "modules/alice.nix")
+      (docs.fileWith "{6-8}" "modules/alice.nix")
       (docs.file "modules/machines.nix")
       ''
         `alice-home` is active at alice's user scope and at her home:

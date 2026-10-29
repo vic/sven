@@ -17,7 +17,7 @@
         Each machine spawns one `member` scope per (instance, role) it takes part in. An aspect at a member scope runs once
         per instance (clan's `perInstance`). An aspect at a machine that `has` a member runs once per machine (`perMachine`).
       ''
-      (docs.fileWith "{5-7,23}" "modules/kinds.nix")
+      (docs.fileWith "{5-7,35}" "modules/kinds.nix")
       (docs.scopes r)
       ''
         ## Members exchange data
@@ -25,7 +25,7 @@
         Clients publish their address to a fleet sink with `entries`. The engine sets `from`, so a member can only publish
         as itself. The server reads the entries and builds its allow list:
       ''
-      (docs.fileWith "{9,14}" "modules/backup.nix")
+      (docs.fileWith "{8,14}" "modules/backup.nix")
       (docs.value r.flake.config)
       (docs.tip "The full model" ''
         The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,

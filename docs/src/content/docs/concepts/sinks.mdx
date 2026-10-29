@@ -17,7 +17,7 @@ A sink on a kind collects the elements that aspects give, and reduces them to on
 | `entries` | `[ { from; value; } ]`: each value with the scope that gave it | none |
 | a function | `[ { from; value; } ] -> { value; errors; }` | the errors you give |
 
-```nix title="modules/sinks.nix" {5,10-15}
+```nix title="modules/sinks.nix" {11-14}
 # A sink collects elements and reduces them. `of` checks each element.
 { yen, lib, ... }:
 let

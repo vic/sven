@@ -28,7 +28,7 @@ Each machine spawns one `member` scope per (instance, role) it takes part in. An
 per instance (clan's `perInstance`). An aspect at a machine that `has` a member runs once per machine (`perMachine`).
 
 
-```nix title="modules/kinds.nix" {5-7,23}
+```nix title="modules/kinds.nix" {5-7,35}
 # A service instance is data: which machines take which role. Each machine spawns one `member` scope per role it has.
 { yen, lib, ... }:
 let
@@ -103,7 +103,7 @@ Clients publish their address to a fleet sink with `entries`. The engine sets `f
 as itself. The server reads the entries and builds its allow list:
 
 
-```nix title="modules/backup.nix" {9,14}
+```nix title="modules/backup.nix" {8,14}
 # The service: an aspect per role, at member scopes. Clients export their address; the server reads them.
 { yen, lib, ... }:
 let

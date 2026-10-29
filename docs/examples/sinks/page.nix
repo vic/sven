@@ -51,7 +51,7 @@
           ]
         ]
       )
-      (docs.fileWith "{5,10-15}" "modules/sinks.nix")
+      (docs.fileWith "{11-14}" "modules/sinks.nix")
       ''
         Two aspects give elements:
       ''

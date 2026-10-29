@@ -8,7 +8,7 @@ Many options mean the same on NixOS and nix-darwin: `networking.hostName`, `envi
 `nix.settings`. Write them once. A `host` forwards its `os` sink to `nixos`, and a `mac` forwards it to `darwin`.
 
 
-```nix title="modules/platforms.nix" {9,13}
+```nix title="modules/platforms.nix" {12-13,24-25}
 # Two kinds of machine, one `os` sink: an aspect writes `os` once, and each platform forwards it.
 { yen, inputs, ... }:
 {

@@ -11,13 +11,13 @@
         yen does not know what a flake is. The root kind declares an `out` sink with `merge`, and `yen.flake`
         gives the flake's outputs. Each sink with an `out` key gives its part.
       ''
-      (docs.fileWith "{6,12}" "modules/fleet.nix")
+      (docs.fileWith "{6,8-11}" "modules/fleet.nix")
       ''
         ## Read the outputs
 
         The `out` arg is the flake itself, read lazily. An element can build on other outputs without `inputs.self`:
       ''
-      (docs.fileWith "{7}" "modules/aspects.nix")
+      (docs.fileWith "{12-18}" "modules/aspects.nix")
       (docs.value r.flake)
       ''
         ## With or without flakes
