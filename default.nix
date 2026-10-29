@@ -88,25 +88,21 @@ let
       n = b.stringLength c;
       ch = s: i: b.substring i 1 s;
       min = x: y: if x < y then x else y;
-      row =
-        prev: i:
-        foldl' (
-          r: j:
-          r
-          ++ [
-            (b.foldl' min (b.elemAt prev (j + 1) + 1) [
-              (b.elemAt r j + 1)
-              (b.elemAt prev j + (if ch a i == ch c j then 0 else 1))
-            ])
-          ]
-        ) [ (i + 1) ] (b.genList (j: j) n);
+      range = b.genList (x: x);
+      # deletion or insertion (+1), else substitution (+1 unless the characters match)
+      cell =
+        prev: r: i: j:
+        min (min (b.elemAt prev (j + 1)) (b.elemAt r j) + 1) (
+          b.elemAt prev j + (if ch a i == ch c j then 0 else 1)
+        );
+      row = prev: i: foldl' (r: j: r ++ [ (cell prev r i j) ]) [ (i + 1) ] (range n);
     in
-    b.elemAt (foldl' row (b.genList (j: j) (n + 1)) (b.genList (i: i) (b.stringLength a))) n;
+    b.elemAt (foldl' row (range (n + 1)) (range (b.stringLength a))) n;
   near =
     x: cs:
     map (p: p.c) (
       b.sort (p: q: p.d < q.d || p.d == q.d && p.c < q.c) (
-        b.filter (p: p.d <= 2 && p.d < b.stringLength x) (
+        filter (p: p.d <= 2 && p.d < b.stringLength x) (
           map (c: {
             inherit c;
             d = dist x c;
