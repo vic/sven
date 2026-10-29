@@ -1,14 +1,12 @@
 let
   site = "https://yen.oeiuwq.com";
-  link = text: path: "[${text}](${site}${path})"; # absolute: this page is also the repository README
+  link = text: path: "[${text}](${site}${path})"; # absolute links
 in
 {
   title = "A fleet on one page";
-  plainTitle = "yen: Nix fleets you can query, and prove things about, before you deploy";
   description = "Two environments, three hosts, a user, a service placed by a fact, and a rule across machines. One file.";
   section = "start";
   order = 4;
-  alsoAt = "../README.md"; # the same text is the repository README: plain markdown only
 
   body =
     {
