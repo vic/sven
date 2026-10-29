@@ -46,7 +46,8 @@
       ''
         ## Inside a fleet: `yen.lib`
 
-        Modules get the same lib, plus predicates and queries bound to the fleet:
+        Modules get the same lib, plus predicates and queries bound to the fleet. They have no `r`: see
+        [Inside the fleet](/query/queries/#inside-the-fleet).
       ''
       (code (builtins.filter (n: !builtins.elem n outer) inner))
       ''
@@ -59,7 +60,7 @@
         ]) sub
       ))
       ''
-        ## Queries of an eval result: `r = yen.lib.eval module`
+        ## Queries of an eval result: `r = yen.lib.eval module`, outside the fleet
       ''
       (code (builtins.attrNames r))
       (docs.links [

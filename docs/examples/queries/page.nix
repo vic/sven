@@ -5,10 +5,16 @@
   order = 1;
 
   body =
-    { docs, r, ... }:
+    {
+      docs,
+      r,
+      variant,
+      ...
+    }:
     [
       ''
-        `(import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+        `r = (import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+        `r` exists outside the fleet: in a script, a test, the CLI or an agent. Inside the fleet, see [below](#inside-the-fleet).
         Every answer is plain data, so `builtins.toJSON` prints it. This small fleet answers each query below.
       ''
       (docs.file "modules/fleet.nix")
@@ -104,11 +110,70 @@
       (docs.note "query.nix" ''
         The commands above use a `query.nix` that returns `eval` of your modules. See [Project layout](/start/project-layout/).
       '')
+      ''
+        ## Inside the fleet
+
+        A module never gets `r`: the fleet is what `r` is computed from. An element reads results through its args
+        and `yen.lib`, where it runs:
+      ''
+      (docs.table
+        [ "To read" "Inside the fleet" ]
+        [
+          [
+            "a sink's reduced value"
+            "a sink arg: `{ packages, ... }:` gets the value at the nearest receiver of `packages`"
+          ]
+          [
+            "the nearest scope of a kind"
+            "a kind arg: `{ host, ... }:`"
+          ]
+          [
+            "this scope, its parent"
+            "`{ scope, ... }:`, then `scope.parent`"
+          ]
+          [
+            "the children where a predicate holds"
+            "`yen.lib.children p scope`"
+          ]
+          [
+            "whether a predicate holds here"
+            "`yen.lib.holds p scope`"
+          ]
+          [
+            "the scopes of an instance"
+            "`yen.lib.scopesOf instance`"
+          ]
+          [
+            "the whole fleet"
+            "`yen.lib.graph`, `yen.lib.schema`, `yen.lib.declaredIn`, `yen.lib.labels`"
+          ]
+        ]
+      )
+      (docs.file "variants/inside.nix")
+      (docs.value (variant "variants/inside.nix").reduced.out."fleet:main".inside)
+      (docs.note "Not inside" ''
+        `errors`, `check`, `context`, `explain` and `impact` read the errors, and an element that reads the errors
+        could change them. They exist only on `r`. A stored query gets `r` when it is asked from outside:
+        see [Stored queries](/query/stored-queries/). A [cycle](/concepts/cycle/) also asks the tree with `tree`.
+      '')
     ];
 
   checks =
-    { r, ... }:
+    { r, variant, ... }:
     {
+      inside =
+        (variant "variants/inside.nix").reduced.out."fleet:main".inside == {
+          web = {
+            nginx = true;
+            packages = [
+              "git"
+              "nginx"
+            ];
+            parent = "fleet:main";
+            users = [ "ana" ];
+          };
+        }
+        && (variant "variants/inside.nix").errors == [ ];
       reduced =
         r.reduced.packages."fleet:main/host:web" == [
           "git"

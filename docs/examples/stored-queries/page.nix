@@ -8,7 +8,7 @@
     { docs, r, ... }:
     [
       ''
-        A stored query names a question about the fleet. `r` is the eval result. The other formal args are its parameters:
+        A stored query names a question about the fleet. `r` is the eval result, the same `r` as outside the fleet: yen passes it when the query is asked with `r.ask`. The other formal args are its parameters:
         required, unless they have a default.
       ''
       (docs.file "modules/queries.nix")

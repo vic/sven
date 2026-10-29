@@ -14,10 +14,11 @@ without a docs edit.
 
 ## Inside a fleet: `yen.lib`
 
-Modules get the same lib, plus predicates and queries bound to the fleet:
+Modules get the same lib, plus predicates and queries bound to the fleet. They have no `r`: see
+[Inside the fleet](/query/queries/#inside-the-fleet).
 
 
-`all`, `cascade`, `declaredIn`, `floor`, `graph`, `has`, `holds`, `labels`, `nearest`, `not`, `same`, `schema`, `scopesOf`, `within`
+`all`, `cascade`, `children`, `declaredIn`, `floor`, `graph`, `has`, `holds`, `labels`, `nearest`, `not`, `same`, `schema`, `scopesOf`, `within`
 
 ## Libraries
 
@@ -33,7 +34,7 @@ Modules get the same lib, plus predicates and queries bound to the fleet:
 | `yen.lib.grants` | `allowed`, `grant`, `narrow` |
 | `yen.lib.change` | `set` |
 
-## Queries of an eval result: `r = yen.lib.eval module`
+## Queries of an eval result: `r = yen.lib.eval module`, outside the fleet
 
 
 `active`, `agent`, `ask`, `check`, `context`, `data`, `declaredIn`, `errors`, `explain`, `facts`, `flake`, `floor`, `graph`, `impact`, `labels`, `queries`, `reduced`, `root`, `schema`, `scopes`, `undefined`

@@ -4,7 +4,8 @@
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-`(import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+`r = (import yen).lib.eval module` gives a set of queries. Each one is lazy: you pay only for what you read.
+`r` exists outside the fleet: in a script, a test, the CLI or an agent. Inside the fleet, see [below](#inside-the-fleet).
 Every answer is plain data, so `builtins.toJSON` prints it. This small fleet answers each query below.
 
 
@@ -243,6 +244,69 @@ nix eval --impure --expr '(import ./query.nix).context "fleet:main/host:web" { }
 The commands above use a `query.nix` that returns `eval` of your modules. See [Project layout](/start/project-layout/).
 :::
 
+## Inside the fleet
+
+A module never gets `r`: the fleet is what `r` is computed from. An element reads results through its args
+and `yen.lib`, where it runs:
+
+
+| To read | Inside the fleet |
+|---|---|
+| a sink's reduced value | a sink arg: `{ packages, ... }:` gets the value at the nearest receiver of `packages` |
+| the nearest scope of a kind | a kind arg: `{ host, ... }:` |
+| this scope, its parent | `{ scope, ... }:`, then `scope.parent` |
+| the children where a predicate holds | `yen.lib.children p scope` |
+| whether a predicate holds here | `yen.lib.holds p scope` |
+| the scopes of an instance | `yen.lib.scopesOf instance` |
+| the whole fleet | `yen.lib.graph`, `yen.lib.schema`, `yen.lib.declaredIn`, `yen.lib.labels` |
+
+```nix title="variants/inside.nix"
+# Inside the fleet there is no `r`. An element reads results through its args and `yen.lib`.
+{ yen, ... }:
+{
+  yen.aspects.inside = {
+    at = yen.kinds.host;
+    out =
+      {
+        scope,
+        host,
+        packages,
+        ...
+      }:
+      {
+        inside.${host.name} = {
+          inherit packages; # a sink arg: the reduced value of `packages` at its receiver
+          parent = scope.parent.id;
+          users = map (u: u.name) (yen.lib.children yen.kinds.user scope);
+          nginx = yen.lib.holds yen.aspects.nginx scope;
+        };
+      };
+  };
+}
+```
+
+```nix title="result"
+{
+  web = {
+    nginx = true;
+    packages = [
+      "git"
+      "nginx"
+    ];
+    parent = "fleet:main";
+    users = [
+      "ana"
+    ];
+  };
+}
+```
+
+:::note[Not inside]
+`errors`, `check`, `context`, `explain` and `impact` read the errors, and an element that reads the errors
+could change them. They exist only on `r`. A stored query gets `r` when it is asked from outside:
+see [Stored queries](/query/stored-queries/). A [cycle](/concepts/cycle/) also asks the tree with `tree`.
+:::
+
 :::tip[Run this example]
 Every block on this page is a file of the template `queries`. Copy it and run it:
 
@@ -255,6 +319,8 @@ nix flake init -t github:vic/yen#queries
 - flake.nix
 - modules/
   - fleet.nix
+- variants/
+  - inside.nix
 
 </FileTree>
 :::
