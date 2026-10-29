@@ -1,3 +1,5 @@
-# Batteries: functions from roles to a yen module. Generic ones at the top; a domain's batteries under its name.
-# A battery names no kind, sink, aspect or field: the user passes each name, in its own words.
-import ./generic.nix // { nixos = import ./nixos.nix; }
+# Batteries: values for keys you write. A battery names no kind, sink, aspect or field: it reads `scope` and `sinks`,
+# and takes a sink it reads as a ref. A domain's batteries live under its name.
+{
+  nixos = import ./nixos.nix;
+}

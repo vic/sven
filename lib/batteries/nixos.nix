@@ -1,61 +1,57 @@
-# NixOS batteries: generic batteries filled with NixOS option paths. NixOS is the target domain, not a yen word:
-# every yen name (kind, sink, aspect) is the key you write.
-#   yen.kinds.host.sinks = nixos.system { as = "nixos"; inherit nixpkgs; } // nixos.unfree { as = "unfree"; into = "nixos"; };
-#   yen.aspects.hostname = nixos.hostname { at = yen.kinds.host; into = "nixos"; };
-let
-  bat = import ./generic.nix;
-  # an aspect whose `into` content is a NixOS module built from the scope
-  scoped =
-    body:
-    { at, into }:
-    bat.gated { inherit at into body; };
-  # sinks: names collected in `as`, one module of `into` built from them
-  names =
-    module:
-    { as, into }:
-    bat.pool {
-      inherit as into;
-      set = ns: module (builtins.concatLists ns);
-    };
-in
+# NixOS batteries. NixOS is the target domain, not a yen word: you write every yen key, a battery is the value.
+# A battery that reads a sink takes the sink as a ref (`from`), never its name.
+#   yen.kinds.host.sinks.nixos.out = nixos.system { from = yen.kinds.host.sinks.nixos; inherit nixpkgs; };
+#   yen.kinds.host.sinks.unfree.nixos = nixos.unfree { from = yen.kinds.host.sinks.unfree; };
+#   yen.aspects.hostname = { at = yen.kinds.host; nixos = nixos.hostname; };
 {
-  # sinks: nixosConfigurations.<scope name> from the modules of sink `as`
+  # nixosConfigurations.<scope name> from the modules collected in `from`
   system =
-    { as, nixpkgs }:
-    bat.system {
-      inherit as;
-      out = s: modules: { nixosConfigurations.${s.name} = nixpkgs.lib.nixosSystem { inherit modules; }; };
+    { from, nixpkgs }:
+    { scope, sinks, ... }:
+    {
+      nixosConfigurations.${scope.name} = nixpkgs.lib.nixosSystem { modules = sinks.${from.__sink}; };
     };
 
-  hostname = scoped (s: {
-    networking.hostName = s.name;
-  });
+  hostname =
+    { scope, ... }:
+    {
+      networking.hostName = scope.name;
+    };
 
   # an account named after the scope (Den's define-user)
-  define-user = scoped (s: {
-    users.users.${s.name} = {
-      isNormalUser = true;
-      home = "/home/${s.name}";
+  define-user =
+    { scope, ... }:
+    {
+      users.users.${scope.name} = {
+        isNormalUser = true;
+        home = "/home/${scope.name}";
+      };
     };
-  });
 
   # the scope's account administers the machine (Den's primary-user)
-  primary-user = scoped (s: {
-    users.users.${s.name}.extraGroups = [
-      "wheel"
-      "networkmanager"
-    ];
-  });
+  primary-user =
+    { scope, ... }:
+    {
+      users.users.${scope.name}.extraGroups = [
+        "wheel"
+        "networkmanager"
+      ];
+    };
 
   # nixpkgs.config does not merge: allowUnfreePredicate is a function, permittedInsecurePackages loses lists.
-  unfree = names (
-    ns:
+  # `from` collects package names; one module allows them.
+  unfree =
+    { from }:
+    { sinks, ... }:
     { lib, ... }:
     {
-      nixpkgs.config.allowUnfreePredicate = p: lib.elem (lib.getName p) ns;
-    }
-  );
-  insecure = names (ns: {
-    nixpkgs.config.permittedInsecurePackages = ns;
-  });
+      nixpkgs.config.allowUnfreePredicate =
+        p: lib.elem (lib.getName p) (lib.flatten sinks.${from.__sink});
+    };
+  insecure =
+    { from }:
+    { sinks, ... }:
+    {
+      nixpkgs.config.permittedInsecurePackages = builtins.concatLists sinks.${from.__sink};
+    };
 }

@@ -1,8 +1,7 @@
-# Battery oracles. Run: nix-instantiate --eval --strict tests -A failed   (expect [ ])
+# Battery and sink-ref oracles. Run: nix-instantiate --eval --strict tests -A failed   (expect [ ])
 let
   yen = (import ../default.nix).lib;
   b = builtins;
-  bat = yen.batteries;
   nixos = yen.batteries.nixos;
   # the words of this fleet: no battery knows them. Every box gives its `sys` list as output.
   fleet =
@@ -14,10 +13,11 @@ let
       };
       yen.kinds.box = {
         spawns.person = s: if s.name == "a" then { inherit (yen.person) p; } else { };
-        sinks = bat.system {
-          as = "sys";
-          out = s: v: { sys.${s.name} = v; };
-        };
+        sinks.sys.out =
+          { scope, sinks, ... }:
+          {
+            sys.${scope.name} = sinks.${yen.kinds.box.sinks.sys.__sink};
+          };
       };
       yen.kinds.person = { };
       yen.top.t = { };
@@ -29,38 +29,32 @@ let
       yen.flake = { out, ... }: out;
     };
   run = ms: yen.eval { imports = [ fleet ] ++ ms; };
-  pooled = run [
+
+  # engine: a sink carries its name; the fixed arg `sinks` reads the nearest receiver of each sink
+  sinkRefs = run [
     (
       { yen, ... }:
       {
-        yen.kinds.box.sinks = bat.pool {
-          as = "names";
-          into = "sys";
-          set = ns: { allowed = b.concatLists ns; };
-        };
-        yen.aspects.x = {
+        yen.kinds.box.sinks.names = { };
+        yen.aspects.n = {
           at = yen.box.a;
-          names = [ "steam" ];
+          names = "steam";
         };
-        yen.aspects.y = {
-          at = yen.person.p; # a person has no `names` sink: its names go up to its box
-          names = [ "vscode" ];
-        };
-      }
-    )
-  ];
-  gatedR = run [
-    (
-      { yen, ... }:
-      {
-        yen.aspects.label = bat.gated {
-          at = yen.kinds.box;
-          into = "sys";
-          body = s: "box ${s.name}";
+        yen.aspects.read = {
+          at = yen.person.p; # a person has no `names` sink: `sinks.names` is its box's
+          sys =
+            { sinks, ... }:
+            {
+              seen = sinks.names;
+              hasSys = sinks ? sys;
+              hasOut = sinks ? out;
+              name = yen.kinds.box.sinks.names.__sink;
+            };
         };
       }
     )
   ];
+  reserved = run [ { yen.kinds.box.sinks.sinks = { }; } ];
   # the engine rule: a functor with `__functionArgs` is a function
   functorR = run [
     (
@@ -76,96 +70,91 @@ let
       }
     )
   ];
-  hostR = run [
-    (
-      { yen, ... }:
-      {
-        yen.aspects.hn = nixos.hostname {
-          at = yen.box.a;
-          into = "sys";
-        };
-      }
-    )
-  ];
-  # a person's account lands in its box's `sys`: the person has no `sys` sink
+  # value batteries: you write the aspect and its keys
   usersR = run [
     (
       { yen, ... }:
       {
-        yen.aspects.account = nixos.define-user {
-          at = yen.kinds.person;
-          into = "sys";
+        yen.aspects.hn = {
+          at = yen.box.a;
+          sys = nixos.hostname;
         };
-        yen.aspects.admin = nixos.primary-user {
+        yen.aspects.account = {
+          at = yen.kinds.person; # a person has no `sys` sink: its account lands in its box's
+          sys = nixos.define-user;
+        };
+        yen.aspects.admin = {
           at = yen.person.p;
-          into = "sys";
+          sys = nixos.primary-user;
         };
       }
     )
   ];
-  # a NixOS module given by the unfree battery, applied to a minimal lib
-  unfreeMod =
-    b.head
-      (run [
-        (
-          { yen, ... }:
-          {
-            yen.kinds.box.sinks = nixos.unfree {
-              as = "unfree";
-              into = "sys";
-            };
-            yen.aspects.u = {
-              at = yen.box.a;
-              unfree = [ "steam" ];
-            };
-          }
-        )
-      ]).flake.sys.a;
+  # a battery that reads a sink takes it as a ref
+  unfreeR = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.unfree.sys = nixos.unfree { from = yen.kinds.box.sinks.unfree; };
+        yen.aspects.u = {
+          at = yen.box.a;
+          unfree = [ "steam" ];
+        };
+        yen.aspects.v = {
+          at = yen.person.p;
+          unfree = [ "vscode" ];
+        };
+      }
+    )
+  ];
   pred =
-    (unfreeMod {
+    ((b.head unfreeR.flake.sys.a) {
       lib = {
         inherit (b) elem;
         getName = p: p.pname;
+        flatten = b.concatLists;
       };
     }).nixpkgs.config.allowUnfreePredicate;
 
   checks = {
-    pool =
-      pooled.errors == [ ]
+    sink-name-and-sinks-arg =
+      sinkRefs.errors == [ ]
       &&
-        pooled.flake.sys.a == [
+        sinkRefs.flake.sys.a == [
           {
-            allowed = [
-              "steam"
-              "vscode"
-            ];
+            seen = [ "steam" ];
+            hasSys = true;
+            hasOut = true;
+            name = "names";
           }
         ];
-    pool-only-givers = !(pooled.flake.sys ? c); # a sink with no elements gives nothing
-    gated =
-      gatedR.flake.sys == {
-        a = [ "box a" ];
-        c = [ "box c" ];
-      };
+    sink-named-sinks = b.any (e: (e.code or null) == "reserved") reserved.errors;
     functor = functorR.flake.sys.c == [ "at c" ];
-    hostname = hostR.flake.sys.a == [ { networking.hostName = "a"; } ] && !(hostR.flake.sys ? c);
     users =
-      usersR.flake.sys.a == [
-        {
-          users.users.p = {
-            isNormalUser = true;
-            home = "/home/p";
-          };
-        }
-        {
-          users.users.p.extraGroups = [
-            "wheel"
-            "networkmanager"
-          ];
-        }
-      ]
+      usersR.errors == [ ]
+      &&
+        usersR.flake.sys.a == [
+          { networking.hostName = "a"; }
+          {
+            users.users.p = {
+              isNormalUser = true;
+              home = "/home/p";
+            };
+          }
+          {
+            users.users.p.extraGroups = [
+              "wheel"
+              "networkmanager"
+            ];
+          }
+        ]
       && !(usersR.flake.sys ? c);
-    unfree = pred { pname = "steam"; } && !(pred { pname = "zoom"; });
+    unfree =
+      unfreeR.errors == [ ]
+      && pred { pname = "steam"; }
+      && pred { pname = "vscode"; }
+      && !(pred { pname = "zoom"; })
+      && !(unfreeR.flake.sys ? c); # a sink with no elements gives nothing
   };
 in
 {

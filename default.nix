@@ -48,7 +48,7 @@ let
   isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
   combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
   # keys the engine reads; the other keys of a sink, an aspect, a cycle output or a scope are data
-  sinkMeta = words "at reduce of";
+  sinkMeta = words "at reduce of __sink";
   aspectMeta = words "at cycle order __aspect";
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
@@ -339,6 +339,7 @@ let
           __kind = k;
           check = checkOf { __kind = k; };
         }
+        // (if d ? sinks then { sinks = mapAttrs (n: v: v // { __sink = n; }) d.sinks; } else { }) # a sink is a ref: it carries its name
       ) (top.kinds or { }); # a kind is a type: its instances pass
       aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
       kindNames = attrNames kinds;
@@ -771,7 +772,7 @@ let
       byTo = groupBy (e: "${e.key}@${e.to.id}") routed;
 
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
-      isRen = n: n == "scope" || kinds ? ${n} || elem n sinkNames; # `tree` is a cycle source, never an element arg
+      isRen = n: n == "scope" || n == "sinks" || kinds ? ${n} || elem n sinkNames; # `tree` is a cycle source, never an element arg
       nearest = k: s: first (x: x.kind == k) s.rup;
       # what a tree request answers at a scope: a list, empty when nothing answers (Cycle: no source, no emission)
       answer =
@@ -814,7 +815,7 @@ let
       # the scope an arg reads: the scope itself, the nearest instance of a kind, or a sink's receiver
       argScope =
         s: n:
-        if n == "scope" then
+        if n == "scope" || n == "sinks" then
           s
         else if kinds ? ${n} then
           nearest n s
@@ -823,7 +824,25 @@ let
         else
           null;
       argAt =
-        s: n: if n == "scope" || kinds ? ${n} then orNull (argScope s n) else (sourcesAt s [ ]).${n} or [ ];
+        s: n:
+        if n == "sinks" then
+          [ (sinksAt s) ]
+        else if n == "scope" || kinds ? ${n} then
+          orNull (argScope s n)
+        else
+          (sourcesAt s [ ]).${n} or [ ];
+      # the fixed arg `sinks`: each sink that has a receiver up the tree, read at the nearest one (as a named sink arg)
+      sinksAt =
+        s:
+        mapAttrs (_: head) (
+          b.removeAttrs (sourcesAt s [ ]) (
+            filter (n: receiverIn n s.rup == null) sinkNames
+            ++ [
+              "scope"
+              "tree"
+            ]
+          )
+        );
       # nixpkgs lib.functionArgs rule: a functor with `__functionArgs` is a function. yen writes these (below) and reads them.
       isFn = f: isFunction f || f ? __functionArgs;
       fnArgs = f: f.__functionArgs or (functionArgs f);
@@ -1310,8 +1329,25 @@ let
             k
           ]) [ "yen" "kinds" k ] kindKeys (attrNames top.kinds.${k})
         ) kindNames;
+      # `scope` and `sinks` are fixed args: a sink of that name could never be read
+      reservedErrors =
+        map
+          (
+            n:
+            errWith "declarations" "sink `${n}`: the name is a fixed arg" {
+              code = "reserved";
+              fix = "rename the sink; `scope` and `sinks` are args of every element";
+            }
+          )
+          (
+            filter (n: elem n sinkNames) [
+              "scope"
+              "sinks"
+            ]
+          );
       errorsAll =
         loadErrors
+        ++ reservedErrors
         ++ keyErrors
         ++ declErrors [ ]
         ++ concatMap (k: concatMap (n: (inst k n [ ]).errors) (instNames k)) kindNames
