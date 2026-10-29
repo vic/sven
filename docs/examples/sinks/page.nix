@@ -108,7 +108,7 @@
         map (e: e.code) (variant "variants/conflicts.nix").errors == [
           "one"
           "merge"
-          "error"
+          "of"
         ];
     };
 }

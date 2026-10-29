@@ -199,6 +199,100 @@ let
       };
     }
   );
+  # every tree request at one node: parent, a nearest with no answer, children, scopesOf, holds, one unknown
+  treeAll = yen.eval (
+    { yen, ... }:
+    {
+      yen.kinds.top.spawns.cluster = _: yen.cluster;
+      yen.kinds.cluster.spawns.node = _: { n1 = { }; };
+      yen.kinds.node.spawns.pod = _: {
+        p1 = { };
+        p2 = { };
+      };
+      yen.kinds.node.sinks.seen = { };
+      yen.kinds.pod = { };
+      yen.top.t = { };
+      yen.cluster.c1 = { };
+      yen.aspects.see = {
+        at = yen.kinds.node;
+        cycle =
+          { tree, ... }:
+          {
+            tree = [
+              {
+                category = "parent";
+                parent = true;
+              }
+              {
+                category = "none";
+                nearest = yen.kinds.pod;
+              } # no pod above a node: no answer
+              {
+                category = "kids";
+                children = yen.kinds.pod;
+              }
+              {
+                category = "same";
+                scopesOf = yen.cluster.c1;
+              }
+              {
+                category = "holds";
+                holds = yen.kinds.node;
+              }
+              {
+                category = "bad";
+                bogus = true;
+              }
+            ];
+            seen = {
+              parent = map (s: s.id) (tree.select "parent");
+              none = tree.select "none";
+              kids = map (map (s: s.name)) (tree.select "kids");
+              same = map (map (s: s.id)) (tree.select "same");
+              holds = tree.select "holds";
+              bad = tree.select "bad";
+            };
+          };
+      };
+    }
+  );
+  # one error per code: a module, spawns, an element, a sink `of`, an order
+  codesFix = yen.eval {
+    imports = [
+      (
+        { yen, ... }:
+        {
+          yen.kinds.top = {
+            spawns.host = _: {
+              a = { };
+              b = 3; # spawns: an instance that is no attrset
+            };
+            sinks.port.of = yen.lib.is builtins.isInt;
+          };
+          yen.kinds.host.spawns.svc = _: 1; # spawns: no attrset
+          yen.kinds.svc = { };
+          yen.top.t = { };
+          yen.aspects.bare = {
+            at = yen.kinds.top;
+            port = x: x; # bare-function
+          };
+          yen.aspects.noArg = {
+            at = yen.kinds.top;
+            port = { host, ... }: 1; # arg: no host above top
+          };
+          yen.aspects.badOf = {
+            at = yen.kinds.top;
+            port = "x"; # of
+          };
+          yen.aspects.ord = {
+            at = yen.kinds.top;
+            order = "first"; # order
+          };
+        }
+      )
+      ({ nope }: { }) # module
+    ];
+  };
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -574,14 +668,12 @@ let
             reduce = "list";
             of = null;
             feeds = [ ];
-            out = false;
             conditional = false;
           };
           tags = {
             reduce = "set";
             of = null;
             feeds = [ ];
-            out = false;
             conditional = false;
           };
         };
@@ -1814,6 +1906,35 @@ let
     tree-nearest =
       treeHit.reduced.seen."top:t/cluster:c1/node:n1" or null == [ "c1" ]
       && map (e: e.error) treeHit.errors == [ ];
+    tree-requests =
+      treeAll.reduced.seen."top:t/cluster:c1/node:n1" == [
+        {
+          parent = [ "top:t/cluster:c1" ];
+          none = [ ];
+          kids = [
+            [
+              "p1"
+              "p2"
+            ]
+          ];
+          same = [ [ "top:t/cluster:c1" ] ];
+          holds = [ true ];
+          bad = [ ];
+        }
+      ]
+      && map (e: e.code) treeAll.errors == [ "tree-request" ];
+    error-codes =
+      map (e: e.code) codesFix.errors == [
+        "module"
+        "spawns"
+        "spawns"
+        "order"
+        "of"
+        "bare-function"
+        "arg"
+      ]
+      && (b.elemAt codesFix.errors 6).want == "host"
+      && (b.elemAt codesFix.errors 5).error == "aspect bare: bare function: wrap it as `{ ... }:`";
     unread-sink-no-error =
       msgs (
         yen.eval {

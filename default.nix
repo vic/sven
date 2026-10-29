@@ -76,11 +76,8 @@ let
     }
     // x;
   unknown =
-    from: what: x: known:
-    errWith from "no ${what} ${x}" {
-      code = "unknown-${what}";
-      near = near x known;
-    };
+    from: x: known: e:
+    errWith from "no ${b.substring 8 99 e.code} ${x}" (e // { near = near x known; }); # code: "unknown-<what>"
   # edit distance (Levenshtein), for `near`: the known names a typo was probably meant to be
   dist =
     a: c:
@@ -275,7 +272,7 @@ let
           "aspects"
           n
         ];
-      loadErrors = map (n: err "module" n.error) (filter (n: n ? error) loaded);
+      loadErrors = map (n: errWith "module" n.error { code = "module"; }) (filter (n: n ? error) loaded);
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
       # one lazy index over every file (zipAttrsWith): a lookup walks its path, never all files
@@ -472,7 +469,7 @@ let
             made = (spawnsOf s.kind).${c} s;
           in
           if !isAttrs made then
-            [ (err s.id "spawns.${c} gives no attrset") ]
+            [ (errWith s.id "spawns.${c} gives no attrset" { code = "spawns"; }) ]
           else
             map (
               n:
@@ -482,7 +479,7 @@ let
                   got = "${c}:${n}";
                 }
               else if !isAttrs made.${n} then
-                err s.id "spawns.${c}.${n} is no attrset"
+                errWith s.id "spawns.${c}.${n} is no attrset" { code = "spawns"; }
               else
                 mkScope s c n made.${n}
             ) (attrNames made)
@@ -668,7 +665,7 @@ let
             toList (aspects.${n}.order or [ ]) ++ toList ((outAt n s).order or [ ])
         ) orderNames;
       isNum = o: b.isInt o || b.isFloat o;
-      orderErrors = map (s: err s.id "order is not a number") (
+      orderErrors = map (s: errWith s.id "order is not a number" { code = "order"; }) (
         filter (s: !all isNum (ordersAt s)) unsorted
       );
       sortKeys = byScope (
@@ -770,34 +767,24 @@ let
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
       isRen = n: n == "scope" || n == "tree" || kinds ? ${n} || elem n sinkNames;
       nearest = k: s: first (x: x.kind == k) s.rup;
+      # what a tree request answers at a scope: a list, empty when nothing answers (Cycle: no source, no emission)
       answer =
         s: q:
-        let
-          x = nearest q.nearest.__kind s;
-        in
         if q ? nearest then
-          (if x == null then err s.id "no ${q.nearest.__kind} above" else { ok = x; })
+          orNull (nearest q.nearest.__kind s)
         else if q ? parent then
-          (if s.parent == null then err s.id "no parent" else { ok = s.parent; })
+          orNull s.parent
         else if q ? children then
-          { ok = filter (holds q.children) (childrenAt.${s.id} or [ ]); }
+          [ (filter (holds q.children) (childrenAt.${s.id} or [ ])) ]
         else if q ? scopesOf then
-          { ok = lib.scopesOf q.scopesOf; }
+          [ (lib.scopesOf q.scopesOf) ]
         else
-          { ok = holds q.holds s; };
+          [ (holds q.holds s) ];
       sourcesAt =
         s: requests:
         {
           scope = s;
-          tree.select =
-            c:
-            concatMap (
-              q:
-              let
-                r = answer s q;
-              in
-              if q.category or null == c && r ? ok then [ r.ok ] else [ ]
-            ) (filter known requests);
+          tree.select = c: concatMap (answer s) (filter (q: known q && q.category or null == c) requests);
         }
         // genAttrs sinkNames (
           n:
@@ -811,7 +798,7 @@ let
         s:
         concatMap (
           n:
-          map (_: err s.id "aspect ${n}: unknown tree request") (
+          map (_: errWith s.id "aspect ${n}: unknown tree request" { code = "tree-request"; }) (
             filter (q: !known q) (toList ((outAt n s).tree or [ ]))
           )
         ) (attrNames cycleOuts)
@@ -890,9 +877,9 @@ let
           bad = map (
             x:
             if x ? error then
-              err x.from "${x.e.origin}: ${x.error}"
+              removeAttrs x [ "e" ] // { error = "${x.e.origin}: ${x.error}"; } # the fill record keeps its code
             else
-              err r.id "sink ${k}: element of ${x.e.origin} from ${x.e.from.id} fails `of`"
+              errWith r.id "sink ${k}: element of ${x.e.origin} from ${x.e.from.id} fails `of`" { code = "of"; }
           ) (filter (x: !okOf x) filled);
         in
         {
@@ -923,7 +910,7 @@ let
               err e.from.id m
           ) (toList x.ok)
         else
-          [ (err x.from "${e.origin}: ${x.error}") ]
+          [ (x // { error = "${e.origin}: ${x.error}"; }) ]
       ) (filter (e: e.key == "errors") given);
 
       # ── run: sinks feed drivers, drivers feed sources, Nix laziness closes the loop. Every output is a query ──
@@ -1059,8 +1046,7 @@ let
         {
           reduce = if d ? reduce then d.reduce.name or "custom" else "list";
           of = if d ? of then typeName d.of else null;
-          feeds = attrNames (removeAttrs d (words "reduce of at out"));
-          out = d ? out;
+          feeds = attrNames (removeAttrs d sinkMeta);
           conditional = d ? at;
         };
       schema = {
@@ -1082,7 +1068,7 @@ let
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
       byId = byScope (s: s) unsorted;
-      noScope = from: id: unknown from "scope" id (attrNames byId);
+      noScope = from: id: unknown from id (attrNames byId) { code = "unknown-scope"; };
       trace =
         d: p: s:
         let
@@ -1125,7 +1111,7 @@ let
           v = s.__here.${n};
         in
         if !(aspects ? ${n}) then
-          unknown "explain" "aspect" n aspectNames
+          unknown "explain" n aspectNames { code = "unknown-aspect"; }
         else if !(byId ? ${id}) then
           noScope "explain" id
         else
@@ -1231,7 +1217,7 @@ let
         if !(byId ? ${id}) then
           noScope "impact" id
         else if bad != [ ] then
-          unknown "impact" "sink" (head bad) sinkNames
+          unknown "impact" (head bad) sinkNames { code = "unknown-sink"; }
         else
           {
             reached = c.items;
@@ -1333,7 +1319,7 @@ let
         ask =
           n: args:
           if !(yen.queries ? ${n}) then
-            unknown "ask" "query" n (attrNames yen.queries)
+            unknown "ask" n (attrNames yen.queries) { code = "unknown-query"; }
           else
             let
               q = self.queries.${n};

@@ -64,6 +64,15 @@
           rejected = [ desktop.sha ];
         }).refused
       )
+      ''
+        ## A change from Nix
+
+        `yen.lib.change.set path value` writes the same data from Nix: one declaration path gets one value.
+        This gives the change in `desktop-on-web.json`:
+      ''
+      (docs.nix ''
+        yen.lib.change.set [ "aspects" "desktop" "at" ] [ { kind = "host"; name = "web"; } ]
+      '')
       (docs.tip "Safe places for an aspect" ''
         A stored query can stage an aspect on each machine and return where it is safe, and why the others are refused.
         See `safeHostsFor` in the reference fleet's ${
@@ -106,5 +115,14 @@
             change = "changes/desktop-on-web.json";
             rejected = [ d.sha ];
           }).refused == [ "rejected" ];
+      change-set =
+        engine.change.set
+          [ "aspects" "desktop" "at" ]
+          [
+            {
+              kind = "host";
+              name = "web";
+            }
+          ] == builtins.fromJSON (builtins.readFile (dir + "/changes/desktop-on-web.json"));
     };
 }
