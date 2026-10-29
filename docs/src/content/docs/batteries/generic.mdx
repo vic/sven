@@ -1,0 +1,241 @@
+---
+{"description":"mesh, claim and ordered: values for keys you write, with no names of their own. And how to write your own.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-generic/page.nix","title":"Generic batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+The other pages of these docs write every rule by hand, so you can see how yen works. Some rules come back in
+every fleet: each host reads the keys of the other hosts, each address has one owner, sections of a file come
+in an order. `yen.lib.batteries` has them ready.
+
+A battery never adds a word to your fleet. **You write every key**, with your own names. The battery is the
+value. It reads only the fixed args `scope` and `sinks`, and it takes the sinks it reads as refs.
+
+| Battery | Value of | Does |
+|---|---|---|
+| `mesh { from; build; }` | any key of an aspect | the records of sink `from`, except the ones that this scope or a scope under it gave; `build` makes content of them |
+| `claim { key; rank ? ; }` | `reduce` of a sink | each key has one owner; two owners is an error, unless `rank` picks one |
+| `ordered` | `reduce` of a sink | elements `{ name; value; before; after; }` in an order that meets all of them |
+
+
+```nix title="modules/fleet.nix"
+# Your words: a fleet of hosts. Each host has an ssh key and an address. The batteries know none of these names.
+{ yen, lib, ... }:
+let
+  str = lib.types.str;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host.fields = {
+    sshKey = str;
+    addr = str;
+  };
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+
+  yen.host = {
+    nas = {
+      sshKey = "ssh-ed25519 AAAAnas";
+      addr = "10.0.0.1";
+    };
+    desk = {
+      sshKey = "ssh-ed25519 AAAAdesk";
+      addr = "10.0.0.2";
+    };
+    laptop = {
+      sshKey = "ssh-ed25519 AAAAlaptop";
+      addr = "10.0.0.3";
+    };
+  };
+}
+```
+
+## mesh: what the other hosts give
+
+Each host gives its key to the fleet. The fleet reduces with `entries`, so each key keeps the scope that gave
+it. Each host then reads the keys of the others. This is the same rule as known_hosts, WireGuard peers,
+Syncthing devices or remote builders, written by hand in [Facts from other hosts](/nixos/cross-host/).
+
+
+```nix title="modules/known-hosts.nix"
+# mesh: every host gives its key to the fleet; each host reads the keys of the others.
+{ yen, ... }:
+let
+  inherit (yen.lib.batteries) mesh;
+in
+{
+  yen.kinds.fleet.sinks.keys.reduce = yen.lib.reduce.entries; # an entry knows which host gave it
+  yen.kinds.host.sinks.known = {
+    reduce = yen.lib.reduce.one;
+    out =
+      { scope, sinks, ... }:
+      {
+        known.${scope.name} = sinks.known;
+      };
+  };
+
+  yen.aspects.key = {
+    at = yen.kinds.host;
+    keys = { host, ... }: host.sshKey;
+  };
+  yen.aspects.known-hosts = {
+    at = yen.kinds.host;
+    known = mesh {
+      from = yen.kinds.fleet.sinks.keys;
+      build = keys: builtins.sort builtins.lessThan keys;
+    };
+  };
+}
+```
+
+```nix title="result"
+{
+  desk = [
+    "ssh-ed25519 AAAAlaptop"
+    "ssh-ed25519 AAAAnas"
+  ];
+  laptop = [
+    "ssh-ed25519 AAAAdesk"
+    "ssh-ed25519 AAAAnas"
+  ];
+  nas = [
+    "ssh-ed25519 AAAAdesk"
+    "ssh-ed25519 AAAAlaptop"
+  ];
+}
+```
+
+## claim: one owner per key
+
+
+```nix title="modules/addresses.nix"
+# claim: each address has one owner. Two hosts with one address is an error, and the fleet has no outputs.
+{ yen, ... }:
+{
+  yen.kinds.fleet.sinks.addrs = {
+    reduce = yen.lib.batteries.claim { key = addr: addr; };
+    out =
+      { sinks, ... }:
+      {
+        addrs = builtins.attrNames sinks.addrs;
+      };
+  };
+  yen.aspects.addr = {
+    at = yen.kinds.host;
+    addrs = { host, ... }: host.addr;
+  };
+}
+```
+
+When a new host takes the address of the nas, the fleet has an error and no outputs:
+
+
+```nix title="result"
+[
+  {
+    code = "claim";
+    error = "claim: 10.0.0.1 has 2 owners: fleet:main/host:backup, fleet:main/host:nas";
+    from = "fleet:main";
+    sink = "addrs";
+  }
+]
+```
+
+With `rank`, the highest value wins and there is no error: for example `rank = claim: claim.priority`, when two
+virtual machines ask for one GPU.
+
+## ordered: sections from many files
+
+
+```nix title="modules/readme.nix"
+# ordered: README sections from any file, each with before and after. The battery finds one order.
+{ yen, ... }:
+{
+  yen.kinds.fleet.sinks.readme = {
+    reduce = yen.lib.batteries.ordered;
+    out =
+      { sinks, ... }:
+      {
+        readme = builtins.concatStringsSep "\n" sinks.readme;
+      };
+  };
+  yen.aspects.readme-intro = {
+    at = yen.kinds.fleet;
+    readme = {
+      name = "intro";
+      value = "# My fleet";
+    };
+  };
+  yen.aspects.readme-hosts = {
+    at = yen.kinds.fleet;
+    readme = {
+      name = "hosts";
+      after = [ "intro" ];
+      value = "## Hosts";
+    };
+  };
+  # written later, in another file: it goes between the two
+  yen.aspects.readme-usage = {
+    at = yen.kinds.fleet;
+    readme = {
+      name = "usage";
+      after = [ "intro" ];
+      before = [ "hosts" ];
+      value = "## Usage";
+    };
+  };
+}
+```
+
+```nix title="result"
+''
+  # My fleet
+  ## Usage
+  ## Hosts''
+```
+
+A cycle, a name that is given two times, or an unknown name in `before` or `after` is an error.
+
+## Write your own
+
+A battery is a plain Nix function. If none fits, write one in your fleet. Use the same shape, and it stays as
+reusable as these:
+
+- Take the sinks you read as refs, such as `from = yen.kinds.fleet.sinks.keys`, and read them with
+  `sinks.${from.__sink}`.
+- Read the scope with `scope`, never with an arg named after a kind.
+- Return a value. Do not write `yen.kinds.…` or `yen.aspects.…` keys: those are the user's names.
+
+This is all of `mesh`:
+
+
+```nix
+mesh =
+  { from, build }:
+  { scope, sinks, ... }:
+  build (map (e: e.value) (builtins.filter (e: !own scope e) sinks.${from.__sink}));
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-generic`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-generic
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - addresses.nix
+  - fleet.nix
+  - known-hosts.nix
+  - readme.nix
+- variants/
+  - clash.nix
+
+</FileTree>
+:::

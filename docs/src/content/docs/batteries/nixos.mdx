@@ -1,0 +1,131 @@
+---
+{"description":"yen.lib.batteries.nixos: system, hostname, define-user, primary-user, unfree, insecure. NixOS options are the domain; yen keys are yours.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-nixos/page.nix","title":"NixOS batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+`yen.lib.batteries.nixos` holds the NixOS rules that most fleets write. NixOS is the domain of these batteries:
+they set NixOS options. They still name no yen kind, sink or aspect. You write `yen.kinds.host`, the `nixos` and
+`unfree` sinks and every aspect, in your own words.
+
+| Battery | Value of | Den |
+|---|---|---|
+| `system { from; nixpkgs; }` | the `out` key of the sink that collects NixOS modules | the `den.hosts` schema |
+| `hostname` | a NixOS key of an aspect | `den.batteries.hostname` |
+| `define-user` | a NixOS key of an aspect | `den.batteries.define-user` |
+| `primary-user` | a NixOS key of an aspect | `den.batteries.primary-user` |
+| `unfree { from; }` | the NixOS key of a sink of package names | `den.batteries.unfree` |
+| `insecure { from; }` | the NixOS key of a sink of package names | `den.batteries.insecure` |
+
+
+```nix title="modules/fleet.nix"
+# Your words: hosts build NixOS and hold users. The batteries fill values; every key here is yours.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  nixos = yen.lib.batteries.nixos;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.hosts) yen.user;
+    sinks.nixos.out = nixos.system {
+      from = yen.kinds.host.sinks.nixos;
+      inherit (inputs) nixpkgs;
+    };
+    # package names from any feature or user; one module per host allows them
+    sinks.unfree.nixos = nixos.unfree { from = yen.kinds.host.sinks.unfree; };
+    sinks.insecure.nixos = nixos.insecure { from = yen.kinds.host.sinks.insecure; };
+  };
+  yen.kinds.user.fields.hosts = yen.lib.is lib.isList;
+
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+```nix title="modules/aspects.nix"
+# Den's hostname, define-user and primary-user, as values of aspects you name.
+{ yen, ... }:
+let
+  nixos = yen.lib.batteries.nixos;
+in
+{
+  yen.aspects.hostname = {
+    at = yen.kinds.host;
+    nixos = nixos.hostname;
+  };
+  yen.aspects.accounts = {
+    at = yen.kinds.user; # a user has no `nixos` sink: its account goes into each of its hosts
+    nixos = nixos.define-user;
+  };
+  yen.aspects.admin = {
+    at = yen.user.ana;
+    nixos = nixos.primary-user;
+  };
+}
+```
+
+```nix title="modules/machines.nix"
+{ yen, ... }:
+{
+  yen.host.desk = { };
+  yen.user.ana.hosts = [ yen.host.desk ];
+  yen.user.bob.hosts = [ yen.host.desk ];
+  yen.aspects.desk = {
+    at = yen.host.desk;
+    nixos = {
+      boot.loader.grub.device = "nodev";
+      fileSystems."/" = {
+        device = "/dev/sda1";
+        fsType = "ext4";
+      };
+      nixpkgs.hostPlatform = "x86_64-linux";
+      system.stateVersion = "25.05";
+    };
+  };
+  yen.aspects.gaming = {
+    at = yen.host.desk;
+    unfree = [
+      "steam"
+      "steam-unwrapped"
+    ];
+    nixos.programs.steam.enable = true;
+  };
+  yen.aspects.bob-tools = {
+    at = yen.user.bob;
+    unfree = [ "vscode" ];
+    insecure = [ "olm-3.2.16" ];
+  };
+}
+```
+
+Each battery is a few lines. The pages [Every Den battery](/den/batteries/) and
+[Unfree packages from many files](/nixos/unfree/) write the same rules by hand. When a battery does not fit your
+fleet, copy those lines and change them: see [Write your own](/batteries/generic/#write-your-own).
+
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-nixos`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-nixos
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - aspects.nix
+  - fleet.nix
+  - machines.nix
+
+</FileTree>
+:::

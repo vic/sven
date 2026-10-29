@@ -22,22 +22,22 @@
           [
             "`unfree [ … ]`"
             "41"
-            "a sink of names and one predicate: [Unfree packages from many files](/nixos/unfree/)"
+            "`nixos.unfree`, or by hand: [Unfree packages from many files](/nixos/unfree/)"
           ]
           [
             "`primary-user`"
             "30"
-            "an aspect at the user: [From Den](/migrate/from-den/#batteries-are-aspects)"
+            "`nixos.primary-user`, or by hand: [From Den](/migrate/from-den/#batteries-are-aspects)"
           ]
           [
             "`define-user`"
             "27"
-            "an aspect at every user: [From Den](/migrate/from-den/#batteries-are-aspects)"
+            "`nixos.define-user`, or by hand: [From Den](/migrate/from-den/#batteries-are-aspects)"
           ]
           [
             "`hostname`"
             "25"
-            "an aspect at every host, below"
+            "`nixos.hostname`, or by hand below"
           ]
           [
             "`forward`"
@@ -77,7 +77,7 @@
           [
             "`insecure [ … ]`"
             "5"
-            "a sink of names, as for `unfree`: `nixpkgs.config` does not merge lists, below"
+            "`nixos.insecure`, or by hand below: `nixpkgs.config` does not merge lists"
           ]
           [
             "`import-tree ./dir`"
@@ -131,6 +131,10 @@
         module that sets the option.
       ''
       (docs.file "modules/insecure.nix")
+      (docs.tip "As a battery" ''
+        This page writes each battery by hand. `hostname`, `define-user`, `primary-user`, `unfree` and `insecure` are
+        ready in `yen.lib.batteries.nixos`: see [NixOS batteries](/batteries/nixos/). Write your own for the others.
+      '')
     ];
 
   checks =

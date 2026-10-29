@@ -14,10 +14,10 @@ the 20 most starred public Den configurations on GitHub (October 2026).
 
 | Den battery | Uses | yen |
 |---|---|---|
-| `unfree [ … ]` | 41 | a sink of names and one predicate: [Unfree packages from many files](/nixos/unfree/) |
-| `primary-user` | 30 | an aspect at the user: [From Den](/migrate/from-den/#batteries-are-aspects) |
-| `define-user` | 27 | an aspect at every user: [From Den](/migrate/from-den/#batteries-are-aspects) |
-| `hostname` | 25 | an aspect at every host, below |
+| `unfree [ … ]` | 41 | `nixos.unfree`, or by hand: [Unfree packages from many files](/nixos/unfree/) |
+| `primary-user` | 30 | `nixos.primary-user`, or by hand: [From Den](/migrate/from-den/#batteries-are-aspects) |
+| `define-user` | 27 | `nixos.define-user`, or by hand: [From Den](/migrate/from-den/#batteries-are-aspects) |
+| `hostname` | 25 | `nixos.hostname`, or by hand below |
 | `forward` | 16 | a sink whose key gives to another sink: [Custom classes](/den/classes/) |
 | `user-shell "fish"` | 11 | a `shell` field and one aspect, below |
 | `inputs'`, `self'` | 21 | `inputs` is an arg of every yen module; per system: `inputs.x.packages.${pkgs.stdenv.hostPlatform.system}` |
@@ -25,7 +25,7 @@ the 20 most starred public Den configurations on GitHub (October 2026).
 | `host-aspects` | 9 | an aspect at the users `within` the host that opt in: [includes and provides](/den/includes/) |
 | `mutual-provider` | 6 | nothing: in Den it is inert; in yen `within` routes both ways |
 | `tty-autologin "ana"`, `vm-autologin` | 7 | a host field that names a user, below |
-| `insecure [ … ]` | 5 | a sink of names, as for `unfree`: `nixpkgs.config` does not merge lists, below |
+| `insecure [ … ]` | 5 | `nixos.insecure`, or by hand below: `nixpkgs.config` does not merge lists |
 | `import-tree ./dir` | 2 | the yen template already loads `modules/` with import-tree; plain NixOS files go in a `nixos.imports` |
 | `os` class (os-class) | – | an `os` sink that forwards to `nixos` and `darwin`: [nix-darwin machines](/recipes/darwin/) |
 | `user` class (os-user) | – | an `account` sink on the user, below |
@@ -190,6 +190,11 @@ module that sets the option.
   };
 }
 ```
+
+:::tip[As a battery]
+This page writes each battery by hand. `hostname`, `define-user`, `primary-user`, `unfree` and `insecure` are
+ready in `yen.lib.batteries.nixos`: see [NixOS batteries](/batteries/nixos/). Write your own for the others.
+:::
 
 :::tip[Run this example]
 Every block on this page is a file of the template `den-batteries`. Copy it and run it:

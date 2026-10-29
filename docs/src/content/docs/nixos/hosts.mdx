@@ -202,6 +202,11 @@ A real host file usually imports its `hardware-configuration.nix` in its `nixos`
 - `lib.mkIf (hostname == "pi")` in shared modules: the aspect's `at` says where it applies.
 :::
 
+:::tip[As a battery]
+The kind that builds NixOS and the hostname rule are ready as `yen.lib.batteries.nixos.system` and
+`hostname`: see [NixOS batteries](/batteries/nixos/). This page writes them by hand, so you can change them.
+:::
+
 :::tip[Run this example]
 Every block on this page is a file of the template `nixos-hosts`. Copy it and run it:
 

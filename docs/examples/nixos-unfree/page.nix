@@ -36,6 +36,10 @@
         With `home-manager.useGlobalPkgs = true`, home-manager uses the host's `pkgs`, so the host predicate applies to
         home packages too. For a standalone home, give the home kind the same sink with a `homeManager` key.
       '')
+      (docs.tip "As a battery" ''
+        This page writes the rule by hand. It is ready as `yen.lib.batteries.nixos.unfree` (and `insecure`):
+        see [NixOS batteries](/batteries/nixos/). When it does not fit, keep your own copy of the lines above.
+      '')
     ];
 
   checks =
