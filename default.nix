@@ -767,34 +767,24 @@ let
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
       isRen = n: n == "scope" || n == "tree" || kinds ? ${n} || elem n sinkNames;
       nearest = k: s: first (x: x.kind == k) s.rup;
+      # what a tree request answers at a scope: a list, empty when nothing answers (Cycle: no source, no emission)
       answer =
         s: q:
-        let
-          x = nearest q.nearest.__kind s;
-        in
         if q ? nearest then
-          (if x == null then err s.id "no ${q.nearest.__kind} above" else { ok = x; })
+          orNull (nearest q.nearest.__kind s)
         else if q ? parent then
-          (if s.parent == null then err s.id "no parent" else { ok = s.parent; })
+          orNull s.parent
         else if q ? children then
-          { ok = filter (holds q.children) (childrenAt.${s.id} or [ ]); }
+          [ (filter (holds q.children) (childrenAt.${s.id} or [ ])) ]
         else if q ? scopesOf then
-          { ok = lib.scopesOf q.scopesOf; }
+          [ (lib.scopesOf q.scopesOf) ]
         else
-          { ok = holds q.holds s; };
+          [ (holds q.holds s) ];
       sourcesAt =
         s: requests:
         {
           scope = s;
-          tree.select =
-            c:
-            concatMap (
-              q:
-              let
-                r = answer s q;
-              in
-              if q.category or null == c && r ? ok then [ r.ok ] else [ ]
-            ) (filter known requests);
+          tree.select = c: concatMap (answer s) (filter (q: known q && q.category or null == c) requests);
         }
         // genAttrs sinkNames (
           n:
