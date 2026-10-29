@@ -536,11 +536,12 @@ let
           [ p.__aspect ]
         else
           concatMap (k: refsOf p."__${k}") (filter (k: p ? "__${k}") combinators);
+      refs = mapAttrs (_: a: map (r: { key = r; }) (refsOf (a.at or [ ]))) aspects; # once per aspect
       reach = mapAttrs (
-        n: a:
+        n: _:
         map (x: x.key) (genericClosure {
-          startSet = map (r: { key = r; }) (refsOf (a.at or [ ]));
-          operator = x: map (r: { key = r; }) (refsOf (aspects.${x.key}.at or [ ]));
+          startSet = refs.${n};
+          operator = x: refs.${x.key};
         })
       ) aspects;
       cyclic = mapAttrs (n: rs: elem n rs) reach;
@@ -843,7 +844,11 @@ let
             ) (filter known requests);
         }
         // genAttrs sinkNames (
-          n: map (r: (memo.${n}.${r.id} or (reduceAt n r)).value) (orNull (receiverIn n s.rup))
+          n:
+          let
+            r = receiverIn n s.rup;
+          in
+          if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ]
         ); # a receiver with no element yet reduces to its empty value
       known =
         q:
