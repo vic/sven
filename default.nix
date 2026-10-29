@@ -76,11 +76,8 @@ let
     }
     // x;
   unknown =
-    from: what: x: known:
-    errWith from "no ${what} ${x}" {
-      code = "unknown-${what}";
-      near = near x known;
-    };
+    from: x: known: e:
+    errWith from "no ${b.substring 8 99 e.code} ${x}" (e // { near = near x known; }); # code: "unknown-<what>"
   # edit distance (Levenshtein), for `near`: the known names a typo was probably meant to be
   dist =
     a: c:
@@ -1082,7 +1079,7 @@ let
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
       byId = byScope (s: s) unsorted;
-      noScope = from: id: unknown from "scope" id (attrNames byId);
+      noScope = from: id: unknown from id (attrNames byId) { code = "unknown-scope"; };
       trace =
         d: p: s:
         let
@@ -1125,7 +1122,7 @@ let
           v = s.__here.${n};
         in
         if !(aspects ? ${n}) then
-          unknown "explain" "aspect" n aspectNames
+          unknown "explain" n aspectNames { code = "unknown-aspect"; }
         else if !(byId ? ${id}) then
           noScope "explain" id
         else
@@ -1231,7 +1228,7 @@ let
         if !(byId ? ${id}) then
           noScope "impact" id
         else if bad != [ ] then
-          unknown "impact" "sink" (head bad) sinkNames
+          unknown "impact" (head bad) sinkNames { code = "unknown-sink"; }
         else
           {
             reached = c.items;
@@ -1333,7 +1330,7 @@ let
         ask =
           n: args:
           if !(yen.queries ? ${n}) then
-            unknown "ask" "query" n (attrNames yen.queries)
+            unknown "ask" n (attrNames yen.queries) { code = "unknown-query"; }
           else
             let
               q = self.queries.${n};
