@@ -352,7 +352,49 @@ let
     )
   ];
 
+  gh = bat.github;
+  ghWf = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.jobs = {
+          reduce = yen.lib.reduce.merge;
+          sys = gh.workflow {
+            from = yen.kinds.box.sinks.jobs;
+            path = "ci.yml";
+            header = js: "# ${toString js}\n";
+            doc.name = "t";
+          };
+        };
+        yen.aspects.j1 = {
+          at = yen.box.a;
+          jobs.b.runs-on = "x";
+        };
+        yen.aspects.j2 = {
+          at = yen.person.p;
+          jobs.a.steps = [ { run = "one\ntwo\n"; } ];
+        };
+      }
+    )
+  ];
+
   checks = {
+    github-yaml =
+      gh.yaml {
+        k = [
+          "v"
+          { x = { }; }
+        ];
+        s = "a\nb\n";
+        "q:" = true;
+      } == "\"k\":\n  - \"v\"\n  -\n    \"x\": {}\n\"q:\": true\n\"s\": |\n  a\n  b\n";
+    github-workflow =
+      ghWf.flake.sys.a == [
+        {
+          files.file."ci.yml".text =
+            "# a b\n\"jobs\":\n  \"a\":\n    \"steps\":\n      -\n        \"run\": |\n          one\n          two\n  \"b\":\n    \"runs-on\": \"x\"\n\"name\": \"t\"\n";
+        }
+      ];
     files-document = docR.flake.sys.a == [ { files.file."README.md".text = "a\nb"; } ];
     mermaid-flowchart =
       mmText == b.concatStringsSep "\n" [
