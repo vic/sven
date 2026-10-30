@@ -1,11 +1,12 @@
 let
   site = "https://yen.oeiuwq.com";
   link = text: path: "[${text}](${site}${path})"; # absolute: this page is also the repository README
+  doc = path: "<sub>[docs](${site}${path})</sub>"; # a small link after a point, so the prose stays clean
 in
 {
   title = "Why Yen";
-  plainTitle = "Yen: formal methods for reproducible Nix fleets";
-  description = "Rules across machines, proved before build and deploy: fleets of hundreds of services, safe for people and agents.";
+  plainTitle = "Yen: your whole Nix fleet, in plain data";
+  description = "Every Den capability and more, with a minimal language and less evaluation; rules across machines checked before you deploy.";
   section = "start";
   order = 0;
   alsoAt = "../README.md"; # the same text is the repository README: plain markdown only
@@ -14,22 +15,37 @@ in
     { ... }:
     [
       ''
-        **Nix makes every build reproducible. Yen makes the whole fleet provable.**
+        **Your homelab, your laptops, your servers: one fleet, described as plain data.**
 
-        A fleet can evaluate, build and boot on every machine and still be wrong: a lab service that writes to the prod
-        database, a client with no server, two services on one port. No single machine sees these mistakes, because they
-        live between machines. Yen checks them before anything is built or deployed, with rules you write about your
-        own fleet, and it proves each answer.
+        Yen configures NixOS, nix-darwin and home-manager machines from a few files you can read. Say what you have
+        (hosts, users, environments) and what each feature needs, and Yen puts every piece of configuration where it
+        belongs. It does everything [Den](https://github.com/denful/den) does, and more, with less to learn and less to
+        evaluate.
 
-        Agents now write infrastructure changes faster than anyone can review them. Yen lets them work safely: a change
-        is staged, checked against your rules, and refused with the reason, before it reaches a machine.
+        ${link "Documentation" "/"} · ${link "Getting started" "/start/getting-started/"} · ${link "A fleet on one page" "/start/one-page-fleet/"} · [Reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
 
-        ${link "Documentation" "/"} · ${link "A fleet on one page" "/start/one-page-fleet/"} · [Reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
+        ## A fleet is data
+
+        ```nix
+        yen.env.prod.domain = "example.com";
+        yen.env.lab.domain = "lab.example.com";
+        yen.host.web = { env = yen.env.prod; db = yen.host.db; };
+        yen.host.db.env = yen.env.prod;
+        yen.host.box.env = yen.env.lab;
+        yen.user.ana.on = [ yen.host.web yen.host.box ];   # ana gets an account on both
+
+        yen.aspects.postgres = {
+          at = s: lib.any (h: same h.db s) (lib.attrValues yen.host);   # wherever some host uses me as its database
+          os.services.postgresql.enable = true;
+        };
+        ```
+
+        No host file lists its features: the data decides. Add a host and it gets everything it should.
 
         ## A rule across machines
 
-        Your fleet becomes facts: `[ "ref" "db" HOST "host" NAME ]`, `[ "has" ASPECT SCOPE ]`, `[ "val" FIELD SCOPE VALUE ]`.
-        A rule is data. This one says a host's database lives in its own environment:
+        Some mistakes live between machines: no single host can see them. Say once that a host's database lives in its own
+        environment:
 
         ```nix
         yen.invariants.db-same-env = [{
@@ -43,42 +59,50 @@ in
         }];
         ```
 
-        A lab host that points at the prod database gives `[ "bad" "db-other-env" "fleet:main/env:lab/host:api" ]`,
-        and the fleet gives no outputs at all.
+        A lab host that points at the prod database gives `[ "bad" "db-other-env" "fleet:main/env:lab/host:api" ]`, and
+        the fleet builds nothing until it is fixed.
 
-        ## What Yen gives you
+        ## Why Yen
 
-        - **Rules as data, over typed facts.** Datalog with variables and negation, under the well-founded semantics.
-          A rule that cannot be decided is a failure, never a pass. Relations are declared, and a rule can never forge a fact.
-        - **Proofs with every verdict.** Each verdict carries a staged certificate (Van Gelder, Ross and Schlipf, 1991)
-          that a small checker in plain Nix verifies. A seal binds the verdict to the hashes of the engine, the rules and
-          the facts, so anyone can check it again.
-        - **Nothing to build from a broken fleet.** An error, a violation or an undecided rule and Yen gives no outputs,
-          and no values to build them from.
-        - **Safe changes from agents.** A change is evaluated with and without it, and nothing is applied. It is refused
-          with the rule it breaks, it can never change the rules, and a grant limits where it may reach. Each change
-          carries its author's trust label.
-        - **Types in rules.** Any type, or any total function, is a predicate a rule can use.
-        - **Secrets stay secret.** A secret field is stated only by its hash in every answer; rules still compare secrets.
-        - **Answers for agents.** Errors with fixes, why a rule holds or does not, where each fact comes from: all plain
-          data. A Rust MCP server serves them, and a skill teaches agents to use it.
-        - **Built for hundreds of services.** 1600 services under rules across machines, checked and certified in seconds.
-        - **Your words, not ours.** Yen has no vocabulary: you name your own kinds and facts. NixOS, nix-darwin,
-          home-manager, clusters: anything you write as Nix values.
+        - **Minimal language.** A handful of ideas: the things in your world, a tree built from your data, features that
+          apply where a condition holds, and a place for each piece of configuration to go. ${doc "/start/overview/"}
+        - **Domain agnostic.** Anything Nix can configure: NixOS, nix-darwin, home-manager, clusters and more. Name the
+          things in your world: hosts, users, services, or your own.
+        - **Everything Den does, and more.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
+          generated files. Migration guides build the same systems before and after, from `configuration.nix`, a flake or
+          Den. ${doc "/migrate/from-den/"}
+        - **Queried, not merged.** Each value is a query on the files that declare it. Content in many files never
+          overwrites itself, and two different answers are an error you can read. ${doc "/concepts/queried-not-merged/"}
+        - **Less to evaluate.** Yen itself is about 1% of a host's evaluation. One nixpkgs per system instead of one per
+          host saves about a third, with a check that proves every system is the same. ${doc "/perf/shared-pkgs/"}
+        - **Mistakes are caught early, with a fix.** A typo gets a "did you mean". Every error says where it is, what was
+          expected and how to fix it. ${doc "/concepts/errors/"}
+        - **Ask your fleet anything.** Graphs for deploy waves, cycles and impact; Datalog with negation; stored queries
+          you name once and ask from Nix, the CLI or an agent. ${doc "/query/queries/"}
+        - **Values that solve themselves.** µKanren with finite domains, in pure Nix: a free port, guest memory that fits,
+          relations that run backward. ${doc "/query/krn/"}
+        - **Rules across machines.** Write a rule once, and a fleet that breaks it builds nothing. Each verdict comes with
+          a proof that a small checker verifies, and a seal anyone can check again. ${doc "/query/invariants/"}
+        - **Time and impact.** What a host's elements reach, the fleet without one declaration, instances valid at a
+          date. ${doc "/agents/history/"}
+        - **Ready for agents.** An AI agent can ask about your fleet, stage a change and see why it is refused, before
+          anything is applied. Yen ships an MCP server and a skill that teaches agents to use it. ${doc "/agents/mcp/"}
         - **Just Nix.** A few files of Nix builtins, no dependencies. Every page of the docs is a tested example.
-
-        ## Sponsor this work
-
-        Formal methods for reproducible infrastructure is new ground, and Yen is built in the open, with every
-        capability tested. If your fleet, your team or your agents would gain from it, please
-        [sponsor vic](https://dendritic.oeiuwq.com/sponsor). Sponsorship keeps this work going.
 
         ## Try it
 
-        Read ${link "A fleet on one page" "/start/one-page-fleet/"}: three hosts, a rule across machines, and an agent's
-        change that Yen refuses. Then the ${link "documentation" "/"}.
+        ```sh
+        nix flake init -t github:vic/yen#one-page-fleet
+        ```
+
+        Then read ${link "A fleet on one page" "/start/one-page-fleet/"} and the ${link "documentation" "/"}.
+
+        ## Sponsor
 
         Yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
+        It brings formal verification to reproducible Nix fleets: your rules across machines, decided and proved before
+        you deploy, so that big fleets stay correct as they grow. If Yen helps
+        your homelab, your team or your agents, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor).
         Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
       ''
     ];
