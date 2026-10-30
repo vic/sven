@@ -29,6 +29,26 @@ yen.aspects.postgres = {
 
 No host file lists its features: the data decides. Add a host and it gets everything it should.
 
+## A rule across machines
+
+Some mistakes live between machines: no single host can see them. Say once that a host's database lives in its own
+environment:
+
+```nix
+yen.invariants.db-same-env = [{
+  head = [ "bad" "db-other-env" (v "H") ];
+  pos = [
+    [ "ref" "db" (v "H") "host" (v "N") ]       # H uses the host named N as its database
+    [ "instance" (v "D") "host" (v "N") ]      # D is that host
+    [ "ref" "env" (v "H") "env" (v "E") ]      # H lives in environment E
+  ];
+  neg = [ [ "ref" "env" (v "D") "env" (v "E") ] ];  # and D does not
+}];
+```
+
+A lab host that points at the prod database gives `[ "bad" "db-other-env" "fleet:main/env:lab/host:api" ]`, and
+the fleet builds nothing until it is fixed.
+
 ## Why Yen
 
 - **Four words.** Kinds, scopes, aspects, sinks. Your own nouns, typed; a tree built from your data; features
@@ -58,7 +78,8 @@ Then read [A fleet on one page](https://yen.oeiuwq.com/start/one-page-fleet/) an
 ## Sponsor
 
 Yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
-It brings formal methods to reproducible Nix fleets, so that big fleets stay correct as they grow. If Yen helps
+It brings formal verification to reproducible Nix fleets: your rules across machines, decided and proved before
+you deploy, so that big fleets stay correct as they grow. If Yen helps
 your homelab, your team or your agents, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor).
 Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
