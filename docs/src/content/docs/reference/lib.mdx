@@ -21,8 +21,10 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.agent` | `result -> agent` | the summary of an eval result for an agent: counts, check, schema, errors, undefined |
 | `lib.allowed` | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
 | `lib.asOf` | `{ url; rev; module; } -> result` | the fleet at a git revision |
+| `lib.attrsOf` | `type -> type` | an attrset whose values pass the type |
 | `lib.derive` | `type -> (instance -> value) -> type` | the type, with a default computed from the instance itself |
 | `lib.diffData` | `data -> data -> [ { path; old; new; } ]` | the field changes between two data answers, sorted by path |
+| `lib.enum` | `[ value ] -> type` | one of the listed values |
 | `lib.eval` | `module -> result` | evaluate a fleet module; the result answers every query |
 | `lib.grant` | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
 | `lib.history` | `{ url; revs; module; } -> [ { rev; errors; scopes; changes; } ]` | the fleet at each revision, with the field changes from the one before |
