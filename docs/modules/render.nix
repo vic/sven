@@ -24,9 +24,6 @@ let
       )
     ); # continuation lines only
   attr = v: lib.replaceStrings [ "\"" ] [ "&quot;" ] v;
-  node = id: "n${builtins.substring 0 10 (builtins.hashString "md5" id)}";
-  q = l: ''"${lib.replaceStrings [ "\"" ] [ "'" ] l}"'';
-  parentOf = id: lib.concatStringsSep "/" (lib.init (lib.splitString "/" id));
   # every file of a template, as Starlight's FileTree list
   treeOf =
     dir: pre:
@@ -109,27 +106,13 @@ let
     scopes =
       r:
       mermaid (
-        lib.concatStringsSep "\n" (
-          [ "flowchart TD" ]
-          ++ map (s: "  ${node s.id}[${q "${s.kind} ${s.name}"}]") r.graph.scopes
-          ++ map (s: "  ${node (parentOf s.id)} --> ${node s.id}") (
-            lib.filter (s: lib.hasInfix "/" s.id) r.graph.scopes
-          )
-        )
+        yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (yen.lib.batteries.mermaid.scopes r.graph)
       );
     # routed elements: who gives what to whom (an element given at its own scope is a loop, left out)
     routes =
       r:
       mermaid (
-        lib.concatStringsSep "\n" (
-          [ "flowchart BT" ]
-          ++ map (s: "  ${node s.id}[${q "${s.kind} ${s.name}"}]") r.graph.scopes
-          ++ lib.unique (
-            map (e: "  ${node e.from} -->|${e.sink}| ${node e.to}") (
-              lib.filter (e: e.from != e.to) r.graph.edges
-            )
-          )
-        )
+        yen.lib.batteries.mermaid.flowchart { direction = "BT"; } (yen.lib.batteries.mermaid.routes r.graph)
       );
     fleet =
       path: line: label:

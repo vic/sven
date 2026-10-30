@@ -549,7 +549,7 @@ bash tests/cost.sh                                # PASS aspect-ref-memo, PASS r
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 28 kinds, 187 aspects, 983 routed elements.
+Generated from the fleet's queries: 87 scopes, 28 kinds, 193 aspects, 990 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
 | `backup` |  |  | `nixos` | 3 |
@@ -575,7 +575,7 @@ Generated from the fleet's queries: 87 scopes, 28 kinds, 187 aspects, 983 routed
 | `region` | `zone` |  |  | 0 |
 | `replica` | `db`, `region` |  |  | 1 |
 | `secret` | `sopsKey` |  |  | 3 |
-| `system` |  | `vim` | `checks`, `devshell`, `files`, `git-hooks`, `no-gui`, `packages`, `treefmt` | 3 |
+| `system` |  | `vim` | `checks`, `devshell`, `files`, `git-hooks`, `no-gui`, `packages`, `readme`, `treefmt` | 3 |
 | `toy` | `of` |  |  | 2 |
 | `user` | `classes`, `groups`, `phone`, `shell` |  | `account`, `age-secrets`, `both`, `git`, `hmvals`, `homeDarwin`, `homeLinux`, `homeManager`, `maid`, `secrets` | 13 |
 | `variant` | `of` |  | `nixos` | 1 |
@@ -909,6 +909,7 @@ flowchart LR
   n24ae98cb28("platform")
   n70818b36fd("port-forwards")
   n44ee9b93c9("public-reads")
+  n0a126f32d2("readme")
   n93bdf79f40("records")
   nf995268350("replicate-home")
   n9577e49d40("route-claims")
@@ -1280,6 +1281,7 @@ flowchart LR
 | `platform` | host | host | 9 |
 | `port-forwards` | host | environment | 1 |
 | `public-reads` | host, mac | fleet | 10 |
+| `readme` | system | system | 7 |
 | `records` | guest, host, mac | fleet | 11 |
 | `replicate-home` | user | fleet | 9 |
 | `route-claims` | host | fleet | 1 |

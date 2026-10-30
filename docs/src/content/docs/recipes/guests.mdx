@@ -99,9 +99,9 @@ flowchart BT
   ne5e52c6869["host box"]
   n6ce2a3fe4d["guest db"]
   n0e5c840457["guest web"]
-  ne5e52c6869 -->|out| n6c4c773b6d
-  n6ce2a3fe4d -->|nixos| ne5e52c6869
-  n0e5c840457 -->|nixos| ne5e52c6869
+  ne5e52c6869 -->|"out"| n6c4c773b6d
+  n6ce2a3fe4d -->|"nixos"| ne5e52c6869
+  n0e5c840457 -->|"nixos"| ne5e52c6869
 ```
 
 `nginx` runs in the `web` container. The host `box` does not get it: the element went to `web`'s own sink.

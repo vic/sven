@@ -281,7 +281,101 @@ let
     )
   ];
 
+  mm = bat.mermaid;
+  # one view: a group around a node, a shaped node, a dashed labelled edge, a quote in a label
+  mmText =
+    mm.flowchart
+      {
+        shapes = with mm.shapes; {
+          db = cylinder;
+        };
+      }
+      {
+        nodes = [
+          {
+            id = "g";
+            label = "env";
+          }
+          {
+            id = "a";
+            label = "say \"hi\"";
+            group = "g";
+          }
+          {
+            id = "d";
+            label = "store";
+            kind = "db";
+          }
+        ];
+        edges = [
+          {
+            from = "a";
+            to = "d";
+            label = "writes";
+            live = false;
+          }
+        ];
+      };
+  nid = id: "n${b.substring 0 10 (b.hashString "md5" id)}";
+  scopesV = mm.scopes usersR.graph;
+  routesV = mm.routes usersR.graph;
+
+  # files.document: the texts of an ordered sink, joined, as one repo file
+  docR = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.doc.reduce = bat.ordered;
+        yen.aspects.doc = {
+          at = yen.box.a;
+          sys = bat.files.document {
+            from = yen.kinds.box.sinks.doc;
+            path = "README.md";
+          };
+        };
+        yen.aspects.d1 = {
+          at = yen.box.a;
+          doc = {
+            name = "end";
+            after = [ "top" ];
+            value = "b";
+          };
+        };
+        yen.aspects.d2 = {
+          at = yen.person.p;
+          doc = {
+            name = "top";
+            value = "a";
+          };
+        };
+      }
+    )
+  ];
+
   checks = {
+    files-document = docR.flake.sys.a == [ { files.file."README.md".text = "a\nb"; } ];
+    mermaid-flowchart =
+      mmText == b.concatStringsSep "\n" [
+        "flowchart LR"
+        "  subgraph ${nid "g"} [\"env\"]"
+        "    ${nid "a"}[\"say 'hi'\"]"
+        "  end"
+        "  ${nid "d"}[(\"store\")]"
+        "  ${nid "a"} -.->|\"writes\"| ${nid "d"}"
+      ];
+    mermaid-scopes =
+      b.length scopesV.nodes == b.length usersR.graph.scopes
+      && b.elem {
+        from = "top:t";
+        to = "top:t/box:a";
+      } scopesV.edges;
+    mermaid-routes =
+      b.all (e: e.from != e.to) routesV.edges
+      && b.elem {
+        from = "top:t/box:a/person:p";
+        to = "top:t/box:a";
+        label = "sys";
+      } routesV.edges;
     eval-modules =
       evalR.flake.sys.a == [
         {

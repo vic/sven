@@ -64,15 +64,7 @@ in
         if hit == [ ] then "touch $out" else "echo 'gui on ${h}: ${toString hit}'; exit 1"
       );
     mermaid =
-      g:
-      let
-        n = id: "s${builtins.hashString "md5" id}[\"${id}\"]";
-      in
-      lib.concatLines (
-        [ "flowchart TD" ]
-        ++ map (s: "  ${n s.id}") g.scopes
-        ++ map (e: "  ${n e.from} -->|${e.sink}| ${n e.to}") (lib.filter (e: e.from != e.to) g.edges)
-      );
+      g: yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (yen.lib.batteries.mermaid.routes g);
     ids = lib.listToAttrs (
       lib.imap0 (i: n: lib.nameValuePair n i) (
         lib.sort (a: b: a < b) (

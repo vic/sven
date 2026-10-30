@@ -15,6 +15,7 @@ in
 {
   nixos = import ./nixos.nix;
   files = import ./files.nix;
+  mermaid = import ./mermaid.nix;
 
   # the modules of sink `from` and `modules`, evaluated with `lib.evalModules`: any module system (NixOS options,
   # flake-parts, sini/files). `result` turns the evaluation into the value, `config` by default.
