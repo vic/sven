@@ -83,9 +83,13 @@ const firstHref = (sidebar: SidebarEntry[]): string | undefined =>
 		font-weight: 700;
 	}
 
-	/** Always show the scrollbar gutter. */
+	/* Scroll when needed, with no visible scrollbar: the gutter was forced on before. */
 	:global(.sidebar-pane) {
-		overflow-y: scroll;
+		overflow-y: auto;
+		scrollbar-width: none;
+	}
+	:global(.sidebar-pane::-webkit-scrollbar) {
+		display: none;
 	}
 
 	/* The accordion keeps the tab switcher look: one framed list, each section a tab item. */
