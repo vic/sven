@@ -1,0 +1,22 @@
+{
+  description = "yen: deploy and infrastructure batteries";
+
+  outputs =
+    inputs:
+    inputs.yen.lib.mkFlake {
+      imports = [ (inputs.import-tree ./modules) ];
+      _module.args = {
+        inherit inputs;
+        inherit (inputs.nixpkgs) lib;
+      };
+    };
+
+  inputs = {
+    yen.url = "github:vic/yen";
+    import-tree.url = "github:denful/import-tree";
+    nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
+    colmena.url = "github:zhaofengli/colmena";
+    deploy-rs.url = "github:serokell/deploy-rs";
+    terranix.url = "github:terranix/terranix";
+  };
+}
