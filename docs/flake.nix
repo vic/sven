@@ -52,8 +52,8 @@
     };
     import-tree.url = "github:denful/import-tree";
     fastest = {
-       url = "github:denful/fastest"; # the parallel test runner: every suite is tests.<suite>.<test> = { expr; expected; } (its own nixpkgs: it builds there)
-       inputs.nixpkgs.follows = "nixpkgs-unstable";
+      url = "github:denful/fastest"; # the parallel test runner: every suite is tests.<suite>.<test> = { expr; expected; } (its own nixpkgs: it builds there)
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin/nix-darwin-25.05";

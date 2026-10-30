@@ -109,10 +109,11 @@ A change to the engine also needs a test in `tests/default.nix`. Keep the engine
 |---|---|---|
 | `ci` | ci | run the CI stages locally, in order: fmt, engine, docs, fleet (fleet-check and the per-arch evals not included) |
 | `test-all` | ci | every *-test command: engine, docs, fleet (no e2e, no cost) |
-| `fastest-tests` | ci | every fastest suite at once, in parallel: engine, docs fast and e2e, fleet and e2e (FASTEST_WORKERS each, default 4) |
+| `fastest-all` | ci | every fastest suite at once, in parallel: engine, docs fast and e2e, fleet and e2e (FASTEST_WORKERS each, default 4) |
 | `check-all` | ci | every *-check command: fmt, docs, fleet |
 | `docs-write` | docs | write the pages and the sidebar from examples/ |
 | `docs-test` | docs | the checks of every example (fast) |
+| `docs-example` | docs | the fast checks of one example: docs-example NAME (a docs/examples/ directory) |
 | `docs-e2e` | docs | real NixOS, nix-darwin and home-manager evaluations of the examples |
 | `docs-check` | docs | nix flake check of docs/: pages and workflows current |
 | `docs-dev` | docs | the site at localhost:4321, live |
