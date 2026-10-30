@@ -51,20 +51,27 @@ the fleet builds nothing until it is fixed.
 
 ## Why Yen
 
-- **Four words.** Kinds, scopes, aspects, sinks. Your own nouns, typed; a tree built from your data; features
-  that apply where a condition holds; and a place for each piece of configuration to go.
+- **Four words.** Kinds, scopes, aspects, sinks: your own nouns, typed; a tree built from your data; features that
+  apply where a condition holds; and a place for each piece of configuration to go. <sub>[docs](https://yen.oeiuwq.com/start/overview/)</sub>
 - **Everything Den does, and more.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
-  generated files. The [migration guides](https://yen.oeiuwq.com/migrate/from-configuration-nix/) build the same systems before
-  and after, from `configuration.nix`, a flake or Den.
+  generated files. Migration guides build the same systems before and after, from `configuration.nix`, a flake or
+  Den. <sub>[docs](https://yen.oeiuwq.com/migrate/from-den/)</sub>
+- **Queried, not merged.** Each value is a query on the files that declare it. Content in many files never
+  overwrites itself, and two different answers are an error you can read. <sub>[docs](https://yen.oeiuwq.com/concepts/queried-not-merged/)</sub>
 - **Less to evaluate.** Yen itself is about 1% of a host's evaluation. One nixpkgs per system instead of one per
-  host saves about a third, with a check that proves every system is the same.
+  host saves about a third, with a check that proves every system is the same. <sub>[docs](https://yen.oeiuwq.com/perf/shared-pkgs/)</sub>
 - **Mistakes are caught early, with a fix.** A typo gets a "did you mean". Every error says where it is, what was
-  expected and how to fix it.
-- **Rules across machines.** "A host's database is in its own environment", "no two hosts share an address":
-  write it once, and a fleet that breaks it builds nothing. Each answer comes with a proof that a small checker
-  verifies.
+  expected and how to fix it. <sub>[docs](https://yen.oeiuwq.com/concepts/errors/)</sub>
+- **Ask your fleet anything.** Graphs for deploy waves, cycles and impact; Datalog with negation; stored queries
+  you name once and ask from Nix, the CLI or an agent. <sub>[docs](https://yen.oeiuwq.com/query/queries/)</sub>
+- **Values that solve themselves.** µKanren with finite domains, in pure Nix: a free port, guest memory that fits,
+  relations that run backward. <sub>[docs](https://yen.oeiuwq.com/query/krn/)</sub>
+- **Rules across machines.** Write a rule once, and a fleet that breaks it builds nothing. Each verdict comes with
+  a proof that a small checker verifies, and a seal anyone can check again. <sub>[docs](https://yen.oeiuwq.com/query/invariants/)</sub>
+- **Time and impact.** What a host's elements reach, the fleet without one declaration, instances valid at a
+  date. <sub>[docs](https://yen.oeiuwq.com/agents/history/)</sub>
 - **Ready for agents.** An AI agent can ask about your fleet, stage a change and see why it is refused, before
-  anything is applied. Yen ships an MCP server and a skill that teaches agents to use it.
+  anything is applied. Yen ships an MCP server and a skill that teaches agents to use it. <sub>[docs](https://yen.oeiuwq.com/agents/mcp/)</sub>
 - **Just Nix.** A few files of Nix builtins, no dependencies. Every page of the docs is a tested example.
 
 ## Try it
