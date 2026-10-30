@@ -98,20 +98,13 @@ in
         Datalog facts describe invariants about your fleet. For example, you can state that a web server and its database
         must be in the same region or environment.
 
-        ```nix
-        # `facts.host` and `host.region` were derived here by Yen,
-        # it follows your own domain definitions.
-        let inherit (yen.facts.host); in
-        yen.invariants.db-same-region = { H, D, R }: {
-          bad = H;
-          pos = [ (host.db H D) (host.region H R) ];  # H uses D as its database, and lives in region R
-          neg = [ (host.region D R) ];                # and D does not
-        };
-        ```
+      ''
+      (docs.file "variants/region.nix")
+      ''
 
-        Fields, aspects and variables are references, not strings: a typo is an evaluation error. A lab host that points at
-        the prod database gives `[ "bad" "db-same-region" "fleet:main/region:eu/host:api" ]`, and the fleet builds nothing until
-        it is fixed.
+        Fields, aspects and variables are references, not strings: a typo is an evaluation error. An `api` host in region `eu`
+        that points at a database in `us` gives `[ "bad" "db-same-region" "fleet:main/region:eu/host:api" ]`, and the fleet
+        builds nothing until it is fixed.
 
         ## Answers come with a reason
 
@@ -143,7 +136,7 @@ in
         `yen.lib.krn` finds values that fit your constraints, and a relation can run backward.
       ''
       (docs.file "variants/ports.nix")
-      (docs.value (variant "variants/ports.nix").reduced.out."fleet:main".ports)
+      (docs.value (variant "variants/ports.nix").reduced.greetings."world:earth".ports)
       ''
         `first` is one answer, and `count` is every answer.
 
@@ -235,11 +228,13 @@ in
       result,
       variant,
       eq,
+      lib,
       ...
     }:
     let
       inv = (variant "variants/invariant.nix").check;
-      p = (variant "variants/ports.nix").reduced.out."fleet:main".ports;
+      p = (variant "variants/ports.nix").reduced.greetings."world:earth".ports;
+      cmd = "nix run github:vic/yen?dir=mcp";
     in
     {
       result = eq result.flake (import ./result.nix);
@@ -271,6 +266,17 @@ in
             ]);
       };
       ports-errors = eq ((variant "variants/ports.nix").errors) ([ ]);
+      region = eq ((variant "variants/region.nix").check.violations) ([
+        [
+          "bad"
+          "db-same-region"
+          "fleet:main/region:eu/host:api"
+        ]
+      ]);
+      mcp-run-line = {
+        flake = eq (lib.hasInfix cmd (builtins.readFile ../../../mcp/flake.nix)) true;
+        skill = eq (lib.hasInfix cmd (builtins.readFile ../../../.claude/skills/yen-mcp/SKILL.md)) true;
+      };
       ports = {
         first = eq (p.first) ([
           {

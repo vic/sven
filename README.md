@@ -131,20 +131,213 @@ or compute a VM's memory so it takes only a percentage of its host.
 Datalog facts describe invariants about your fleet. For example, you can state that a web server and its database
 must be in the same region or environment.
 
-```nix
+
+
+```nix title="variants/region.nix"
 # `facts.host` and `host.region` were derived here by Yen,
 # it follows your own domain definitions.
-let inherit (yen.facts.host); in
-yen.invariants.db-same-region = { H, D, R }: {
-  bad = H;
-  pos = [ (host.db H D) (host.region H R) ];  # H uses D as its database, and lives in region R
-  neg = [ (host.region D R) ];                # and D does not
-};
+{ yen, ... }:
+let
+  inherit (yen.lib) maybe same;
+  inherit (yen.facts) host;
+in
+{
+  yen.fleet.main = { };
+  yen.kinds.fleet.spawns.region = _: yen.region;
+  yen.kinds.region.spawns.host =
+    s:
+    builtins.removeAttrs yen.host (
+      builtins.filter (n: !same yen.host.${n}.region s) (builtins.attrNames yen.host)
+    );
+  yen.kinds.host.fields = {
+    region = yen.kinds.region;
+    db = maybe yen.kinds.host;
+  };
+
+  yen.region.eu = { };
+  yen.region.us = { };
+  yen.host.db.region = yen.region.us;
+  yen.host.api = {
+    region = yen.region.eu;
+    db = yen.host.db;
+  };
+
+  yen.invariants.db-same-region =
+    {
+      H,
+      D,
+      R,
+    }:
+    {
+      bad = H;
+      pos = [
+        (host.db H D)
+        (host.region H R)
+      ]; # H uses D as its database, and lives in region R
+      neg = [ (host.region D R) ]; # and D does not
+    };
+}
 ```
 
-Fields, aspects and variables are references, not strings: a typo is an evaluation error. A lab host that points at
-the prod database gives `[ "bad" "db-same-region" "fleet:main/region:eu/host:api" ]`, and the fleet builds nothing until
-it is fixed.
+
+Fields, aspects and variables are references, not strings: a typo is an evaluation error. An `api` host in region `eu`
+that points at a database in `us` gives `[ "bad" "db-same-region" "fleet:main/region:eu/host:api" ]`, and the fleet
+builds nothing until it is fixed.
+
+## Answers come with a reason
+
+Logic questions about your fleet get answers you can read. `result.check.why` gives the rules that make a violation
+true. `result.check.whyNot` works the other way. For an atom that is not true, it gives each rule with that head, and
+the body atoms that stop it. For an atom that is true, it gives nothing.
+
+
+```nix title="variants/invariant.nix"
+# Two servers and one rule. The desktop runs on `web`, so `web` breaks the rule and `db` does not.
+{ yen, ... }:
+let
+  inherit (yen.facts) host has;
+in
+{
+  yen.fleet.main = { };
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host.fields.form = yen.lib.is (v: v == "server" || v == "laptop");
+  yen.host.web.form = "server";
+  yen.host.db.form = "server";
+  yen.aspects.desktop.at = yen.host.web;
+
+  # no server runs a desktop
+  yen.invariants.no-desktop-on-servers =
+    { H }:
+    {
+      bad = H;
+      pos = [
+        (host.form H "server")
+        (has yen.aspects.desktop H)
+      ];
+    };
+}
+```
+
+
+Here `web` breaks the rule, and `db` does not. The violation for `web`:
+
+
+```nix title="result"
+[
+  [
+    "bad"
+    "no-desktop-on-servers"
+    "fleet:main/host:web"
+  ]
+]
+```
+
+`whyNot` for `db` says that no rule has this head. The desktop aspect is only active at `web`, so the rule
+is not even a candidate at `db`.
+
+
+```nix title="result"
+[
+  {
+    reason = "no rule has this head";
+    rule = null;
+  }
+]
+```
+
+
+## Values from constraints
+
+`yen.lib.krn` finds values that fit your constraints, and a relation can run backward.
+
+
+```nix title="variants/ports.nix"
+# µKanren with finite domains: give each app a port in 8080..8083, all different, prometheus before grafana.
+{ yen, ... }:
+let
+  inherit (yen.lib.krn)
+    run
+    runAll
+    freshNamed
+    infd
+    distinctfd
+    ltfd
+    eq
+    label
+    ;
+  ports =
+    apps: q:
+    freshNamed apps (vs: [
+      (infd (builtins.attrValues vs) 8080 8083)
+      (distinctfd (builtins.attrValues vs))
+      (ltfd vs.prometheus vs.grafana)
+      (eq q vs)
+      (label (builtins.attrValues vs))
+    ]);
+  lb.scopesOf = yen.host.lb; # a tree request: lb, with its data
+in
+{
+  yen.kinds.world.spawns.host = _: yen.host;
+  yen.kinds.host.fields.apps = yen.lib.is (v: builtins.isList v && builtins.all builtins.isString v);
+  yen.host.lb.apps = [
+    "grafana"
+    "loki"
+    "prometheus"
+  ];
+
+  yen.aspects.ports = {
+    at = yen.kinds.world;
+    cycle =
+      { tree, ... }:
+      let
+        apps = (builtins.head (builtins.head (tree.select lb))).apps;
+      in
+      {
+        tree = [ lb ];
+        greetings = [
+          {
+            ports = {
+              first = run 1 (ports apps); # one answer
+              count = builtins.length (runAll (ports apps)); # every answer
+            };
+          }
+        ];
+      };
+  };
+}
+```
+
+```nix title="result"
+{
+  count = 12;
+  first = [
+    {
+      grafana = 8081;
+      loki = 8082;
+      prometheus = 8080;
+    }
+  ];
+}
+```
+
+`first` is one answer, and `count` is every answer.
+
+## Checks before a change lands
+
+Yen checks the whole fleet before a change reaches a file. A rule is a function of its variables, and it names what it
+breaks. A rule can hold across machines, so a mistake that involves two hosts gets caught too. These are easy to make in a
+homelab: a desktop on a server, or two hosts with the same address.
+
+A change is staged before it is written. `yen.lib.stage` evaluates the fleet without the change and with it. `ok` is true
+only when nothing new is wrong. A grant made with `yen.lib.grant` limits the scopes a change may reach, and a grant can only narrow.
+
+Each verdict can come with a certificate. `yen.lib.datalog.checkCertificate` is a small checker. After evaluation,
+`result.check.certified` is true when the checker accepts the certificate and it states the same verdict. `result.check.seal`
+ties the verdict to hashes of the engine, the rules and the facts, so anyone can run `result.check.verify seal` again and get
+`{ ok = true; }`.
 
 ## Agents as first-class team members
 
@@ -152,6 +345,19 @@ Everything in Yen is expressed as a query, and every answer is JSON-safe data. A
 infrastructure, and those changes are verified **before** any file is edited. Changes are staged, checked against
 invariants, limited by grants that can only narrow, and written as change programs. An MCP server answers agents and
 lets them write only verified changes. <sup>[docs](https://yen.oeiuwq.com/agents/agent-surface)</sup>
+
+## How agents check a change
+
+An agent works on a Yen fleet through the MCP server in `mcp/`. The skill in `.claude/skills/yen-mcp/SKILL.md` gives the
+order of calls. The agent reads with `yen_schema` and `yen_check`, asks with `yen_why_not` and `yen_explain`, and stages a
+change with `yen_stage` before any file is written. A fleet passes `yen_check` only when `ok` is true, with no violations,
+no `incomplete` or `opaque` atoms, and `certified` true.
+
+From the fleet's working directory, run `nix run github:vic/yen?dir=mcp`. An MCP client starts the same server with
+the arguments `[ "run" "github:vic/yen?dir=mcp" ]`.
+
+The agent can show the staged answer to a person, with its violations, its diff and its refusals. A refusal with
+`class = "authority"` is not for the agent to fix. The agent tells the owner what it wanted to change, and why.
 
 ## Errors are data
 
