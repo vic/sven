@@ -805,6 +805,116 @@ let
   ];
 
   checks = {
+    configurations =
+      bat.configurations
+        {
+          from.__sink = "m";
+          output = "xConfigurations";
+          build = s: ms: {
+            inherit (s) name;
+            inherit ms;
+          };
+        }
+        {
+          scope.name = "h";
+          sinks.m = [ "a" ];
+        } == {
+        xConfigurations.h = {
+          name = "h";
+          ms = [ "a" ];
+        };
+      };
+    darwin-system =
+      (bat.darwin.system
+        {
+          from.__sink = "d";
+          darwinSystem = m: a: a // { by = m.name; };
+          system = m: m.sys;
+        }
+        {
+          scope = {
+            name = "mac";
+            sys = "aarch64-darwin";
+          };
+          sinks.d = [ "x" ];
+        }
+      ).darwinConfigurations.mac == {
+        system = "aarch64-darwin";
+        modules = [ "x" ];
+        by = "mac";
+      };
+    darwin-primary-user =
+      (bat.darwin.primary-user { user = m: m.o; } { scope.o.name = "ana"; }).system.primaryUser == "ana"
+      && (bat.darwin.primary-user { user = _: null; } { scope = { }; }).system.primaryUser == "root";
+    darwin-homebrew =
+      (bat.darwin.homebrew { from.__sink = "b"; } {
+        sinks.b = [
+          { casks = [ "a" ]; }
+          {
+            casks = [ "a" ];
+            brews = [ "jq" ];
+            masApps.X = 1;
+          }
+        ];
+      }).homebrew == {
+        enable = true;
+        casks = [ "a" ];
+        brews = [ "jq" ];
+        masApps.X = 1;
+      };
+    home-manager-system =
+      (bat.home-manager.system
+        {
+          from.__sink = "h";
+          homeManagerConfiguration = _: a: a;
+          pkgs = h: "pkgs-${h.name}";
+        }
+        {
+          scope.name = "ana";
+          sinks.h = [ "m" ];
+        }
+      ).homeConfigurations.ana == {
+        pkgs = "pkgs-ana";
+        modules = [ "m" ];
+      };
+    home-manager-into-host =
+      bat.home-manager.into-host { from.__sink = "h"; } {
+        scope.name = "ana";
+        sinks.h = [ "m" ];
+      } == {
+        home-manager.users.ana.imports = [ "m" ];
+      };
+    droid =
+      (bat.droid.system
+        {
+          from.__sink = "d";
+          nixOnDroidConfiguration = a: a;
+          pkgs = _: "p";
+        }
+        {
+          scope.name = "pixel";
+          sinks.d = [ "m" ];
+        }
+      ).nixOnDroidConfigurations.pixel.modules == [ "m" ]
+      &&
+        bat.droid.home { from.__sink = "h"; } { sinks.h = [ "hm" ]; } == {
+          home-manager.config.imports = [ "hm" ];
+        };
+    microvm-guest =
+      bat.microvm.guest
+        {
+          from.__sink = "n";
+          pkgs = g: "p-${g.name}";
+        }
+        {
+          scope.name = "ci";
+          sinks.n = [ "m" ];
+        } == {
+        microvm.vms.ci = {
+          pkgs = "p-ci";
+          config.imports = [ "m" ];
+        };
+      };
     exports-modules =
       bat.exports.modules
         {

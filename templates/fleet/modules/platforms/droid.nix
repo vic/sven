@@ -9,18 +9,13 @@
   yen.kinds.phone = {
     fields = { inherit (yen.kinds.machine.fields) environment channel system; };
     spawns.user = _: lib.filterAttrs (_: u: u.phone) yen.user;
-    sinks.droid.out =
-      { phone, droid, ... }:
-      {
-        nixOnDroidConfigurations.${phone.name} = inputs.nix-on-droid.lib.nixOnDroidConfiguration {
-          pkgs = yen.helpers.pkgsOf phone;
-          modules = droid;
-        };
-      };
-    sinks.homeManager.droid =
-      { homeManager, ... }:
-      {
-        home-manager.config.imports = homeManager;
-      };
+    sinks.droid.out = yen.lib.batteries.droid.system {
+      from = yen.kinds.phone.sinks.droid;
+      inherit (inputs.nix-on-droid.lib) nixOnDroidConfiguration;
+      pkgs = yen.helpers.pkgsOf;
+    };
+    sinks.homeManager.droid = yen.lib.batteries.droid.home {
+      from = yen.kinds.phone.sinks.homeManager;
+    };
   };
 }

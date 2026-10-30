@@ -22,14 +22,11 @@ in
       system = yen.kinds.system;
     };
     spawns.user = s: { ${s.user.name} = s.user; };
-    sinks.homeManager.out =
-      { home, homeManager, ... }:
-      {
-        homeConfigurations.${home.name} = home.channel.home-manager.lib.homeManagerConfiguration {
-          pkgs = pkgsOf home;
-          modules = homeManager;
-        };
-      };
+    sinks.homeManager.out = yen.lib.batteries.home-manager.system {
+      from = yen.kinds.home.sinks.homeManager;
+      homeManagerConfiguration = h: h.channel.home-manager.lib.homeManagerConfiguration;
+      pkgs = pkgsOf;
+    };
   };
   yen.kinds.user = {
     fields = {
@@ -42,11 +39,7 @@ in
           (within machines)
           (not (within yen.kinds.home))
         ];
-        os =
-          { user, homeManager, ... }:
-          {
-            home-manager.users.${user.name}.imports = homeManager;
-          };
+        os = yen.lib.batteries.home-manager.into-host { from = yen.kinds.user.sinks.homeManager; };
       };
       homeDarwin = {
         at = within yen.kinds.mac;

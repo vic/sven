@@ -19,4 +19,9 @@
   cachix = import ./cachix;
   secretspec = import ./secretspec;
   exports = import ./exports;
+  configurations = import ./configurations.nix;
+  darwin = import ./darwin;
+  home-manager = import ./home-manager;
+  droid = import ./droid;
+  microvm = import ./microvm;
 }
