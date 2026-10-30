@@ -14,15 +14,10 @@ in
       hosts = yen.helpers.listOf yen.kinds.host;
       ingestUrl = maybe lib.types.str;
     };
-    sinks.k8s-manifests.out =
-      { cluster, sinks, ... }:
-      {
-        k8sManifests.${cluster.name} = yen.lib.batteries.eval-modules {
-          from = yen.kinds.cluster.sinks.k8s-manifests;
-          inherit lib;
-          modules = [ { freeformType = lib.types.attrsOf lib.types.anything; } ];
-        } { inherit sinks; };
-      };
+    sinks.k8s-manifests.out = yen.lib.batteries.k8s.manifests {
+      from = yen.kinds.cluster.sinks.k8s-manifests;
+      inherit lib;
+    };
   };
   yen.cluster.axon = {
     environment = yen.environment.prod;

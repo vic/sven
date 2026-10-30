@@ -24,4 +24,12 @@
   home-manager = import ./home-manager;
   droid = import ./droid;
   microvm = import ./microvm;
+  imports = import ./imports.nix;
+  deploy = import ./deploy;
+  secrets = import ./secrets;
+  k8s = import ./k8s;
+  terranix = import ./terranix;
+  editors = import ./editors;
+  ai = import ./ai;
+  distributed = import ./distributed;
 }

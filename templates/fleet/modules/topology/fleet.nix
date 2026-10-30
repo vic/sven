@@ -28,13 +28,11 @@ in
       };
       colmena = {
         reduce = merge;
-        out =
-          { colmena, ... }:
-          {
-            colmenaHive = inputs.colmena.lib.makeHive (
-              { meta.nixpkgs = inputs.nixpkgs.legacyPackages.x86_64-linux; } // colmena
-            );
-          };
+        out = yen.lib.batteries.deploy.colmena {
+          from = yen.kinds.fleet.sinks.colmena;
+          inherit (inputs.colmena.lib) makeHive;
+          meta.nixpkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+        };
       };
       overlays = { }; # machines read it
       records = {

@@ -805,6 +805,118 @@ let
   ];
 
   checks = {
+    imports-battery =
+      bat.imports { from.__sink = "s"; } { sinks.s = [ "m" ]; } == { imports = [ "m" ]; };
+    deploy-colmena =
+      bat.deploy.colmena {
+        from.__sink = "c";
+        makeHive = h: h;
+        meta.nixpkgs = "p";
+      } { sinks.c.lb = "m"; } == {
+        colmenaHive = {
+          meta.nixpkgs = "p";
+          lb = "m";
+        };
+      };
+    deploy-rs =
+      (bat.deploy.deploy-rs {
+        configurations.lb = "C";
+        hostname = n: _: "${n}.lan";
+        activate = _: c: "act-${c}";
+      }).deploy.nodes.lb == {
+        hostname = "lb.lan";
+        profiles.system = {
+          user = "root";
+          sshUser = "root";
+          path = "act-C";
+        };
+      };
+    secrets-sops-config =
+      bat.secrets.sops-config { from.__sink = "r"; } {
+        sinks.r = [
+          {
+            path_regex = "a";
+            age = "k";
+          }
+        ];
+      } == {
+        files.file.".sops.yaml".text =
+          "\"creation_rules\":\n  -\n    \"age\": \"k\"\n    \"path_regex\": \"a\"\n";
+      };
+    terranix-configuration =
+      (bat.terranix.configuration
+        {
+          from.__sink = "t";
+          terranixConfiguration = a: a;
+          system = "sx";
+          name = _: "dns";
+        }
+        {
+          scope.name = "prod";
+          sinks.t = [ "m" ];
+        }
+      ).terraformConfigurations.dns == {
+        system = "sx";
+        modules = [ "m" ];
+      };
+    editors-vscode =
+      (bat.editors.vscode { from.__sink = "v"; } {
+        sinks.v = [
+          {
+            extensions = [ "nix" ];
+            settings.a = 1;
+          }
+          {
+            extensions = [
+              "nix"
+              "go"
+            ];
+            settings.b = 2;
+          }
+        ];
+      }).programs.vscode.profiles.default == {
+        extensions = [
+          "nix"
+          "go"
+        ];
+        userSettings = {
+          a = 1;
+          b = 2;
+        };
+      };
+    editors-zed =
+      (bat.editors.zed { from.__sink = "z"; } { sinks.z = [ { extensions = [ "nix" ]; } ]; })
+      .programs.zed-editor.extensions == [ "nix" ];
+    ai-extensions =
+      bat.ai.extensions
+        {
+          from.__sink = "x";
+          types = [ "mcp" ];
+          build = map (e: e.name);
+        }
+        {
+          sinks.x = [
+            {
+              type = "mcp";
+              name = "gh";
+            }
+            {
+              type = "skill";
+              name = "s";
+            }
+          ];
+        } == [ "gh" ];
+    ai-skills = map (s: s.name) (bat.ai.skills ./fixtures/skills) == [ "review" ];
+    distributed-nodes =
+      bat.distributed.nodes { from.__sink = "n"; } {
+        scope.name = "web";
+        sinks.n = [
+          { value.web = "m1"; }
+          { value.db = "m2"; }
+        ];
+      } == {
+        imports = [ "m1" ];
+      };
     configurations =
       bat.configurations
         {

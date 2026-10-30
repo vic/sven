@@ -1,21 +1,15 @@
 # age-secrets: one sink name on three kinds. A body that reads `config` is a module element. Unfree names collapse in a set.
 { yen, lib, ... }:
 {
-  yen.kinds.user.sinks.age-secrets.homeManager =
-    { age-secrets, ... }:
-    {
-      imports = age-secrets;
-    };
-  yen.kinds.cluster.sinks.age-secrets.k8s-manifests =
-    { age-secrets, ... }:
-    {
-      imports = age-secrets;
-    };
-  yen.kinds.host.sinks.age-secrets.nixos =
-    { age-secrets, ... }:
-    {
-      imports = age-secrets;
-    };
+  yen.kinds.user.sinks.age-secrets.homeManager = yen.lib.batteries.imports {
+    from = yen.kinds.user.sinks.age-secrets;
+  };
+  yen.kinds.cluster.sinks.age-secrets.k8s-manifests = yen.lib.batteries.imports {
+    from = yen.kinds.cluster.sinks.age-secrets;
+  };
+  yen.kinds.host.sinks.age-secrets.nixos = yen.lib.batteries.imports {
+    from = yen.kinds.host.sinks.age-secrets;
+  };
   yen.aspects.attic = {
     at = yen.host.lb;
     age-secrets =

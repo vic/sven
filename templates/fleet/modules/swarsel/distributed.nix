@@ -14,11 +14,7 @@
   };
   yen.aspects.nodes = {
     at = yen.kinds.host;
-    nixos =
-      { host, nodes, ... }:
-      {
-        imports = lib.concatMap (e: lib.optional (e.value ? ${host.name}) e.value.${host.name}) nodes;
-      };
+    nixos = yen.lib.batteries.distributed.nodes { from = yen.kinds.fleet.sinks.nodes; };
   };
   yen.aspects.globals-addr = {
     at = yen.lib.all [

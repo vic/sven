@@ -29,14 +29,12 @@ in
     sinks.terraform = {
       # a conditional receiver
       at = s: s.edge;
-      out =
-        { terraform, ... }:
-        {
-          terraformConfigurations.dns = inputs.terranix.lib.terranixConfiguration {
-            system = "x86_64-linux";
-            modules = terraform;
-          };
-        };
+      out = yen.lib.batteries.terranix.configuration {
+        from = yen.kinds.environment.sinks.terraform;
+        inherit (inputs.terranix.lib) terranixConfiguration;
+        system = "x86_64-linux";
+        name = _: "dns";
+      };
     };
   };
   yen.environment.prod = {
