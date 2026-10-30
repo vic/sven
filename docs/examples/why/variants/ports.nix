@@ -23,11 +23,7 @@ let
   lb.scopesOf = yen.host.lb; # a tree request: lb, with its data
 in
 {
-  yen.fleet.main = { };
-  yen.kinds.fleet = {
-    spawns.host = _: yen.host;
-    sinks.out.reduce = yen.lib.reduce.merge;
-  };
+  yen.kinds.world.spawns.host = _: yen.host;
   yen.kinds.host.fields.apps = yen.lib.is (v: builtins.isList v && builtins.all builtins.isString v);
   yen.host.lb.apps = [
     "grafana"
@@ -36,7 +32,7 @@ in
   ];
 
   yen.aspects.ports = {
-    at = yen.kinds.fleet;
+    at = yen.kinds.world;
     cycle =
       { tree, ... }:
       let
@@ -44,7 +40,7 @@ in
       in
       {
         tree = [ lb ];
-        out = [
+        greetings = [
           {
             ports = {
               first = run 1 (ports apps); # one answer

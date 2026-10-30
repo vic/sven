@@ -33,8 +33,10 @@ let
   kits = yen.lib.batteries.kits;
   inherit (yen.lib) opt holds same;
   attrs = yen.lib.is lib.isAttrs;
-  assemblies = lib.attrValues yen.assembly;
-  machines = lib.attrValues yen.machine;
+  assemblies = lib.attrValues yen.assembly; # spawns read data
+  # tree requests: every assembly and machine, with their data
+  allAssemblies.instances = yen.kinds.assembly;
+  allMachines.instances = yen.kinds.machine;
 in
 {
   yen.kinds.fleet = {
@@ -101,7 +103,21 @@ in
   yen.aspects = {
     contract = {
       at = yen.kinds.fleet;
-      errors = kits.contract { inherit assemblies machines holds; };
+      cycle =
+        { tree, ... }:
+        {
+          tree = [
+            allAssemblies
+            allMachines
+          ];
+          errors = [
+            (kits.contract {
+              assemblies = lib.head (tree.select allAssemblies);
+              machines = lib.head (tree.select allMachines);
+              inherit holds;
+            })
+          ];
+        };
     };
     settings-typed = {
       at = yen.kinds.member;

@@ -45,8 +45,9 @@ in
 { yen, lib, ... }:
 let
   D = yen.lib.datalog;
-  hosts = lib.attrValues yen.host;
+  all.instances = yen.kinds.host; # a tree request: every host, with its data
   rules =
+    hosts:
     lib.concatMap (
       h:
       let
@@ -77,18 +78,30 @@ let
         neg = [ "primary:db-1" ];
       }
     ];
-  model = D.wfs rules;
 in
 {
   yen.aspects.serving = {
     at = yen.kinds.fleet;
-    out.serving = {
-      serves = map (lib.removePrefix "serves:") (lib.filter (lib.hasPrefix "serves:") model.true);
-      undefined = model.undefined; # well-founded: the choice stays open
-      choices = map (m: lib.filter (lib.hasPrefix "primary:") m) (D.stable rules); # stable models: each choice
-      whyNot = D.whyNot rules model "serves:web-2";
-      proof = D.proof rules model "serves:web-1";
-    };
+    cycle =
+      { tree, ... }:
+      let
+        rs = rules (lib.head (tree.select all));
+        model = D.wfs rs;
+      in
+      {
+        tree = [ all ];
+        out = [
+          {
+            serving = {
+              serves = map (lib.removePrefix "serves:") (lib.filter (lib.hasPrefix "serves:") model.true);
+              undefined = model.undefined; # well-founded: the choice stays open
+              choices = map (m: lib.filter (lib.hasPrefix "primary:") m) (D.stable rs); # stable models: each choice
+              whyNot = D.whyNot rs model "serves:web-2";
+              proof = D.proof rs model "serves:web-1";
+            };
+          }
+        ];
+      };
   };
 }
 ```

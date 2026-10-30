@@ -1,6 +1,7 @@
 # yen oracles. Run: nix-instantiate --eval --strict vic/tests -A failed   (expect [ ])
 let
   yen = (import ../default.nix).lib;
+  impactOf = (import ../lib/impact.nix).impactOf;
   b = builtins;
   # a fastest test: { expr; expected; }
   eq = expr: expected: { inherit expr expected; };
@@ -3377,5 +3378,139 @@ in
     krn = (import ./krn.nix).tests;
     shacl = (import ./shacl.nix).tests;
     batteries = (import ./batteries.nix).tests;
+    impact-of = {
+      # chain A -> B.s -> C.t
+      t1 =
+        eq
+          (impactOf {
+            edges = [
+              {
+                to = "B";
+                sink = "s";
+                reads = [ "d:A" ];
+              }
+              {
+                to = "C";
+                sink = "t";
+                reads = [ "k:s@B" ];
+              }
+            ];
+            seeds = [ "d:A" ];
+            children = { };
+          })
+          {
+            tokens = [
+              "d:A"
+              "k:s@B"
+              "k:t@C"
+            ];
+            scopes = [
+              "A"
+              "B"
+              "C"
+            ];
+          };
+      # negative control: nothing reads Z, so B and C stay clean
+      t2 =
+        eq
+          (impactOf {
+            edges = [
+              {
+                to = "B";
+                sink = "s";
+                reads = [ "d:A" ];
+              }
+              {
+                to = "C";
+                sink = "t";
+                reads = [ "k:s@B" ];
+              }
+            ];
+            seeds = [ "d:Z" ];
+            children = { };
+          })
+          {
+            tokens = [ "d:Z" ];
+            scopes = [ "Z" ];
+          };
+      # P2: a dirty scope dirties its children
+      t3 =
+        eq
+          (impactOf {
+            edges = [ ];
+            seeds = [ "d:A" ];
+            children = {
+              A = [
+                "A/x"
+                "A/y"
+              ];
+            };
+          })
+          {
+            tokens = [
+              "d:A"
+              "d:A/x"
+              "d:A/y"
+            ];
+            scopes = [
+              "A"
+              "A/x"
+              "A/y"
+            ];
+          };
+      # a self-loop terminates
+      t4 =
+        eq
+          (impactOf {
+            edges = [
+              {
+                to = "B";
+                sink = "s";
+                reads = [ "k:s@B" ];
+              }
+            ];
+            seeds = [ "k:s@B" ];
+            children = { };
+          })
+          {
+            tokens = [ "k:s@B" ];
+            scopes = [ "B" ];
+          };
+      t5 =
+        eq
+          (impactOf {
+            edges = [ ];
+            seeds = [ ];
+            children = { };
+          })
+          {
+            tokens = [ ];
+            scopes = [ ];
+          };
+      # scope ids with ':' and '/' parse; the sink key is split at the first '@'
+      t6 =
+        eq
+          (impactOf {
+            edges = [
+              {
+                to = "fleet:main";
+                sink = "out";
+                reads = [ "d:fleet:main/host:db" ];
+              }
+            ];
+            seeds = [ "d:fleet:main/host:db" ];
+            children = { };
+          })
+          {
+            tokens = [
+              "d:fleet:main/host:db"
+              "k:out@fleet:main"
+            ];
+            scopes = [
+              "fleet:main"
+              "fleet:main/host:db"
+            ];
+          };
+    };
   };
 }
