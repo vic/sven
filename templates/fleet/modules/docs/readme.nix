@@ -80,50 +80,8 @@ let
         );
   };
 
-  # sink forwarding: a sink's key that names another sink feeds it (dashed); `out` reaches flake outputs with live receivers
-  sinkDecls = lib.concatLists (
-    lib.mapAttrsToList (
-      k: d:
-      lib.mapAttrsToList (n: v: {
-        kind = k;
-        name = n;
-        decl = if lib.isAttrs v then v else { };
-        feeds = lib.remove "out" yen.lib.schema.kinds.${k}.sinks.${n}.feeds; # the engine says which keys feed sinks
-      }) (d.sinks or { })
-    ) yen.kinds
-  );
-  receiversOf = sink: sorted (map (e: nameOf.${e.to}) (lib.filter (e: e.sink == sink) g.edges));
-  forwards = {
-    nodes =
-      map (n: {
-        id = "sink:${n}";
-        label = n;
-        kind = "sink";
-      }) (sorted (map (d: d.name) sinkDecls ++ lib.concatMap (d: d.feeds) sinkDecls))
-      ++ [
-        {
-          id = "flake";
-          label = "flake outputs";
-          kind = "output";
-        }
-      ];
-    edges = lib.unique (
-      lib.concatMap (
-        d:
-        map (t: {
-          from = "sink:${d.name}";
-          to = "sink:${t}";
-          label = d.kind;
-          live = false;
-        }) d.feeds
-        ++ lib.optional (d.decl ? out) {
-          from = "sink:${d.name}";
-          to = "flake";
-          label = short (receiversOf d.name);
-        }
-      ) sinkDecls
-    );
-  };
+  # sink forwarding: a sink key that gives to another sink (dashed); `out` reaches flake outputs with live receivers
+  forwards = yen.lib.batteries.mermaid.sinks yen.lib;
 
   # pools: an element routed from one kind up to another, one edge per (sink, from kind, to kind)
   routed = lib.filter (e: kindOf.${e.from} != kindOf.${e.to}) g.edges;
@@ -233,33 +191,7 @@ let
   };
 
   # kind tree: solid = `spawns` (parent kind to child kind), dotted = a field that is a ref to another kind
-  kindTree = {
-    nodes = map (k: {
-      id = "k:${k}";
-      label = k;
-      kind = "kind";
-    }) (lib.attrNames yen.kinds);
-    edges = lib.concatLists (
-      lib.mapAttrsToList (
-        k: d:
-        map (c: {
-          from = "k:${k}";
-          to = "k:${c}";
-        }) (names (d.spawns or { }))
-        ++ lib.concatLists (
-          lib.mapAttrsToList (
-            f: t:
-            lib.optional (lib.isAttrs t && t ? __kind) {
-              from = "k:${k}";
-              to = "k:${t.__kind}";
-              label = f;
-              live = false;
-            }
-          ) (d.fields or { })
-        )
-      ) yen.kinds
-    );
-  };
+  kindTree = yen.lib.batteries.mermaid.kinds yen.kinds;
   # pools as a sequence: who sends what to whom
   sequence = lib.concatStringsSep "\n" (
     [

@@ -106,7 +106,9 @@ let
     scopes =
       r:
       mermaid (
-        yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (yen.lib.batteries.mermaid.scopes r.graph)
+        yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (
+          yen.lib.batteries.mermaid.scopes { } r.graph
+        )
       );
     # routed elements: who gives what to whom (an element given at its own scope is a loop, left out)
     routes =

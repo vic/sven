@@ -317,7 +317,7 @@ let
         ];
       };
   nid = id: "n${b.substring 0 10 (b.hashString "md5" id)}";
-  scopesV = mm.scopes usersR.graph;
+  scopesV = mm.scopes { } usersR.graph;
   routesV = mm.routes usersR.graph;
 
   # files.document: the texts of an ordered sink, joined, as one repo file
@@ -378,7 +378,101 @@ let
     )
   ];
 
+  # views: a ref field, two gates (one under a `not`), a fact test
+  viewR = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.person.fields.home = yen.lib.opt yen.kinds.box yen.box.a;
+        yen.aspects.g1.at = yen.kinds.box;
+        yen.aspects.g2 = {
+          at = yen.lib.all [
+            yen.aspects.g1
+            (yen.lib.not yen.aspects.g3)
+          ];
+          sys = "two";
+        };
+        yen.aspects.g3.at = s: s.name == "c";
+        yen.aspects.g4.at = yen.aspects.g2; # makes g2 a gate: its own `at` is drawn
+        yen.aspects.views = {
+          at = yen.top.t;
+          out.views = {
+            kinds = mm.kinds yen.kinds;
+            gates = mm.gates yen.aspects;
+          };
+        };
+      }
+    )
+  ];
+  inherit (viewR.flake.views) kinds gates;
+  kindsV = kinds;
+  gatesV = gates;
+  routingV = mm.routing viewR.graph;
+  sinksV = mm.sinks {
+    inherit (viewR) schema graph;
+  };
+  grouped = mm.scopes {
+    keep = s: s.kind != "top";
+    label = s: s.name;
+    group = s: if s.kind == "person" then "top:t/box:a" else null;
+  } viewR.graph;
+
   checks = {
+    mermaid-kinds =
+      b.elem {
+        from = "k:box";
+        to = "k:person";
+      } kindsV.edges
+      && b.elem {
+        from = "k:person";
+        to = "k:box";
+        label = "home";
+        live = false;
+      } kindsV.edges;
+    mermaid-gates =
+      b.elem {
+        from = "a:g1";
+        to = "a:g2";
+        label = "";
+        live = true;
+      } gatesV.edges
+      && b.elem {
+        from = "a:g3";
+        to = "a:g2";
+        label = "not";
+        live = false;
+      } gatesV.edges
+      && b.elem {
+        from = "f:g3";
+        to = "a:g3";
+        label = "";
+        live = true;
+      } gatesV.edges;
+    mermaid-routing =
+      b.elem {
+        from = "s:sys";
+        to = "k:box";
+        label = "1";
+      } routingV.edges
+      && b.elem {
+        from = "k:box";
+        to = "s:sys";
+        label = "1";
+      } routingV.edges;
+    mermaid-sinks = b.elem {
+      from = "sink:sys";
+      to = "flake";
+      label = "a";
+    } sinksV.edges;
+    mermaid-scopes-options =
+      !(b.any (n: n.id == "top:t") grouped.nodes)
+      && b.elem {
+        id = "top:t/box:a/person:p";
+        kind = "person";
+        label = "p";
+        group = "top:t/box:a";
+      } grouped.nodes
+      && grouped.edges == [ ];
     github-yaml =
       gh.yaml {
         k = [
