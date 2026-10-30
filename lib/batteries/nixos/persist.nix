@@ -1,10 +1,12 @@
-#: lib.batteries.nixos.persist :: { from; root ? ; } -> key value -- impermanence paths from sink from
+#: lib.batteries.nixos.persist :: { from; root ? ; hideMounts ? ; } -> key value -- impermanence paths from sink from
 # impermanence (github:nix-community/impermanence): paths that survive a reboot, from sink `from`. Each element a
 # directory, or `{ directories ? [ ]; files ? [ ]; }`. Import the impermanence module in your host.
+# `hideMounts`: impermanence hides the bind mounts from file managers and `df` (default false: nothing is set).
 #   yen.kinds.host.sinks.persist.nixos = nixos.persist { from = yen.kinds.host.sinks.persist; };
 {
   from,
   root ? "/persist",
+  hideMounts ? false,
 }:
 { sinks, ... }:
 let
@@ -23,5 +25,6 @@ in
   environment.persistence.${root} = {
     directories = of "directories";
     files = of "files";
-  };
+  }
+  // (if hideMounts then { hideMounts = true; } else { });
 }

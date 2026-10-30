@@ -1217,6 +1217,24 @@ let
             files = [ "/etc/machine-id" ];
           };
         });
+    nixos-persist-hide-mounts =
+      eq
+        (nixos.persist
+          {
+            from.__sink = "p";
+            hideMounts = true;
+          }
+          {
+            sinks.p = [ "/var/lib/x" ];
+          }
+        )
+        ({
+          environment.persistence."/persist" = {
+            directories = [ "/var/lib/x" ];
+            files = [ ];
+            hideMounts = true;
+          };
+        });
     nixos-hosts =
       eq
         (nixos.hosts { from.__sink = "p"; } {
