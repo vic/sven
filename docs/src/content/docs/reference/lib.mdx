@@ -108,7 +108,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.nixos.hostname` | `{ scope; } -> module` | networking.hostName is the scope name |
 | `lib.batteries.nixos.hosts` | `{ from; } -> key value` | /etc/hosts and ssh known_hosts of every other machine |
 | `lib.batteries.nixos.insecure` | `{ from; } -> key value` | one permittedInsecurePackages from the names of sink from |
-| `lib.batteries.nixos.persist` | `{ from; root ? ; } -> key value` | impermanence paths from sink from |
+| `lib.batteries.nixos.persist` | `{ from; root ? ; hideMounts ? ; } -> key value` | impermanence paths from sink from |
 | `lib.batteries.nixos.primary-user` | `{ scope; } -> module` | the scope account administers the machine |
 | `lib.batteries.nixos.remote-builders` | `{ from; keep ? ; systemOf ? ; } -> key value` | nix.buildMachines on the other machines |
 | `lib.batteries.nixos.system` | `{ from; nixpkgs; } -> out value` | nixosConfigurations.&lt;scope name&gt; |
