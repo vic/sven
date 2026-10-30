@@ -14,4 +14,5 @@
   github = import ./github;
   docs = import ./docs;
   devshell = import ./devshell;
+  flake-file = import ./flake-file;
 }

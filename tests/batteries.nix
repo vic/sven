@@ -495,7 +495,55 @@ let
     }
   );
 
+  # flake-file.write with a stub lib: the merged sink is one module after flake-file's own
+  ffR = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.ff = {
+          reduce = yen.lib.reduce.merge;
+          sys = bat.flake-file.write {
+            from = yen.kinds.box.sinks.ff;
+            lib.evalModules = a: {
+              config.flake-file = {
+                apps.write-flake = p: a.modules;
+                check-flake-file = p: p.stdenv.hostPlatform.system;
+              };
+            };
+            inputs.flake-file.flakeModules.flake = "ffm";
+            pkgs.stdenv.hostPlatform.system = "sx";
+            modules = [ "extra" ];
+          };
+        };
+        yen.aspects.f1 = {
+          at = yen.box.a;
+          ff.inputs.x.url = "u1";
+        };
+        yen.aspects.f2 = {
+          at = yen.person.p;
+          ff.inputs.y.url = "u2";
+        };
+      }
+    )
+  ];
+
   checks = {
+    flake-file-write =
+      ffR.flake.sys.a == [
+        {
+          packages.sx.write-flake = [
+            "ffm"
+            {
+              flake-file.inputs = {
+                x.url = "u1";
+                y.url = "u2";
+              };
+            }
+            "extra"
+          ];
+          checks.sx.flake-file = "sx";
+        }
+      ];
     devshell-numtide =
       numtideR.flake.sys.a == [
         {

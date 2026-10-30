@@ -15,23 +15,12 @@ in
 {
   yen.kinds.fleet.sinks.flake-file = {
     reduce = yen.lib.reduce.merge;
-    out =
-      { flake-file, ... }:
-      let
-        e = inputs.nixpkgs-unstable.lib.evalModules {
-          # flake-file needs `valueMeta` on submodule options: nixos-25.05 lib lacks it
-          specialArgs = { inherit inputs; }; # flake-file reads `inputs.self` (the files it checks)
-          modules = [
-            inputs.flake-file.flakeModules.flake
-            { inherit flake-file; }
-            { flake-file.formatter = p: p.nixfmt-rfc-style; } # the formatter of fmt-check: one layout for every nix file
-          ];
-        };
-      in
-      {
-        packages.x86_64-linux.write-flake = e.config.flake-file.apps.write-flake pkgs;
-        checks.x86_64-linux.flake-file = e.config.flake-file.check-flake-file pkgs;
-      };
+    out = yen.lib.batteries.flake-file.write {
+      from = yen.kinds.fleet.sinks.flake-file;
+      inherit (inputs.nixpkgs-unstable) lib; # flake-file needs `valueMeta` on submodule options: nixos-25.05 lib lacks it
+      inherit inputs pkgs;
+      modules = [ { flake-file.formatter = p: p.nixfmt-rfc-style; } ]; # the formatter of fmt-check: one layout for every nix file
+    };
   };
   yen.aspects.fleet-flake = {
     at = yen.fleet.main;
