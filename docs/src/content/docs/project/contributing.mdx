@@ -151,6 +151,42 @@ Do not edit generated files. Edit their source, then run the generator. A check 
 | `templates/fleet/README.md`, `templates/fleet/ci.json` | `templates/fleet/modules/docs/` | `fleet-write` |
 | `templates/fleet/flake.nix` | the `flake-file` sink of the fleet | `fleet-flake` |
 
+## Which task to run, and when
+
+Run the fast tasks while you work, push, and leave the heavy ones to CI. Do not wait for a heavy task on your machine.
+Put `timeout 300` before any command that can run long: an evaluation that does not finish is a finding to report,
+not a reason to wait. Run a slow task in the background and read its output when it ends.
+
+Fast, run them often:
+
+
+| You changed | Run while you work |
+|---|---|
+| an example under `docs/examples/` | `docs-example NAME` for that example, then `docs-test` |
+| the engine (`default.nix`, `lib/`) or a battery | `engine-test`, and the `docs-example` of the page that shows it |
+| the reference fleet (`templates/fleet/`) | `fleet-test` |
+| any Nix file | `fmt`, last |
+
+Before every push, run the generator of every generated file whose source you changed (see the table above).
+A red CI job that says a file is stale means you did not run its generator. The two that are easy to forget:
+
+- `docs-write` writes the docs pages, the library reference and `CONTRIBUTING.md`.
+- `fleet-write` writes the reference fleet's README, which lists engine names such as the reduce strategies and the
+  library functions. A change to the engine often changes both, so run both.
+
+Heavy, leave them to CI:
+
+
+| Task | Why it waits for CI |
+|---|---|
+| `docs-e2e`, `fleet-e2e` | real NixOS, nix-darwin and home-manager evaluations |
+| `engine-cost`, `fleet-cost` | cost oracles over whole evaluations |
+| `fleet-check`, `fleet-eval`, `docs-check`, `docs-build` | a flake check or a build of every output, or of the site |
+| `fleet-mcp` | builds the Rust server |
+| `ci` | every stage in one terminal, one after another |
+
+Fix a failed push with a new commit on the same branch. Do not rewrite pushed history.
+
 ## CI
 
 CI runs in stages, one after another, so a push does not start every job at once: `fmt`, `engine`, `docs`, `fleet`,
