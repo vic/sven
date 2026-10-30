@@ -1,6 +1,6 @@
 {
   title = "Generic batteries";
-  description = "mesh, claim and ordered: values for keys you write, with no names of their own. And how to write your own.";
+  description = "mesh, claim, ordered, eval-modules, configurations, imports: values for keys you write. And how to write your own.";
   section = "batteries";
   route = "batteries/generic";
   order = 1;
@@ -65,6 +65,18 @@
       ''
         A cycle, a name that is given two times, or an unknown name in `before` or `after` is an error.
 
+        ## Other module systems: eval-modules, configurations, imports
+
+        A sink can collect modules of any module system: NixOS, flake-parts, sini/files, or plain `lib.evalModules`.
+        `eval-modules` evaluates them with fixed modules first. `configurations` gives one flake output per scope,
+        `<output>.<scope name>`, from a builder you pass (`nixosSystem`, `darwinSystem`, any function). `imports` turns a
+        sink of modules into one module for another sink.
+      ''
+      (docs.file "modules/modules.nix")
+      (docs.value {
+        inherit (result.flake) settings report;
+      })
+      ''
         ## Write your own
 
         A battery is a plain Nix function. If none fits, write one in your fleet. Use the same shape, and it stays as
@@ -113,5 +125,18 @@
         map (e: e.code) (variant "variants/clash.nix").errors == [ "claim" ]
         && (variant "variants/clash.nix").flake == null;
       ordered = result.flake.readme == "# My fleet\n## Usage\n## Hosts";
+      eval-modules =
+        result.flake.settings.nas.ssh == {
+          port = 22;
+          ciphers = [ "chacha20" ];
+        }
+        && result.flake.settings.desk.ssh == { port = 22; };
+      report =
+        builtins.sort builtins.lessThan result.flake.report.hosts == [
+          "desk"
+          "laptop"
+          "nas"
+        ];
+      imports = result.flake.notes.imports == [ "note" ];
     };
 }
