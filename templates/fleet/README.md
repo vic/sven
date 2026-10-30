@@ -1333,7 +1333,7 @@ Reduce strategies: `entries`, `list`, `merge`, `one`, `set`. Change programs (`y
 | `placeDb` | `host` |  | synthesis.nix |
 | `safeHostsFor` | `aspect`, `env` |  | synthesis.nix |
 
-**Invariants** (`result.check`): `attic`, `base`, `db-same-env`, `ssh`, `trust-order`, `unique-addr`.
+**Invariants** (`result.check`): `attic`, `base`, `db-same-env`, `ssh`, `trust-order`, `unique-addr`, `vocabulary`.
 
 ```mermaid
 flowchart LR
@@ -1343,6 +1343,7 @@ flowchart LR
   nc8da1a487b["ssh"]
   ne10dd2e08e["trust-order"]
   n411692d32a["unique-addr"]
+  ncaee6455ee["vocabulary"]
   necbadde1b9[("invariants.nix")]
   necbadde1b9 --> n8dd0fe8499
   necbadde1b9 --> ncd1535385b
@@ -1350,6 +1351,7 @@ flowchart LR
   necbadde1b9 --> nc8da1a487b
   necbadde1b9 --> ne10dd2e08e
   necbadde1b9 --> n411692d32a
+  necbadde1b9 --> ncaee6455ee
 ```
 
 **MCP tools** (14): `yen_ask`, `yen_check`, `yen_context`, `yen_declared_in`, `yen_errors`, `yen_explain`, `yen_export`, `yen_impact`, `yen_labels`, `yen_program`, `yen_queries`, `yen_schema`, `yen_stage`, `yen_why_not`.

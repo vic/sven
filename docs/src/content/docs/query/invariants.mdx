@@ -124,6 +124,7 @@ or a variable `{ var = "X"; }`: every string is a constant. `lt` and `neq` compa
 | Fact | Holds when |
 |---|---|
 | `[ "scope" ID ]`, `[ "kind" K ID ]` | a scope exists, and its kind |
+| `[ "instance" ID KIND NAME ]`, `[ "parent" ID PARENT ]` | the instance a scope holds (a ref names KIND NAME), and the scope above it |
 | `[ "has" ASPECT ID ]` | the aspect is active at the scope |
 | `[ "edge" SINK FROM TO ]` | an element is routed |
 | `[ "val" FIELD ID VALUE ]` | a field has a string, int, bool or path value (a float, function or derivation is an `unencodable` error) |

@@ -35,9 +35,10 @@ let
     order = "an `order` answer is not a number";
     spawns = "a `spawns` function gives no attrset, or an instance in it is no attrset";
     tree-request = "a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds)";
+    invariant-function = "an invariant is a function: an invariant is a list of rules, as data, so a verdict's rules can be read";
     law-change = "a staged change declares `invariants`, `relations`, `labels` or `flake`: the law is the owner's, never a change's";
     bad-atom = "a rule atom is not a list `[ rel t… ]` of strings, ints, bools and `{ var = \"X\"; }`";
-    edb-head = "a rule derives a fact yen extracts (`scope`, `instance`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison)";
+    edb-head = "a rule derives a fact yen extracts (`scope`, `instance`, `parent`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison)";
     unknown-relation = "a rule names a relation that is neither extracted nor declared in `yen.relations`";
     arity = "a rule atom has the wrong number of terms for its relation";
     unsafe-rule = "a variable of the head, a negative atom or a comparison is not bound by a positive atom";

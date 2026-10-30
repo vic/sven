@@ -2369,6 +2369,13 @@ let
           "top:t/host:a:b"
         ]
       ];
+    # D3: an invariant is data; a function is an error and gives no rules
+    r2-invariant-function =
+      let
+        r = yen.eval (rung1 [ { yen.invariants.f = _: [ ]; } ]);
+      in
+      codes r == [ "invariant-function" ] && r.flake == null;
+    r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
     r2-string-atom =
       codes (rule2 {
         head = "bad:x";

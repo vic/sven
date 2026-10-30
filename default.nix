@@ -58,6 +58,7 @@ let
   edbArity = {
     scope = 1;
     instance = 3;
+    parent = 2;
     kind = 2;
     has = 2;
     edge = 3;
@@ -1025,6 +1026,11 @@ let
           s.name
         ]) scopes # a ref names KIND NAME: this finds its scopes
         ++ map (s: [
+          "parent"
+          s.id
+          s.parent.id
+        ]) (filter (s: s.parent != null) scopes)
+        ++ map (s: [
           "kind"
           s.kind
           s.id
@@ -1053,23 +1059,19 @@ let
         let
           D = static.datalog;
           invs = yen.invariants;
-          rulesOf =
+          # rules are data (D3): a function is an error, so every rule a verdict uses can be read and certified
+          rulesOf = n: if isList invs.${n} then invs.${n} else [ ];
+          shapeErrors = map (
             n:
-            let
-              f = invs.${n};
-            in
-            if isFunction f then
-              f {
-                inherit
-                  scopes
-                  graph
-                  active
-                  facts
-                  yen
-                  ;
-              }
-            else
-              f;
+            errWith "invariant ${n}" "an invariant is a list of rules, not a ${b.typeOf invs.${n}}" {
+              code = "invariant-function";
+              path = [
+                "invariants"
+                n
+              ];
+              fix = "write the rules as data: [ { head = [ \"bad\" … ]; pos = [ … ]; neg = [ … ]; } ], with { var = \"X\"; }";
+            }
+          ) (filter (n: !isList invs.${n}) (attrNames invs));
           # every relation a rule may name: the extracted ones, the comparisons, and the user's; `bad` takes any arity
           arity = edbArity // mapAttrs (_: _: 2) D.comparisons // mapAttrs (_: r: r.arity) yen.relations;
           isAtom =
@@ -1132,18 +1134,20 @@ let
               p = problem r;
             }) (rulesOf n)
           ) (attrNames invs);
-          errors = map (
-            x:
-            errWith "invariant ${x.n}" x.p.error (
-              removeAttrs x.p [ "error" ]
-              // {
-                path = [
-                  "invariants"
-                  x.n
-                ];
-              }
-            )
-          ) (filter (x: x.p != null) checked);
+          errors =
+            shapeErrors
+            ++ map (
+              x:
+              errWith "invariant ${x.n}" x.p.error (
+                removeAttrs x.p [ "error" ]
+                // {
+                  path = [
+                    "invariants"
+                    x.n
+                  ];
+                }
+              )
+            ) (filter (x: x.p != null) checked);
           ground = D.ground (map (x: x.r) (filter (x: x.p == null) checked)) facts;
           key = b.toJSON;
           mentioned = keySet (map key (concatMap (r: r.pos ++ r.neg) ground));

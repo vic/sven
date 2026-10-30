@@ -31,6 +31,10 @@
             "a scope exists, and its kind"
           ]
           [
+            "`[ \"instance\" ID KIND NAME ]`, `[ \"parent\" ID PARENT ]`"
+            "the instance a scope holds (a ref names KIND NAME), and the scope above it"
+          ]
+          [
             "`[ \"has\" ASPECT ID ]`"
             "the aspect is active at the scope"
           ]

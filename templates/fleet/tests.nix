@@ -1495,6 +1495,7 @@ let
           "ssh"
           "trust-order"
           "unique-addr"
+          "vocabulary"
         ]
       && r.check.violations == [ ];
     agent-stage =
