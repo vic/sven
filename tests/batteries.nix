@@ -551,7 +551,153 @@ let
     )
   ];
 
+  # clan batteries as plain functions of data
+  cl = bat.clan;
+  clServices = {
+    db = {
+      roles.server.interface.port = {
+        type = {
+          check = b.isInt;
+          description = "int";
+        };
+        default = 5432;
+      };
+      roles.client = { };
+      constraints = {
+        roles.server = {
+          min = 1;
+          max = 1;
+        };
+        maxInstances = 1;
+      };
+      exports = [ "endpoint" ];
+    };
+  };
+  clMachines = [
+    {
+      name = "a";
+      labels = [ "dbs" ];
+    }
+    {
+      name = "c";
+      labels = [ ];
+    }
+  ];
+  clInstances = {
+    main = {
+      module = "db";
+      roles.server = {
+        tags = [ "dbs" ];
+        machines.a.settings.port = 1;
+      };
+      roles.client.machines.c = { };
+    };
+  };
+  clContract =
+    instances:
+    cl.contract {
+      inherit instances;
+      services = clServices;
+      machines = clMachines;
+    };
+
   checks = {
+    clan-members-by-tag =
+      b.attrNames (
+        cl.members {
+          instances.t = {
+            module = "db";
+            roles.server.tags = [ "dbs" ];
+          };
+          services = clServices;
+        } (b.head clMachines)
+      ) == [ "t.server" ];
+    clan-members =
+      cl.members {
+        instances = clInstances;
+        services = clServices;
+      } (b.head clMachines) == {
+        "main.server" = {
+          instance = "main";
+          service = "db";
+          role = "server";
+          settings.port = 1;
+          extraModules = [ ];
+        };
+      };
+    clan-contract-ok = clContract clInstances == [ ];
+    clan-contract-min =
+      clContract {
+        x = {
+          module = "db";
+          roles.server.tags = [ "none" ];
+        };
+      } == [ "clan: instance x role server: 0 machines, at least 1" ];
+    clan-contract-unknown-role =
+      clContract {
+        x = {
+          module = "db";
+          roles.server.machines.a = { };
+          roles.ghost.machines.a = { };
+        };
+      } == [ "clan: instance x: service db has no role ghost" ];
+    clan-contract-max-instances =
+      b.length (
+        clContract (
+          clInstances
+          // {
+            two = clInstances.main;
+          }
+        )
+      ) == 2;
+    clan-unknown-tags =
+      cl.unknown-tags {
+        instances = clInstances // {
+          t = {
+            module = "db";
+            roles.client.tags = [ "nope" ];
+          };
+        };
+        machines = clMachines;
+      } == [ "clan: instance t role client: tag nope matches no machine" ];
+    clan-exports =
+      let
+        member = name: {
+          id = "m:${name}";
+          service = "db";
+          instance = "main";
+          role = "server";
+          parent.name = name;
+        };
+        r =
+          cl.exports
+            {
+              services = clServices;
+              isMember = s: s ? service;
+            }
+            [
+              {
+                from = member "a";
+                value.endpoint = "a:1";
+              }
+              {
+                from = member "c";
+                value.secret = "x";
+              }
+              {
+                from.id = "fleet";
+                value = {
+                  service = "db";
+                  instance = "main";
+                  role = "server";
+                  machine = "a";
+                  value.endpoint = "over";
+                };
+              }
+            ];
+      in
+      (b.head r.value).value.endpoint == "over"
+      && map (e: e.error) r.errors == [ "clan: db:main:server:c: service db does not export secret" ];
     maybe-ref-schema = viewR.schema.kinds.person.fields.home.ref or null == "box";
     files-json = jsonR.flake.sys.a == [ { files.file."ci.json".text = "[\"a\",\"b\"]\n"; } ];
     flake-file-write =

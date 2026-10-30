@@ -15,4 +15,5 @@
   docs = import ./docs;
   devshell = import ./devshell;
   flake-file = import ./flake-file;
+  clan = import ./clan;
 }
