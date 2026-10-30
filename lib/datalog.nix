@@ -41,11 +41,14 @@ let
     in
     go { };
   # ── the grounder: a variable is { var = "X"; }, every other term a constant (int, string, bool) ──
+  #: lib.datalog.isVar :: term -> bool -- the term is a variable { var = "X"; }
   isVar = t: b.isAttrs t && t ? var;
   # externals decide an atom on bound terms with a function: never a fact, never a head. The comparisons are built in;
   # they hold on terms of one type
   comparisons = {
+    #: lib.datalog.comparisons.neq :: [ a b ] -> bool -- the two bound terms differ
     neq = ts: b.elemAt ts 0 != b.elemAt ts 1;
+    #: lib.datalog.comparisons.lt :: [ a b ] -> bool -- a < b, for two ints or two strings; false on terms of two types
     lt =
       ts:
       let
@@ -140,6 +143,7 @@ rec {
   # ground instances of range-restricted rules over tuple facts: every instance whose positive atoms may hold.
   # The rest can never fire, so the well-founded model is the same. External atoms (ext: name -> terms -> bool) are
   # decided, then dropped. `faults`: the external atoms whose answer was not a bool
+  #: lib.datalog.groundWith :: { name = terms -> bool; } -> [ rule ] -> [ atom ] -> { rules; faults; } -- the ground instances whose positive atoms may hold; external atoms decided, then dropped
   groundWith =
     ext: rules: facts:
     let
@@ -164,7 +168,9 @@ rec {
         ) (joins ext idx r)
       ) rules;
     };
+  #: lib.datalog.ground :: [ rule ] -> [ atom ] -> [ rule ] -- groundWith the comparisons
   ground = rules: facts: (groundWith comparisons rules facts).rules;
+  #: lib.datalog.wfs :: [ rule ] -> { true; undefined; false; holds; } -- the well-founded model of ground rules (three values)
   wfs =
     rules:
     let
@@ -187,6 +193,7 @@ rec {
       holds = a: t ? ${k a};
     };
   # the stable models: the true atoms plus each subset of the undefined ones that reproduces itself
+  #: lib.datalog.stable :: [ rule ] -> [ [ atom ] ] -- the stable models, each a sorted list of true atoms
   stable =
     rules:
     let
@@ -201,6 +208,7 @@ rec {
     in
     b.filter ok (map (s: b.sort (x: y: k x < k y) (w.true ++ s)) subsets);
   # the rules that make an atom true in a model (one step of provenance)
+  #: lib.datalog.why :: [ rule ] -> model -> atom -> [ rule ] -- the rules that make the atom true in the model
   why =
     rules: model: atom:
     let
@@ -212,6 +220,7 @@ rec {
     ) rules;
   # proof tree of a true atom: the rule its certificate gives it. Its positive atoms have smaller stages, so a proof
   # never cycles (D4). A non-true atom is { status = "false" | "undefined"; }
+  #: lib.datalog.proof :: [ rule ] -> model -> atom -> tree -- the proof tree of a true atom; { status; } for a false or undefined one
   proof =
     rules: model: atom:
     let
@@ -242,6 +251,7 @@ rec {
   # An atom's stage is the first k where it is decided: true by a rule whose body holds in I_k, false when it is in
   # the greatest unfounded set of I_k. A true atom carries a rule whose body was decided at smaller stages.
   # Undefined atoms are in neither list.
+  #: lib.datalog.certify :: [ rule ] -> { true = [ { atom; stage; rule; } ]; false = [ { atom; stage; } ]; } -- the stages of the well-founded model, a certificate of each decided atom
   certify =
     rules:
     let
@@ -319,6 +329,7 @@ rec {
   # atom false at a stage no later, or a negative atom true at a smaller stage. Sound by induction on the stage (VRS
   # 1991, Thm 5.4); no stratification needed. True and false are disjoint without a check: an atom in both has a rule
   # whose blocking atom is also in both with a smaller sum of its two stages, and the sum cannot descend forever.
+  #: lib.datalog.checkCertificate :: [ rule ] -> certificate -> { valid; } -- the small trusted checker of a certificate
   checkCertificate =
     rules: cert:
     let
@@ -361,6 +372,7 @@ rec {
       valid = b.all supported cert.true && b.all unfounded cert.false;
     };
   # why an atom is not true: per rule with that head, the body atoms that stop it firing
+  #: lib.datalog.whyNot :: [ rule ] -> model -> atom -> [ { rule; missing; blocking; undefinedBody; } ] -- per rule with that head, the body atoms that stop it
   whyNot =
     rules: model: atom:
     let
@@ -388,6 +400,7 @@ rec {
   #   "supported" atomPos true, atomNeg not true    "refuted" atomNeg true, atomPos not true
   #   "both"      both true                          "unknown" otherwise, if either is undefined
   #   "neither"   both false
+  #: lib.datalog.judge :: [ rule ] -> atomFor -> atomAgainst -> string -- "supported", "refuted", "both", "neither" or "unknown" in the well-founded model
   judge =
     rules: atomPos: atomNeg:
     let
@@ -407,6 +420,7 @@ rec {
     else
       "neither";
   # facts: atoms with no body
+  #: lib.datalog.facts :: [ atom ] -> [ rule ] -- each atom as a rule with no body
   facts = map (a: {
     head = a;
   });

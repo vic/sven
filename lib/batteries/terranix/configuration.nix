@@ -1,3 +1,4 @@
+#: lib.batteries.terranix.configuration :: { from; system; terranixConfiguration; name ? ; } -> out value -- terraformConfigurations.<name> from the modules of sink from
 # terraformConfigurations.<name> (github:terranix/terranix) from the modules of sink `from`. `name` reads the scope.
 #   out = terranix.configuration { from = yen.kinds.env.sinks.terraform; inherit (inputs.terranix.lib) terranixConfiguration;
 #     system = "x86_64-linux"; };

@@ -53,6 +53,7 @@ let
     if m == null then [ ] else b.head m;
 
   inst = k: n: "<${base}instance/${iriPart k}/${iriPart n}>";
+  #: lib.rdf.triples :: result -> [ string ] -- the eval result as N-Triples lines, sorted
   triples =
     r:
     let
@@ -153,9 +154,11 @@ let
     in
     b.sort b.lessThan uniq;
 
+  #: lib.rdf.ntriples :: result -> string -- the eval result as one N-Triples document
   ntriples = r: b.concatStringsSep "\n" (triples r) + "\n";
 
   # SHACL shapes (Turtle) from r.schema; a leaf field is an attrset with a string `type`.
+  #: lib.rdf.shacl :: result -> string -- SHACL shapes (Turtle) from the result schema
   shacl =
     r:
     let
@@ -208,6 +211,7 @@ let
 in
 {
   inherit triples ntriples shacl;
+  #: lib.rdf.share :: result -> { ntriples; sha256; count; } -- the N-Triples with their content hash and triple count
   share =
     r:
     let

@@ -1,3 +1,4 @@
+#: lib.batteries.mermaid.sinks :: { schema; graph; } -> view -- sink keys that give to other sinks, and out to the flake outputs
 # a view of the sinks: a dashed edge is a sink key that gives to another sink (labelled with the kind), a solid edge
 # `out` to the flake outputs (labelled with the receivers that build them). Reads `schema` and `graph` of `yen.lib`.
 #   mermaid.flowchart { } (mermaid.sinks yen.lib)

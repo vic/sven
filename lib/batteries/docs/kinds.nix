@@ -1,3 +1,4 @@
+#: lib.batteries.docs.kinds :: kinds -> graph -> string -- a markdown table of the kinds: fields, spawns, sinks and scope counts
 # a markdown table of the kinds: fields, spawns, sinks, and how many scopes each has in `graph`.
 #   docs.kinds yen.kinds yen.lib.graph
 kinds: graph:

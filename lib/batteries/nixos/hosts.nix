@@ -1,3 +1,4 @@
+#: lib.batteries.nixos.hosts :: { from; } -> key value -- /etc/hosts and ssh known_hosts of every other machine
 # /etc/hosts and ssh known_hosts of every other machine, from sink `from` (reduce entries): each element
 # `{ name; addr; key ? null; }` (the `mesh` battery). A machine never lists itself.
 #   yen.kinds.fleet.sinks.peers.reduce = yen.lib.reduce.entries;

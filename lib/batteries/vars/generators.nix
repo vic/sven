@@ -1,3 +1,4 @@
+#: lib.batteries.vars.generators :: { machineOf; } -> reduce -- clan vars generators, shared or per machine, with dependency checks
 # a reduce for clan vars generators: elements `{ name; files; share ? false; dependencies ? [ ]; }` (null gives
 # nothing). A shared generator is one for every machine that gives it; any other is keyed name@machine. A dependency
 # must name a generator the same machine has, or a shared one. value: key -> generator // { machines; }.

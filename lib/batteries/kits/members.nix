@@ -1,3 +1,4 @@
+#: lib.batteries.kits.members :: { assemblies; holds; } -> spawns value -- one member per assembly and role whose at holds at the machine
 # assemblies of kits: the value of a machine kind's `spawns.<member kind>`. One member per (assembly, role) whose
 # `at` holds at the machine. A member carries refs to its assembly and kit, the role and its layered settings, so an
 # aspect at the member kind runs once per assembly and role.

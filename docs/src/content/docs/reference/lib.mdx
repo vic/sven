@@ -1,46 +1,333 @@
 ---
-{"description":"Every function of yen.lib, and every query of an eval result. Generated from the engine.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/lib/page.nix","title":"Library index"}
+{"description":"Every function and query of yen: where it is, what it takes, what it returns, and what it is for. Extracted from the source.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/lib/page.nix","title":"API reference"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-This page is computed from the engine when the docs are written. A function added to yen appears here
-without a docs edit.
+This page is extracted from the source when the docs are written. Each API has one line above its
+definition: `#: <where> :: <takes> -> <returns> -- <purpose>`. A check fails when an API has no line, so the
+page always lists every function.
+
+Words in the signatures: a *key value* is the value of a sink key, `{ scope, sinks, ... }: …`; an *out value*
+is the value of a sink's `out` key, which gives flake outputs; a *reduce* is a sink's `reduce`; a *module* is a
+module of the target system; a *predicate* is what `at` takes; a *view* is `{ nodes; edges; }` for
+`mermaid.flowchart`; `succ` is a graph, an attrset from a node to its successors.
 
 ## Outside a fleet: `(import yen).lib`
 
 
-`agent`, `allowed`, `asOf`, `derive`, `diffData`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `listOf`, `maybe`, `mkFlake`, `narrow`, `opt`, `secret`, `stage`, `validAt`, `without`
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.agent` | `result -> agent` | the summary of an eval result for an agent: counts, check, schema, errors, undefined |
+| `lib.allowed` | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
+| `lib.asOf` | `{ url; rev; module; } -> result` | the fleet at a git revision |
+| `lib.derive` | `type -> (instance -> value) -> type` | the type, with a default computed from the instance itself |
+| `lib.diffData` | `data -> data -> [ { path; old; new; } ]` | the field changes between two data answers, sorted by path |
+| `lib.eval` | `module -> result` | evaluate a fleet module; the result answers every query |
+| `lib.grant` | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
+| `lib.history` | `{ url; revs; module; } -> [ { rev; errors; scopes; changes; } ]` | the fleet at each revision, with the field changes from the one before |
+| `lib.is` | `(v -> bool) -> type` | a type from a check |
+| `lib.jsonSafe` | `value -> value` | the value with functions and derivations as strings, so toJSON never fails |
+| `lib.listOf` | `type -> type` | a list whose elements pass the type; a list of refs is still a ref field |
+| `lib.maybe` | `type -> type` | the type, or null (a maybe-ref is still a ref field) |
+| `lib.mkFlake` | `module -> flake` | the flake outputs of the fleet, or &#123; invalid-flake-errors &#125; when it has an error or a violation |
+| `lib.narrow` | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
+| `lib.opt` | `type -> default -> type` | the type, with a default when the field has no answer |
+| `lib.secret` | `type -> type` | the type, but every answer states the value only by its sha256 |
+| `lib.stage` | `{ base; change; rejected ? [ ]; grant ? null; by ? null; id ? null; baseResult ? eval base; } -> { ok; errors; violations; incomplete; refused; diff; labels; floor; sha; render; }` | a change evaluated with the base and applied nowhere; ok only when nothing new is wrong |
+| `lib.validAt` | `date -> scope -> bool` | the scope instance holds at the ISO date (validFrom, validTo; absent is open) |
+| `lib.without` | `{ files; path; args ? { }; } -> { dropped; result; }` | the fleet without the files that declare path |
+
+## `lib.batteries`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.batteries.ai.extensions` | `{ from; types; build; } -> key value` | the records of the given types from a shared pool, as build wants them |
+| `lib.batteries.ai.skills` | `dir -> [ { type; name; path; } ]` | one skill record per subdirectory with a SKILL.md |
+| `lib.batteries.cachix.action` | `{ name; authToken ? ; version ? ; } -> step` | the GitHub Actions step of cachix-action for one cache |
+| `lib.batteries.cachix.caches` | `{ from; } -> key value` | nix.settings substituters and keys from the caches of sink from (NixOS, nix-darwin, home-manager) |
+| `lib.batteries.cachix.flake-config` | `{ from; } -> key value` | the same caches as flake.nix nixConfig, for a flake-file sink |
+| `lib.batteries.claim` | `{ key; rank ? ; } -> reduce` | each key has one owner; two givers of a key is an error unless rank picks one |
+| `lib.batteries.configurations` | `{ from; output; build; } -> out value` | one flake output per scope, built from the modules of sink from |
+| `lib.batteries.darwin.homebrew` | `{ from; } -> key value` | one darwin module with the casks, brews and mas apps of sink from |
+| `lib.batteries.darwin.primary-user` | `{ user; } -> key value` | system.primaryUser from the user that user reads (null: root) |
+| `lib.batteries.darwin.system` | `{ from; darwinSystem; system; } -> out value` | darwinConfigurations.&lt;scope name&gt; |
+| `lib.batteries.deploy.colmena` | `{ from; makeHive; meta ? ; } -> out value` | colmenaHive from the host modules of sink from |
+| `lib.batteries.deploy.deploy-rs` | `{ configurations; hostname; activate; sshUser ? ; } -> { deploy.nodes; }` | deploy-rs nodes from built configurations |
+| `lib.batteries.devshell.mkshell` | `{ from; pkgsOf; } -> out value` | a nixpkgs mkShell at devShells.&lt;scope name&gt;.default |
+| `lib.batteries.devshell.numtide` | `{ from; devshell; systems; pkgsOf; name; packages ? ; shell ? ; } -> out value` | a numtide/devshell per system, its commands from sink from |
+| `lib.batteries.distributed.nodes` | `{ from; } -> key value` | each machine imports the modules other scopes wrote for it |
+| `lib.batteries.docs.kinds` | `kinds -> graph -> string` | a markdown table of the kinds: fields, spawns, sinks and scope counts |
+| `lib.batteries.docs.links` | `{ root; base ? ; } -> reduce` | source links that find their line by a needle at eval time |
+| `lib.batteries.docs.table` | `[ title ] -> [ [ cell ] ] -> string` | a markdown table |
+| `lib.batteries.docs.templates` | `{ root; description; } -> templates` | flake templates from the directories of root that have a flake.nix |
+| `lib.batteries.docs.vocabulary` | `{ what; names; lines; } -> [ error ]` | a doc line for every live name; a missing or stale line is an error record |
+| `lib.batteries.droid.home` | `{ from; } -> key value` | the home-manager modules of sink from into nix-on-droid |
+| `lib.batteries.droid.system` | `{ from; nixOnDroidConfiguration; pkgs; } -> out value` | nixOnDroidConfigurations.&lt;scope name&gt; |
+| `lib.batteries.editors.vscode` | `{ from; profile ? ; } -> key value` | one home module for VS Code from the extensions and settings of sink from |
+| `lib.batteries.editors.zed` | `{ from; } -> key value` | one home module for Zed from the extensions and settings of sink from |
+| `lib.batteries.eval-modules` | `{ from; lib; modules ? ; specialArgs ? ; result ? ; } -> out value` | the modules of sink from evaluated with lib.evalModules |
+| `lib.batteries.exports.modules` | `{ from; output; } -> out value` | the modules of sink from as &lt;output&gt;.&lt;scope name&gt; for other flakes |
+| `lib.batteries.files.comment` | `path -> text -> string` | a one-line comment in the syntax of the file format |
+| `lib.batteries.files.document` | `{ from; path; separator ? ; } -> key value` | one repo file from the texts of sink from, in order |
+| `lib.batteries.files.json` | `{ from; path; value ? ; } -> key value` | a repo file with the JSON of sink from |
+| `lib.batteries.files.toml` | `{ inline ? ; } -> value -> string` | TOML text from a Nix value |
+| `lib.batteries.files.writer` | `{ from; files; lib; pkgs; root; relativeRoot ? ; } -> out value` | packages.&lt;system&gt;.write-files and one check per repo file |
+| `lib.batteries.flake-file.write` | `{ from; inputs; lib; pkgs; modules ? ; } -> out value` | flake.nix from the inputs each aspect declares, with its write package and check |
+| `lib.batteries.github.workflow` | `{ from; path; doc; header ? ; } -> key value` | a workflow file from the jobs of sink from |
+| `lib.batteries.github.yaml` | `value -> string` | YAML for GitHub Actions: block style, JSON-quoted scalars |
+| `lib.batteries.home-manager.into-host` | `{ from; } -> key value` | a user home-manager modules into its machine |
+| `lib.batteries.home-manager.module` | `module -> module` | home-manager as a NixOS or nix-darwin module, with the machine pkgs |
+| `lib.batteries.home-manager.system` | `{ from; homeManagerConfiguration; pkgs; } -> out value` | homeConfigurations.&lt;scope name&gt;, a standalone home |
+| `lib.batteries.imports` | `{ from; } -> key value` | the modules of sink from as one module that imports them |
+| `lib.batteries.k8s.manifests` | `{ from; lib; output ? ; } -> out value` | Kubernetes manifests from the modules of sink from |
+| `lib.batteries.kits.contract` | `{ assemblies; machines; holds; } -> [ error ]` | the assembly contract: roles, machine counts, assemblies per kit |
+| `lib.batteries.kits.exports` | `{ isMember; machineOf ? ; } -> reduce` | each member writes only its own exports; other scopes override one entry |
+| `lib.batteries.kits.members` | `{ assemblies; holds; } -> spawns value` | one member per assembly and role whose at holds at the machine |
+| `lib.batteries.kits.settings-typed` | `{ scope; } -> [ error ]` | each setting of the member role is set and passes its type |
+| `lib.batteries.mermaid.flowchart` | `{ direction ? ; shapes ? ; } -> view -> string` | the text of one Mermaid flowchart |
+| `lib.batteries.mermaid.gates` | `aspects -> view` | the aspects other aspects name in at, and what each gate reads |
+| `lib.batteries.mermaid.kinds` | `kinds -> view` | spawns between kinds, and fields that refer to a kind |
+| `lib.batteries.mermaid.routes` | `graph -> view` | who gives what to whom |
+| `lib.batteries.mermaid.routing` | `graph -> view` | routing at the kind level, with element counts |
+| `lib.batteries.mermaid.scopes` | `{ keep ? ; label ? ; group ? ; edge ? ; } -> graph -> view` | the scopes, each under its parent |
+| `lib.batteries.mermaid.shapes.box` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.shapes.circle` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.shapes.cylinder` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.shapes.hexagon` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.shapes.parallelogram` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.shapes.round` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.shapes.subroutine` | `label -> string` | a node shape for flowchart |
+| `lib.batteries.mermaid.sinks` | `{ schema; graph; } -> view` | sink keys that give to other sinks, and out to the flake outputs |
+| `lib.batteries.mesh` | `{ from; build; } -> key value` | every record of sink from except this scope own, made into content by build |
+| `lib.batteries.microvm.guest` | `{ from; pkgs; } -> key value` | a guest NixOS modules as microvm.vms.&lt;scope name&gt; of its host |
+| `lib.batteries.nixos.autologin` | `{ user; } -> key value` | tty autologin of the user that user reads |
+| `lib.batteries.nixos.define-user` | `{ scope; } -> module` | an account named after the scope |
+| `lib.batteries.nixos.facter` | `{ report; module ? ; option ? ; } -> key value` | nixos-facter with the report that report reads |
+| `lib.batteries.nixos.firewall` | `{ from; } -> key value` | the open TCP and UDP ports of sink from |
+| `lib.batteries.nixos.hostname` | `{ scope; } -> module` | networking.hostName is the scope name |
+| `lib.batteries.nixos.hosts` | `{ from; } -> key value` | /etc/hosts and ssh known_hosts of every other machine |
+| `lib.batteries.nixos.insecure` | `{ from; } -> key value` | one permittedInsecurePackages from the names of sink from |
+| `lib.batteries.nixos.persist` | `{ from; root ? ; } -> key value` | impermanence paths from sink from |
+| `lib.batteries.nixos.primary-user` | `{ scope; } -> module` | the scope account administers the machine |
+| `lib.batteries.nixos.remote-builders` | `{ from; keep ? ; systemOf ? ; } -> key value` | nix.buildMachines on the other machines |
+| `lib.batteries.nixos.system` | `{ from; nixpkgs; } -> out value` | nixosConfigurations.&lt;scope name&gt; |
+| `lib.batteries.nixos.unfree` | `{ from; } -> key value` | one allowUnfreePredicate from the names of sink from |
+| `lib.batteries.nixos.user-shell` | `{ shell; } -> key value` | the scope account gets the login shell that shell reads |
+| `lib.batteries.ordered` | `reduce` | elements in an order that meets every before and after; a cycle is an error |
+| `lib.batteries.secrets.sops-config` | `{ from; path ? ; } -> key value` | .sops.yaml from the creation rules of sink from |
+| `lib.batteries.secretspec.toml` | `{ from; project; path ? ; profiles ? ; defaults ? ; providers ? ; } -> key value` | secretspec.toml from the secrets of sink from |
+| `lib.batteries.terranix.configuration` | `{ from; system; terranixConfiguration; name ? ; } -> out value` | terraformConfigurations.&lt;name&gt; from the modules of sink from |
+| `lib.batteries.vars.generators` | `{ machineOf; } -> reduce` | clan vars generators, shared or per machine, with dependency checks |
+| `lib.batteries.vars.public-value` | `{ root; } -> machine -> generator -> file -> default -> string` | a public var read at eval time |
+| `lib.batteries.vars.secret-reads` | `{ from; reads; } -> [ error ]` | a public read of a file that is secret on that machine |
+| `lib.batteries.vars.vars-plan` | `{ from; machines; recipientsOf; } -> out value` | the clan vars plan per machine: files, recipients, order |
+
+## `lib.change`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.change.set` | `[ name ] -> value -> module` | a module that gives one declaration path a value |
+
+## `lib.datalog`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.datalog.certify` | `[ rule ] -> { true = [ { atom; stage; rule; } ]; false = [ { atom; stage; } ]; }` | the stages of the well-founded model, a certificate of each decided atom |
+| `lib.datalog.checkCertificate` | `[ rule ] -> certificate -> { valid; }` | the small trusted checker of a certificate |
+| `lib.datalog.comparisons.lt` | `[ a b ] -> bool` | a &lt; b, for two ints or two strings; false on terms of two types |
+| `lib.datalog.comparisons.neq` | `[ a b ] -> bool` | the two bound terms differ |
+| `lib.datalog.facts` | `[ atom ] -> [ rule ]` | each atom as a rule with no body |
+| `lib.datalog.ground` | `[ rule ] -> [ atom ] -> [ rule ]` | groundWith the comparisons |
+| `lib.datalog.groundWith` | `{ name = terms -> bool; } -> [ rule ] -> [ atom ] -> { rules; faults; }` | the ground instances whose positive atoms may hold; external atoms decided, then dropped |
+| `lib.datalog.isVar` | `term -> bool` | the term is a variable &#123; var = "X"; &#125; |
+| `lib.datalog.judge` | `[ rule ] -> atomFor -> atomAgainst -> string` | "supported", "refuted", "both", "neither" or "unknown" in the well-founded model |
+| `lib.datalog.proof` | `[ rule ] -> model -> atom -> tree` | the proof tree of a true atom; &#123; status; &#125; for a false or undefined one |
+| `lib.datalog.stable` | `[ rule ] -> [ [ atom ] ]` | the stable models, each a sorted list of true atoms |
+| `lib.datalog.wfs` | `[ rule ] -> { true; undefined; false; holds; }` | the well-founded model of ground rules (three values) |
+| `lib.datalog.why` | `[ rule ] -> model -> atom -> [ rule ]` | the rules that make the atom true in the model |
+| `lib.datalog.whyNot` | `[ rule ] -> model -> atom -> [ { rule; missing; blocking; undefinedBody; } ]` | per rule with that head, the body atoms that stop it |
+
+## `lib.grants`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.grants.allowed` | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
+| `lib.grants.grant` | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
+| `lib.grants.narrow` | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
+
+## `lib.graphs`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.graphs.cycles` | `succ -> [ node ]` | the nodes on a cycle |
+| `lib.graphs.fromEdges` | `[ { from; to; } ] -> succ` | a graph from a list of edges |
+| `lib.graphs.layers` | `succ -> [ [ node ] ]` | waves: each node in the first wave after all its successors |
+| `lib.graphs.nodesOf` | `succ -> [ node ]` | every node of the graph, sorted, with or without edges |
+| `lib.graphs.paths` | `succ -> from -> to -> [ [ node ] ]` | every simple path from from to to |
+| `lib.graphs.reach` | `succ -> node -> [ node ]` | the nodes reachable from node by one edge or more, sorted |
+| `lib.graphs.reachers` | `succ -> node -> [ node ]` | the nodes that reach node (its dependents, when succ is "depends on") |
+| `lib.graphs.sccs` | `succ -> [ [ node ] ]` | the strongly connected components with 2 or more nodes or a self loop, each sorted, by first node |
+| `lib.graphs.shortest` | `succ -> from -> to -> [ node ] or null` | the shortest path by edges (breadth first), from first, to last |
+| `lib.graphs.topo` | `succ -> { ok; order; stuck; }` | each node after all its successors (Kahn); the nodes on a cycle stay in stuck |
+| `lib.graphs.transpose` | `succ -> succ` | the graph with every edge reversed |
+
+## `lib.krn`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.krn.appendo` | `l -> s -> out -> goal` | l ++ s == out, in every direction |
+| `lib.krn.conde` | `[ [ goal ] ] -> goal` | one clause holds, each clause a conj |
+| `lib.krn.conj` | `[ goal ] -> goal` | all goals hold (a list of goals is a conj too) |
+| `lib.krn.cons` | `head -> tail -> list` | a relational list cell |
+| `lib.krn.disj` | `[ goal ] -> goal` | one of the goals holds; the branches interleave |
+| `lib.krn.distinctfd` | `[ lvar ] -> goal` | every two variables differ |
+| `lib.krn.dom` | `lvar -> [ int ] -> goal` | the variable takes one of these integers |
+| `lib.krn.eq` | `u -> v -> goal` | u and v unify |
+| `lib.krn.facto` | `[ row ] -> pattern -> goal` | the pattern unifies with one row of the table |
+| `lib.krn.fail` | `goal` | the goal that never holds |
+| `lib.krn.fdBound` | `state -> [ lvar ] -> ([ domain ] -> state) -> state` | f on the domains, once every variable has one |
+| `lib.krn.fresh` | `({ a, b, … }: goal) -> goal` | one new variable per formal argument |
+| `lib.krn.freshNamed` | `[ name ] -> ({ name = lvar; } -> goal) -> goal` | one new variable per name, the names from data |
+| `lib.krn.fromList` | `[ x ] -> list` | a Nix list as a relational list |
+| `lib.krn.infd` | `[ lvar ] -> lo -> hi -> goal` | each variable takes an integer in lo..hi |
+| `lib.krn.label` | `[ lvar ] -> goal` | enumerate the values left in the domains, the smallest domain first |
+| `lib.krn.lefd` | `x -> y -> goal` | x &lt;= y, by bounds propagation |
+| `lib.krn.ltfd` | `x -> y -> goal` | x &lt; y, by bounds propagation |
+| `lib.krn.maxOf` | `domain -> int` | the largest value of a domain |
+| `lib.krn.maximize` | `fuel -> (answer -> int) -> (q -> goal) -> { best; value; complete; count; }` | the first answer with the largest measure (best found when not complete) |
+| `lib.krn.membero` | `x -> l -> goal` | x is in the list l (a Nix list or a relational list) |
+| `lib.krn.minOf` | `domain -> int` | the smallest value of a domain |
+| `lib.krn.neq` | `u -> v -> goal` | u and v never unify, now or later |
+| `lib.krn.neqfd` | `x -> y -> goal` | x != y over domains |
+| `lib.krn.nil` | `list` | the empty relational list |
+| `lib.krn.plusfd` | `x -> y -> z -> goal` | x + y = z, by bounds propagation |
+| `lib.krn.project` | `term -> (value -> goal) -> goal` | the goal from the current value of the term |
+| `lib.krn.propagator` | `(state -> state or null) -> goal` | a finite-domain constraint, run again after every change |
+| `lib.krn.run` | `n -> (q -> goal) -> [ answer ]` | the first n answers for q |
+| `lib.krn.runAll` | `(q -> goal) -> [ answer ]` | every answer for q (finite searches only) |
+| `lib.krn.runAllFuel` | `fuel -> (q -> goal) -> { answers; complete; }` | every answer found in fuel steps |
+| `lib.krn.runC` | `n -> (q -> goal) -> [ { value; neq; dom; } ]` | the first n answers with the constraints left on them |
+| `lib.krn.runFuel` | `n -> fuel -> (q -> goal) -> { answers; complete; }` | up to n answers in fuel steps; complete is false when the fuel ran out |
+| `lib.krn.succeed` | `goal` | the goal that holds once |
+| `lib.krn.toList` | `list -> [ x ]` | a relational list as a Nix list |
+| `lib.krn.unify` | `subst -> u -> v -> subst or null` | the substitution extended so u and v are equal, with an occurs check; null when they cannot be |
+| `lib.krn.var` | `int -> lvar` | the logic variable number n |
+| `lib.krn.walkStar` | `subst -> term -> term` | the term with every bound variable replaced, deeply |
+
+## `lib.program`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.program.dryRun` | `{ base; prog; grant ? null; rejected ? [ ]; by ? null; result ? eval base; } -> stage answer // { valid; }` | validate the program, then stage it |
+| `lib.program.opErrors` | `result -> index -> op -> [ error ]` | the errors of one program op against the fleet |
+| `lib.program.render` | `[ op ] -> string` | the program as JSON, to read back with fromJSON |
+| `lib.program.toModule` | `[ op ] -> module` | the program as one yen module |
+| `lib.program.validate` | `result -> [ op ] -> [ error ]` | the errors of every op of a program |
+
+## `lib.rdf`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.rdf.ntriples` | `result -> string` | the eval result as one N-Triples document |
+| `lib.rdf.shacl` | `result -> string` | SHACL shapes (Turtle) from the result schema |
+| `lib.rdf.share` | `result -> { ntriples; sha256; count; }` | the N-Triples with their content hash and triple count |
+| `lib.rdf.triples` | `result -> [ string ]` | the eval result as N-Triples lines, sorted |
+
+## `lib.reduce`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.reduce.entries` | `[ element ] -> { value = [ element ]; errors; }` | the elements themselves, each with its value and where it came from |
+| `lib.reduce.list` | `[ element ] -> { value = [ v ]; errors; }` | every element value, in the order the elements arrive |
+| `lib.reduce.merge` | `[ element ] -> { value = attrs; errors; }` | the element values merged as attrsets; two different answers at one path are an error |
+| `lib.reduce.one` | `[ element ] -> { value; errors; }` | the one element value; zero or two or more elements is the error one |
+| `lib.reduce.set` | `[ element ] -> { value = [ v ]; errors; }` | the element values without duplicates |
 
 ## Inside a fleet: `yen.lib`
 
-Modules get the same lib, plus predicates and queries bound to the fleet. They have no `result`: see
+Modules get the same lib, plus these predicates and queries bound to the fleet. They have no `result`: see
 [Inside the fleet](/query/queries/#inside-the-fleet).
 
 
-`all`, `cascade`, `children`, `declaredIn`, `floor`, `graph`, `has`, `holds`, `labels`, `nearest`, `not`, `same`, `schema`, `scopesOf`, `within`
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `yen.lib.all` | `[ predicate ] -> predicate` | every predicate holds |
+| `yen.lib.cascade` | `[ name ] -> [ scope ] -> value or null` | the first answer for path along a list of scopes |
+| `yen.lib.children` | `predicate -> scope -> [ scope ]` | the children of the scope where the predicate holds, sorted |
+| `yen.lib.declaredIn` | `[ name ] -> [ file ]` | the modules that answer a declaration path, in file order |
+| `yen.lib.floor` | `trust -> [ edge ]` | the routed elements whose aspect trust is below trust |
+| `yen.lib.graph` | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
+| `yen.lib.has` | `predicate -> predicate` | the predicate holds at a child scope |
+| `yen.lib.holds` | `predicate -> scope -> bool` | the predicate holds at the scope (a kind, an instance, an aspect, a function, a list: any of them, or a combinator) |
+| `yen.lib.labels` | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
+| `yen.lib.nearest` | `kind -> scope -> scope or null` | the nearest scope of that kind, the scope itself first, then up |
+| `yen.lib.not` | `predicate -> predicate` | the predicate does not hold |
+| `yen.lib.same` | `x -> y -> bool` | x and y are the same instance; a non-instance is never the same |
+| `yen.lib.schema` | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |
+| `yen.lib.scopesOf` | `instance -> [ scope ]` | the scopes of an instance |
+| `yen.lib.within` | `predicate -> predicate` | the predicate holds at a scope above |
 
-## Libraries
+## Rules: `yen.facts` and `yen.relations`
+
+A rule is a function of its variables, `{ H }: { bad = H; pos = [ … ]; neg = [ … ]; }`. Its literals come
+from these references, never from strings. See [Invariants](/query/invariants/).
 
 
-| Library | Functions |
-|---|---|
-| `yen.lib.reduce` | `entries`, `list`, `merge`, `one`, `set` |
-| `yen.lib.graphs` | `cycles`, `fromEdges`, `layers`, `nodesOf`, `paths`, `reach`, `reachers`, `sccs`, `shortest`, `topo`, `transpose`, `uniq'` |
-| `yen.lib.datalog` | `certify`, `checkCertificate`, `comparisons`, `facts`, `ground`, `groundWith`, `isVar`, `judge`, `proof`, `stable`, `wfs`, `why`, `whyNot` |
-| `yen.lib.krn` | `appendo`, `conde`, `conj`, `cons`, `disj`, `distinctfd`, `dom`, `eq`, `facto`, `fail`, `fdBound`, `fresh`, `freshNamed`, `fromList`, `infd`, `label`, `lefd`, `ltfd`, `maxOf`, `maximize`, `membero`, `minOf`, `neq`, `neqfd`, `nil`, `plusfd`, `project`, `propagator`, `run`, `runAll`, `runAllFuel`, `runC`, `runFuel`, `succeed`, `toList`, `unify`, `var`, `walkStar` |
-| `yen.lib.rdf` | `ntriples`, `shacl`, `share`, `triples` |
-| `yen.lib.program` | `dryRun`, `opErrors`, `render`, `toModule`, `validate` |
-| `yen.lib.grants` | `allowed`, `grant`, `narrow` |
-| `yen.lib.change` | `set` |
-| `yen.lib.batteries` | `ai`, `cachix`, `claim`, `configurations`, `darwin`, `deploy`, `devshell`, `distributed`, `docs`, `droid`, `editors`, `eval-modules`, `exports`, `files`, `flake-file`, `github`, `home-manager`, `imports`, `k8s`, `kits`, `mermaid`, `mesh`, `microvm`, `nixos`, `ordered`, `secrets`, `secretspec`, `terranix`, `vars` |
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `yen.facts.has` | `aspect -> scope -> literal` | the aspect is active at the scope (yen.aspects.&lt;name&gt;) |
+| `yen.facts.instance` | `scope -> instance -> literal` | the scope holds that instance (yen.&lt;kind&gt;.&lt;name&gt;) |
+| `yen.facts.kind` | `kind -> scope -> literal` | the scope is of that kind (yen.kinds.&lt;kind&gt;) |
+| `yen.facts.lt` | `term -> term -> literal` | a comparison of two bound terms |
+| `yen.facts.neq` | `term -> term -> literal` | a comparison of two bound terms |
+| `yen.facts.parent` | `scope -> scope -> literal` | the second scope is the parent of the first |
+| `yen.facts.<kind>.<field>` | `scope -> term -> literal` | the field of the scope holds the term; for a ref field, the term is a scope of the instance it refers to, or a ref constant |
+| `yen.facts.<kind>.<field>.set` | `scope -> literal` | the field of the scope holds a value |
+| `yen.relations.<name>` | `term… -> literal` | a declared relation called by reference, one term per arity; arity 0 is the literal itself |
 
-## Queries of an eval result: `result = yen.lib.eval module`, outside the fleet
+## Queries of an eval result: `result = yen.lib.eval module`
 
 
-`active`, `agent`, `ask`, `check`, `context`, `data`, `declaredIn`, `errors`, `explain`, `facts`, `flake`, `floor`, `graph`, `impact`, `labels`, `queries`, `reduced`, `root`, `schema`, `scopes`, `undefined`
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `result.active` | `{ aspect = { scope id = bool; }; }` | where each aspect is active |
+| `result.agent` | `{ schema; undefined; errors; check; counts; }` | the fleet summary an agent reads first |
+| `result.ask` | `name -> args -> answer` | a stored query by name; an unknown query or parameter is an error record |
+| `result.check` | `{ … }` | the invariants verdict, with its certificate, seal and explanations (below) |
+| `result.context` | `scope id -> { maxEdges ? ; maxAspects ? ; } -> { scope; kind; name; parent; children; aspects; undefined; given; received; errors; }` | one scope for an agent, cut to size |
+| `result.data` | `{ kind = { name = fields; }; }` | every instance field value, JSON-safe, refs as kind:name |
+| `result.declaredIn` | `[ name ] -> [ file ]` | the modules that answer a declaration path, in file order |
+| `result.errors` | `[ error ]` | every error record: where, what was expected, how to fix it |
+| `result.explain` | `aspect -> scope id -> depth -> tree` | why an aspect is active or not at a scope, as a three-valued trace of its at |
+| `result.facts` | `[ atom ]` | the fleet as typed atoms that rules read |
+| `result.flake` | `flake or { invalid-flake-errors = { errors; violations; incomplete; }; }` | the flake outputs; the reason instead when the fleet is not clean |
+| `result.floor` | `trust -> [ edge ]` | the routed elements whose aspect trust is below trust |
+| `result.graph` | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
+| `result.impact` | `scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth` | the scopes an element of the scope reaches, transitively |
+| `result.labels` | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
+| `result.queries` | `{ name = args -> answer; }` | the stored queries of yen.queries |
+| `result.reduced` | `{ sink = { scope id = value; }; } or null` | each sink reduced at each receiver; null when the fleet is not clean |
+| `result.root` | `module` | the module this result came from |
+| `result.schema` | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |
+| `result.scopes` | `[ scope ]` | every scope, a secret field stated by its hash |
+| `result.undefined` | `[ { aspect; scope; } ]` | the aspects whose at is neither true nor false at a scope (a cycle through not) |
+| `result.check.certificate` | `{ true; false; }` | each decided atom with its stage; each true atom with the rule that proves it |
+| `result.check.certified` | `bool` | the small checker accepts the certificate and it states the same verdict |
+| `result.check.errors` | `[ error ]` | the errors of the invariants themselves: shapes, relations, unsafe rules |
+| `result.check.from` | `atom -> [ origin ]` | where a fact comes from: the edge origin, or the files that declare its instance, field or aspect |
+| `result.check.incomplete` | `[ atom ]` | the undefined bad atoms: an incomplete answer, never a pass |
+| `result.check.invariants` | `[ name ]` | the names of the invariants |
+| `result.check.ok` | `bool` | no violation, no incomplete atom, no opaque field |
+| `result.check.opaque` | `[ { field; scopes; } ]` | fields a rule reads where no fact can state the value (an attrset): the verdict is not ok |
+| `result.check.proof` | `atom -> tree` | the proof tree of a true atom |
+| `result.check.seal` | `{ binding; certificate; violations; incomplete; }` | the verdict bound to the hashes of the engine, the rules and the facts |
+| `result.check.verify` | `seal -> { ok; why ? ; }` | evaluate again and compare: engine, rules, facts and certificate |
+| `result.check.violations` | `[ atom ]` | the true bad atoms |
+| `result.check.why` | `atom -> [ rule ]` | the rules that make the atom true |
+| `result.check.whyNot` | `atom -> [ { rule; missing; blocking; undefinedBody; } ]` | why the atom is not true |
 
 <CardGrid>
-<LinkCard title="Queries" href="/query/queries/" description="What each query answers." />
+<LinkCard title="Queries" href="/query/queries/" description="What each query answers, with examples." />
 <LinkCard title="Error codes" href="/reference/errors/" description="Every error record yen can give." />
 </CardGrid>

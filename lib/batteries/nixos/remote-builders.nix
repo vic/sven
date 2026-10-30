@@ -1,3 +1,4 @@
+#: lib.batteries.nixos.remote-builders :: { from; keep ? ; systemOf ? ; } -> key value -- nix.buildMachines on the other machines
 # distributed builds on the other machines, from sink `from` (reduce entries): each element a `nix.buildMachines`
 # entry (`{ hostName; system; maxJobs ? ; sshUser ? ; sshKey ? ; supportedFeatures ? ; … }`). A machine never builds
 # on itself; `keep scope builder` picks (default: same system as `systemOf scope`, when given).

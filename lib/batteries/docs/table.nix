@@ -1,3 +1,4 @@
+#: lib.batteries.docs.table :: [ title ] -> [ [ cell ] ] -> string -- a markdown table
 # a markdown table: `head` is a list of column titles, `rows` a list of lists of cell texts.
 #   docs.table [ "Kind" "Scopes" ] [ [ "host" "3" ] ]
 head: rows:

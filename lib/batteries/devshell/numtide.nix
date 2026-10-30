@@ -1,3 +1,4 @@
+#: lib.batteries.devshell.numtide :: { from; devshell; systems; pkgsOf; name; packages ? ; shell ? ; } -> out value -- a numtide/devshell per system, its commands from sink from
 # a numtide/devshell per system, its commands from sink `from` (each element a list of commands): the value of
 # the sink's `out` key, at `devShells.<system>.<shell>`. `packages` and `pkgsOf` are functions of the system.
 #   yen.kinds.repo.sinks.commands.out = devshell.numtide { from = yen.kinds.repo.sinks.commands;

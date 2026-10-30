@@ -1,3 +1,4 @@
+#: lib.batteries.vars.secret-reads :: { from; reads; } -> [ error ] -- a public read of a file that is secret on that machine
 # the value of an `errors` key: a public read (`{ machine; generator; file; }` in sink `reads`, reduce entries) of a
 # file that is secret on that machine (clan refuses to read secret values at eval time).
 #   errors = clan.secret-reads { from = yen.kinds.fleet.sinks.generators; reads = yen.kinds.fleet.sinks.public-reads; };

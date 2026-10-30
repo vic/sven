@@ -1,3 +1,4 @@
+#: lib.batteries.darwin.homebrew :: { from; } -> key value -- one darwin module with the casks, brews and mas apps of sink from
 # homebrew from sink `from`: each element `{ casks ? [ ]; brews ? [ ]; masApps ? { }; }`. Any feature gives the
 # apps it needs; one darwin module installs them.
 #   yen.kinds.mac.sinks.brew.darwin = darwin.homebrew { from = yen.kinds.mac.sinks.brew; };

@@ -1,3 +1,4 @@
+#: lib.batteries.github.yaml :: value -> string -- YAML for GitHub Actions: block style, JSON-quoted scalars
 # YAML for GitHub Actions: block style, `|` for multi-line strings, JSON-quoted scalars and keys. Builtins only.
 let
   b = builtins;

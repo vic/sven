@@ -1,3 +1,4 @@
+#: lib.batteries.nixos.persist :: { from; root ? ; } -> key value -- impermanence paths from sink from
 # impermanence (github:nix-community/impermanence): paths that survive a reboot, from sink `from`. Each element a
 # directory, or `{ directories ? [ ]; files ? [ ]; }`. Import the impermanence module in your host.
 #   yen.kinds.host.sinks.persist.nixos = nixos.persist { from = yen.kinds.host.sinks.persist; };
