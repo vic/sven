@@ -235,8 +235,11 @@ let
     errors = [ ];
   };
   reduce = {
+    #: lib.reduce.list :: [ element ] -> { value = [ v ]; errors; } -- every element value, in the order the elements arrive
     list = es: pure (map (e: e.value) es);
+    #: lib.reduce.set :: [ element ] -> { value = [ v ]; errors; } -- the element values without duplicates
     set = es: pure (uniq (map (e: e.value) es));
+    #: lib.reduce.one :: [ element ] -> { value; errors; } -- the one element value; zero or two or more elements is the error `one`
     one = es: {
       value = if es == [ ] then null else (head es).value;
       errors = optional (length es != 1) (
@@ -247,6 +250,7 @@ let
         }
       );
     };
+    #: lib.reduce.merge :: [ element ] -> { value = attrs; errors; } -- the element values merged as attrsets; two different answers at one path are an error
     merge = foldl' (
       acc: e:
       let
@@ -254,6 +258,7 @@ let
       in
       m // { errors = acc.errors ++ m.errors; }
     ) (pure { });
+    #: lib.reduce.entries :: [ element ] -> { value = [ element ]; errors; } -- the elements themselves, each with its value and where it came from
     entries = pure;
   };
   # each built-in reduce is callable and carries its name, so `schema` can say which strategy a sink uses
@@ -263,26 +268,33 @@ let
   }) reduce;
   static = {
     reduce = reduceNamed;
+    #: lib.is :: (v -> bool) -> type -- a type from a check
     is = check: { inherit check; }; # any check is a type: `yen.lib.is builtins.isString`
+    #: lib.opt :: type -> default -> type -- the type, with a default when the field has no answer
     opt = t: d: t // { default = d; };
+    #: lib.derive :: type -> (instance -> value) -> type -- the type, with a default computed from the instance itself
     derive = t: f: t // { defaultFrom = f; }; # a default computed from the instance itself (Den schema defaults)
+    #: lib.maybe :: type -> type -- the type, or null (a maybe-ref is still a ref field)
     maybe = t: {
       check = v: v == null || checkOf t v;
       default = null;
       __maybe = t; # the type it wraps: a maybe-ref is still a ref (refKind)
     };
+    #: lib.listOf :: type -> type -- a list whose elements pass the type; a list of refs is still a ref field
     listOf = t: {
       check = v: isList v && all (checkOf t) v;
       __of = t; # a list of refs is still a ref field: one fact per element (refKind)
     };
     # a secret: checked like t, but no answer (facts, data, scopes, errors, exports) ever states its value, only its
     # sha256; an aspect still reads it
+    #: lib.secret :: type -> type -- the type, but every answer states the value only by its sha256
     secret = t: t // { __secret = true; };
     graphs = import ./lib/graphs.nix; # reach, transpose, topo, layers, sccs, cycles, paths, shortest over succ attrsets
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
     datalog = import ./lib/datalog.nix; # ground rules with negation: wfs (three values), stable, why
     batteries = import ./lib/batteries; # roles in, a yen module out: pool, gated, system; nixos.*
     # JSON-safe: functions and derivations become strings; toJSON then never fails
+    #: lib.jsonSafe :: value -> value -- the value with functions and derivations as strings, so toJSON never fails
     jsonSafe =
       v:
       if isAttrs v && (v.type or null) == "derivation" then
@@ -297,8 +309,10 @@ let
         mapAttrs (_: static.jsonSafe) v
       else
         v;
+    #: lib.agent :: result -> agent -- the summary of an eval result for an agent: counts, check, schema, errors, undefined
     agent = r: r.agent;
     # valid time: an instance with validFrom / validTo (ISO dates) holds at a date the caller passes; no clock in pure eval
+    #: lib.validAt :: date -> scope -> bool -- the scope instance holds at the ISO date (validFrom, validTo; absent is open)
     validAt =
       date: s:
       let
@@ -308,6 +322,7 @@ let
     krn = import ./lib/krn.nix; # µKanren: logic variables, unification, run, fresh, conde, appendo, facto
   };
 
+  #: lib.eval :: module -> result -- evaluate a fleet module; the result answers every query
   eval =
     root:
     let
@@ -343,6 +358,7 @@ let
       };
       defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
+      #: result.declaredIn, yen.lib.declaredIn :: [ name ] -> [ file ] -- the modules that answer a declaration path, in file order
       declaredIn =
         path:
         map (n: n.key) (
@@ -425,6 +441,7 @@ let
       ) (top.kinds or { }); # a kind is a type: its instances pass
       aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
       # a relation is called by reference: `yen.relations.rank e 3` is the atom [ "rank" e 3 ]; one of arity 0 is a literal
+      #: yen.relations.<name> :: term… -> literal -- a declared relation called by reference, one term per arity; arity 0 is the literal itself
       relations = mapAttrs (
         n: r:
         r
@@ -439,6 +456,7 @@ let
       # and the comparisons. A ref field with a variable target joins its instance; `#` variables are the literal's own.
       # `<kind>.<field>.set S`: the field of S holds a value (a ref field: whether or not its instance has a scope)
       factLits = {
+        #: yen.facts.kind :: kind -> scope -> literal -- the scope is of that kind (yen.kinds.<kind>)
         kind =
           k: s:
           lit [
@@ -446,6 +464,7 @@ let
             k.__kind
             s
           ];
+        #: yen.facts.has :: aspect -> scope -> literal -- the aspect is active at the scope (yen.aspects.<name>)
         has =
           a: s:
           lit [
@@ -453,6 +472,7 @@ let
             a.__aspect
             s
           ];
+        #: yen.facts.instance :: scope -> instance -> literal -- the scope holds that instance (yen.<kind>.<name>)
         instance =
           s: r:
           lit [
@@ -461,6 +481,7 @@ let
             r.kind
             r.name
           ];
+        #: yen.facts.parent :: scope -> scope -> literal -- the second scope is the parent of the first
         parent =
           s: p:
           lit [
@@ -469,6 +490,7 @@ let
             p
           ];
       }
+      #: yen.facts.lt, yen.facts.neq :: term -> term -> literal -- a comparison of two bound terms
       // mapAttrs (
         n: _: x: y:
         lit [
@@ -478,6 +500,8 @@ let
         ]
       ) static.datalog.comparisons
       // mapAttrs (k: d: mapAttrs (f: _: fieldLit k f) (d.fields or { })) kinds;
+      #: yen.facts.<kind>.<field> :: scope -> term -> literal -- the field of the scope holds the term; for a ref field, the term is a scope of the instance it refers to, or a ref constant
+      #: yen.facts.<kind>.<field>.set :: scope -> literal -- the field of the scope holds a value
       fieldLit =
         k: f:
         let
@@ -814,6 +838,7 @@ let
         neg = false;
       };
       here = s: mapAttrs (q: a: eval3 [ (frame q s) ] (a.at or [ ]) s) aspects;
+      #: yen.lib.holds :: predicate -> scope -> bool -- the predicate holds at the scope (a kind, an instance, an aspect, a function, a list: any of them, or a combinator)
       holds =
         p: s:
         if isFunction p then
@@ -834,9 +859,11 @@ let
             value = f s;
           }) ss
         );
+      #: result.active :: { aspect = { scope id = bool; }; } -- where each aspect is active
       active = mapAttrs (
         n: a: byScope (if inRefs ? ${n} then (s: s.__here.${n} == true) else holds (a.at or [ ])) unsorted
       ) aspects;
+      #: result.undefined :: [ { aspect; scope; } ] -- the aspects whose at is neither true nor false at a scope (a cycle through not)
       undefined = concatMap (
         s:
         map (n: {
@@ -1171,6 +1198,7 @@ let
       memo = genAttrs sinkNames (k: byScope (reduceAt k) (receivers k));
       reduced = mapAttrs (_: mapAttrs (_: x: x.value)) memo;
       reduceErrors = concatMap (k: concatMap (r: memo.${k}.${r.id}.errors) (receivers k)) sinkNames;
+      #: result.graph, yen.lib.graph :: { scopes; edges; } -- the scope tree and the routed elements: who gives what to whom
       graph = {
         scopes = map (s: { inherit (s) id kind name; }) scopes;
         edges = map (e: {
@@ -1252,6 +1280,7 @@ let
             one (shown s.kind f s.${f})
         ) (attrNames (removeAttrs s scopeMeta))
       ) unsorted;
+      #: result.facts :: [ atom ] -- the fleet as typed atoms that rules read
       facts =
         map (s: [
           "scope"
@@ -1293,6 +1322,7 @@ let
           e.from
         ]) errorsFleet
         ++ concatMap (x: if x ? atom then [ x.atom ] else [ ]) fieldAtoms;
+      #: result.check :: { … } -- the invariants verdict, with its certificate, seal and explanations (below)
       check =
         let
           D = static.datalog;
@@ -1433,6 +1463,7 @@ let
               p = problem r;
             }) (rulesOf n)
           ) (attrNames invs);
+          #: result.check.errors :: [ error ] -- the errors of the invariants themselves: shapes, relations, unsafe rules
           errors =
             shapeErrors
             ++ map (
@@ -1486,14 +1517,18 @@ let
           m = D.wfs verdictProgram;
           # the staged certificate of the verdict (rung 3), and the plain checker's answer on it: valid, and it states
           # the same violations, with every undefined `bad` atom left out (incomplete)
+          #: result.check.certificate :: { true; false; } -- each decided atom with its stage; each true atom with the rule that proves it
           certificate = D.certify verdictProgram;
           certAtoms = es: b.sort b.lessThan (map (x: key x.atom) es);
+          #: result.check.certified :: bool -- the small checker accepts the certificate and it states the same verdict
           certified =
             (D.checkCertificate verdictProgram certificate).valid
             && certAtoms (filter (x: isBad x.atom) certificate.true) == b.sort b.lessThan (map key violations)
             && !any (a: elem (key a) (certAtoms (certificate.true ++ certificate.false))) incomplete;
           isBad = a: head a == "bad";
+          #: result.check.violations :: [ atom ] -- the true bad atoms
           violations = filter isBad m.true;
+          #: result.check.incomplete :: [ atom ] -- the undefined bad atoms: an incomplete answer, never a pass
           incomplete = filter isBad m.undefined;
           # .41 (E1): a relation reached from `bad` through an even number of `not` must be complete. Yen's facts are,
           # but for a field value no fact states (an attrset): such a field read there makes the verdict opaque, not ok.
@@ -1527,6 +1562,7 @@ let
             })
           );
           opaqueAt = groupBy (x: x.opaque) (filter (x: x ? opaque) fieldAtoms);
+          #: result.check.opaque :: [ { field; scopes; } ] -- fields a rule reads where no fact can state the value (an attrset): the verdict is not ok
           opaque = map (f: {
             field = f;
             scopes = map (x: x.id) opaqueAt.${f};
@@ -1548,6 +1584,7 @@ let
             ok = false;
             inherit why;
           };
+          #: result.check.verify :: seal -> { ok; why ? ; } -- evaluate again and compare: engine, rules, facts and certificate
           verify =
             s:
             if s.binding.engine != binding.engine then
@@ -1564,6 +1601,7 @@ let
               { ok = true; };
           # .43: where a fact comes from, beside the fact, never in it: an edge's origin, or the files that declare its
           # instance, its field, or its aspect
+          #: result.check.from :: atom -> [ origin ] -- where a fact comes from: the edge origin, or the files that declare its instance, field or aspect
           from =
             a:
             let
@@ -1620,6 +1658,7 @@ let
             from
             opaque
             ;
+          #: result.check.seal :: { binding; certificate; violations; incomplete; } -- the verdict bound to the hashes of the engine, the rules and the facts
           seal = static.jsonSafe {
             inherit
               binding
@@ -1628,14 +1667,23 @@ let
               incomplete
               ;
           };
+          #: result.check.ok :: bool -- no violation, no incomplete atom, no opaque field
           ok = violations == [ ] && incomplete == [ ] && opaque == [ ];
+          #: result.check.why :: atom -> [ rule ] -- the rules that make the atom true
           why = D.why program model;
+          #: result.check.whyNot :: atom -> [ { rule; missing; blocking; undefinedBody; } ] -- why the atom is not true
           whyNot = D.whyNot program model;
+          #: result.check.proof :: atom -> tree -- the proof tree of a true atom
           proof = D.proof program model;
+          #: result.check.invariants :: [ name ] -- the names of the invariants
           invariants = attrNames invs;
         };
       lib =
         tools
+        #: yen.lib.all :: [ predicate ] -> predicate -- every predicate holds
+        #: yen.lib.not :: predicate -> predicate -- the predicate does not hold
+        #: yen.lib.within :: predicate -> predicate -- the predicate holds at a scope above
+        #: yen.lib.has :: predicate -> predicate -- the predicate holds at a child scope
         // genAttrs combinators (
           c: p: {
             "__${c}" = p;
@@ -1651,10 +1699,15 @@ let
             floor
             schema
             ; # queries readable inside the fleet (docs); `check` and `context` read errors, so not here
+          #: yen.lib.same :: x -> y -> bool -- x and y are the same instance; a non-instance is never the same
           same = x: y: isRef x && isRef y && x.kind == y.kind && x.name == y.name; # total: a non-instance is never the same
+          #: yen.lib.nearest :: kind -> scope -> scope or null -- the nearest scope of that kind, the scope itself first, then up
           nearest = k: nearest k.__kind;
+          #: yen.lib.scopesOf :: instance -> [ scope ] -- the scopes of an instance
           scopesOf = x: filter (s: s.kind == x.kind && s.name == x.name) scopes;
+          #: yen.lib.children :: predicate -> scope -> [ scope ] -- the children of the scope where the predicate holds, sorted
           children = p: s: filter (holds p) (childrenAt.${s.id} or [ ]); # the children of a scope where p holds, sorted
+          #: yen.lib.cascade :: [ name ] -> [ scope ] -> value or null -- the first answer for path along a list of scopes
           cascade = path: foldl' (a: x: if a != null then a else (get path x).ok or null) null; # first answer along a list of scopes
         };
       # ── schema: what a fleet declares, as JSON-safe data (no functions): for agents and docs ──
@@ -1687,6 +1740,7 @@ let
           feeds = attrNames (removeAttrs d sinkMeta);
           conditional = d ? at;
         };
+      #: result.schema, yen.lib.schema :: { kinds; aspects; invariants; queries; } -- what the fleet declares, as JSON-safe data
       schema = {
         kinds = mapAttrs (k: d: {
           fields = fieldsOf (d.fields or { });
@@ -1742,6 +1796,7 @@ let
           node "aspect" ({ aspect = p.__aspect; } // sub [ (aspects.${p.__aspect}.at or [ ]) ])
         else
           node "instance" { instance = "${p.kind or "?"}:${p.name or "?"}"; };
+      #: result.explain :: aspect -> scope id -> depth -> tree -- why an aspect is active or not at a scope, as a three-valued trace of its at
       explain =
         n: id: depth:
         let
@@ -1776,6 +1831,7 @@ let
             of = length xs;
           };
         };
+      #: result.context :: scope id -> { maxEdges ? ; maxAspects ? ; } -> { scope; kind; name; parent; children; aspects; undefined; given; received; errors; } -- one scope for an agent, cut to size
       context =
         id:
         {
@@ -1799,6 +1855,7 @@ let
             received = cut maxEdges (filter (e: e.to == id) graph.edges);
             errors = filter (e: e.from == id) errorsAll;
           };
+      #: result.agent :: { schema; undefined; errors; check; counts; } -- the fleet summary an agent reads first
       agent = static.jsonSafe {
         inherit schema undefined;
         errors = errorsAll;
@@ -1811,6 +1868,7 @@ let
         };
       };
       # ── impact: the scopes an element of `id` reaches, transitively over routed elements, by depth ──
+      #: result.impact :: scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth -- the scopes an element of the scope reaches, transitively
       impact =
         id:
         {
@@ -1887,11 +1945,13 @@ let
             ) (filter (p: hasInfix "/${p}" f) (attrNames labelTable))
           ) (filesOf n)
         );
+      #: result.labels, yen.lib.labels :: { aspect = label; } -- the trust label of each aspect, from yen.labels
       labels =
         if labelTable == { } then
           { }
         else
           mapAttrs (n: _: if labelOf n == null then unlabeled else labelOf n) aspects;
+      #: result.floor, yen.lib.floor :: trust -> [ edge ] -- the routed elements whose aspect trust is below trust
       floor = floorOf labels graph.edges;
       # a key yen does not read is an error, not a silent no-op: yen modules are not NixOS modules.
       # `from` is the module that declares the key
@@ -1974,6 +2034,7 @@ let
       clean = errorsAll == [ ] && check.ok;
       self = {
         # the scope records as answers state a secret field by its hash; the elements read the values
+        #: result.scopes :: [ scope ] -- every scope, a secret field stated by its hash
         scopes = map (
           s:
           s // mapAttrs (f: v: shown s.kind f v) (intersectAttrs (genAttrs (secretFields s.kind) (_: null)) s)
@@ -1993,8 +2054,10 @@ let
           labels
           floor
           ;
+        #: result.root :: module -- the module this result came from
         inherit root; # the module this result came from: a stored query can stage a change against it
         # every instance's field values, JSON-safe: for history diffs and agents
+        #: result.data :: { kind = { name = fields; }; } -- every instance field value, JSON-safe, refs as kind:name
         data = mapAttrs (
           k: _:
           mapAttrs (
@@ -2006,10 +2069,13 @@ let
             )
           ) instances.${k}
         ) kinds;
+        #: result.errors :: [ error ] -- every error record: where, what was expected, how to fix it
         errors = errorsAll;
         # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs, and no
         # reduced sink values to build them from by hand (D13)
+        #: result.reduced :: { sink = { scope id = value; }; } or null -- each sink reduced at each receiver; null when the fleet is not clean
         reduced = if clean then reduced else null;
+        #: result.flake :: flake or { invalid-flake-errors = { errors; violations; incomplete; }; } -- the flake outputs; the reason instead when the fleet is not clean
         # its flake is the reason instead: a build finds no output, and `nix eval .#invalid-flake-errors` says why
         flake =
           if clean then
@@ -2024,6 +2090,7 @@ let
         # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.
+        #: result.queries :: { name = args -> answer; } -- the stored queries of yen.queries
         queries = mapAttrs (
           n: f:
           let
@@ -2035,6 +2102,7 @@ let
             optional = filter (a: fa.${a}) ps;
           }
         ) yen.queries;
+        #: result.ask :: name -> args -> answer -- a stored query by name; an unknown query or parameter is an error record
         ask =
           n: args:
           if !(yen.queries ? ${n}) then
@@ -2066,6 +2134,7 @@ let
   # scope stays when one covers the other (the deeper is kept), sinks intersect. There is no way to widen.
   covers = p: s: s == p || b.substring 0 (b.stringLength p + 1) s == "${p}/";
   grants = {
+    #: lib.grant, lib.grants.grant :: { scopes; sinks ? null; } -> grant -- the scope ids and sinks a change may reach (null: every sink)
     grant =
       {
         scopes,
@@ -2074,6 +2143,7 @@ let
       {
         inherit scopes sinks;
       };
+    #: lib.narrow, lib.grants.narrow :: grant -> grant -> grant -- two grants met: the scopes both cover, the sinks both allow; never wider
     narrow = g: h: {
       scopes = uniq (
         concatMap (
@@ -2097,6 +2167,7 @@ let
         else
           filter (x: elem x h.sinks) g.sinks;
     };
+    #: lib.allowed, lib.grants.allowed :: grant -> { to; sink; } -> bool -- the grant covers the target scope and the sink
     allowed = g: e: any (p: covers p e.to) g.scopes && (g.sinks == null || elem e.sink g.sinks);
   };
   # data with no functions: it can be hashed, rendered as JSON and read back
@@ -2109,6 +2180,7 @@ let
     else
       !isFunction v;
   # stage: an agent's change, in quarantine. Nothing changes; two evals compare. `ok` only when nothing new is wrong.
+  #: lib.stage :: { base; change; rejected ? [ ]; grant ? null; by ? null; id ? null; baseResult ? eval base; } -> { ok; errors; violations; incomplete; refused; diff; labels; floor; sha; render; } -- a change evaluated with the base and applied nowhere; ok only when nothing new is wrong
   stage =
     {
       base,
@@ -2240,6 +2312,7 @@ let
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
   # field changes between two `data` answers: [ { path; old; new; } ], sorted by path
+  #: lib.diffData :: data -> data -> [ { path; old; new; } ] -- the field changes between two `data` answers, sorted by path
   diffData =
     d0: d1:
     let
@@ -2261,6 +2334,7 @@ let
     in
     go [ ] d0 d1;
   # the fleet at a git revision (transaction time): `module` is the fleet module path inside the repository
+  #: lib.asOf :: { url; rev; module; } -> result -- the fleet at a git revision
   asOf =
     {
       url,
@@ -2268,6 +2342,7 @@ let
       module,
     }:
     eval (import ((b.fetchGit { inherit url rev; }) + "/${module}"));
+  #: lib.history :: { url; revs; module; } -> [ { rev; errors; scopes; changes; } ] -- the fleet at each revision, with the field changes from the one before
   history =
     {
       url,
@@ -2284,6 +2359,7 @@ let
       changes = if i == 0 then [ ] else diffData (r (i - 1)).data (r i).data;
     }) (length revs);
   # without: the fleet with the files that declare `path` removed (coarse: a whole file goes; no engine hook)
+  #: lib.without :: { files; path; args ? { }; } -> { dropped; result; } -- the fleet without the files that declare path
   without =
     {
       files,
@@ -2308,6 +2384,7 @@ let
   #   { op = "place"; aspect; kind; name; } the aspect is also active at that instance
   #   { op = "new"; kind; name; fields; }   a new instance (a field value { ref = { kind; name; }; } is a ref)
   program = rec {
+    #: lib.program.opErrors :: result -> index -> op -> [ error ] -- the errors of one program op against the fleet
     opErrors =
       r: i: o:
       let
@@ -2342,8 +2419,10 @@ let
         fail "unknown op ${toString o.op}" {
           near = near (toString o.op) (words "set ref place new");
         };
+    #: lib.program.validate :: result -> [ op ] -> [ error ] -- the errors of every op of a program
     validate = r: prog: b.concatLists (b.genList (i: opErrors r i (b.elemAt prog i)) (length prog));
     # the program as one yen module (a function: refs need `yen`)
+    #: lib.program.toModule :: [ op ] -> module -- the program as one yen module
     toModule =
       prog:
       { yen, ... }:
@@ -2363,6 +2442,7 @@ let
       {
         imports = map (o: { yen = one o; }) prog;
       };
+    #: lib.program.dryRun :: { base; prog; grant ? null; rejected ? [ ]; by ? null; result ? eval base; } -> stage answer // { valid; } -- validate the program, then stage it
     dryRun =
       {
         base,
@@ -2394,10 +2474,12 @@ let
         }
       else
         removeAttrs s [ "render" ] // { valid = true; };
+    #: lib.program.render :: [ op ] -> string -- the program as JSON, to read back with fromJSON
     render = b.toJSON;
   };
   # a change as data: set one declaration path (`change.set [ "host" "web-1" "port" ] 8080`)
   change = {
+    #: lib.change.set :: [ name ] -> value -> module -- a module that gives one declaration path a value
     set = path: value: { yen = nest path value; };
   };
   # agent tools: the engine library outside an eval, and inside the fleet too
@@ -2416,6 +2498,7 @@ in
 {
   lib = tools // {
     inherit eval asOf history;
+    #: lib.mkFlake :: module -> flake -- the flake outputs of the fleet, or { invalid-flake-errors } when it has an error or a violation
     mkFlake = m: (eval m).flake;
   };
 }

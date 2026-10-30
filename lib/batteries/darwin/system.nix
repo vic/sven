@@ -1,3 +1,4 @@
+#: lib.batteries.darwin.system :: { from; darwinSystem; system; } -> out value -- darwinConfigurations.<scope name>
 # darwinConfigurations.<scope name>: `darwinSystem` and `system` read the scope (its channel, its system).
 #   out = darwin.system { from = yen.kinds.mac.sinks.darwin; darwinSystem = m: m.channel.darwin.lib.darwinSystem;
 #     system = m: m.system.name; };

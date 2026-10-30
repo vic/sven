@@ -1,3 +1,4 @@
+#: lib.batteries.ai.skills :: dir -> [ { type; name; path; } ] -- one skill record per subdirectory with a SKILL.md
 # skills from a directory: one record `{ type = "skill"; name; path; }` per subdirectory that has a SKILL.md, for an
 # extensions pool.
 #   agent-ext = ai.skills ./skills;

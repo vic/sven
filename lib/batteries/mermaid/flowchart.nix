@@ -1,3 +1,4 @@
+#: lib.batteries.mermaid.flowchart :: { direction ? ; shapes ? ; } -> view -> string -- the text of one Mermaid flowchart
 # Mermaid flowcharts from views. A view is { nodes = [ { id; label; kind ? ; group ? ; } ]; edges = [ { from; to;
 # label ? ; live ? ; } ]; }. `scopes` and `routes` make views of `yen.lib.graph`; you make your own views of any data.
 #   text = mermaid.flowchart { direction = "TD"; shapes = with mermaid.shapes; { mac = round; }; } (mermaid.scopes yen.lib.graph);

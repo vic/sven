@@ -1,3 +1,4 @@
+#: lib.batteries.mermaid.kinds :: kinds -> view -- spawns between kinds, and fields that refer to a kind
 # a view of the kinds: a solid edge is `spawns` (parent kind to child kind), a dotted edge a field that refers to a kind
 #   mermaid.flowchart { } (mermaid.kinds yen.kinds)
 let

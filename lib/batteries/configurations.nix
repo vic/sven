@@ -1,3 +1,4 @@
+#: lib.batteries.configurations :: { from; output; build; } -> out value -- one flake output per scope, built from the modules of sink from
 # one flake output per scope: `<output>.<scope name> = build scope modules`, the modules collected in sink `from`.
 # The value of the sink's `out` key. nixosConfigurations, darwinConfigurations, homeConfigurations, any builder.
 #   out = configurations { from = yen.kinds.host.sinks.nixos; output = "nixosConfigurations";

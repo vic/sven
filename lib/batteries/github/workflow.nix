@@ -1,3 +1,4 @@
+#: lib.batteries.github.workflow :: { from; path; doc; header ? ; } -> key value -- a workflow file from the jobs of sink from
 # a workflow file from the jobs of sink `from` (reduce merge: one attr per job). `header` reads the job names.
 #   yen.kinds.repo.sinks.jobs = { reduce = yen.lib.reduce.merge;
 #     files = github.workflow { from = yen.kinds.repo.sinks.jobs; path = ".github/workflows/test.yml";

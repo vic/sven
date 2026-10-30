@@ -1,3 +1,4 @@
+#: lib.batteries.mermaid.routing :: graph -> view -- routing at the kind level, with element counts
 # a view of routing at the kind level: the kind of the giving scope -> sink -> the kind of the receiver, each edge
 # labelled with its element count. Only elements given by aspects.
 #   mermaid.flowchart { } (mermaid.routing yen.lib.graph)

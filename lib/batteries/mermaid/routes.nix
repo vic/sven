@@ -1,3 +1,4 @@
+#: lib.batteries.mermaid.routes :: graph -> view -- who gives what to whom
 # a view of `yen.lib.graph`: who gives what to whom; an element given at its own scope is a loop, left out
 let
   b = builtins;

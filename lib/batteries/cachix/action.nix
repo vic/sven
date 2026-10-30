@@ -1,3 +1,4 @@
+#: lib.batteries.cachix.action :: { name; authToken ? ; version ? ; } -> step -- the GitHub Actions step of cachix-action for one cache
 # the GitHub Actions step of cachix/cachix-action for one cache: pushes what the job builds when `authToken` is set.
 #   steps = [ … (cachix.action { name = "vix"; }) … ];
 {

@@ -1,3 +1,4 @@
+#: lib.batteries.docs.links :: { root; base ? ; } -> reduce -- source links that find their line by a needle at eval time
 # a reduce: elements `{ name; file; needle; text; }` become `{ <name> = "[`text`](file#L<n>)"; }`, where <n> is the first
 # line of `root + "/${file}"` that contains `needle`. The line is found at eval time, so links follow edits; a needle
 # that is gone is an error record.

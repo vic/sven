@@ -1,3 +1,4 @@
+#: lib.batteries.nixos.firewall :: { from; } -> key value -- the open TCP and UDP ports of sink from
 # open ports from sink `from`: each element a port number (tcp), or `{ tcp ? [ ]; udp ? [ ]; }`. Any aspect at the
 # host or under it gives the ports it needs; the firewall is built once.
 #   yen.kinds.host.sinks.ports.nixos = nixos.firewall { from = yen.kinds.host.sinks.ports; };

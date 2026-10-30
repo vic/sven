@@ -1,3 +1,4 @@
+#: lib.batteries.secretspec.toml :: { from; project; path ? ; profiles ? ; defaults ? ; providers ? ; } -> key value -- secretspec.toml from the secrets of sink from
 # secretspec.toml (github:cachix/secretspec) from sink `from`: each element declares one secret,
 # `{ name; profile ? "default"; description ? ; required ? ; default ? ; providers ? ; … }`. The value of a key that
 # gives to the files sink. Give the sink `reduce = yen.lib.batteries.claim { key = s: "${s.profile or "default"}/${s.name}"; }`

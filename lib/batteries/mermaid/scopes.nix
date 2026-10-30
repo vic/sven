@@ -1,3 +1,4 @@
+#: lib.batteries.mermaid.scopes :: { keep ? ; label ? ; group ? ; edge ? ; } -> graph -> view -- the scopes, each under its parent
 # a view of the scopes of `yen.lib.graph`, each under its parent. Options, all functions of a scope:
 #   keep: draw it (default all) · label: its text (default "<kind> <name>") · group: the id of the scope it sits in
 #   as a subgraph, or null · edge: draw the edge from its parent (default: when it has no group)

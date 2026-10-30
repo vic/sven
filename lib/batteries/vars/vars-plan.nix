@@ -1,3 +1,4 @@
+#: lib.batteries.vars.vars-plan :: { from; machines; recipientsOf; } -> out value -- the clan vars plan per machine: files, recipients, order
 # the clan vars plan per machine, the value of the generators sink's `out` key: the secret files that reach the
 # machine with their path (`neededFor = "users"` goes to secrets-for-users), its recipients, and the order to
 # generate in (dependencies first). `deploy = false` files never reach the machine.

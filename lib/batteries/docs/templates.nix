@@ -1,3 +1,4 @@
+#: lib.batteries.docs.templates :: { root; description; } -> templates -- flake templates from the directories of root that have a flake.nix
 # flake templates from the directories of `root` that have a flake.nix; `description` reads a directory's path.
 #   templates = docs.templates { root = ./examples; description = d: (import (d + "/page.nix")).description; };
 { root, description }:

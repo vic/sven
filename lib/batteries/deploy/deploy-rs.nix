@@ -1,3 +1,4 @@
+#: lib.batteries.deploy.deploy-rs :: { configurations; hostname; activate; sshUser ? ; } -> { deploy.nodes; } -- deploy-rs nodes from built configurations
 # deploy-rs nodes from built NixOS configurations (for example `out.nixosConfigurations` in `yen.flake`):
 # `hostname` and `activate` read a configuration's name and value.
 #   yen.flake = { out, ... }: out // deploy.deploy-rs { configurations = out.nixosConfigurations;

@@ -1,3 +1,4 @@
+#: lib.batteries.editors.vscode :: { from; profile ? ; } -> key value -- one home module for VS Code from the extensions and settings of sink from
 # VS Code (home-manager `programs.vscode`) from sink `from`: language and tool aspects give
 # `{ extensions ? [ ]; settings ? { }; }`; one home module merges them. `profile` names the vscode profile.
 #   yen.kinds.user.sinks.vscode.homeManager = editors.vscode { from = yen.kinds.user.sinks.vscode; };

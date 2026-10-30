@@ -1,3 +1,4 @@
+#: lib.batteries.kits.settings-typed :: { scope; } -> [ error ] -- each setting of the member role is set and passes its type
 # at a member scope (from kits.members), the value of an `errors` key: each setting of its role's interface must be
 # set and pass the option's type.
 #   yen.aspects.settings-typed = { at = yen.kinds.member; errors = kits.settings-typed; };

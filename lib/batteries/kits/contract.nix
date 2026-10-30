@@ -1,3 +1,4 @@
+#: lib.batteries.kits.contract :: { assemblies; machines; holds; } -> [ error ] -- the assembly contract: roles, machine counts, assemblies per kit
 # the assembly contract, the value of an `errors` key: the kit is a kit, every role is the kit's and its `at` is a
 # predicate, the machine count per role is within the kit's `constraints.roles.<role>.{min,max}`, and at most
 # `constraints.maxAssemblies` assemblies use one kit.

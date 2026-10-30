@@ -1,3 +1,4 @@
+#: lib.batteries.flake-file.write :: { from; inputs; lib; pkgs; modules ? ; } -> out value -- flake.nix from the inputs each aspect declares, with its write package and check
 # flake.nix from sink `from` with github:vic/flake-file: each aspect declares the inputs it uses next to the code
 # that uses them. `from` reduces with merge. The value of the sink's `out` key: `packages.<system>.write-flake` and
 # `checks.<system>.flake-file` (the committed flake.nix must match).

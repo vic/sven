@@ -13,9 +13,11 @@ let
         }) xs
       )
     );
+  #: lib.graphs.nodesOf :: succ -> [ node ] -- every node of the graph, sorted, with or without edges
   nodesOf = succ: uniq (b.attrNames succ ++ b.concatLists (b.attrValues succ));
   next = succ: n: sort (succ.${n} or [ ]); # sorted: the order the data is written in never changes an answer
   # nodes reachable by one or more edges (genericClosure: no recursion depth limit)
+  #: lib.graphs.reach :: succ -> node -> [ node ] -- the nodes reachable from node by one edge or more, sorted
   reach =
     succ: start:
     sort (
@@ -26,6 +28,7 @@ let
         }
       )
     );
+  #: lib.graphs.transpose :: succ -> succ -- the graph with every edge reversed
   transpose =
     succ:
     b.listToAttrs (
@@ -37,31 +40,33 @@ let
 in
 rec {
   inherit nodesOf reach transpose;
-  # { from; to; } edges to succ
+  #: lib.graphs.fromEdges :: [ { from; to; } ] -> succ -- a graph from a list of edges
   fromEdges = es: b.mapAttrs (_: xs: sort (map (e: e.to) xs)) (b.groupBy (e: e.from) es);
-  # what reaches n (its dependents, for succ = "depends on")
+  #: lib.graphs.reachers :: succ -> node -> [ node ] -- the nodes that reach node (its dependents, when succ is "depends on")
   reachers = succ: reach (transpose succ);
-  # nodes on a cycle
+  #: lib.graphs.cycles :: succ -> [ node ] -- the nodes on a cycle
   cycles = succ: b.filter (n: b.elem n (reach succ n)) (nodesOf succ);
-  # strongly connected components with 2+ nodes or a self loop, each sorted, by first node
+  #: lib.graphs.sccs :: succ -> [ [ node ] ] -- the strongly connected components with 2 or more nodes or a self loop, each sorted, by first node
   sccs =
     succ:
     let
       t = transpose succ;
       comp = n: sort (uniq ([ n ] ++ b.filter (m: b.elem m (reach t n)) (reach succ n)));
+      # one of each component, by first node
+      distinct =
+        xss:
+        b.attrValues (
+          b.listToAttrs (
+            map (xs: {
+              name = b.concatStringsSep "\n" xs;
+              value = xs;
+            }) xss
+          )
+        );
     in
-    uniq' (map comp (cycles succ));
-  uniq' =
-    xss:
-    b.attrValues (
-      b.listToAttrs (
-        map (xs: {
-          name = b.concatStringsSep "\n" xs;
-          value = xs;
-        }) xss
-      )
-    );
+    distinct (map comp (cycles succ));
   # Kahn: a node after all its successors (succ = "depends on"). Ties in name order. A cycle is data, not an error.
+  #: lib.graphs.topo :: succ -> { ok; order; stuck; } -- each node after all its successors (Kahn); the nodes on a cycle stay in stuck
   topo =
     succ:
     let
@@ -88,7 +93,7 @@ rec {
       order = r.done;
       stuck = r.left;
     };
-  # waves: every node in the first wave where all its successors are in earlier waves
+  #: lib.graphs.layers :: succ -> [ [ node ] ] -- waves: each node in the first wave after all its successors
   layers =
     succ:
     let
@@ -102,7 +107,7 @@ rec {
         if ready == [ ] then acc else acc ++ [ ready ];
     in
     b.foldl' go [ ] ns;
-  # shortest path by edges (breadth first), [ from … to ] or null
+  #: lib.graphs.shortest :: succ -> from -> to -> [ node ] or null -- the shortest path by edges (breadth first), from first, to last
   shortest =
     succ: from: to:
     let
@@ -123,7 +128,7 @@ rec {
       hit = b.filter (x: x.key == to) bfs;
     in
     if hit == [ ] then null else (b.head hit).path;
-  # every simple path from `from` to `to`
+  #: lib.graphs.paths :: succ -> from -> to -> [ [ node ] ] -- every simple path from from to to
   paths =
     succ: from: to:
     let

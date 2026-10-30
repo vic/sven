@@ -1,3 +1,4 @@
+#: lib.batteries.files.writer :: { from; files; lib; pkgs; root; relativeRoot ? ; } -> out value -- packages.<system>.write-files and one check per repo file
 # Repo files with github:sini/files: the modules of a sink become `packages.<system>.write-files` and one check per file
 # (the committed file must match). The value of the sink's `out` key.
 #   yen.kinds.repo.sinks.files.out = yen.lib.batteries.files.writer {

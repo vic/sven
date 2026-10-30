@@ -1,3 +1,4 @@
+#: lib.batteries.ordered :: reduce -- elements in an order that meets every before and after; a cycle is an error
 # a reduce: elements `{ name; value; before ? [ ]; after ? [ ]; }` in an order that meets every before and after.
 # value: the values in that order. A cycle, an unknown name or a name given twice is an error.
 #   sinks.sections.reduce = ordered;

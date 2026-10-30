@@ -15,6 +15,7 @@
 let
   b = builtins;
   isVar = x: b.isAttrs x && x ? __lvar;
+  #: lib.krn.var :: int -> lvar -- the logic variable number n
   var = n: { __lvar = n; };
   isData = x: b.isAttrs x && !b.isFunction x && !(x ? __lvar);
   key = v: toString v.__lvar;
@@ -35,6 +36,7 @@ let
   ext =
     s: v: x:
     if occurs s v x then null else s // { ${key v} = x; };
+  #: lib.krn.unify :: subst -> u -> v -> subst or null -- the substitution extended so u and v are equal, with an occurs check; null when they cannot be
   unify =
     s: u: v:
     let
@@ -257,8 +259,10 @@ let
       in
       r // { answers = [ s.h ] ++ r.answers; };
   goal = g: if b.isList g then conj g else g;
+  #: lib.krn.conj :: [ goal ] -> goal -- all goals hold (a list of goals is a conj too)
   conj = gs: st: b.foldl' (acc: g: bind acc (goal g)) (unit st) gs;
 
+  #: lib.krn.walkStar :: subst -> term -> term -- the term with every bound variable replaced, deeply
   walkStar =
     s: x:
     let
@@ -354,18 +358,25 @@ rec {
     walkStar
     conj
     ;
+  #: lib.krn.eq :: u -> v -> goal -- u and v unify
   eq =
     u: v: st:
     let
       s = unify st.s u v;
     in
     if s == null then null else post (st // { inherit s; });
+  #: lib.krn.succeed :: goal -- the goal that holds once
   succeed = unit;
+  #: lib.krn.fail :: goal -- the goal that never holds
   fail = _: null;
+  #: lib.krn.disj :: [ goal ] -> goal -- one of the goals holds; the branches interleave
   disj = gs: st: { d = _: b.foldl' (acc: g: mplus acc (goal g st)) null gs; };
+  #: lib.krn.conde :: [ [ goal ] ] -> goal -- one clause holds, each clause a conj
   conde = clauses: disj (map conj clauses);
   # fresh ({ a, b }: goals): one variable per formal argument. freshNamed [ "x" "y" ] (vs: goals): names from data.
+  #: lib.krn.fresh :: ({ a, b, … }: goal) -> goal -- one new variable per formal argument
   fresh = f: freshNamed (b.attrNames (b.functionArgs f)) f;
+  #: lib.krn.freshNamed :: [ name ] -> ({ name = lvar; } -> goal) -> goal -- one new variable per name, the names from data
   freshNamed =
     names: f: st:
     let
@@ -377,11 +388,13 @@ rec {
       );
     in
     goal (f vs) (st // { c = st.c + b.length names; });
+  #: lib.krn.project :: term -> (value -> goal) -> goal -- the goal from the current value of the term
   project =
     x: f: st:
     goal (f (walkStar st.s x)) st;
 
   # =/= : stored, so it holds whatever comes later
+  #: lib.krn.neq :: u -> v -> goal -- u and v never unify, now or later
   neq =
     u: v: st:
     let
@@ -396,6 +409,7 @@ rec {
       if p == { } then null else unit (st // { neq = st.neq ++ [ p ]; });
 
   # finite domains
+  #: lib.krn.dom :: lvar -> [ int ] -> goal -- the variable takes one of these integers
   dom =
     x: ds: st:
     let
@@ -403,18 +417,24 @@ rec {
       d = sortInts ds;
     in
     andThen (setDom st x (if cur == null then d else inter d cur)) post;
+  #: lib.krn.infd :: [ lvar ] -> lo -> hi -> goal -- each variable takes an integer in lo..hi
   infd =
     xs: lo: hi:
     conj (map (x: dom x (b.genList (i: lo + i) (hi - lo + 1))) xs);
+  #: lib.krn.propagator :: (state -> state or null) -> goal -- a finite-domain constraint, run again after every change
   propagator = c: st: andThen (c (st // { fdc = st.fdc ++ [ c ]; })) post;
+  #: lib.krn.fdBound :: state -> [ lvar ] -> ([ domain ] -> state) -> state -- f on the domains, once every variable has one
   fdBound =
     st: xs: f:
     let
       ds = map (domOf st) xs;
     in
     if b.any (d: d == null) ds then st else f ds;
+  #: lib.krn.minOf :: domain -> int -- the smallest value of a domain
   minOf = d: b.head d;
+  #: lib.krn.maxOf :: domain -> int -- the largest value of a domain
   maxOf = d: b.elemAt d (b.length d - 1);
+  #: lib.krn.lefd :: x -> y -> goal -- x <= y, by bounds propagation
   lefd =
     x: y:
     propagator (
@@ -430,6 +450,7 @@ rec {
         )
       )
     );
+  #: lib.krn.ltfd :: x -> y -> goal -- x < y, by bounds propagation
   ltfd =
     x: y:
     propagator (
@@ -445,6 +466,7 @@ rec {
         )
       )
     );
+  #: lib.krn.plusfd :: x -> y -> z -> goal -- x + y = z, by bounds propagation
   plusfd =
     x: y: z:
     propagator (
@@ -464,6 +486,7 @@ rec {
         )
       )
     );
+  #: lib.krn.neqfd :: x -> y -> goal -- x != y over domains
   neqfd =
     x: y:
     propagator (
@@ -484,6 +507,7 @@ rec {
           st
       )
     );
+  #: lib.krn.distinctfd :: [ lvar ] -> goal -- every two variables differ
   distinctfd =
     xs:
     conj (
@@ -494,6 +518,7 @@ rec {
       )
     );
   # enumerate: the variable with the smallest domain first; a variable with no domain stays as it is
+  #: lib.krn.label :: [ lvar ] -> goal -- enumerate the values left in the domains, the smallest domain first
   label =
     xs: st:
     let
@@ -519,18 +544,23 @@ rec {
       ))
         st;
 
+  #: lib.krn.run :: n -> (q -> goal) -> [ answer ] -- the first n answers for q
   run = n: f: map answer (take n (start f));
+  #: lib.krn.runAll :: (q -> goal) -> [ answer ] -- every answer for q (finite searches only)
   runAll = f: map answer (takeAll (start f)); # finite searches only
   # fuel-bounded search: { answers; complete; }. complete = false: fuel ran out first, answers are what was found.
+  #: lib.krn.runFuel :: n -> fuel -> (q -> goal) -> { answers; complete; } -- up to n answers in fuel steps; complete is false when the fuel ran out
   runFuel =
     n: fuel: f:
     let
       r = takeFuel n fuel (start f);
     in
     r // { answers = map answer r.answers; };
+  #: lib.krn.runAllFuel :: fuel -> (q -> goal) -> { answers; complete; } -- every answer found in fuel steps
   runAllFuel = runFuel (-1);
   # maximize fuel measure f: { best; value; complete; count; }. best = first answer with the largest measure
   # (null if none). Under complete = false, best is "best found", not proven optimal.
+  #: lib.krn.maximize :: fuel -> (answer -> int) -> (q -> goal) -> { best; value; complete; count; } -- the first answer with the largest measure (best found when not complete)
   maximize =
     fuel: measure: f:
     let
@@ -556,17 +586,22 @@ rec {
       count = b.length r.answers;
     };
   # with the constraints left on the answer: { value; neq; dom; }
+  #: lib.krn.runC :: n -> (q -> goal) -> [ { value; neq; dom; } ] -- the first n answers with the constraints left on them
   runC = n: f: map answerC (take n (start f));
 
   # relational lists: nil and cons cells
+  #: lib.krn.nil :: list -- the empty relational list
   nil = null;
+  #: lib.krn.cons :: head -> tail -> list -- a relational list cell
   cons = h: t: {
     head = h;
     tail = t;
   };
+  #: lib.krn.fromList :: [ x ] -> list -- a Nix list as a relational list
   fromList =
     xs:
     b.foldl' (acc: x: cons x acc) nil (b.genList (i: b.elemAt xs (b.length xs - 1 - i)) (b.length xs));
+  #: lib.krn.toList :: list -> [ x ] -- a relational list as a Nix list
   toList =
     l:
     if l == null then
@@ -576,6 +611,7 @@ rec {
     else
       [ l ];
   # l ++ s == out, in every direction (a list of unknown length enumerates without end)
+  #: lib.krn.appendo :: l -> s -> out -> goal -- l ++ s == out, in every direction
   appendo =
     l: s: out:
     conde [
@@ -599,6 +635,7 @@ rec {
       ]
     ];
   # x is in the list l: a Nix list (known) or a cons list (relational)
+  #: lib.krn.membero :: x -> l -> goal -- x is in the list l (a Nix list or a relational list)
   membero =
     x: l: st:
     let
@@ -623,5 +660,6 @@ rec {
     )
       st;
   # a table: each row is a fact; the pattern unifies with a row (records or tuples)
+  #: lib.krn.facto :: [ row ] -> pattern -> goal -- the pattern unifies with one row of the table
   facto = rows: pattern: disj (map (r: eq pattern r) rows);
 }

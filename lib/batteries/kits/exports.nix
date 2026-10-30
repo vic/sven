@@ -1,3 +1,4 @@
+#: lib.batteries.kits.exports :: { isMember; machineOf ? ; } -> reduce -- each member writes only its own exports; other scopes override one entry
 # a reduce for kit exports: each member writes only under its own (assembly, role, machine), and only the keys its
 # kit lists in `exports`. An element from any other scope is the owner's override of one entry: refs
 # `{ assembly; role; machine; value; }`. Read the value with a filter on refs (`yen.lib.same`).
