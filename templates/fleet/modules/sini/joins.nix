@@ -110,7 +110,7 @@ in
       { tree, ... }:
       let
         lb.scopesOf = yen.host.lb; # the same request as guard asks: the same answer
-        run = yen.aspects.guard.cycle {
+        run = yen.helpers.guard {
           scope.settings.guard.enable = true;
           inherit tree;
         };

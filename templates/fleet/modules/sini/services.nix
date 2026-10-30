@@ -82,21 +82,23 @@ in
       );
   };
 
-  # A cluster aspect reads a named host directly: the hub is lb's system owner.
+  # A cluster aspect reads a named host directly: the hub is lb's system owner. The cycle is a helper, so the
+  # guard-pod unit check (joins.nix) can run it: an aspect reads another aspect only as a ref.
   yen.aspects.guard = {
     at = yen.cluster.axon;
-    cycle =
-      { tree, scope, ... }:
-      let
-        lb.scopesOf = yen.host.lb; # a tree request: lb, with its data
-      in
-      {
-        tree = [ lb ];
-        k8s-manifests = [
-          (lib.optionalAttrs scope.settings.guard.enable {
-            applications.guard.hub = "${(lib.head (lib.head (tree.select lb))).system-owner.name}@lb";
-          })
-        ];
-      };
+    cycle = yen.helpers.guard;
   };
+  yen.helpers.guard =
+    { tree, scope, ... }:
+    let
+      lb.scopesOf = yen.host.lb; # a tree request: lb, with its data
+    in
+    {
+      tree = [ lb ];
+      k8s-manifests = [
+        (lib.optionalAttrs scope.settings.guard.enable {
+          applications.guard.hub = "${(lib.head (lib.head (tree.select lb))).system-owner.name}@lb";
+        })
+      ];
+    };
 }
