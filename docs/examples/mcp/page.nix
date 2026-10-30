@@ -33,8 +33,9 @@
       ))
       ''
         Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.
-        The fleet template ships a skill that teaches agents the order of calls, the answer shapes and the refusals:
-        `.claude/skills/yen-mcp/SKILL.md`. A fleet test checks that it names every tool, and no other.
+        The repository ships a skill that teaches agents the order of calls, the answer shapes and the refusals:
+        `.claude/skills/yen-mcp/SKILL.md`, at the top of the repository. This page checks that it names every tool,
+        and no other.
         Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation.
 
         ## Register it
@@ -77,5 +78,20 @@
         builtins.length (
           builtins.fromJSON (builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json"))
         ) == 14;
+      # the agent skill names every tool the server serves, and no tool it does not
+      skill =
+        let
+          skill = builtins.readFile (inputs.yen + "/.claude/skills/yen-mcp/SKILL.md");
+          tools = map (t: t.name) (
+            builtins.fromJSON (builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json"))
+          );
+          used = builtins.filter (n: builtins.substring 0 4 n == "yen_") (
+            map (x: if builtins.isList x then builtins.head x else "") (builtins.split "(yen_[a-z_]+)" skill)
+          );
+        in
+        builtins.all (
+          t: builtins.match ".*`${t}`.*" (builtins.replaceStrings [ "\n" ] [ " " ] skill) != null
+        ) tools
+        && builtins.all (n: builtins.elem n tools) used;
     };
 }
