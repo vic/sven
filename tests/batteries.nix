@@ -417,7 +417,51 @@ let
     group = s: if s.kind == "person" then "top:t/box:a" else null;
   } viewR.graph;
 
+  linkRun =
+    needle:
+    topRun (bat.docs.links { root = ./.; }) (yen: {
+      l = {
+        at = yen.box.a;
+        v = {
+          name = "dl";
+          file = "datalog.nix";
+          inherit needle;
+          text = "datalog";
+        };
+      };
+    });
+  vocabRun =
+    lines:
+    run [
+      (
+        { yen, ... }:
+        {
+          yen.aspects.vocab = {
+            at = yen.top.t;
+            errors = bat.docs.vocabulary {
+              what = "kinds";
+              names = builtins.attrNames yen.kinds;
+              inherit lines;
+            };
+          };
+        }
+      )
+    ];
+  allKinds = {
+    top = "root";
+    box = "a box";
+    person = "a person";
+  };
+
   checks = {
+    docs-links = (linkRun "datalog oracles").flake.got == { dl = "[`datalog`](datalog.nix#L1)"; };
+    docs-links-gone = codes (linkRun "zz-none-yen") == [ "link-gone" ];
+    docs-vocabulary = (vocabRun allKinds).errors == [ ];
+    docs-vocabulary-drift =
+      b.sort b.lessThan (codes (vocabRun (b.removeAttrs allKinds [ "box" ] // { ghost = "x"; }))) == [
+        "doc-missing"
+        "doc-stale"
+      ];
     mermaid-kinds =
       b.elem {
         from = "k:box";
