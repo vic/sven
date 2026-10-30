@@ -2383,6 +2383,76 @@ let
     # a derived tuple that fails its relation's check is an error (ok takes one string term here)
     # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
     # .43: where a fact comes from is its own answer, never part of the fact: one fact, two files
+    # .41 (E1): a field a rule reads through an even number of `not` from `bad` gives a fact for every value, or the
+    # verdict is not ok. Host a.tag is an attrset: no fact, so `bad` could be missed. Read under `not`, a missing fact
+    # can only add a violation, so it is safe.
+    r3-opaque =
+      let
+        meta =
+          tagsWith
+            [
+              {
+                head = [
+                  "bad"
+                  "x"
+                  (v "H")
+                ];
+                pos = [
+                  [
+                    "val"
+                    "tag"
+                    (v "H")
+                    "x"
+                  ]
+                ];
+              }
+            ]
+            {
+              a.tag = {
+                x = 1;
+              };
+            };
+        safe =
+          tagsWith
+            [
+              {
+                head = [
+                  "bad"
+                  "x"
+                  (v "H")
+                ];
+                pos = [
+                  [
+                    "kind"
+                    "host"
+                    (v "H")
+                  ]
+                ];
+                neg = [
+                  [
+                    "val"
+                    "tag"
+                    (v "H")
+                    "x"
+                  ]
+                ];
+              }
+            ]
+            {
+              a.tag = {
+                x = 1;
+              };
+            };
+      in
+      !meta.check.ok
+      &&
+        meta.check.opaque == [
+          {
+            field = "tag";
+            scopes = [ "top:t/host:a" ];
+          }
+        ]
+      && safe.check.opaque == [ ];
     r3-provenance =
       let
         r = yen.eval {

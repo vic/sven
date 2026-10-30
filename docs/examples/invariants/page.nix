@@ -103,6 +103,10 @@
         `{ ok = false; why; }` with `why` one of `engine`, `rules`, `facts`, `certificate` or `verdict`.
         `result.check.from atom` tells where a fact comes from: the files that declare it, or an edge's origin.
         Where a fact comes from is never part of the fact.
+
+        A field that holds an attrset gives no `val` fact. When a rule reads that field through an even number of
+        `not` from `bad`, a missing fact could hide a violation, so `result.check.opaque` names the field and its scopes
+        and `ok` is false. Read under one `not`, a missing fact can only add a violation, so it is safe.
       ''
       (docs.tip "Gate changes on it" ''
         [Stage](/agents/stage/) evaluates a change and refuses it when it adds a violation. CI can fail on `check.ok == false`.

@@ -1023,6 +1023,13 @@ let
                     };
                   }
                 ]
+              else if isAttrs x then
+                [
+                  {
+                    opaque = f;
+                    inherit (s) id;
+                  }
+                ] # an attrset is data no fact states: a rule that must see it marks the verdict opaque (.41)
               else
                 [ ];
           in
@@ -1198,6 +1205,42 @@ let
           isBad = a: head a == "bad";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
+          # .41 (E1): a relation reached from `bad` through an even number of `not` must be complete. Yen's facts are,
+          # but for a field value no fact states (an attrset): such a field read there makes the verdict opaque, not ok.
+          # A node is a relation; a `val` atom with a constant field is its own node, `val/*` when the field is a variable
+          node =
+            a:
+            if head a == "val" then "val/${if isString (b.elemAt a 1) then b.elemAt a 1 else "*"}" else head a;
+          valid = map (x: x.r) (filter (x: x.p == null) checked);
+          reached = keySet (
+            map (x: x.key) (genericClosure {
+              startSet = [
+                {
+                  key = "bad@0";
+                  n = "bad";
+                  odd = false;
+                }
+              ];
+              operator =
+                x:
+                concatMap (
+                  r:
+                  let
+                    next = flip: a: {
+                      key = "${node a}@${if x.odd != flip then "1" else "0"}";
+                      n = node a;
+                      odd = x.odd != flip;
+                    };
+                  in
+                  map (next false) (r.pos or [ ]) ++ map (next true) (r.neg or [ ])
+                ) (filter (r: node r.head == x.n) valid);
+            })
+          );
+          opaqueAt = groupBy (x: x.opaque) (filter (x: x ? opaque) fieldAtoms);
+          opaque = map (f: {
+            field = f;
+            scopes = map (x: x.id) opaqueAt.${f};
+          }) (filter (f: reached ? "val/${f}@0" || reached ? "val/*@0") (attrNames opaqueAt));
           # .42: the seal binds a verdict to the engine, the rules and the facts it was computed from. Anything else that
           # changes a verdict changes one of them. Checking a seal is evaluating again: `verify` answers { ok; why; }
           hash = x: b.hashString "sha256" (b.toJSON x);
@@ -1285,6 +1328,7 @@ let
             certified
             verify
             from
+            opaque
             ;
           seal = static.jsonSafe {
             inherit
@@ -1294,7 +1338,7 @@ let
               incomplete
               ;
           };
-          ok = violations == [ ] && incomplete == [ ];
+          ok = violations == [ ] && incomplete == [ ] && opaque == [ ];
           why = D.why program model;
           whyNot = D.whyNot program model;
           proof = D.proof program model;
