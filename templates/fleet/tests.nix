@@ -1160,18 +1160,18 @@ let
       && (
         let
           f = with' (
-              { yen, ... }:
-              {
-                yen.aspects.forge = {
-                  at = yen.lib.all [
-                    yen.kinds.member
-                    (s: s.service == "sshd")
-                  ];
-                  exports = {
-                    service = "borg";
-                  };
+            { yen, ... }:
+            {
+              yen.aspects.forge = {
+                at = yen.lib.all [
+                  yen.kinds.member
+                  (s: s.service == "sshd")
+                ];
+                exports = {
+                  service = "borg";
                 };
-              }
+              };
+            }
           );
         in
         hasMsg f ".*service sshd does not export service" && f.reduced == null

@@ -204,63 +204,63 @@ let
   treeAllWith =
     bogus:
     yen.eval (
-    { yen, ... }:
-    {
-      yen.kinds.top.spawns.cluster = _: yen.cluster;
-      yen.kinds.cluster.spawns.node = _: { n1 = { }; };
-      yen.kinds.node.spawns.pod = _: {
-        p1 = { };
-        p2 = { };
-      };
-      yen.kinds.node.sinks.seen = { };
-      yen.kinds.pod = { };
-      yen.top.t = { };
-      yen.cluster.c1 = { };
-      yen.aspects.see = {
-        at = yen.kinds.node;
-        cycle =
-          { tree, ... }:
-          {
-            tree = [
-              {
-                category = "parent";
-                parent = true;
-              }
-              {
-                category = "none";
-                nearest = yen.kinds.pod;
-              } # no pod above a node: no answer
-              {
-                category = "kids";
-                children = yen.kinds.pod;
-              }
-              {
-                category = "same";
-                scopesOf = yen.cluster.c1;
-              }
-              {
-                category = "holds";
-                holds = yen.kinds.node;
-              }
-            ]
-            ++ b.filter (_: bogus) [
-              {
-                category = "bad";
-                bogus = true;
-              }
-            ];
-            seen = {
-              parent = map (s: s.id) (tree.select "parent");
-              none = tree.select "none";
-              kids = map (map (s: s.name)) (tree.select "kids");
-              same = map (map (s: s.id)) (tree.select "same");
-              holds = tree.select "holds";
-              bad = tree.select "bad";
+      { yen, ... }:
+      {
+        yen.kinds.top.spawns.cluster = _: yen.cluster;
+        yen.kinds.cluster.spawns.node = _: { n1 = { }; };
+        yen.kinds.node.spawns.pod = _: {
+          p1 = { };
+          p2 = { };
+        };
+        yen.kinds.node.sinks.seen = { };
+        yen.kinds.pod = { };
+        yen.top.t = { };
+        yen.cluster.c1 = { };
+        yen.aspects.see = {
+          at = yen.kinds.node;
+          cycle =
+            { tree, ... }:
+            {
+              tree = [
+                {
+                  category = "parent";
+                  parent = true;
+                }
+                {
+                  category = "none";
+                  nearest = yen.kinds.pod;
+                } # no pod above a node: no answer
+                {
+                  category = "kids";
+                  children = yen.kinds.pod;
+                }
+                {
+                  category = "same";
+                  scopesOf = yen.cluster.c1;
+                }
+                {
+                  category = "holds";
+                  holds = yen.kinds.node;
+                }
+              ]
+              ++ b.filter (_: bogus) [
+                {
+                  category = "bad";
+                  bogus = true;
+                }
+              ];
+              seen = {
+                parent = map (s: s.id) (tree.select "parent");
+                none = tree.select "none";
+                kids = map (map (s: s.name)) (tree.select "kids");
+                same = map (map (s: s.id)) (tree.select "same");
+                holds = tree.select "holds";
+                bad = tree.select "bad";
+              };
             };
-          };
-      };
-    }
-  );
+        };
+      }
+    );
   # one error per code: a module, spawns, an element, a sink `of`, an order
   codesFix = yen.eval {
     imports = [
