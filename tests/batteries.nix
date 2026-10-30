@@ -601,7 +601,140 @@ let
       machines = clMachines;
     };
 
+  # clan vars batteries as plain functions
+  gen =
+    xs:
+    cl.generators { machineOf = s: s; } (
+      map (x: {
+        from.name = x.m;
+        value = x.v;
+      }) xs
+    );
+  gens = gen [
+    {
+      m = "a";
+      v = {
+        name = "ssh";
+        files.key.secret = true;
+        files."key.pub".secret = false;
+      };
+    }
+    {
+      m = "c";
+      v = {
+        name = "ssh";
+        files.key.secret = true;
+      };
+    }
+    {
+      m = "a";
+      v = {
+        name = "wifi";
+        share = true;
+        files.pw = { };
+        files.ca = {
+          deploy = false;
+        };
+      };
+    }
+    {
+      m = "c";
+      v = {
+        name = "wifi";
+        share = true;
+        files.pw = { };
+      };
+    }
+    {
+      m = "a";
+      v = {
+        name = "borg";
+        dependencies = [ "ssh" ];
+        files.pass.neededFor = "users";
+      };
+    }
+    {
+      m = "a";
+      v = null;
+    }
+  ];
+  badDeps = gen [
+    {
+      m = "c";
+      v = {
+        name = "borg";
+        dependencies = [ "nope" ];
+      };
+    }
+  ];
+  plan =
+    (cl.vars-plan {
+      from.__sink = "g";
+      machines = [ "a" ];
+      recipientsOf = m: [ "r-${m}" ];
+    } { sinks.g = gens.value; }).varsPlan.a;
+  secretReads =
+    cl.secret-reads
+      {
+        from.__sink = "g";
+        reads.__sink = "r";
+      }
+      {
+        sinks = {
+          g = gens.value;
+          r = [
+            {
+              value = {
+                machine = "a";
+                generator = "ssh";
+                file = "key";
+              };
+            }
+            {
+              value = {
+                machine = "a";
+                generator = "ssh";
+                file = "key.pub";
+              };
+            }
+          ];
+        };
+      };
+  pub = cl.public-value { root = ./fixtures/vars; };
+
   checks = {
+    clan-generators =
+      b.attrNames gens.value == [
+        "borg@a"
+        "ssh@a"
+        "ssh@c"
+        "wifi"
+      ]
+      &&
+        gens.value.wifi.machines == [
+          "a"
+          "c"
+        ]
+      && gens.errors == [ ];
+    clan-generators-dependency =
+      map (e: e.error) badDeps.errors == [ "vars: generator borg@c depends on nope, which c has not" ];
+    clan-vars-plan =
+      map (g: g.name) plan.order == [
+        "ssh"
+        "borg"
+        "wifi"
+      ]
+      &&
+        map (f: f.path) plan.files == [
+          "/run/secrets-for-users/vars/borg/pass"
+          "/run/secrets/vars/ssh/key"
+          "/run/secrets/vars/wifi/pw"
+        ]
+      && plan.recipients == [ "r-a" ];
+    clan-secret-reads = secretReads == [ "vars: a reads ssh/key, a secret file" ];
+    clan-public-value =
+      pub "lb" "openssh" "key.pub" "absent" == "ssh-ed25519 PUB"
+      && pub "lb" "openssh" "nope" "absent" == "absent";
     clan-members-by-tag =
       b.attrNames (
         cl.members {
