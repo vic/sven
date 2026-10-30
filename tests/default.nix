@@ -1322,6 +1322,63 @@ let
       && (r.impact "top:t/host:db" { sinks = [ "nixos" ]; }).reached == [ ]
       && (r.impact "top:t/host:db" { sinks = [ "peer" ]; }).code == "unknown-sink"
       && (r.impact "top:t/host:dd" { }).code == "unknown-scope";
+    # .20: when a fleet has labels, an aspect from an unlabeled file has trust 0 (floor sees it); a prefix is literal,
+    # never a regex ("agen./" does not label "agent/")
+    labels-unlabeled =
+      let
+        r = yen.eval {
+          imports = [
+            ./fixtures/labels/modules/base.nix
+            ./fixtures/labels/agent/web.nix
+            { yen.aspects.extra.at = [ ]; }
+          ];
+        };
+        lit = yen.eval {
+          imports = [
+            ./fixtures/labels/modules/base.nix
+            ./fixtures/labels/agent/web.nix
+            { yen.labels."agen./".trust = 0; } # as a regex it would match agent/ and win as the lowest
+          ];
+        };
+      in
+      r.labels.extra.trust == 0 && r.labels.extra.prefix == null && lit.labels.cache.trust == 1;
+    # .20 .13: a staged change or a program carries its submitter's label; floor sees the agent, not a file
+    labels-submitter =
+      let
+        base = {
+          imports = [ ./fixtures/labels/modules/base.nix ];
+        };
+        s = yen.stage {
+          inherit base;
+          by = {
+            name = "bot";
+            trust = 1;
+          };
+          change = {
+            yen.aspects.web.nixos.services.redis.enable = true;
+          };
+        };
+        p = yen.program.dryRun {
+          inherit base;
+          by = {
+            name = "bot";
+            trust = 1;
+          };
+          prog = [
+            {
+              op = "place";
+              aspect = "web";
+              kind = "host";
+              name = "h";
+            }
+          ];
+        };
+      in
+      s.labels.web.by == "bot"
+      && s.labels.web.trust == 1
+      && b.all (x: x.aspect == "web" && x.trust == 1) (s.floor 2)
+      && s.floor 2 != [ ]
+      && p.labels.web.by == "bot";
     labels-floor =
       let
         r = yen.eval {

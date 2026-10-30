@@ -70,6 +70,27 @@ let
   moduleKeys = words "imports _module yen";
   yenKeys = words "kinds aspects helpers queries invariants relations labels flake"; # and the kind names
   kindKeys = words "fields spawns sinks";
+  # s occurs in x, as text (no regex)
+  hasInfix =
+    s: x: any (i: b.substring i (b.stringLength s) x == s) (b.genList (i: i) (b.stringLength x + 1));
+  # the routed elements whose aspect's trust is below t; `labels` gives each aspect its label
+  floorOf =
+    labels: edges: t:
+    concatMap (
+      e:
+      let
+        n = b.substring 7 (b.stringLength e.origin) e.origin;
+        l = labels.${n};
+      in
+      optional (b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t) (
+        {
+          edge = e;
+          aspect = n;
+          inherit (l) trust file prefix;
+        }
+        // intersectAttrs { by = null; } l
+      )
+    ) edges;
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -1598,8 +1619,15 @@ let
             inherit hops;
           };
       # ── labels by file path prefix (`yen.labels."agent/" = { trust = 1; }`): an aspect's label is the meet (the
-      # lowest trust) over the files that declare it; an element carries its aspect's label; `floor n` lists what is below ──
+      # lowest trust) over the files that declare it; an element carries its aspect's label; `floor n` lists what is below.
+      # A prefix is literal text after a `/`, never a regex. When the fleet has labels, an aspect no prefix covers has
+      # trust 0: unknown provenance is never above a floor ──
       labelTable = top.labels or { };
+      unlabeled = {
+        trust = 0;
+        prefix = null;
+        file = null;
+      };
       labelOf =
         n:
         foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null (
@@ -1612,28 +1640,15 @@ let
                 prefix = p;
                 file = f;
               }
-            ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
+            ) (filter (p: hasInfix "/${p}" f) (attrNames labelTable))
           ) (filesOf n)
         );
       labels =
-        let
-          ls = mapAttrs (n: _: labelOf n) aspects;
-        in
-        removeAttrs ls (filter (n: ls.${n} == null) aspectNames);
-      floor =
-        t:
-        concatMap (
-          e:
-          let
-            n = b.substring 7 (b.stringLength e.origin) e.origin;
-            l = labels.${n};
-          in
-          optional (b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t) {
-            edge = e;
-            aspect = n;
-            inherit (l) trust file prefix;
-          }
-        ) graph.edges;
+        if labelTable == { } then
+          { }
+        else
+          mapAttrs (n: _: if labelOf n == null then unlabeled else labelOf n) aspects;
+      floor = floorOf labels graph.edges;
       # a key yen does not read is an error, not a silent no-op: yen modules are not NixOS modules.
       # `from` is the module that declares the key
       keyErrors =
@@ -1807,6 +1822,7 @@ let
       change,
       rejected ? [ ],
       grant ? null,
+      by ? null, # who submits it: { name; trust; }; the change's aspects carry this label (none: trust 0)
       id ? null, # the change's content hash, when the caller knows it (a program); else from a path or data
       baseResult ? eval base,
     }: # baseResult: the base already evaluated. The invariants always run: the law is not optional
@@ -1853,6 +1869,25 @@ let
       declared = eval change;
       # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
       # scope and every sink. shortcut: sound but coarse; R-yen (yen-704.27) makes reads visible, then grants narrow again
+      # .20 .13: every aspect the change declares carries its submitter's label, whatever file (or inline program op)
+      # holds it, so a floor sees the agent
+      labels =
+        changedResult.labels
+        //
+          genAttrs
+            (filter (
+              n:
+              declared.declaredIn [
+                "aspects"
+                n
+              ] != [ ]
+            ) (attrNames changedResult.active))
+            (_: {
+              trust = by.trust or 0;
+              by = by.name or null;
+              prefix = null;
+              file = null;
+            });
       reaches = any (k: declared.declaredIn [ k ] != [ ]) (
         yenKeys ++ attrNames changedResult.schema.kinds
       );
@@ -1905,7 +1940,9 @@ let
         violations
         incomplete
         diff
+        labels
         ;
+      floor = floorOf labels changedResult.graph.edges;
       ok = errors == [ ] && violations == [ ] && incomplete == [ ] && refused == [ ];
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
@@ -2039,12 +2076,18 @@ let
         prog,
         grant ? null,
         rejected ? [ ],
+        by ? null,
         result ? eval base,
       }:
       let
         errs = validate result prog;
         s = stage {
-          inherit base grant rejected;
+          inherit
+            base
+            grant
+            rejected
+            by
+            ;
           baseResult = result;
           change = toModule prog;
           id = b.hashString "sha256" (b.toJSON prog); # a program is data: `rejected` matches it
