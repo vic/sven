@@ -1,8 +1,8 @@
 {
   title = "Forwards";
   description = "A sink key that names another sink feeds it. One sink can build another, and a guest can feed its host.";
-  section = "concepts";
-  order = 10;
+  section = "behavior";
+  order = 6;
 
   body =
     { docs, result, ... }:

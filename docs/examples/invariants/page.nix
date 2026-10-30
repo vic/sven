@@ -2,7 +2,7 @@
   title = "Invariants";
   description = "Rules that must hold across the whole fleet, checked before deploy: `result.check`.";
   section = "query";
-  order = 5;
+  order = 4;
 
   body =
     {

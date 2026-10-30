@@ -1,8 +1,8 @@
 {
   title = "Aspects";
   description = "Behavior at scopes. An aspect is active where `at` holds, and gives elements to sinks by key.";
-  section = "concepts";
-  order = 6;
+  section = "behavior";
+  order = 1;
 
   body =
     { docs, result, ... }:
@@ -10,7 +10,7 @@
       ''
         An aspect is one feature. It is active at every scope where its `at` predicate holds.
         Each other key gives one element to the sink of that name. The element is a value, or a function
-        that asks for args (see [Args](/concepts/args/)).
+        that asks for args (see [Args](/behavior/args/)).
 
         In this example, hosts collect `packages`. Users live under hosts and have no `packages` sink,
         so the packages of a user go up to its host.

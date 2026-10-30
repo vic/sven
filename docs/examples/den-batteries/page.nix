@@ -3,7 +3,7 @@
   description = "Each den.batteries.* entry, in yen: an aspect, a field, a sink, or nothing at all.";
   section = "den";
   route = "den/batteries";
-  order = 2;
+  order = 3;
 
   body =
     { docs, ... }:

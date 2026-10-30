@@ -2,7 +2,7 @@
   title = "Stored queries";
   description = "Name a question once with `yen.queries`, then ask it with `result.ask` from Nix, the CLI or an agent.";
   section = "query";
-  order = 6;
+  order = 5;
 
   body =
     { docs, result, ... }:

@@ -3,7 +3,7 @@
   description = "The eight aspect patterns of the dendritic design guide, and the yen form of each, with the pitfalls that go away.";
   section = "den";
   route = "den/dendritic";
-  order = 1;
+  order = 2;
 
   body =
     { docs, ... }:

@@ -2,7 +2,7 @@
   title = "Trimmed module lists";
   description = "Evaluate only the NixOS base modules a host needs, with a drvPath oracle that proves the system is the same.";
   section = "perf";
-  order = 2;
+  order = 3;
   badge = "advanced";
 
   body =

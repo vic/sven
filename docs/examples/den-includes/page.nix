@@ -3,7 +3,7 @@
   description = "How large Den configurations are written, and the same structure in yen: features in many files, hosts that pick features, user meta.";
   section = "den";
   route = "den/includes";
-  order = 3;
+  order = 1;
 
   body =
     { docs, ... }:

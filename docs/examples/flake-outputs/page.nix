@@ -1,8 +1,8 @@
 {
   title = "Flake outputs";
   description = "The root's `out` sink is the flake. Any element can read the outputs with the `out` arg.";
-  section = "concepts";
-  order = 14;
+  section = "behavior";
+  order = 8;
 
   body =
     { docs, result, ... }:

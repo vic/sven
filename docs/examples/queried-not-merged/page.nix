@@ -1,8 +1,8 @@
 {
   title = "Data is queried, not merged";
   description = "Each read is a query on the files that answer it. Two answers for one leaf are an error, not an override.";
-  section = "concepts";
-  order = 4;
+  section = "principles";
+  order = 1;
 
   body =
     {
@@ -74,7 +74,7 @@
       (docs.value (variant "variants/override.nix").errors)
       (docs.note "Same value, no error" ''
         Two files that give the same value for one leaf are fine. Only a conflict is an error.
-        Lists and attrsets for aspect keys are elements, not leaves: see [Aspects](/concepts/aspects/).
+        Lists and attrsets for aspect keys are elements, not leaves: see [Aspects](/behavior/aspects/).
       '')
     ];
 

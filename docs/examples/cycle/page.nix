@@ -1,8 +1,8 @@
 {
   title = "The cycle form";
   description = "A component asks the tree for data and gives 0 to n elements.";
-  section = "concepts";
-  order = 12;
+  section = "behavior";
+  order = 2;
 
   body =
     { docs, result, ... }:

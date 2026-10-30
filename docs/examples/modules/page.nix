@@ -1,8 +1,8 @@
 {
   title = "Yen modules are not NixOS modules";
   description = "A yen module has `imports`, `_module.args` and `yen`. yen does not use nixpkgs. Each NixOS pattern, and how to write it in yen.";
-  section = "concepts";
-  order = 15;
+  section = "principles";
+  order = 4;
 
   body =
     {
@@ -42,7 +42,7 @@
         - [gen-types](https://github.com/sini/gen) checkers, through their `verify`.
 
         yen keeps validation apart from merging. A type only checks a value. How many values become one is the
-        sink's `reduce`, its merge strategy: see [Sinks](/concepts/sinks/). A nixpkgs type does both, in `check` and
+        sink's `reduce`, its merge strategy: see [Sinks](/behavior/sinks/). A nixpkgs type does both, in `check` and
         `merge`. yen calls only `check`.
       ''
       (docs.caution "nixpkgs composite types do not check their items" ''
@@ -116,7 +116,7 @@
           ]
           [
             "`default = f config`"
-            "`yen.lib.derive type f`: see [Types](/concepts/types/)"
+            "`yen.lib.derive type f`: see [Types](/model/types/)"
           ]
           [
             "`config.x = v`"
@@ -128,7 +128,7 @@
           ]
           [
             "list and attrset options from many modules"
-            "a sink with a `reduce`: see [Sinks](/concepts/sinks/)"
+            "a sink with a `reduce`: see [Sinks](/behavior/sinks/)"
           ]
           [
             "`mkDefault`, `mkForce`"
@@ -167,7 +167,7 @@
       (docs.value (map (s: s.id) result.scopes))
       ''
         A submodule with no names, like `services.nginx`, is a nested field. `firewall.enable` and `firewall.ports`
-        above are one. For how `config` as a fixpoint compares, see [Fixpoints and dependencies](/concepts/fixpoints/).
+        above are one. For how `config` as a fixpoint compares, see [Fixpoints and dependencies](/principles/fixpoints/).
       ''
     ];
 

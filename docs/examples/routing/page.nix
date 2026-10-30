@@ -1,8 +1,8 @@
 {
   title = "Routing and walls";
   description = "An element goes up to the nearest scope that has the sink and where the sink's `at` holds.";
-  section = "concepts";
-  order = 9;
+  section = "behavior";
+  order = 5;
 
   body =
     { docs, result, ... }:

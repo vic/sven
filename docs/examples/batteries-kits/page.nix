@@ -3,7 +3,7 @@
   description = "Kits and assemblies: members by `at` predicates, layered settings, exports, contracts, vars generators and their plan.";
   section = "batteries";
   route = "batteries/kits";
-  order = 6;
+  order = 4;
 
   body =
     {

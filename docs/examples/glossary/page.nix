@@ -2,7 +2,7 @@
   title = "Glossary";
   description = "Each yen word, in one line, with the page that explains it.";
   section = "reference";
-  order = 3;
+  order = 1;
 
   body =
     { docs, ... }:
@@ -13,97 +13,97 @@
           [
             "kind"
             "a type of thing, with fields, spawns and sinks"
-            "[Kinds and fields](/concepts/kinds-fields/)"
+            "[Kinds and fields](/model/kinds-fields/)"
           ]
           [
             "instance"
             "`yen.<kind>.<name>`: one thing of a kind"
-            "[Kinds and fields](/concepts/kinds-fields/)"
+            "[Kinds and fields](/model/kinds-fields/)"
           ]
           [
             "field"
             "a typed datum of each instance"
-            "[Types and defaults](/concepts/types/)"
+            "[Types and defaults](/model/types/)"
           ]
           [
             "type"
             "any value with `check = value: bool`"
-            "[Types and defaults](/concepts/types/)"
+            "[Types and defaults](/model/types/)"
           ]
           [
             "ref"
             "a field value that is another instance"
-            "[Instances and refs](/concepts/instances-refs/)"
+            "[Instances and refs](/model/instances-refs/)"
           ]
           [
             "data kind"
             "a kind that no kind spawns: instances with no scope"
-            "[Instances and refs](/concepts/instances-refs/#data-kinds)"
+            "[Instances and refs](/model/instances-refs/#data-kinds)"
           ]
           [
             "root kind"
             "the kind that nothing spawns, and that spawns others"
-            "[Scopes and spawns](/concepts/scopes/)"
+            "[Scopes and spawns](/model/scopes/)"
           ]
           [
             "scope"
             "one instance at one place in the tree; its id is its path"
-            "[Scopes and spawns](/concepts/scopes/)"
+            "[Scopes and spawns](/model/scopes/)"
           ]
           [
             "spawns"
             "a function from a parent scope to the instances under it"
-            "[Scopes and spawns](/concepts/scopes/)"
+            "[Scopes and spawns](/model/scopes/)"
           ]
           [
             "aspect"
             "behavior: active where `at` holds, gives elements by key"
-            "[Aspects](/concepts/aspects/)"
+            "[Aspects](/behavior/aspects/)"
           ]
           [
             "predicate"
             "a function of a scope, or a kind, instance, aspect or list"
-            "[Predicates](/concepts/predicates/)"
+            "[Predicates](/behavior/predicates/)"
           ]
           [
             "element"
             "one value an aspect gives to a sink"
-            "[Aspects](/concepts/aspects/)"
+            "[Aspects](/behavior/aspects/)"
           ]
           [
             "sink"
             "collects elements at a receiver and reduces them"
-            "[Sinks and reduce](/concepts/sinks/)"
+            "[Sinks and reduce](/behavior/sinks/)"
           ]
           [
             "receiver"
             "the nearest ancestor-or-self scope with the sink, where its `at` holds"
-            "[Routing and walls](/concepts/routing/)"
+            "[Routing and walls](/behavior/routing/)"
           ]
           [
             "wall"
             "a sink with no keys: elements stop there"
-            "[Routing and walls](/concepts/routing/#walls)"
+            "[Routing and walls](/behavior/routing/#walls)"
           ]
           [
             "forward"
             "a sink key that names another sink and feeds it"
-            "[Forwards](/concepts/forwards/)"
+            "[Forwards](/behavior/forwards/)"
           ]
           [
             "arg"
             "a named arg of an element: a kind, a sink, `scope`, or open"
-            "[Args](/concepts/args/)"
+            "[Args](/behavior/args/)"
           ]
           [
             "component"
             "an aspect's `cycle`: sources in, sinks out, 0 to n elements"
-            "[The cycle form](/concepts/cycle/)"
+            "[The cycle form](/behavior/cycle/)"
           ]
           [
             "error record"
             "an error as data, with `code`, `fix` and `class`"
-            "[Errors as data](/concepts/errors/)"
+            "[Errors as data](/principles/errors/)"
           ]
           [
             "query"

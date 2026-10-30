@@ -1,8 +1,8 @@
 {
   title = "Args";
   description = "An element can be a function with named args. yen fills kinds, sinks and `scope`; other args stay open.";
-  section = "concepts";
-  order = 11;
+  section = "behavior";
+  order = 7;
 
   body =
     {

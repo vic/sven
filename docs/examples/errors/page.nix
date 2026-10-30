@@ -1,8 +1,8 @@
 {
   title = "Errors as data";
   description = "yen never throws. Errors are records you query; your own checks add to them.";
-  section = "concepts";
-  order = 13;
+  section = "principles";
+  order = 2;
 
   body =
     {

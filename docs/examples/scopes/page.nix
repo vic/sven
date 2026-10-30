@@ -1,8 +1,8 @@
 {
   title = "Scopes and spawns";
   description = "A scope is one instance at one place in a tree. `spawns` builds the tree from your data.";
-  section = "concepts";
-  order = 5;
+  section = "model";
+  order = 4;
 
   body =
     { docs, result, ... }:
@@ -36,7 +36,7 @@
       (docs.file "modules/order.nix")
       (docs.aside "tip" "Kinds without scopes" ''
         A kind that no kind spawns is data: its instances have no scope, and refs to them still work.
-        See [Instances and refs](/concepts/instances-refs/#data-kinds).
+        See [Instances and refs](/model/instances-refs/#data-kinds).
       '')
       ''
         ## Read the tree inside the fleet

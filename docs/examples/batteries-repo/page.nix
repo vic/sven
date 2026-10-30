@@ -3,7 +3,7 @@
   description = "files, github, devshell, flake-file: README, CI workflow, ci.json, dev shell and flake.nix, written from fleet data.";
   section = "batteries";
   route = "batteries/repo";
-  order = 3;
+  order = 5;
 
   body =
     { docs, result, ... }:

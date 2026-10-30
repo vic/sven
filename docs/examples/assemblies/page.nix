@@ -2,7 +2,7 @@
   title = "Assemblies and roles";
   description = "Assemblies as data: each machine gets one member scope per role, and members exchange data.";
   section = "recipes";
-  order = 8;
+  order = 9;
   badge = "advanced";
 
   body =

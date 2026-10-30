@@ -1,8 +1,8 @@
 {
   title = "Fixpoints and dependencies";
   description = "Like NixOS `config`, a yen fleet is a fixpoint. Unlike `config`, every dependency is a routed edge you can query.";
-  section = "concepts";
-  order = 16;
+  section = "principles";
+  order = 3;
 
   body =
     {
@@ -108,7 +108,7 @@
       (docs.value (map (e: { inherit (e) code path; }) (variant "variants/override.nix").errors))
       (docs.note "Structure from results" ''
         In NixOS, `imports` cannot depend on `config`. In yen, `spawns` can depend on whether an aspect holds:
-        `yen.lib.holds`. See [Predicates](/concepts/predicates/).
+        `yen.lib.holds`. See [Predicates](/behavior/predicates/).
       '')
     ];
 

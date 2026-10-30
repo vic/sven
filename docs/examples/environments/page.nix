@@ -2,7 +2,7 @@
   title = "Environments";
   description = "prod and staging: hosts grouped by where they run, settings that cascade, and access from groups.";
   section = "recipes";
-  order = 2;
+  order = 3;
 
   body =
     { docs, result, ... }:

@@ -3,7 +3,7 @@
   description = "yen.lib.batteries.nixos: system, accounts, shells, autologin, unfree, firewall, hosts, builders, persist, facter. NixOS options are the domain; yen keys are yours.";
   section = "batteries";
   route = "batteries/nixos";
-  order = 2;
+  order = 3;
 
   body =
     { docs, ... }:

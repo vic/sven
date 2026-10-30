@@ -2,7 +2,7 @@
   title = "Getting started";
   description = "One NixOS host, from an empty directory, in four files.";
   section = "start";
-  order = 2;
+  order = 3;
 
   body =
     { docs, result, ... }:
@@ -71,7 +71,7 @@
         }
         {
           title = "Kinds and fields";
-          href = "/concepts/kinds-fields/";
+          href = "/model/kinds-fields/";
           description = "Typed data, the first of yen's four words.";
         }
       ])

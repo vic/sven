@@ -1,8 +1,8 @@
 {
   title = "Predicates";
   description = "`at` takes a predicate: a function, a kind, an instance, an aspect, a list, and `all`, `not`, `within`, `has`.";
-  section = "concepts";
-  order = 7;
+  section = "behavior";
+  order = 3;
 
   body =
     {

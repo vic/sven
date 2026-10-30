@@ -2,7 +2,7 @@
   title = "osConfig in home-manager";
   description = "A home-manager module reads its host's NixOS config, nested in NixOS or as a standalone home.";
   section = "recipes";
-  order = 9;
+  order = 8;
 
   body =
     { docs, ... }:

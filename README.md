@@ -156,7 +156,7 @@ lets them write only verified changes. <sup>[docs](https://yen.oeiuwq.com/agents
 ## Errors are data
 
 Errors are not throws. They are data that agents and humans can inspect, with **hints for fixes**: `code`, `path`,
-`got`, `want`, `fix`, and `near` for typos. <sup>[docs](https://yen.oeiuwq.com/concepts/errors)</sup>
+`got`, `want`, `fix`, and `near` for typos. <sup>[docs](https://yen.oeiuwq.com/principles/errors)</sup>
 
 ## Why Yen
 
@@ -167,11 +167,11 @@ Errors are not throws. They are data that agents and humans can inspect, with **
 - **On par with advanced frameworks like Den.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
   generated files. Moving from Den is easy. <sup>[docs](https://yen.oeiuwq.com/migrate/from-den/)</sup>
 - **Queries, not merges.** Each value is a query on the files that declare it. Content spread over many files never
-  overwrites itself, and two different answers are an error you can read. <sup>[docs](https://yen.oeiuwq.com/concepts/queried-not-merged/)</sup>
+  overwrites itself, and two different answers are an error you can read. <sup>[docs](https://yen.oeiuwq.com/principles/queried-not-merged/)</sup>
 - **Less to evaluate.** Yen itself is about 1% of a host's evaluation. Sharing one nixpkgs per system instead of one per host
   saves about a third, and a check proves that every system is the same. <sup>[docs](https://yen.oeiuwq.com/perf/shared-pkgs/)</sup>
 - **Mistakes are caught early, with a fix.** A typo gets a "did you mean". Every error says where it is, what was
-  expected, and how to fix it. <sup>[docs](https://yen.oeiuwq.com/concepts/errors/)</sup>
+  expected, and how to fix it. <sup>[docs](https://yen.oeiuwq.com/principles/errors/)</sup>
 - **Ask your fleet anything.** Graphs for deploy waves, cycles and impact; Datalog with negation; stored queries you name
   once and ask from Nix, the CLI, or an agent. <sup>[docs](https://yen.oeiuwq.com/query/queries/)</sup>
 - **Values that solve themselves.** µKanren with finite domains, in pure Nix: a free port, guest memory that fits,

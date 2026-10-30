@@ -84,7 +84,7 @@ in
           synthesized under constraints (a free port, guest memory that fits). ${link "Ask and prove" "/query/queries/"}
         - **Agents as team members**: every answer is JSON-safe data. Changes are staged, checked by invariants, limited by
           grants that only narrow, and written as change programs. An MCP server answers agents. ${link "For agents" "/agents/agent-surface/"}
-        - **Errors with fixes**: `code`, `path`, `got`, `want`, `fix`, and `near` for typos. ${link "Errors as data" "/concepts/errors/"}
+        - **Errors with fixes**: `code`, `path`, `got`, `want`, `fix`, and `near` for typos. ${link "Errors as data" "/principles/errors/"}
         - **Fast where it counts**: one nixpkgs per system across hosts, and trimmed NixOS module lists, with drvPath oracles
           that prove the systems are the same. ${link "Performance" "/perf/shared-pkgs/"}
         - **Every capability of Den, den-hoag and clan**, and the patterns of real fleets, each with a check, in the

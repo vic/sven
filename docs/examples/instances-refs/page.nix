@@ -1,7 +1,7 @@
 {
   title = "Instances and refs";
   description = "A kind is a type: a field can hold a ref to another instance. Kinds that nothing spawns are data.";
-  section = "concepts";
+  section = "model";
   order = 3;
 
   body =
@@ -32,7 +32,7 @@
       ''
       (docs.scopes result)
       ''
-        Groups, channels and secrets are good data kinds. [Scopes](/concepts/scopes/) shows how a kind gets a place in the tree.
+        Groups, channels and secrets are good data kinds. [Scopes](/model/scopes/) shows how a kind gets a place in the tree.
 
         ## A string is not a ref
 

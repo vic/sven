@@ -56,45 +56,53 @@ in
       title = "Move to yen";
       order = 2;
     };
-    concepts = {
-      title = "Concepts";
+    model = {
+      title = "Model";
       order = 3;
     };
-    recipes = {
-      title = "Recipes";
+    behavior = {
+      title = "Behavior";
       order = 4;
     };
-    nixos = {
-      title = "NixOS patterns in yen";
+    principles = {
+      title = "Principles";
       order = 5;
-    };
-    den = {
-      title = "Den patterns in yen";
-      order = 6;
-    };
-    batteries = {
-      title = "Battery packs";
-      order = 7;
     };
     query = {
       title = "Ask and prove";
-      order = 8;
+      order = 6;
     };
     agents = {
       title = "For agents";
+      order = 7;
+    };
+    recipes = {
+      title = "Recipes";
+      order = 8;
+    };
+    nixos = {
+      title = "NixOS patterns in yen";
       order = 9;
+    };
+    den = {
+      title = "Den patterns in yen";
+      order = 10;
+    };
+    batteries = {
+      title = "Battery packs";
+      order = 11;
     };
     perf = {
       title = "Performance";
-      order = 10;
+      order = 12;
     };
     reference = {
       title = "Reference";
-      order = 11;
+      order = 13;
     };
     project = {
       title = "Project";
-      order = 12;
+      order = 14;
     };
   };
 }

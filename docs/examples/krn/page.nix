@@ -2,7 +2,7 @@
   title = "krn: synthesis with constraints";
   description = "µKanren with finite domains in pure Nix: values that meet your rules, relations that run backward.";
   section = "query";
-  order = 4;
+  order = 6;
   badge = "advanced";
 
   body =

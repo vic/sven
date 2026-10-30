@@ -1,7 +1,7 @@
 {
   title = "Kinds and fields";
   description = "A kind is a type of thing. Its fields are the data of each instance.";
-  section = "concepts";
+  section = "model";
   order = 1;
 
   body =
@@ -23,7 +23,7 @@
       (docs.file "modules/hosts.nix")
       ''
         An aspect reads the fields. Here, each host gives one line to a `report` sink on the fleet
-        ([Sinks](/concepts/sinks/) explains how):
+        ([Sinks](/behavior/sinks/) explains how):
       ''
       (docs.file "modules/report.nix")
       (docs.value result.flake.report)

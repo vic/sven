@@ -1,8 +1,8 @@
 {
   title = "Sinks and reduce";
   description = "A sink collects elements and reduces them: list, set, one, merge, entries, or your own function.";
-  section = "concepts";
-  order = 8;
+  section = "behavior";
+  order = 4;
 
   body =
     {
@@ -76,7 +76,7 @@
       ''
       (docs.tip "Errors and warnings as data" ''
         A sink such as `warnings` with `reduce = list` holds messages that do not fail the fleet.
-        See [Errors as data](/concepts/errors/).
+        See [Errors as data](/principles/errors/).
       '')
       (docs.caution "Names" ''
         Do not give a sink the name of a field or an arg. A sink `tags` and a field `tags` read as one arg.

@@ -3,7 +3,7 @@
   description = "NixOS, nix-darwin, home-manager, nix-on-droid and microvm.nix: each kind builds its output with a battery; homes go into machines.";
   section = "batteries";
   route = "batteries/platforms";
-  order = 5;
+  order = 2;
 
   body =
     { docs, ... }:

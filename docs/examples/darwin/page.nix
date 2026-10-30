@@ -2,7 +2,7 @@
   title = "nix-darwin machines";
   description = "NixOS hosts and macs in one fleet. Aspects write `os` once; each platform forwards it.";
   section = "recipes";
-  order = 3;
+  order = 5;
 
   body =
     { docs, result, ... }:

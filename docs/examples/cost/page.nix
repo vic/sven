@@ -2,7 +2,7 @@
   title = "What yen costs";
   description = "The engine is linear in aspect refs and receivers, and its cost oracles keep it so.";
   section = "perf";
-  order = 3;
+  order = 2;
 
   body =
     { docs, ... }:

@@ -69,7 +69,7 @@ in
   title = "Error codes";
   description = "Every error code yen gives, read from the engine source, with what it means.";
   section = "reference";
-  order = 2;
+  order = 3;
   route = "reference/errors";
 
   body =
@@ -92,7 +92,7 @@ in
       (docs.links [
         {
           title = "Errors as data";
-          href = "/concepts/errors/";
+          href = "/principles/errors/";
           description = "Records, your own checks, and warnings.";
         }
       ])

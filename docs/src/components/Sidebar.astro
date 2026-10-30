@@ -13,15 +13,17 @@ const getIcon = (index: number) =>
 		[
 			'rocket', // Start
 			'right-arrow', // Move to yen
-			'information', // Concepts
+			'open-book', // Model
+			'setting', // Behavior
+			'approve-check', // Principles
+			'question', // Ask and prove
+			'laptop', // For agents
 			'pencil', // Recipes
 			'nix', // NixOS patterns in yen
 			'puzzle', // Den patterns in yen
 			'star', // Battery packs
-			'question', // Ask and prove
-			'laptop', // For agents
 			'analytics', // Performance
-			'list-format', // Reference
+			'magnifier', // Reference
 			'github', // Project
 		] as const
 	)[index] ?? 'document';

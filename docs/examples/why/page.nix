@@ -8,7 +8,7 @@ in
   plainTitle = "Yen: Nix fleets you can formally verify before deployment.";
   description = "Yen is a cycle.js based language for Nix configurations";
   section = "start";
-  order = 0;
+  order = 1;
   alsoAt = "../README.md"; # the same text is the repository README: plain markdown only
 
   body =
@@ -123,7 +123,7 @@ in
         ## Errors are data
 
         Errors are not throws. They are data that agents and humans can inspect, with **hints for fixes**: `code`, `path`,
-        `got`, `want`, `fix`, and `near` for typos. ${doc "/concepts/errors"}
+        `got`, `want`, `fix`, and `near` for typos. ${doc "/principles/errors"}
 
         ## Why Yen
 
@@ -134,11 +134,11 @@ in
         - **On par with advanced frameworks like Den.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
           generated files. Moving from Den is easy. ${doc "/migrate/from-den/"}
         - **Queries, not merges.** Each value is a query on the files that declare it. Content spread over many files never
-          overwrites itself, and two different answers are an error you can read. ${doc "/concepts/queried-not-merged/"}
+          overwrites itself, and two different answers are an error you can read. ${doc "/principles/queried-not-merged/"}
         - **Less to evaluate.** Yen itself is about 1% of a host's evaluation. Sharing one nixpkgs per system instead of one per host
           saves about a third, and a check proves that every system is the same. ${doc "/perf/shared-pkgs/"}
         - **Mistakes are caught early, with a fix.** A typo gets a "did you mean". Every error says where it is, what was
-          expected, and how to fix it. ${doc "/concepts/errors/"}
+          expected, and how to fix it. ${doc "/principles/errors/"}
         - **Ask your fleet anything.** Graphs for deploy waves, cycles and impact; Datalog with negation; stored queries you name
           once and ask from Nix, the CLI, or an agent. ${doc "/query/queries/"}
         - **Values that solve themselves.** µKanren with finite domains, in pure Nix: a free port, guest memory that fits,

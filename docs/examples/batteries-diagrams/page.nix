@@ -3,7 +3,7 @@
   description = "mermaid views of scopes, kinds, gates and routes; tables, links that follow edits, doc lines checked against live names.";
   section = "batteries";
   route = "batteries/diagrams";
-  order = 4;
+  order = 6;
 
   body =
     {

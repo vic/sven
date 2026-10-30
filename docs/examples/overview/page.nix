@@ -2,7 +2,7 @@
   title = "Overview";
   description = "What yen is, in four words: kinds, scopes, aspects, sinks.";
   section = "start";
-  order = 1;
+  order = 2;
 
   body =
     { docs, result, ... }:

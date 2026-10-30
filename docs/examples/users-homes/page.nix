@@ -30,7 +30,7 @@
       (docs.tip "A home that reads its host" ''
         A home can also live under a host: give `host` a `spawns.home`. The home then reads the host's sinks like any child,
         and still builds its own `homeConfigurations`. A home's sink with no keys keeps its content away from the host.
-        See [Routing and walls](/concepts/routing/#walls).
+        See [Routing and walls](/behavior/routing/#walls).
       '')
     ];
 

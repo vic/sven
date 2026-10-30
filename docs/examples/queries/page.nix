@@ -154,7 +154,7 @@
       (docs.note "Not inside" ''
         `errors`, `check`, `context`, `explain` and `impact` read the errors, and an element that reads the errors
         could change them. They exist only on `result`. A stored query gets `result` when it is asked from outside:
-        see [Stored queries](/query/stored-queries/). A [cycle](/concepts/cycle/) also asks the tree with `tree`.
+        see [Stored queries](/query/stored-queries/). A [cycle](/behavior/cycle/) also asks the tree with `tree`.
       '')
     ];
 

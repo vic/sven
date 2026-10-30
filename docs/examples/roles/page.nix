@@ -2,7 +2,7 @@
   title = "Roles from data";
   description = "A role is an aspect whose `at` tests a fact. No host file lists its roles.";
   section = "recipes";
-  order = 5;
+  order = 2;
 
   body =
     { docs, result, ... }:

@@ -2,7 +2,7 @@
   title = "Project layout";
   description = "One module tree, two entry points: a flake, or plain Nix with default.nix.";
   section = "start";
-  order = 3;
+  order = 5;
 
   body =
     { docs, ... }:

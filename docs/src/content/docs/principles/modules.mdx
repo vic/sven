@@ -54,7 +54,7 @@ nixpkgs. Use what you have:
 - [gen-types](https://github.com/sini/gen) checkers, through their `verify`.
 
 yen keeps validation apart from merging. A type only checks a value. How many values become one is the
-sink's `reduce`, its merge strategy: see [Sinks](/concepts/sinks/). A nixpkgs type does both, in `check` and
+sink's `reduce`, its merge strategy: see [Sinks](/behavior/sinks/). A nixpkgs type does both, in `check` and
 `merge`. yen calls only `check`.
 
 
@@ -167,10 +167,10 @@ The kinds hold what NixOS `options` hold. The instances hold what `config` holds
 |---|---|
 | `options.x = mkOption { type; default; }` | `yen.kinds.K.fields.x = yen.lib.opt type default` |
 | `mkEnableOption` | a nested field: `fields.firewall.enable = yen.lib.opt lib.types.bool false` |
-| `default = f config` | `yen.lib.derive type f`: see [Types](/concepts/types/) |
+| `default = f config` | `yen.lib.derive type f`: see [Types](/model/types/) |
 | `config.x = v` | instance data: `yen.host.web.x = v` |
 | `mkIf config.firewall.enable` | `at = yen.lib.all [ yen.kinds.host (s: s.firewall.enable) ]` |
-| list and attrset options from many modules | a sink with a `reduce`: see [Sinks](/concepts/sinks/) |
+| list and attrset options from many modules | a sink with a `reduce`: see [Sinks](/behavior/sinks/) |
 | `mkDefault`, `mkForce` | a type default, then the instance value. Two values for one leaf are `two-answers` |
 | `assertions` | `yen.invariants`, or an aspect's `errors` key |
 | `imports`, `specialArgs` | `imports`, `_module.args` |
@@ -216,7 +216,7 @@ user a scope under its host, so aspects can be active on users, and queries can 
 ```
 
 A submodule with no names, like `services.nginx`, is a nested field. `firewall.enable` and `firewall.ports`
-above are one. For how `config` as a fixpoint compares, see [Fixpoints and dependencies](/concepts/fixpoints/).
+above are one. For how `config` as a fixpoint compares, see [Fixpoints and dependencies](/principles/fixpoints/).
 
 
 :::tip[Run this example]

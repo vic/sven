@@ -93,7 +93,7 @@ in
   title = "API reference";
   description = "Every function and query of yen: where it is, what it takes, what it returns, and what it is for. Extracted from the source.";
   section = "reference";
-  order = 1;
+  order = 2;
 
   body =
     {
