@@ -72,27 +72,45 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      outputs =
-        builtins.attrNames result.flake.nixosConfigurations == [ "server" ]
-        && builtins.attrNames result.flake.homeConfigurations == [ "ana" ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      outputs = {
+        t1 = eq (builtins.attrNames result.flake.nixosConfigurations) ([ "server" ]);
+        t2 = eq (builtins.attrNames result.flake.homeConfigurations) ([ "ana" ]);
+      };
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       os = flake.nixosConfigurations.server.config;
       hm = flake.homeConfigurations.ana.config;
       lan = os.networking.interfaces.enp86s0;
     in
     {
-      nixos =
-        builtins.elem "flakes" os.nix.settings.experimental-features && os.nix.settings.max-jobs == 4;
-      home =
-        builtins.elem "flakes" hm.nix.settings.experimental-features && !(hm.nix.settings ? max-jobs);
-      path =
-        map (r: r.address) lan.ipv4.routes == [ "192.168.2.0" ]
-        && map (a: a.address) lan.ipv4.addresses == [ "10.0.0.1" ];
+      nixos = {
+        t1 = yes (builtins.elem "flakes" os.nix.settings.experimental-features);
+        t2 = eq (os.nix.settings.max-jobs) (4);
+      };
+      home = {
+        t1 = yes (builtins.elem "flakes" hm.nix.settings.experimental-features);
+        t2 = no ((hm.nix.settings ? max-jobs));
+      };
+      path = {
+        t1 = eq (map (r: r.address) lan.ipv4.routes) ([ "192.168.2.0" ]);
+        t2 = eq (map (a: a.address) lan.ipv4.addresses) ([ "10.0.0.1" ]);
+      };
     };
 }

@@ -103,37 +103,55 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      typo =
-        map (e: e.from + " " + builtins.toJSON e.path) (variant "variants/typo.nix").errors
-        == [ "host:tower [\"system\"]" ];
-      hosts =
-        builtins.attrNames result.flake.nixosConfigurations == [
-          "pi"
-          "thinkpad"
-          "tower"
-        ];
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      typo = eq (map (e: e.from + " " + builtins.toJSON e.path) (variant "variants/typo.nix").errors) ([
+        "host:tower [\"system\"]"
+      ]);
+      hosts = eq (builtins.attrNames result.flake.nixosConfigurations) ([
+        "pi"
+        "thinkpad"
+        "tower"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = n: flake.nixosConfigurations.${n}.config;
     in
     {
       names =
-        map (n: (c n).networking.hostName) [
-          "pi"
-          "tower"
-        ] == [
-          "pi"
-          "tower"
-        ];
-      arm = (c "pi").nixpkgs.hostPlatform.system == "aarch64-linux";
-      arm-only =
-        (c "pi").boot.loader.generic-extlinux-compatible.enable
-        && !(c "tower").boot.loader.generic-extlinux-compatible.enable;
-      laptop-only = (c "thinkpad").services.upower.enable && !(c "tower").services.upower.enable;
+        eq
+          (map (n: (c n).networking.hostName) [
+            "pi"
+            "tower"
+          ])
+          ([
+            "pi"
+            "tower"
+          ]);
+      arm = eq ((c "pi").nixpkgs.hostPlatform.system) ("aarch64-linux");
+      arm-only = {
+        t1 = yes ((c "pi").boot.loader.generic-extlinux-compatible.enable);
+        t2 = no ((c "tower").boot.loader.generic-extlinux-compatible.enable);
+      };
+      laptop-only = {
+        t1 = yes ((c "thinkpad").services.upower.enable);
+        t2 = no ((c "tower").services.upower.enable);
+      };
     };
 }

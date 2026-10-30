@@ -63,13 +63,18 @@ let
   f = "<https://yen.dev/fleet/";
 in
 rec {
+  # a fastest test: { expr; expected; }
+  eq = expr: expected: { inherit expr expected; };
+  yes = x: eq x true;
+  no = x: eq x false;
   checks = {
-    node-shape-per-spawned-kind =
-      shapeCount ttl == 2
-      && contains "kind/host> a sh:NodeShape" ttl
-      && contains "kind/fleet> a sh:NodeShape" ttl;
-    no-shape-for-kind-without-scopes =
-      !(contains "kind/ghost>" (
+    node-shape-per-spawned-kind = {
+      count = eq (shapeCount ttl) 2;
+      host = yes (contains "kind/host> a sh:NodeShape" ttl);
+      fleet = yes (contains "kind/fleet> a sh:NodeShape" ttl);
+    };
+    no-shape-for-kind-without-scopes = no (
+      contains "kind/ghost>" (
         rdf.shacl (fleet [
           fix
           (
@@ -79,16 +84,28 @@ rec {
             }
           )
         ])
-      ));
-    ref-field-has-class = contains "field/rack> ; sh:maxCount 1 ; sh:class ${f}kind/fleet>" ttl;
-    int-field-no-class = contains "field/port> ; sh:maxCount 1 ; . ;" ttl;
-    parent-class-from-spawner = contains "yen/parent> ; sh:class ${f}kind/fleet>" ttl;
-    int-triple-typed = has "${f}scope/fleet:main/host:web> ${f}field/port> \"80\"^^<http://www.w3.org/2001/XMLSchema#integer> ." tr;
-    ref-triple-iri = has "${f}scope/fleet:main/host:web> ${f}field/rack> ${f}instance/fleet/main> ." tr;
-    no-engine-key-triples = !(b.any (x: contains "field/(kind|name|key|parent|path|id|up|rup)>" x) tr);
-    deterministic-two-evals = ttl == rdf.shacl r2 && tr == rdf.triples r2;
-    stable-under-module-order =
-      rdf.shacl rRev == rdf.shacl rFwd && rdf.triples rRev == rdf.triples rFwd;
+      )
+    );
+    ref-field-has-class = yes (contains "field/rack> ; sh:maxCount 1 ; sh:class ${f}kind/fleet>" ttl);
+    int-field-no-class = yes (contains "field/port> ; sh:maxCount 1 ; . ;" ttl);
+    parent-class-from-spawner = yes (contains "yen/parent> ; sh:class ${f}kind/fleet>" ttl);
+    int-triple-typed = yes (
+      has "${f}scope/fleet:main/host:web> ${f}field/port> \"80\"^^<http://www.w3.org/2001/XMLSchema#integer> ." tr
+    );
+    ref-triple-iri = yes (
+      has "${f}scope/fleet:main/host:web> ${f}field/rack> ${f}instance/fleet/main> ." tr
+    );
+    no-engine-key-triples = no (
+      b.any (x: contains "field/(kind|name|key|parent|path|id|up|rup)>" x) tr
+    );
+    deterministic-two-evals = {
+      shacl = eq ttl (rdf.shacl r2);
+      triples = eq tr (rdf.triples r2);
+    };
+    stable-under-module-order = {
+      shacl = eq (rdf.shacl rRev) (rdf.shacl rFwd);
+      triples = eq (rdf.triples rRev) (rdf.triples rFwd);
+    };
   };
-  failed = b.filter (n: !checks.${n}) (b.attrNames checks);
+  tests = checks;
 }

@@ -159,10 +159,17 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      inside =
-        (variant "variants/inside.nix").reduced.out."fleet:main".inside == {
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      inside = {
+        t1 = eq ((variant "variants/inside.nix").reduced.out."fleet:main".inside) ({
           web = {
             nginx = true;
             packages = [
@@ -172,21 +179,23 @@
             parent = "fleet:main";
             users = [ "ana" ];
           };
-        }
-        && (variant "variants/inside.nix").errors == [ ];
-      reduced =
-        result.reduced.packages."fleet:main/host:web" == [
-          "git"
-          "nginx"
-        ];
+        });
+        t2 = eq ((variant "variants/inside.nix").errors) ([ ]);
+      };
+      reduced = eq (result.reduced.packages."fleet:main/host:web") ([
+        "git"
+        "nginx"
+      ]);
       origins =
-        builtins.sort builtins.lessThan (
-          map (e: e.origin) (builtins.filter (e: e.to == "fleet:main/host:web") result.graph.edges)
-        ) == [
-          "aspect git"
-          "aspect git"
-          "aspect nginx"
-        ];
-      facts = builtins.elem [ "has" "nginx" "fleet:main/host:web" ] result.facts;
+        eq
+          (builtins.sort builtins.lessThan (
+            map (e: e.origin) (builtins.filter (e: e.to == "fleet:main/host:web") result.graph.edges)
+          ))
+          ([
+            "aspect git"
+            "aspect git"
+            "aspect nginx"
+          ]);
+      facts = yes (builtins.elem [ "has" "nginx" "fleet:main/host:web" ] result.facts);
     };
 }

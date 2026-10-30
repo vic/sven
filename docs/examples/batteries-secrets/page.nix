@@ -38,35 +38,50 @@
     ];
 
   checks =
-    { result, ... }:
+    {
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       texts = builtins.foldl' (
         a: m: a // builtins.mapAttrs (_: f: f.text) m.files.file
       ) { } result.reduced.files."repo:main";
     in
     {
-      flake-config = result.flake.nixConfig.extra-substituters == [ "https://nix-community.cachix.org" ];
-      secretspec =
-        texts."secretspec.toml"
-        == "[defaults]\nproviders = [\"keyring\"]\n\n[profiles.default]\nDATABASE_URL = { description = \"PostgreSQL connection string\" }\n\n[profiles.development]\nDATABASE_URL = { default = \"sqlite://./dev.db\", required = false }\n\n[project]\nname = \"my-app\"\n";
-      sops =
-        texts.".sops.yaml"
-        == "\"creation_rules\":\n  -\n    \"age\": \"age1db\"\n    \"path_regex\": \"secrets/db/.*\"\n";
-      action =
+      flake-config = eq (result.flake.nixConfig.extra-substituters) ([
+        "https://nix-community.cachix.org"
+      ]);
+      secretspec = eq (texts."secretspec.toml") (
+        "[defaults]\nproviders = [\"keyring\"]\n\n[profiles.default]\nDATABASE_URL = { description = \"PostgreSQL connection string\" }\n\n[profiles.development]\nDATABASE_URL = { default = \"sqlite://./dev.db\", required = false }\n\n[project]\nname = \"my-app\"\n"
+      );
+      sops = eq (texts.".sops.yaml") (
+        "\"creation_rules\":\n  -\n    \"age\": \"age1db\"\n    \"path_regex\": \"secrets/db/.*\"\n"
+      );
+      action = yes (
         builtins.match ".*cachix/cachix-action@v17.*" (
           builtins.replaceStrings [ "\n" ] [ " " ] texts.".github/workflows/build.yml"
-        ) != null;
+        ) != null
+      );
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = flake.nixosConfigurations.build.config;
     in
     {
-      substituters = builtins.elem "https://nix-community.cachix.org" c.nix.settings.substituters;
-      keys = builtins.any (
-        k: builtins.substring 0 13 k == "nix-community"
-      ) c.nix.settings.trusted-public-keys;
+      substituters = yes (builtins.elem "https://nix-community.cachix.org" c.nix.settings.substituters);
+      keys = yes (
+        builtins.any (k: builtins.substring 0 13 k == "nix-community") c.nix.settings.trusted-public-keys
+      );
     };
 }

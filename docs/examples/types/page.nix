@@ -54,23 +54,27 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      web =
-        result.flake.report.web == {
-          channel = "lts";
-          jump = null;
-          port = 22;
-          tags = [ ];
-          vpn = "vpn-web";
-        };
-      db =
-        result.flake.report.db == {
-          channel = "latest";
-          jump = null;
-          port = 2222;
-          tags = [ ];
-          vpn = "vpn-database";
-        };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      web = eq (result.flake.report.web) ({
+        channel = "lts";
+        jump = null;
+        port = 22;
+        tags = [ ];
+        vpn = "vpn-web";
+      });
+      db = eq (result.flake.report.db) ({
+        channel = "latest";
+        jump = null;
+        port = 2222;
+        tags = [ ];
+        vpn = "vpn-database";
+      });
     };
 }

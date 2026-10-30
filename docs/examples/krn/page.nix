@@ -73,25 +73,29 @@
     ];
 
   checks =
-    { result, ... }:
+    {
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       p = result.flake.ports;
     in
     {
-      first =
-        p.first == [
-          {
-            grafana = 8081;
-            loki = 8082;
-            prometheus = 8080;
-          }
-        ];
-      count = p.count == 12;
-      backward =
-        p.on8080 == [
-          "prometheus"
-          "loki"
-        ];
-      fuel = !p.bounded.complete;
+      first = eq (p.first) ([
+        {
+          grafana = 8081;
+          loki = 8082;
+          prometheus = 8080;
+        }
+      ]);
+      count = eq (p.count) (12);
+      backward = eq (p.on8080) ([
+        "prometheus"
+        "loki"
+      ]);
+      fuel = no (p.bounded.complete);
     };
 }

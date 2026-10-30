@@ -43,27 +43,38 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      per-host =
-        result.flake.unfree == {
-          desk = [
-            "steam"
-            "steam-unwrapped"
-            "vscode"
-          ];
-        };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      per-host = eq (result.flake.unfree) ({
+        desk = [
+          "steam"
+          "steam-unwrapped"
+          "vscode"
+        ];
+      });
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       ok = h: p: (builtins.tryEval flake.nixosConfigurations.${h}.pkgs.${p}.drvPath).success;
     in
     {
-      steam = ok "desk" "steam-unwrapped";
-      vscode = ok "desk" "vscode";
-      others-denied = !(ok "desk" "zoom-us");
-      server-denied = !(ok "server" "vscode");
+      steam = yes (ok "desk" "steam-unwrapped");
+      vscode = yes (ok "desk" "vscode");
+      others-denied = no ((ok "desk" "zoom-us"));
+      server-denied = no ((ok "server" "vscode"));
     };
 }

@@ -84,31 +84,36 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      reduced =
-        result.flake.web == {
-          admin = "alice";
-          groups = [
-            "audio"
-            "wheel"
-          ];
-          motd = [
-            "welcome"
-            "this host serves web"
-          ];
-          nginx.http = {
-            gzip = true;
-            servers.www.port = 80;
-          };
-          owners = [ "host" ];
-          ports = [ 22 ];
-        };
-      failures =
-        map (e: e.code) (variant "variants/conflicts.nix").errors == [
-          "one"
-          "merge"
-          "of"
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      reduced = eq (result.flake.web) ({
+        admin = "alice";
+        groups = [
+          "audio"
+          "wheel"
         ];
+        motd = [
+          "welcome"
+          "this host serves web"
+        ];
+        nginx.http = {
+          gzip = true;
+          servers.www.port = 80;
+        };
+        owners = [ "host" ];
+        ports = [ 22 ];
+      });
+      failures = eq (map (e: e.code) (variant "variants/conflicts.nix").errors) ([
+        "one"
+        "merge"
+        "of"
+      ]);
     };
 }

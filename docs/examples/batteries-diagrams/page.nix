@@ -79,30 +79,43 @@
     ];
 
   checks =
-    { result, variant, ... }:
+    {
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       d = result.flake.diagrams;
       has = s: t: builtins.replaceStrings [ s ] [ "" ] t != t; # literal substring
     in
     {
-      scopes = has "subgraph" d.scopes && has "[\"prod\"]" d.scopes && !(has "fleet" d.scopes);
-      kinds = has "-.->|\"db\"|" d.kinds;
-      gates = has "-.->|\"not\"|" d.gates;
-      routes = has "-->|\"inventory\"|" d.routes;
-      inventory =
-        result.flake.inventory == {
-          dev = [ "lab" ];
-          prod = [
-            "pg"
-            "web"
-          ];
-        };
-      table = has "| `host` | `db`, `environment` |  | `nixos` | 3 |" result.flake.kinds;
-      routing = has "|\"1\"|" d.routing && has "(\"inventory\")" d.routing;
-      sinks = has "[(\"flake outputs\")]" d.sinks;
-      hosts-table = has "| lab | dev |" result.flake.hosts;
-      templates = result.flake.templates == { hello = "hello: the smallest flake"; };
-      links = result.flake.links.db-field == "[`db`](fleet.nix#L23)";
-      vocabulary = map (e: e.code) (variant "variants/new-kind.nix").errors == [ "doc-missing" ];
+      scopes = {
+        t1 = yes (has "subgraph" d.scopes);
+        t2 = yes (has "[\"prod\"]" d.scopes);
+        t3 = no ((has "fleet" d.scopes));
+      };
+      kinds = yes (has "-.->|\"db\"|" d.kinds);
+      gates = yes (has "-.->|\"not\"|" d.gates);
+      routes = yes (has "-->|\"inventory\"|" d.routes);
+      inventory = eq (result.flake.inventory) ({
+        dev = [ "lab" ];
+        prod = [
+          "pg"
+          "web"
+        ];
+      });
+      table = yes (has "| `host` | `db`, `environment` |  | `nixos` | 3 |" result.flake.kinds);
+      routing = {
+        t1 = yes (has "|\"1\"|" d.routing);
+        t2 = yes (has "(\"inventory\")" d.routing);
+      };
+      sinks = yes (has "[(\"flake outputs\")]" d.sinks);
+      hosts-table = yes (has "| lab | dev |" result.flake.hosts);
+      templates = eq (result.flake.templates) ({ hello = "hello: the smallest flake"; });
+      links = eq (result.flake.links.db-field) ("[`db`](fleet.nix#L23)");
+      vocabulary = eq (map (e: e.code) (variant "variants/new-kind.nix").errors) ([ "doc-missing" ]);
     };
 }

@@ -24,10 +24,10 @@ The commands are a sink of the docs fleet: see `modules/devshell.nix`.
 Without the devshell:
 
 ```sh
-nix eval --impure --file tests.nix failed       # [ ]: the checks of every example (yen queries)
-nix eval --impure --file tests.nix e2e.failed   # [ ]: real NixOS, nix-darwin and home-manager evaluations
+nix run github:denful/fastest#fastest -- --flake ".?dir=docs#tests" fast   # every example check (yen queries)
+nix run github:denful/fastest#fastest -- --flake ".?dir=docs#tests" e2e    # real NixOS, nix-darwin and home-manager evaluations
 nix run .#write-files                           # write src/content/docs and src/sidebar.json
-nix flake check                                 # pages current, examples green
+nix flake check                                 # pages current
 pnpm install && pnpm dev                        # the site at localhost:4321
 ```
 

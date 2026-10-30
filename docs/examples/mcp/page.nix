@@ -72,10 +72,17 @@
     ];
 
   checks =
-    { inputs, ... }:
     {
-      tools =
-        builtins.length (builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"))) == 14;
+      inputs,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      tools = eq (builtins.length (
+        builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"))
+      )) (14);
       # the agent skill names every tool the server serves, and no tool it does not
       skill =
         let
@@ -87,9 +94,13 @@
             map (x: if builtins.isList x then builtins.head x else "") (builtins.split "(yen_[a-z_]+)" skill)
           );
         in
-        builtins.all (
-          t: builtins.match ".*`${t}`.*" (builtins.replaceStrings [ "\n" ] [ " " ] skill) != null
-        ) tools
-        && builtins.all (n: builtins.elem n tools) used;
+        {
+          t1 = yes (
+            builtins.all (
+              t: builtins.match ".*`${t}`.*" (builtins.replaceStrings [ "\n" ] [ " " ] skill) != null
+            ) tools
+          );
+          t2 = yes (builtins.all (n: builtins.elem n tools) used);
+        };
     };
 }

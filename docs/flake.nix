@@ -1,5 +1,5 @@
 # The yen docs site, as a yen fleet: every page is an instance, every code block a file under examples/.
-# Regenerate the pages: nix run .#write-files. Test the examples: nix eval --impure --file tests.nix failed
+# Regenerate the pages: nix run .#write-files. Test the examples: fastest --flake ".?dir=docs#tests" fast (in the devshell: docs-test)
 {
   description = "yen documentation, generated from tested examples";
 
@@ -51,6 +51,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     import-tree.url = "github:denful/import-tree";
+    fastest.url = "github:denful/fastest"; # the parallel test runner: every suite is tests.<suite>.<test> = { expr; expected; } (its own nixpkgs: it builds there)
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin/nix-darwin-25.05";
       inputs.nixpkgs.follows = "nixpkgs";

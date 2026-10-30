@@ -109,6 +109,9 @@ in
       inputs,
       dir,
       engine,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
@@ -124,26 +127,33 @@ in
       };
     in
     {
-      ok = result.check.ok;
-      postgres-by-fact =
-        result.active.postgres."fleet:main/env:prod/host:db"
-        && !result.active.postgres."fleet:main/env:prod/host:web";
-      refused =
-        !s.ok
-        &&
-          s.violations == [
-            [
-              "bad"
-              "db-other-env"
-              "fleet:main/env:lab/host:api"
-            ]
-          ];
+      ok = yes (result.check.ok);
+      postgres-by-fact = {
+        t1 = yes (result.active.postgres."fleet:main/env:prod/host:db");
+        t2 = no (result.active.postgres."fleet:main/env:prod/host:web");
+      };
+      refused = {
+        t1 = no (s.ok);
+        t2 = eq (s.violations) ([
+          [
+            "bad"
+            "db-other-env"
+            "fleet:main/env:lab/host:api"
+          ]
+        ]);
+      };
     };
   e2e =
-    { flake, ... }:
     {
-      account-on-box = flake.nixosConfigurations.box.config.users.users.ana.isNormalUser;
-      postgres = flake.nixosConfigurations.db.config.services.postgresql.enable;
-      fqdn = flake.nixosConfigurations.web.config.networking.fqdn == "web.example.com";
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      account-on-box = yes (flake.nixosConfigurations.box.config.users.users.ana.isNormalUser);
+      postgres = yes (flake.nixosConfigurations.db.config.services.postgresql.enable);
+      fqdn = eq (flake.nixosConfigurations.web.config.networking.fqdn) ("web.example.com");
     };
 }

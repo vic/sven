@@ -107,19 +107,21 @@
       dir,
       flake,
       only,
+      eq,
+      yes,
+      no,
       ...
     }:
     {
-      step-one =
-        (only [
-          "modules/fleet.nix"
-          "modules/laptop.nix"
-          "variants/legacy.nix"
-        ]).flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath
-        == flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath;
-      same-system =
-        (inputs.nixpkgs.lib.nixosSystem { modules = [ (dir + "/before/configuration.nix") ]; })
-        .config.system.build.toplevel.drvPath
-        == flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath;
+      step-one = eq ((only [
+        "modules/fleet.nix"
+        "modules/laptop.nix"
+        "variants/legacy.nix"
+      ]).flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath
+      ) (flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath);
+      same-system = eq ((inputs.nixpkgs.lib.nixosSystem {
+        modules = [ (dir + "/before/configuration.nix") ];
+      }).config.system.build.toplevel.drvPath
+      ) (flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath);
     };
 }

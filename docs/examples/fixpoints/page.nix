@@ -113,34 +113,42 @@
     ];
 
   checks =
-    { result, variant, ... }:
+    {
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       at = sink: host: result.reduced.${sink}."fleet:main/host:${host}";
     in
     {
-      aggregate = at "ports" "b" == [ 22 ];
-      mkif =
-        at "firewall" "a" == [
-          22
-          80
-          443
-        ];
-      default-from-config =
-        (builtins.head (builtins.filter (s: s.name == "a") result.scopes)).fqdn == "a.lan";
-      deep-merge =
-        at "settings" "b" == {
-          log = {
-            level = "info";
-            file = "/var/log/b";
-          };
+      aggregate = eq (at "ports" "b") ([ 22 ]);
+      mkif = eq (at "firewall" "a") ([
+        22
+        80
+        443
+      ]);
+      default-from-config = eq ((builtins.head (builtins.filter (s: s.name == "a") result.scopes)).fqdn) (
+        "a.lan"
+      );
+      deep-merge = eq (at "settings" "b") ({
+        log = {
+          level = "info";
+          file = "/var/log/b";
         };
-      priority = at "motd" "a" == "welcome" && at "motd" "b" == "maintenance";
-      other-node = at "peers" "a" == { b = "10.0.0.2"; };
-      edges =
-        map (e: e.from) (builtins.filter (e: e.sink == "addrs") result.graph.edges) == [
-          "fleet:main/host:a"
-          "fleet:main/host:b"
-        ];
-      override = map (e: e.code) (variant "variants/override.nix").errors == [ "two-answers" ];
+      });
+      priority = {
+        t1 = eq (at "motd" "a") ("welcome");
+        t2 = eq (at "motd" "b") ("maintenance");
+      };
+      other-node = eq (at "peers" "a") ({ b = "10.0.0.2"; });
+      edges = eq (map (e: e.from) (builtins.filter (e: e.sink == "addrs") result.graph.edges)) ([
+        "fleet:main/host:a"
+        "fleet:main/host:b"
+      ]);
+      override = eq (map (e: e.code) (variant "variants/override.nix").errors) ([ "two-answers" ]);
     };
 }

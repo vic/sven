@@ -71,50 +71,62 @@ let
       ]
     )
   );
+  # a fastest test: { expr; expected; }
+  eq = expr: expected: { inherit expr expected; };
   checks = {
-    infinite-incomplete =
-      inf.complete == false && inf.answers != [ ] && builtins.all (a: a == 5) inf.answers;
-    suspension-fuel = (K.runAllFuel 50 spin).complete == false && (K.runAllFuel 50 spin).answers == [ ];
-    infinite-n-complete =
-      two.complete == true
-      &&
-        two.answers == [
-          5
-          5
-        ];
-    finite-complete =
-      mem.complete == true
-      &&
-        mem.answers == [
-          1
-          2
-          3
-        ];
+    infinite-incomplete = {
+      complete = eq inf.complete false;
+      some = eq (inf.answers != [ ]) true;
+      all-five = eq (builtins.all (a: a == 5) inf.answers) true;
+    };
+    suspension-fuel = {
+      complete = eq (K.runAllFuel 50 spin).complete false;
+      answers = eq (K.runAllFuel 50 spin).answers [ ];
+    };
+    infinite-n-complete = {
+      complete = eq two.complete true;
+      answers = eq two.answers [
+        5
+        5
+      ];
+    };
+    finite-complete = {
+      complete = eq mem.complete true;
+      answers = eq mem.answers [
+        1
+        2
+        3
+      ];
+    };
     finite-low-fuel =
-      (K.runAllFuel 1 (
-        q:
-        K.membero q [
-          1
-          2
-          3
-        ]
-      )).complete == false;
-    maximize-best =
-      mx.value == 8
-      &&
-        mx.best == [
-          4
-          4
-          8
-        ]
-      && mx.complete == true
-      && mx.count == 16;
-    maximize-low-fuel = mxTiny.complete == false;
-    appendo-unbounded = app2.complete == false && app2.answers != [ ];
-    appendo-finite-ok = app.complete == true;
+      eq
+        (K.runAllFuel 1 (
+          q:
+          K.membero q [
+            1
+            2
+            3
+          ]
+        )).complete
+        false;
+    maximize-best = {
+      value = eq mx.value 8;
+      best = eq mx.best [
+        4
+        4
+        8
+      ];
+      complete = eq mx.complete true;
+      count = eq mx.count 16;
+    };
+    maximize-low-fuel = eq mxTiny.complete false;
+    appendo-unbounded = {
+      complete = eq app2.complete false;
+      some = eq (app2.answers != [ ]) true;
+    };
+    appendo-finite-ok = eq app.complete true;
   };
 in
 {
-  inherit checks;
-  failed = builtins.filter (n: !checks.${n}) (builtins.attrNames checks);
+  tests = checks;
 }

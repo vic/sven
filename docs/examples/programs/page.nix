@@ -81,7 +81,14 @@
     ];
 
   checks =
-    { inputs, dir, ... }:
+    {
+      inputs,
+      dir,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       P =
         p:
@@ -92,11 +99,10 @@
         };
     in
     {
-      ok = (P "programs/new-cache.json").ok;
-      typos =
-        map (e: e.near) (P "programs/typos.json").errors == [
-          [ "addr" ]
-          [ "postgres" ]
-        ];
+      ok = yes ((P "programs/new-cache.json").ok);
+      typos = eq (map (e: e.near) (P "programs/typos.json").errors) ([
+        [ "addr" ]
+        [ "postgres" ]
+      ]);
     };
 }

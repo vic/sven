@@ -79,41 +79,50 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      cascade =
-        result.flake.report == {
-          nas = {
-            arcMax = 32;
-            k3s = "agent";
-          };
-          node = {
-            arcMax = 8;
-            k3s = "server";
-          };
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      cascade = eq (result.flake.report) ({
+        nas = {
+          arcMax = 32;
+          k3s = "agent";
         };
+        node = {
+          arcMax = 8;
+          k3s = "server";
+        };
+      });
       declared =
-        map baseNameOf (
-          result.declaredIn [
-            "kinds"
-            "host"
-            "fields"
-            "settings"
-          ]
-        ) == [
-          "k3s.nix"
-          "zfs.nix"
-        ];
-      two-answers = map (e: e.code) (variant "variants/override.nix").errors == [ "two-answers" ];
+        eq
+          (map baseNameOf (
+            result.declaredIn [
+              "kinds"
+              "host"
+              "fields"
+              "settings"
+            ]
+          ))
+          ([
+            "k3s.nix"
+            "zfs.nix"
+          ]);
+      two-answers = eq (map (e: e.code) (variant "variants/override.nix").errors) ([ "two-answers" ]);
       helper-twice =
-        map (e: { inherit (e) code path; }) (variant "variants/helper-twice.nix").errors == [
-          {
-            code = "two-answers";
-            path = [
-              "helpers"
-              "k3sRole"
-            ];
-          }
-        ];
+        eq (map (e: { inherit (e) code path; }) (variant "variants/helper-twice.nix").errors)
+          ([
+            {
+              code = "two-answers";
+              path = [
+                "helpers"
+                "k3sRole"
+              ];
+            }
+          ]);
     };
 }

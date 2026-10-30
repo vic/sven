@@ -64,23 +64,30 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      proxy =
-        result.flake.proxy.lb == [
-          {
-            at = "fleet:main/environment:prod/host:lb";
-            backends = [
-              "10.0.0.2"
-              "10.0.0.3"
-            ];
-            cluster = "none";
-            env = "prod";
-          }
-        ];
-      missing = builtins.length (variant "variants/missing.nix").errors == 1;
-      open =
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      proxy = eq (result.flake.proxy.lb) ([
+        {
+          at = "fleet:main/environment:prod/host:lb";
+          backends = [
+            "10.0.0.2"
+            "10.0.0.3"
+          ];
+          cluster = "none";
+          env = "prod";
+        }
+      ]);
+      missing = eq (builtins.length (variant "variants/missing.nix").errors) (1);
+      open = yes (
         builtins.isFunction (builtins.elemAt (variant "variants/open.nix").flake.proxy.lb 1)
-        || (builtins.elemAt (variant "variants/open.nix").flake.proxy.lb 1) ? __functor;
+        || (builtins.elemAt (variant "variants/open.nix").flake.proxy.lb 1) ? __functor
+      );
     };
 }

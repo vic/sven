@@ -56,27 +56,36 @@
       inputs,
       dir,
       result,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
       q = import (dir + "/default.nix") { inherit (inputs) yen nixpkgs import-tree; };
     in
     {
-      same-queries = q.errors == [ ] && q.graph == result.graph;
+      same-queries = {
+        t1 = eq (q.errors) ([ ]);
+        t2 = eq (q.graph) (result.graph);
+      };
     };
   e2e =
     {
       inputs,
       dir,
       flake,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
       q = import (dir + "/default.nix") { inherit (inputs) yen nixpkgs import-tree; };
     in
     {
-      same-system =
-        q.flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath
-        == flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath;
+      same-system = eq (q.flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath) (
+        flake.nixosConfigurations.laptop.config.system.build.toplevel.drvPath
+      );
     };
 }

@@ -55,19 +55,23 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      ask =
-        result.ask "aspectsOn" { host = "web"; } == [
-          "git"
-          "nginx"
-        ];
-      optional =
-        result.queries.hostsWith == {
-          optional = [ "kind" ];
-          required = [ "aspect" ];
-        };
-      missing = (result.ask "aspectsOn" { }).code == "missing-param";
-      near = (result.ask "aspectsOff" { host = "web"; }).near == [ "aspectsOn" ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      ask = eq (result.ask "aspectsOn" { host = "web"; }) ([
+        "git"
+        "nginx"
+      ]);
+      optional = eq (result.queries.hostsWith) ({
+        optional = [ "kind" ];
+        required = [ "aspect" ];
+      });
+      missing = eq ((result.ask "aspectsOn" { }).code) ("missing-param");
+      near = eq ((result.ask "aspectsOff" { host = "web"; }).near) ([ "aspectsOn" ]);
     };
 }

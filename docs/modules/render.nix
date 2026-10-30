@@ -211,6 +211,10 @@ let
       ++ bodyOf page
     )
     + "\n";
+  # a fastest test: { expr; expected; }
+  eq = expr: expected: { inherit expr expected; };
+  yes = x: eq x true;
+  no = x: eq x false;
   testsOf =
     page:
     let
@@ -226,16 +230,23 @@ let
           module
           engine
           ;
-        inherit lib pages commands;
+        inherit
+          lib
+          pages
+          commands
+          eq
+          yes
+          no
+          ;
       };
       own = (x.page.checks or (_: { })) args;
       auto =
         lib.optionalAttrs (x.result != null) {
-          no-errors = (x.page.errors or false) || x.result.errors == [ ];
+          no-errors = if x.page.errors or false then yes true else eq (map (e: e.error) x.result.errors) [ ];
         }
         // lib.optionalAttrs x.template {
-          inputs-known = x.inputsKnown;
-          flake-is-eval = lib.attrNames x.flake == lib.attrNames x.result.flake;
+          inputs-known = yes x.inputsKnown;
+          flake-is-eval = eq (lib.attrNames x.flake) (lib.attrNames x.result.flake);
         };
     in
     {
@@ -294,7 +305,7 @@ in
       {
         site = {
           fast = {
-            links-resolve = broken == [ ];
+            links-resolve = eq broken [ ];
           };
           e2e = { };
           inherit broken;

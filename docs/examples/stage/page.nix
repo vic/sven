@@ -89,6 +89,9 @@
       inputs,
       dir,
       engine,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
@@ -104,17 +107,17 @@
       d = S { change = "changes/desktop-on-web.json"; };
     in
     {
-      violation =
-        !d.ok
-        &&
-          d.violations == [
-            [
-              "bad"
-              "desktop-on-server"
-              "fleet:main/host:web"
-            ]
-          ];
-      clean = (S { change = "changes/postgres-on-thinkpad.json"; }).ok;
+      violation = {
+        t1 = no (d.ok);
+        t2 = eq (d.violations) ([
+          [
+            "bad"
+            "desktop-on-server"
+            "fleet:main/host:web"
+          ]
+        ]);
+      };
+      clean = yes ((S { change = "changes/postgres-on-thinkpad.json"; }).ok);
       grant =
         let
           r =
@@ -123,23 +126,25 @@
               grant = engine.grant { scopes = [ "fleet:main/host:db" ]; };
             }).refused;
         in
-        builtins.all (e: e.code == "outside-grant") r
-        && builtins.elem "fleet:main/host:thinkpad" (map (e: e.got) r)
-        && !(builtins.elem "fleet:main/host:db" (map (e: e.got) r));
-      rejected =
-        map (e: e.code)
-          (S {
-            change = "changes/desktop-on-web.json";
-            rejected = [ d.sha ];
-          }).refused == [ "rejected" ];
-      change-set =
-        engine.change.set
-          [ "aspects" "desktop" "at" ]
-          [
-            {
-              kind = "host";
-              name = "web";
-            }
-          ] == builtins.fromJSON (builtins.readFile (dir + "/changes/desktop-on-web.json"));
+        {
+          t1 = yes (builtins.all (e: e.code == "outside-grant") r);
+          t2 = yes (builtins.elem "fleet:main/host:thinkpad" (map (e: e.got) r));
+          t3 = no ((builtins.elem "fleet:main/host:db" (map (e: e.got) r)));
+        };
+      rejected = eq (map (e: e.code)
+        (S {
+          change = "changes/desktop-on-web.json";
+          rejected = [ d.sha ];
+        }).refused
+      ) ([ "rejected" ]);
+      change-set = eq (engine.change.set
+        [ "aspects" "desktop" "at" ]
+        [
+          {
+            kind = "host";
+            name = "web";
+          }
+        ]
+      ) (builtins.fromJSON (builtins.readFile (dir + "/changes/desktop-on-web.json")));
     };
 }

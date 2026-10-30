@@ -41,35 +41,47 @@
     ];
 
   checks =
-    { result, ... }:
+    {
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       texts = builtins.foldl' (
         a: m: a // builtins.mapAttrs (_: f: f.text) m.files.file
       ) { } result.reduced.files."repo:main";
     in
     {
-      readme =
-        texts."README.md" == "# my repo\n<!-- Generated. Run nix run .#write-files. -->\n\n## Usage";
-      workflow =
-        texts.".github/workflows/ci.yml"
-        == "# Generated. Jobs: check\n\"jobs\":\n  \"check\":\n    \"runs-on\": \"ubuntu-latest\"\n    \"steps\":\n      -\n        \"uses\": \"actions/checkout@v4\"\n      -\n        \"run\": \"nix flake check\"\n\"name\": \"ci\"\n\"on\":\n  \"push\": {}\n";
-      json = texts."ci.json" == "[\"devShells.x86_64-linux.default\"]\n";
-      toml = texts."taplo.toml" == "[formatting]\nalign_entries = true\n";
-      yaml = builtins.substring 0 14 texts.".github/dependabot.yml" == "\"updates\":\n  -";
-      outputs =
-        builtins.attrNames result.flake.packages.x86_64-linux == [
-          "write-files"
-          "write-flake"
-        ];
+      readme = eq (texts."README.md") (
+        "# my repo\n<!-- Generated. Run nix run .#write-files. -->\n\n## Usage"
+      );
+      workflow = eq (texts.".github/workflows/ci.yml") (
+        "# Generated. Jobs: check\n\"jobs\":\n  \"check\":\n    \"runs-on\": \"ubuntu-latest\"\n    \"steps\":\n      -\n        \"uses\": \"actions/checkout@v4\"\n      -\n        \"run\": \"nix flake check\"\n\"name\": \"ci\"\n\"on\":\n  \"push\": {}\n"
+      );
+      json = eq (texts."ci.json") ("[\"devShells.x86_64-linux.default\"]\n");
+      toml = eq (texts."taplo.toml") ("[formatting]\nalign_entries = true\n");
+      yaml = eq (builtins.substring 0 14 texts.".github/dependabot.yml") ("\"updates\":\n  -");
+      outputs = eq (builtins.attrNames result.flake.packages.x86_64-linux) ([
+        "write-files"
+        "write-flake"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
     {
-      write-files = builtins.isString flake.packages.x86_64-linux.write-files.drvPath;
-      write-flake = builtins.isString flake.packages.x86_64-linux.write-flake.drvPath;
-      file-checks = builtins.length (builtins.attrNames flake.checks.x86_64-linux) == 6;
-      numtide = builtins.isString flake.devShells.x86_64-linux.repo.drvPath;
-      shell = builtins.isString flake.devShells.x86_64-linux.default.drvPath;
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      write-files = yes (builtins.isString flake.packages.x86_64-linux.write-files.drvPath);
+      write-flake = yes (builtins.isString flake.packages.x86_64-linux.write-flake.drvPath);
+      file-checks = eq (builtins.length (builtins.attrNames flake.checks.x86_64-linux)) (6);
+      numtide = yes (builtins.isString flake.devShells.x86_64-linux.repo.drvPath);
+      shell = yes (builtins.isString flake.devShells.x86_64-linux.default.drvPath);
     };
 }

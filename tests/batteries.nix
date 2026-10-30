@@ -2,6 +2,10 @@
 let
   yen = (import ../default.nix).lib;
   b = builtins;
+  # a fastest test: { expr; expected; }
+  eq = expr: expected: { inherit expr expected; };
+  yes = x: eq x true;
+  no = x: eq x false;
   nixos = yen.batteries.nixos;
   bat = yen.batteries;
   # the words of this fleet: no battery knows them. Every box gives its `sys` list as output.
@@ -805,208 +809,246 @@ let
   ];
 
   checks = {
-    imports-battery =
-      bat.imports { from.__sink = "s"; } { sinks.s = [ "m" ]; } == { imports = [ "m" ]; };
+    imports-battery = eq (bat.imports { from.__sink = "s"; } { sinks.s = [ "m" ]; }) ({
+      imports = [ "m" ];
+    });
     deploy-colmena =
-      bat.deploy.colmena {
-        from.__sink = "c";
-        makeHive = h: h;
-        meta.nixpkgs = "p";
-      } { sinks.c.lb = "m"; } == {
-        colmenaHive = {
+      eq
+        (bat.deploy.colmena {
+          from.__sink = "c";
+          makeHive = h: h;
           meta.nixpkgs = "p";
-          lb = "m";
-        };
-      };
+        } { sinks.c.lb = "m"; })
+        ({
+          colmenaHive = {
+            meta.nixpkgs = "p";
+            lb = "m";
+          };
+        });
     deploy-rs =
-      (bat.deploy.deploy-rs {
-        configurations.lb = "C";
-        hostname = n: _: "${n}.lan";
-        activate = _: c: "act-${c}";
-      }).deploy.nodes.lb == {
-        hostname = "lb.lan";
-        profiles.system = {
-          user = "root";
-          sshUser = "root";
-          path = "act-C";
-        };
-      };
+      eq
+        ((bat.deploy.deploy-rs {
+          configurations.lb = "C";
+          hostname = n: _: "${n}.lan";
+          activate = _: c: "act-${c}";
+        }).deploy.nodes.lb
+        )
+        ({
+          hostname = "lb.lan";
+          profiles.system = {
+            user = "root";
+            sshUser = "root";
+            path = "act-C";
+          };
+        });
     secrets-sops-config =
-      bat.secrets.sops-config { from.__sink = "r"; } {
-        sinks.r = [
-          {
-            path_regex = "a";
-            age = "k";
-          }
-        ];
-      } == {
-        files.file.".sops.yaml".text =
-          "\"creation_rules\":\n  -\n    \"age\": \"k\"\n    \"path_regex\": \"a\"\n";
-      };
+      eq
+        (bat.secrets.sops-config { from.__sink = "r"; } {
+          sinks.r = [
+            {
+              path_regex = "a";
+              age = "k";
+            }
+          ];
+        })
+        ({
+          files.file.".sops.yaml".text =
+            "\"creation_rules\":\n  -\n    \"age\": \"k\"\n    \"path_regex\": \"a\"\n";
+        });
     terranix-configuration =
-      (bat.terranix.configuration
-        {
-          from.__sink = "t";
-          terranixConfiguration = a: a;
+      eq
+        ((bat.terranix.configuration
+          {
+            from.__sink = "t";
+            terranixConfiguration = a: a;
+            system = "sx";
+            name = _: "dns";
+          }
+          {
+            scope.name = "prod";
+            sinks.t = [ "m" ];
+          }
+        ).terraformConfigurations.dns
+        )
+        ({
           system = "sx";
-          name = _: "dns";
-        }
-        {
-          scope.name = "prod";
-          sinks.t = [ "m" ];
-        }
-      ).terraformConfigurations.dns == {
-        system = "sx";
-        modules = [ "m" ];
-      };
+          modules = [ "m" ];
+        });
     editors-vscode =
-      (bat.editors.vscode { from.__sink = "v"; } {
-        sinks.v = [
-          {
-            extensions = [ "nix" ];
-            settings.a = 1;
-          }
-          {
-            extensions = [
-              "nix"
-              "go"
-            ];
-            settings.b = 2;
-          }
-        ];
-      }).programs.vscode.profiles.default == {
-        extensions = [
-          "nix"
-          "go"
-        ];
-        userSettings = {
-          a = 1;
-          b = 2;
-        };
-      };
-    editors-zed =
-      (bat.editors.zed { from.__sink = "z"; } { sinks.z = [ { extensions = [ "nix" ]; } ]; })
-      .programs.zed-editor.extensions == [ "nix" ];
+      eq
+        ((bat.editors.vscode { from.__sink = "v"; } {
+          sinks.v = [
+            {
+              extensions = [ "nix" ];
+              settings.a = 1;
+            }
+            {
+              extensions = [
+                "nix"
+                "go"
+              ];
+              settings.b = 2;
+            }
+          ];
+        }).programs.vscode.profiles.default
+        )
+        ({
+          extensions = [
+            "nix"
+            "go"
+          ];
+          userSettings = {
+            a = 1;
+            b = 2;
+          };
+        });
+    editors-zed = eq ((bat.editors.zed { from.__sink = "z"; } {
+      sinks.z = [ { extensions = [ "nix" ]; } ];
+    }).programs.zed-editor.extensions
+    ) ([ "nix" ]);
     ai-extensions =
-      bat.ai.extensions
-        {
-          from.__sink = "x";
-          types = [ "mcp" ];
-          build = map (e: e.name);
-        }
-        {
-          sinks.x = [
-            {
-              type = "mcp";
-              name = "gh";
-            }
-            {
-              type = "skill";
-              name = "s";
-            }
-            [
+      eq
+        (bat.ai.extensions
+          {
+            from.__sink = "x";
+            types = [ "mcp" ];
+            build = map (e: e.name);
+          }
+          {
+            sinks.x = [
               {
                 type = "mcp";
-                name = "list"; # an element that is a list of records
+                name = "gh";
               }
-            ]
-          ];
-        } == [
-        "gh"
-        "list"
-      ];
-    ai-skills = map (s: s.name) (bat.ai.skills ./fixtures/skills) == [ "review" ];
-    distributed-nodes =
-      bat.distributed.nodes { from.__sink = "n"; } {
-        scope.name = "web";
-        sinks.n = [
-          { value.web = "m1"; }
-          { value.db = "m2"; }
-        ];
-      } == {
-        imports = [ "m1" ];
-      };
-    configurations =
-      bat.configurations
-        {
-          from.__sink = "m";
-          output = "xConfigurations";
-          build = s: ms: {
-            inherit (s) name;
-            inherit ms;
-          };
-        }
-        {
-          scope.name = "h";
-          sinks.m = [ "a" ];
-        } == {
-        xConfigurations.h = {
-          name = "h";
-          ms = [ "a" ];
-        };
-      };
-    darwin-system =
-      (bat.darwin.system
-        {
-          from.__sink = "d";
-          darwinSystem = m: a: a // { by = m.name; };
-          system = m: m.sys;
-        }
-        {
-          scope = {
-            name = "mac";
-            sys = "aarch64-darwin";
-          };
-          sinks.d = [ "x" ];
-        }
-      ).darwinConfigurations.mac == {
-        system = "aarch64-darwin";
-        modules = [ "x" ];
-        by = "mac";
-      };
-    darwin-primary-user =
-      (bat.darwin.primary-user { user = m: m.o; } { scope.o.name = "ana"; }).system.primaryUser == "ana"
-      && (bat.darwin.primary-user { user = _: null; } { scope = { }; }).system.primaryUser == "root";
-    darwin-homebrew =
-      (bat.darwin.homebrew { from.__sink = "b"; } {
-        sinks.b = [
-          { casks = [ "a" ]; }
-          {
-            casks = [ "a" ];
-            brews = [ "jq" ];
-            masApps.X = 1;
+              {
+                type = "skill";
+                name = "s";
+              }
+              [
+                {
+                  type = "mcp";
+                  name = "list"; # an element that is a list of records
+                }
+              ]
+            ];
           }
-        ];
-      }).homebrew == {
-        enable = true;
-        casks = [ "a" ];
-        brews = [ "jq" ];
-        masApps.X = 1;
-      };
+        )
+        ([
+          "gh"
+          "list"
+        ]);
+    ai-skills = eq (map (s: s.name) (bat.ai.skills ./fixtures/skills)) ([ "review" ]);
+    distributed-nodes =
+      eq
+        (bat.distributed.nodes { from.__sink = "n"; } {
+          scope.name = "web";
+          sinks.n = [
+            { value.web = "m1"; }
+            { value.db = "m2"; }
+          ];
+        })
+        ({
+          imports = [ "m1" ];
+        });
+    configurations =
+      eq
+        (bat.configurations
+          {
+            from.__sink = "m";
+            output = "xConfigurations";
+            build = s: ms: {
+              inherit (s) name;
+              inherit ms;
+            };
+          }
+          {
+            scope.name = "h";
+            sinks.m = [ "a" ];
+          }
+        )
+        ({
+          xConfigurations.h = {
+            name = "h";
+            ms = [ "a" ];
+          };
+        });
+    darwin-system =
+      eq
+        ((bat.darwin.system
+          {
+            from.__sink = "d";
+            darwinSystem = m: a: a // { by = m.name; };
+            system = m: m.sys;
+          }
+          {
+            scope = {
+              name = "mac";
+              sys = "aarch64-darwin";
+            };
+            sinks.d = [ "x" ];
+          }
+        ).darwinConfigurations.mac
+        )
+        ({
+          system = "aarch64-darwin";
+          modules = [ "x" ];
+          by = "mac";
+        });
+    darwin-primary-user = {
+      t1 = eq ((bat.darwin.primary-user { user = m: m.o; } { scope.o.name = "ana"; }).system.primaryUser
+      ) ("ana");
+      t2 = eq ((bat.darwin.primary-user { user = _: null; } { scope = { }; }).system.primaryUser) (
+        "root"
+      );
+    };
+    darwin-homebrew =
+      eq
+        ((bat.darwin.homebrew { from.__sink = "b"; } {
+          sinks.b = [
+            { casks = [ "a" ]; }
+            {
+              casks = [ "a" ];
+              brews = [ "jq" ];
+              masApps.X = 1;
+            }
+          ];
+        }).homebrew
+        )
+        ({
+          enable = true;
+          casks = [ "a" ];
+          brews = [ "jq" ];
+          masApps.X = 1;
+        });
     home-manager-system =
-      (bat.home-manager.system
-        {
-          from.__sink = "h";
-          homeManagerConfiguration = _: a: a;
-          pkgs = h: "pkgs-${h.name}";
-        }
-        {
+      eq
+        ((bat.home-manager.system
+          {
+            from.__sink = "h";
+            homeManagerConfiguration = _: a: a;
+            pkgs = h: "pkgs-${h.name}";
+          }
+          {
+            scope.name = "ana";
+            sinks.h = [ "m" ];
+          }
+        ).homeConfigurations.ana
+        )
+        ({
+          pkgs = "pkgs-ana";
+          modules = [ "m" ];
+        });
+    home-manager-into-host =
+      eq
+        (bat.home-manager.into-host { from.__sink = "h"; } {
           scope.name = "ana";
           sinks.h = [ "m" ];
-        }
-      ).homeConfigurations.ana == {
-        pkgs = "pkgs-ana";
-        modules = [ "m" ];
-      };
-    home-manager-into-host =
-      bat.home-manager.into-host { from.__sink = "h"; } {
-        scope.name = "ana";
-        sinks.h = [ "m" ];
-      } == {
-        home-manager.users.ana.imports = [ "m" ];
-      };
-    droid =
-      (bat.droid.system
+        })
+        ({
+          home-manager.users.ana.imports = [ "m" ];
+        });
+    droid = {
+      t1 = eq ((bat.droid.system
         {
           from.__sink = "d";
           nixOnDroidConfiguration = a: a;
@@ -1016,324 +1058,358 @@ let
           scope.name = "pixel";
           sinks.d = [ "m" ];
         }
-      ).nixOnDroidConfigurations.pixel.modules == [ "m" ]
-      &&
-        bat.droid.home { from.__sink = "h"; } { sinks.h = [ "hm" ]; } == {
-          home-manager.config.imports = [ "hm" ];
-        };
+      ).nixOnDroidConfigurations.pixel.modules
+      ) ([ "m" ]);
+      t2 = eq (bat.droid.home { from.__sink = "h"; } { sinks.h = [ "hm" ]; }) ({
+        home-manager.config.imports = [ "hm" ];
+      });
+    };
     microvm-guest =
-      bat.microvm.guest
-        {
-          from.__sink = "n";
-          pkgs = g: "p-${g.name}";
-        }
-        {
-          scope.name = "ci";
-          sinks.n = [ "m" ];
-        } == {
-        microvm.vms.ci = {
-          pkgs = "p-ci";
-          config.imports = [ "m" ];
-        };
-      };
-    exports-modules =
-      bat.exports.modules
-        {
-          from.__sink = "os";
-          output = "homeModules";
-        }
-        {
-          scope.name = "base";
-          sinks.os = [ "m" ];
-        } == {
-        homeModules.base.imports = [ "m" ];
-      };
-    docs-table =
-      bat.docs.table
-        [ "A" "B" ]
-        [
-          [
-            "1"
-            "2"
-          ]
-        ] == "| A | B |\n|---|---|\n| 1 | 2 |";
-    docs-kinds =
-      bat.docs.kinds
-        {
-          box = {
-            fields.x = 1;
-            sinks.s = { };
+      eq
+        (bat.microvm.guest
+          {
+            from.__sink = "n";
+            pkgs = g: "p-${g.name}";
+          }
+          {
+            scope.name = "ci";
+            sinks.n = [ "m" ];
+          }
+        )
+        ({
+          microvm.vms.ci = {
+            pkgs = "p-ci";
+            config.imports = [ "m" ];
           };
-        }
-        {
-          scopes = [
-            { kind = "box"; }
-            { kind = "box"; }
-          ];
-        }
-      == "| Kind | Fields | Spawns | Sinks | Scopes |\n|---|---|---|---|---|\n| `box` | `x` |  | `s` | 2 |";
-    docs-templates =
-      b.attrNames (
-        bat.docs.templates {
+        });
+    exports-modules =
+      eq
+        (bat.exports.modules
+          {
+            from.__sink = "os";
+            output = "homeModules";
+          }
+          {
+            scope.name = "base";
+            sinks.os = [ "m" ];
+          }
+        )
+        ({
+          homeModules.base.imports = [ "m" ];
+        });
+    docs-table = eq (bat.docs.table
+      [ "A" "B" ]
+      [
+        [
+          "1"
+          "2"
+        ]
+      ]
+    ) ("| A | B |\n|---|---|\n| 1 | 2 |");
+    docs-kinds =
+      eq
+        (bat.docs.kinds
+          {
+            box = {
+              fields.x = 1;
+              sinks.s = { };
+            };
+          }
+          {
+            scopes = [
+              { kind = "box"; }
+              { kind = "box"; }
+            ];
+          }
+        )
+        (
+          "| Kind | Fields | Spawns | Sinks | Scopes |\n|---|---|---|---|---|\n| `box` | `x` |  | `s` | 2 |"
+        );
+    docs-templates = {
+      t1 = yes (
+        b.attrNames (
+          bat.docs.templates {
+            root = ../docs/examples;
+            description = _: "";
+          }
+        ) != [ ]
+      );
+      t2 = no (
+        (bat.docs.templates {
           root = ../docs/examples;
           description = _: "";
-        }
-      ) != [ ]
-      && !(bat.docs.templates {
-        root = ../docs/examples;
-        description = _: "";
-      }) ? about; # docs/examples/about has no flake.nix
-    files-comment =
-      bat.files.comment "README.md" "x" == "<!-- x -->\n"
-      && bat.files.comment "a/ci.yml" "x" == "# x\n"
-      && bat.files.comment "main.rs" "x" == "// x\n"
-      && bat.files.comment "ci.json" "x" == "";
-    nixos-user-shell =
-      (nixos.user-shell { shell = u: u.sh; } {
-        scope = sc "ana" // {
-          sh = "fish";
-        };
-      } { pkgs.fish = "F"; }) == {
-        users.users.ana.shell = "F";
-        programs.fish.enable = true;
-      }
-      && !(
-        (nixos.user-shell { shell = _: "bash"; } { scope = sc "bob"; } { pkgs.bash = "B"; }) ? programs
+        }) ? about
+      ); # docs/examples/about has no flake.nix
+    };
+    files-comment = {
+      t1 = eq (bat.files.comment "README.md" "x") ("<!-- x -->\n");
+      t2 = eq (bat.files.comment "a/ci.yml" "x") ("# x\n");
+      t3 = eq (bat.files.comment "main.rs" "x") ("// x\n");
+      t4 = eq (bat.files.comment "ci.json" "x") ("");
+    };
+    nixos-user-shell = {
+      t1 =
+        eq
+          (
+            (nixos.user-shell { shell = u: u.sh; } {
+              scope = sc "ana" // {
+                sh = "fish";
+              };
+            } { pkgs.fish = "F"; })
+          )
+          ({
+            users.users.ana.shell = "F";
+            programs.fish.enable = true;
+          });
+      t2 = no (
+        ((nixos.user-shell { shell = _: "bash"; } { scope = sc "bob"; } { pkgs.bash = "B"; }) ? programs)
       );
-    nixos-autologin =
-      nixos.autologin { user = h: h.u; } {
-        scope = sc "h" // {
-          u = {
-            name = "ana";
-          };
-        };
-      } == {
-        services.getty.autologinUser = "ana";
-      }
-      && nixos.autologin { user = _: null; } { scope = sc "h"; } == { };
+    };
+    nixos-autologin = {
+      t1 =
+        eq
+          (nixos.autologin { user = h: h.u; } {
+            scope = sc "h" // {
+              u = {
+                name = "ana";
+              };
+            };
+          })
+          ({
+            services.getty.autologinUser = "ana";
+          });
+      t2 = eq (nixos.autologin { user = _: null; } { scope = sc "h"; }) ({ });
+    };
     nixos-firewall =
-      nixos.firewall { from.__sink = "p"; } {
-        sinks.p = [
-          22
-          { udp = [ 53 ]; }
-          {
-            tcp = [
+      eq
+        (nixos.firewall { from.__sink = "p"; } {
+          sinks.p = [
+            22
+            { udp = [ 53 ]; }
+            {
+              tcp = [
+                22
+                80
+              ];
+            }
+          ];
+        })
+        ({
+          networking.firewall = {
+            allowedTCPPorts = [
               22
               80
             ];
-          }
-        ];
-      } == {
-        networking.firewall = {
-          allowedTCPPorts = [
-            22
-            80
-          ];
-          allowedUDPPorts = [ 53 ];
-        };
-      };
+            allowedUDPPorts = [ 53 ];
+          };
+        });
     nixos-persist =
-      nixos.persist { from.__sink = "p"; } {
-        sinks.p = [
-          "/var/lib/x"
-          { files = [ "/etc/machine-id" ]; }
-          "/var/lib/x"
-        ];
-      } == {
-        environment.persistence."/persist" = {
-          directories = [ "/var/lib/x" ];
-          files = [ "/etc/machine-id" ];
-        };
-      };
-    nixos-hosts =
-      nixos.hosts { from.__sink = "p"; } {
-        scope = sc "d"; # sees both; only a has a key
-        sinks.p = peers;
-      } == {
-        networking.hosts = {
-          "10.0.0.1" = [ "a" ];
-          "10.0.0.2" = [ "c" ];
-        };
-        programs.ssh.knownHosts.a = {
-          hostNames = [
-            "a"
-            "10.0.0.1"
+      eq
+        (nixos.persist { from.__sink = "p"; } {
+          sinks.p = [
+            "/var/lib/x"
+            { files = [ "/etc/machine-id" ]; }
+            "/var/lib/x"
           ];
-          publicKey = "ka";
-        };
-      };
-    nixos-remote-builders =
-      map (m: m.hostName)
-        (nixos.remote-builders
-          {
-            from.__sink = "b";
-            systemOf = _: "x86_64-linux";
-          }
-          {
-            scope = sc "a";
-            sinks.b = builders;
-          }
-        ).nix.buildMachines == [ "d" ];
-    nixos-facter =
-      nixos.facter {
-        report = h: "/r/${h.name}.json";
-        module = "M";
-      } { scope = sc "h"; } == {
-        facter.reportPath = "/r/h.json";
-        imports = [ "M" ];
-      }
-      &&
-        nixos.facter { report = h: "/r/${h.name}.json"; } { scope = sc "h"; } == {
-          hardware.facter.reportPath = "/r/h.json";
-        };
-    files-toml =
-      bat.files.toml { } {
-        p.name = "a b";
-        p."x.y" = [
-          1
-          true
-        ];
-        t.k.inline = {
-          a = 1;
-        };
-      } == "[p]\nname = \"a b\"\n\"x.y\" = [1, true]\n\n[t.k]\ninline = { a = 1 }\n";
-    secretspec-toml =
-      (specRun { }).flake.sys.a == [
+        })
+        ({
+          environment.persistence."/persist" = {
+            directories = [ "/var/lib/x" ];
+            files = [ "/etc/machine-id" ];
+          };
+        });
+    nixos-hosts =
+      eq
+        (nixos.hosts { from.__sink = "p"; } {
+          scope = sc "d"; # sees both; only a has a key
+          sinks.p = peers;
+        })
+        ({
+          networking.hosts = {
+            "10.0.0.1" = [ "a" ];
+            "10.0.0.2" = [ "c" ];
+          };
+          programs.ssh.knownHosts.a = {
+            hostNames = [
+              "a"
+              "10.0.0.1"
+            ];
+            publicKey = "ka";
+          };
+        });
+    nixos-remote-builders = eq (map (m: m.hostName)
+      (nixos.remote-builders
         {
-          files.file."secretspec.toml".text =
-            "[profiles.default]\nDB_URL = { description = \"db\" }\n\n[profiles.dev]\nDB_URL = { default = \"sqlite://x\" }\ndefaults = { inherit = false }\n\n[project]\nname = \"app\"\n";
+          from.__sink = "b";
+          systemOf = _: "x86_64-linux";
         }
-      ];
-    secretspec-twice =
-      codes (
-        specRun (
-          { yen, ... }:
-          {
-            yen.aspects.s3 = {
-              at = yen.person.p; # another scope than s1: two owners
-              secrets.name = "DB_URL";
-            };
-          }
-        )
-      ) == [ "claim" ];
-    cachix-caches =
-      cachesRun.flake.sys.a == [
         {
-          nix.settings = {
-            substituters = [
-              "https://vix.cachix.org"
-              "https://cache.example"
-            ];
-            trusted-public-keys = [
-              "vix.cachix.org-1:K"
-              "own-1:K"
-            ];
+          scope = sc "a";
+          sinks.b = builders;
+        }
+      ).nix.buildMachines
+    ) ([ "d" ]);
+    nixos-facter = {
+      t1 =
+        eq
+          (nixos.facter {
+            report = h: "/r/${h.name}.json";
+            module = "M";
+          } { scope = sc "h"; })
+          ({
+            facter.reportPath = "/r/h.json";
+            imports = [ "M" ];
+          });
+      t2 = eq (nixos.facter { report = h: "/r/${h.name}.json"; } { scope = sc "h"; }) ({
+        hardware.facter.reportPath = "/r/h.json";
+      });
+    };
+    files-toml = eq (bat.files.toml { } {
+      p.name = "a b";
+      p."x.y" = [
+        1
+        true
+      ];
+      t.k.inline = {
+        a = 1;
+      };
+    }) ("[p]\nname = \"a b\"\n\"x.y\" = [1, true]\n\n[t.k]\ninline = { a = 1 }\n");
+    secretspec-toml = eq ((specRun { }).flake.sys.a) ([
+      {
+        files.file."secretspec.toml".text =
+          "[profiles.default]\nDB_URL = { description = \"db\" }\n\n[profiles.dev]\nDB_URL = { default = \"sqlite://x\" }\ndefaults = { inherit = false }\n\n[project]\nname = \"app\"\n";
+      }
+    ]);
+    secretspec-twice = eq (codes (
+      specRun (
+        { yen, ... }:
+        {
+          yen.aspects.s3 = {
+            at = yen.person.p; # another scope than s1: two owners
+            secrets.name = "DB_URL";
           };
         }
-      ];
+      )
+    )) ([ "claim" ]);
+    cachix-caches = eq (cachesRun.flake.sys.a) ([
+      {
+        nix.settings = {
+          substituters = [
+            "https://vix.cachix.org"
+            "https://cache.example"
+          ];
+          trusted-public-keys = [
+            "vix.cachix.org-1:K"
+            "own-1:K"
+          ];
+        };
+      }
+    ]);
     cachix-flake-config =
-      (bat.cachix.flake-config { from.__sink = "c"; } {
-        sinks.c = [
-          {
-            name = "vix";
-            publicKey = "k";
-          }
-        ];
-      }).nixConfig == {
-        extra-substituters = [ "https://vix.cachix.org" ];
-        extra-trusted-public-keys = [ "k" ];
-      };
-    cachix-action = (bat.cachix.action { name = "vix"; }).uses == "cachix/cachix-action@v17";
-    clan-generators =
-      b.attrNames gens.value == [
+      eq
+        ((bat.cachix.flake-config { from.__sink = "c"; } {
+          sinks.c = [
+            {
+              name = "vix";
+              publicKey = "k";
+            }
+          ];
+        }).nixConfig
+        )
+        ({
+          extra-substituters = [ "https://vix.cachix.org" ];
+          extra-trusted-public-keys = [ "k" ];
+        });
+    cachix-action = eq ((bat.cachix.action { name = "vix"; }).uses) ("cachix/cachix-action@v17");
+    clan-generators = {
+      t1 = eq (b.attrNames gens.value) ([
         "borg@a"
         "ssh@a"
         "ssh@c"
         "wifi"
-      ]
-      &&
-        gens.value.wifi.machines == [
-          "a"
-          "c"
-        ]
-      && gens.errors == [ ];
-    clan-generators-dependency =
-      map (e: e.error) badDeps.errors == [ "vars: generator borg@c depends on nope, which c has not" ];
-    clan-vars-plan =
-      map (g: g.name) plan.order == [
+      ]);
+      t2 = eq (gens.value.wifi.machines) ([
+        "a"
+        "c"
+      ]);
+      t3 = eq (gens.errors) ([ ]);
+    };
+    clan-generators-dependency = eq (map (e: e.error) badDeps.errors) ([
+      "vars: generator borg@c depends on nope, which c has not"
+    ]);
+    clan-vars-plan = {
+      t1 = eq (map (g: g.name) plan.order) ([
         "ssh"
         "borg"
         "wifi"
-      ]
-      &&
-        map (f: f.path) plan.files == [
-          "/run/secrets-for-users/vars/borg/pass"
-          "/run/secrets/vars/ssh/key"
-          "/run/secrets/vars/wifi/pw"
-        ]
-      && plan.recipients == [ "r-a" ];
-    clan-secret-reads = secretReads == [ "vars: a reads ssh/key, a secret file" ];
-    clan-public-value =
-      pub "lb" "openssh" "key.pub" "absent" == "ssh-ed25519 PUB"
-      && pub "lb" "openssh" "nope" "absent" == "absent";
-    clan-members-by-tag =
-      b.attrNames (
-        cl.members {
-          instances.t = {
-            module = "db";
-            roles.server.tags = [ "dbs" ];
-          };
-          services = clServices;
-        } (b.head clMachines)
-      ) == [ "t.server" ];
-    clan-members =
+      ]);
+      t2 = eq (map (f: f.path) plan.files) ([
+        "/run/secrets-for-users/vars/borg/pass"
+        "/run/secrets/vars/ssh/key"
+        "/run/secrets/vars/wifi/pw"
+      ]);
+      t3 = eq (plan.recipients) ([ "r-a" ]);
+    };
+    clan-secret-reads = eq (secretReads) ([ "vars: a reads ssh/key, a secret file" ]);
+    clan-public-value = {
+      t1 = eq (pub "lb" "openssh" "key.pub" "absent") ("ssh-ed25519 PUB");
+      t2 = eq (pub "lb" "openssh" "nope" "absent") ("absent");
+    };
+    clan-members-by-tag = eq (b.attrNames (
       cl.members {
-        instances = clInstances;
+        instances.t = {
+          module = "db";
+          roles.server.tags = [ "dbs" ];
+        };
         services = clServices;
-      } (b.head clMachines) == {
-        "main.server" = {
-          instance = "main";
-          service = "db";
-          role = "server";
-          settings.port = 1;
-          extraModules = [ ];
+      } (b.head clMachines)
+    )) ([ "t.server" ]);
+    clan-members =
+      eq
+        (cl.members {
+          instances = clInstances;
+          services = clServices;
+        } (b.head clMachines))
+        ({
+          "main.server" = {
+            instance = "main";
+            service = "db";
+            role = "server";
+            settings.port = 1;
+            extraModules = [ ];
+          };
+        });
+    clan-contract-ok = eq (clContract clInstances) ([ ]);
+    clan-contract-min = eq (clContract {
+      x = {
+        module = "db";
+        roles.server.tags = [ "none" ];
+      };
+    }) ([ "clan: instance x role server: 0 machines, at least 1" ]);
+    clan-contract-unknown-role = eq (clContract {
+      x = {
+        module = "db";
+        roles.server.machines.a = { };
+        roles.ghost.machines.a = { };
+      };
+    }) ([ "clan: instance x: service db has no role ghost" ]);
+    clan-contract-max-instances = eq (b.length (
+      clContract (
+        clInstances
+        // {
+          two = clInstances.main;
+        }
+      )
+    )) (2);
+    clan-unknown-tags = eq (cl.unknown-tags {
+      instances = clInstances // {
+        t = {
+          module = "db";
+          roles.client.tags = [ "nope" ];
         };
       };
-    clan-contract-ok = clContract clInstances == [ ];
-    clan-contract-min =
-      clContract {
-        x = {
-          module = "db";
-          roles.server.tags = [ "none" ];
-        };
-      } == [ "clan: instance x role server: 0 machines, at least 1" ];
-    clan-contract-unknown-role =
-      clContract {
-        x = {
-          module = "db";
-          roles.server.machines.a = { };
-          roles.ghost.machines.a = { };
-        };
-      } == [ "clan: instance x: service db has no role ghost" ];
-    clan-contract-max-instances =
-      b.length (
-        clContract (
-          clInstances
-          // {
-            two = clInstances.main;
-          }
-        )
-      ) == 2;
-    clan-unknown-tags =
-      cl.unknown-tags {
-        instances = clInstances // {
-          t = {
-            module = "db";
-            roles.client.tags = [ "nope" ];
-          };
-        };
-        machines = clMachines;
-      } == [ "clan: instance t role client: tag nope matches no machine" ];
+      machines = clMachines;
+    }) ([ "clan: instance t role client: tag nope matches no machine" ]);
     clan-exports =
       let
         member = name: {
@@ -1370,245 +1446,284 @@ let
               }
             ];
       in
-      (b.head r.value).value.endpoint == "over"
-      && map (e: e.error) r.errors == [ "clan: db:main:server:c: service db does not export secret" ];
-    maybe-ref-schema = viewR.schema.kinds.person.fields.home.ref or null == "box";
-    files-json = jsonR.flake.sys.a == [ { files.file."ci.json".text = "[\"a\",\"b\"]\n"; } ];
-    flake-file-write =
-      ffR.flake.sys.a == [
-        {
-          packages.sx.write-flake = [
-            "ffm"
-            {
-              flake-file.inputs = {
-                x.url = "u1";
-                y.url = "u2";
-              };
-            }
-            "extra"
-          ];
-          checks.sx.flake-file = "sx";
-        }
-      ];
-    devshell-numtide =
-      numtideR.flake.sys.a == [
-        {
-          devShells.sx.default = {
-            name = "n";
-            packages = [ "sx" ];
-            commands = [
-              { name = "one"; }
-              {
-                name = "two";
-                packages = [ "pk" ];
-                shellHook = "h;";
-              }
-            ];
-          };
-        }
-      ];
-    devshell-mkshell =
-      mkshellR.flake.sys.a == [
-        {
-          devShells.a.default = {
-            packages = [ "pk" ];
-            shellHook = "h;";
-            on = "a";
-          };
-        }
-      ];
-    docs-links = (linkRun "datalog oracles").flake.got == { dl = "[`datalog`](datalog.nix#L1)"; };
-    docs-links-gone = codes (linkRun "zz-none-yen") == [ "link-gone" ];
-    docs-vocabulary = (vocabRun allKinds).errors == [ ];
-    docs-vocabulary-drift =
-      b.sort b.lessThan (codes (vocabRun (b.removeAttrs allKinds [ "box" ] // { ghost = "x"; }))) == [
-        "doc-missing"
-        "doc-stale"
-      ];
-    mermaid-kinds =
-      b.elem {
-        from = "k:box";
-        to = "k:person";
-      } kindsV.edges
-      && b.elem {
-        from = "k:person";
-        to = "k:box";
-        label = "home";
-        live = false;
-      } kindsV.edges;
-    mermaid-gates =
-      b.elem {
-        from = "a:g1";
-        to = "a:g2";
-        label = "";
-        live = true;
-      } gatesV.edges
-      && b.elem {
-        from = "a:g3";
-        to = "a:g2";
-        label = "not";
-        live = false;
-      } gatesV.edges
-      && b.elem {
-        from = "f:g3";
-        to = "a:g3";
-        label = "";
-        live = true;
-      } gatesV.edges;
-    mermaid-routing =
-      b.elem {
-        from = "s:sys";
-        to = "k:box";
-        label = "1";
-      } routingV.edges
-      && b.elem {
-        from = "k:box";
-        to = "s:sys";
-        label = "1";
-      } routingV.edges;
-    mermaid-sinks = b.elem {
-      from = "sink:sys";
-      to = "flake";
-      label = "a";
-    } sinksV.edges;
-    mermaid-scopes-options =
-      !(b.any (n: n.id == "top:t") grouped.nodes)
-      && b.elem {
-        id = "top:t/box:a/person:p";
-        kind = "person";
-        label = "p";
-        group = "top:t/box:a";
-      } grouped.nodes
-      && grouped.edges == [ ];
-    github-yaml =
-      gh.yaml {
-        k = [
-          "v"
-          { x = { }; }
+      {
+        t1 = eq ((b.head r.value).value.endpoint) ("over");
+        t2 = eq (map (e: e.error) r.errors) ([
+          "clan: db:main:server:c: service db does not export secret"
+        ]);
+      };
+    maybe-ref-schema = eq (viewR.schema.kinds.person.fields.home.ref or null) ("box");
+    files-json = eq (jsonR.flake.sys.a) ([ { files.file."ci.json".text = "[\"a\",\"b\"]\n"; } ]);
+    flake-file-write = eq (ffR.flake.sys.a) ([
+      {
+        packages.sx.write-flake = [
+          "ffm"
+          {
+            flake-file.inputs = {
+              x.url = "u1";
+              y.url = "u2";
+            };
+          }
+          "extra"
         ];
-        s = "a\nb\n";
-        "q:" = true;
-      } == "\"k\":\n  - \"v\"\n  -\n    \"x\": {}\n\"q:\": true\n\"s\": |\n  a\n  b\n";
-    github-workflow =
-      ghWf.flake.sys.a == [
-        {
-          files.file."ci.yml".text =
-            "# a b\n\"jobs\":\n  \"a\":\n    \"steps\":\n      -\n        \"run\": |\n          one\n          two\n  \"b\":\n    \"runs-on\": \"x\"\n\"name\": \"t\"\n";
-        }
+        checks.sx.flake-file = "sx";
+      }
+    ]);
+    devshell-numtide = eq (numtideR.flake.sys.a) ([
+      {
+        devShells.sx.default = {
+          name = "n";
+          packages = [ "sx" ];
+          commands = [
+            { name = "one"; }
+            {
+              name = "two";
+              packages = [ "pk" ];
+              shellHook = "h;";
+            }
+          ];
+        };
+      }
+    ]);
+    devshell-mkshell = eq (mkshellR.flake.sys.a) ([
+      {
+        devShells.a.default = {
+          packages = [ "pk" ];
+          shellHook = "h;";
+          on = "a";
+        };
+      }
+    ]);
+    docs-links = eq ((linkRun "datalog oracles").flake.got) ({ dl = "[`datalog`](datalog.nix#L1)"; });
+    docs-links-gone = eq (codes (linkRun "zz-none-yen")) ([ "link-gone" ]);
+    docs-vocabulary = eq ((vocabRun allKinds).errors) ([ ]);
+    docs-vocabulary-drift =
+      eq (b.sort b.lessThan (codes (vocabRun (b.removeAttrs allKinds [ "box" ] // { ghost = "x"; }))))
+        ([
+          "doc-missing"
+          "doc-stale"
+        ]);
+    mermaid-kinds = {
+      t1 = yes (
+        b.elem {
+          from = "k:box";
+          to = "k:person";
+        } kindsV.edges
+      );
+      t2 = yes (
+        b.elem {
+          from = "k:person";
+          to = "k:box";
+          label = "home";
+          live = false;
+        } kindsV.edges
+      );
+    };
+    mermaid-gates = {
+      t1 = yes (
+        b.elem {
+          from = "a:g1";
+          to = "a:g2";
+          label = "";
+          live = true;
+        } gatesV.edges
+      );
+      t2 = yes (
+        b.elem {
+          from = "a:g3";
+          to = "a:g2";
+          label = "not";
+          live = false;
+        } gatesV.edges
+      );
+      t3 = yes (
+        b.elem {
+          from = "f:g3";
+          to = "a:g3";
+          label = "";
+          live = true;
+        } gatesV.edges
+      );
+    };
+    mermaid-routing = {
+      t1 = yes (
+        b.elem {
+          from = "s:sys";
+          to = "k:box";
+          label = "1";
+        } routingV.edges
+      );
+      t2 = yes (
+        b.elem {
+          from = "k:box";
+          to = "s:sys";
+          label = "1";
+        } routingV.edges
+      );
+    };
+    mermaid-sinks = yes (
+      b.elem {
+        from = "sink:sys";
+        to = "flake";
+        label = "a";
+      } sinksV.edges
+    );
+    mermaid-scopes-options = {
+      t1 = no ((b.any (n: n.id == "top:t") grouped.nodes));
+      t2 = yes (
+        b.elem {
+          id = "top:t/box:a/person:p";
+          kind = "person";
+          label = "p";
+          group = "top:t/box:a";
+        } grouped.nodes
+      );
+      t3 = eq (grouped.edges) ([ ]);
+    };
+    github-yaml = eq (gh.yaml {
+      k = [
+        "v"
+        { x = { }; }
       ];
-    files-document = docR.flake.sys.a == [ { files.file."README.md".text = "a\nb"; } ];
-    mermaid-flowchart =
-      mmText == b.concatStringsSep "\n" [
+      s = "a\nb\n";
+      "q:" = true;
+    }) ("\"k\":\n  - \"v\"\n  -\n    \"x\": {}\n\"q:\": true\n\"s\": |\n  a\n  b\n");
+    github-workflow = eq (ghWf.flake.sys.a) ([
+      {
+        files.file."ci.yml".text =
+          "# a b\n\"jobs\":\n  \"a\":\n    \"steps\":\n      -\n        \"run\": |\n          one\n          two\n  \"b\":\n    \"runs-on\": \"x\"\n\"name\": \"t\"\n";
+      }
+    ]);
+    files-document = eq (docR.flake.sys.a) ([ { files.file."README.md".text = "a\nb"; } ]);
+    mermaid-flowchart = eq (mmText) (
+      b.concatStringsSep "\n" [
         "flowchart LR"
         "  subgraph ${nid "g"} [\"env\"]"
         "    ${nid "a"}[\"say 'hi'\"]"
         "  end"
         "  ${nid "d"}[(\"store\")]"
         "  ${nid "a"} -.->|\"writes\"| ${nid "d"}"
-      ];
-    mermaid-scopes =
-      b.length scopesV.nodes == b.length usersR.graph.scopes
-      && b.elem {
-        from = "top:t";
-        to = "top:t/box:a";
-      } scopesV.edges;
-    mermaid-routes =
-      b.all (e: e.from != e.to) routesV.edges
-      && b.elem {
-        from = "top:t/box:a/person:p";
-        to = "top:t/box:a";
-        label = "sys";
-      } routesV.edges;
-    eval-modules =
-      evalR.flake.sys.a == [
-        {
-          modules = [
-            "fixed"
-            "from-a"
-          ];
-          specialArgs.x = 1;
-        }
-      ];
-    mesh =
-      meshR.errors == [ ]
-      &&
-        meshR.flake.sys == {
-          a = [ { peers = [ "c" ]; } ];
-          c = [
-            {
-              peers = [
-                "a"
-                "p"
-              ];
-            }
-          ];
-        };
-    claim =
-      claimOk.flake.got == {
-        "10.0.0.1".addr = "10.0.0.1";
-        "10.0.0.2".addr = "10.0.0.2";
-      };
-    claim-two-owners = codes claimBad == [ "claim" ] && claimBad.flake == null;
-    claim-rank = claimRank.errors == [ ] && claimRank.flake.got.gpu0.prio == 9;
-    ordered =
-      orderedOk.flake.got == [
-        "H"
-        "T"
-        "B"
-        "F"
-      ];
-    ordered-cycle = codes orderedCycle == [ "ordered-cycle" ];
-    ordered-unknown = codes orderedTypo == [ "ordered-unknown" ];
-    sink-name-and-sinks-arg =
-      sinkRefs.errors == [ ]
-      &&
-        sinkRefs.flake.sys.a == [
-          {
-            seen = [ "steam" ];
-            hasSys = true;
-            hasOut = true;
-            name = "names";
-          }
+      ]
+    );
+    mermaid-scopes = {
+      t1 = eq (b.length scopesV.nodes) (b.length usersR.graph.scopes);
+      t2 = yes (
+        b.elem {
+          from = "top:t";
+          to = "top:t/box:a";
+        } scopesV.edges
+      );
+    };
+    mermaid-routes = {
+      t1 = yes (b.all (e: e.from != e.to) routesV.edges);
+      t2 = yes (
+        b.elem {
+          from = "top:t/box:a/person:p";
+          to = "top:t/box:a";
+          label = "sys";
+        } routesV.edges
+      );
+    };
+    eval-modules = eq (evalR.flake.sys.a) ([
+      {
+        modules = [
+          "fixed"
+          "from-a"
         ];
-    sink-named-sinks = b.any (e: (e.code or null) == "reserved") reserved.errors;
-    field-named-key = b.any (
-      e:
-      (e.code or null) == "reserved"
-      &&
-        e.path or null == [
-          "box"
-          "key"
-        ]
-    ) reservedField.errors;
-    functor = functorR.flake.sys.c == [ "at c" ];
-    users =
-      usersR.errors == [ ]
-      &&
-        usersR.flake.sys.a == [
-          { networking.hostName = "a"; }
+        specialArgs.x = 1;
+      }
+    ]);
+    mesh = {
+      t1 = eq (meshR.errors) ([ ]);
+      t2 = eq (meshR.flake.sys) ({
+        a = [ { peers = [ "c" ]; } ];
+        c = [
           {
-            users.users.p = {
-              isNormalUser = true;
-              home = "/home/p";
-            };
-          }
-          {
-            users.users.p.extraGroups = [
-              "wheel"
-              "networkmanager"
+            peers = [
+              "a"
+              "p"
             ];
           }
-        ]
-      && !(usersR.flake.sys ? c);
-    unfree =
-      unfreeR.errors == [ ]
-      && pred { pname = "steam"; }
-      && pred { pname = "vscode"; }
-      && !(pred { pname = "zoom"; })
-      && !(unfreeR.flake.sys ? c); # a sink with no elements gives nothing
+        ];
+      });
+    };
+    claim = eq (claimOk.flake.got) ({
+      "10.0.0.1".addr = "10.0.0.1";
+      "10.0.0.2".addr = "10.0.0.2";
+    });
+    claim-two-owners = {
+      t1 = eq (codes claimBad) ([ "claim" ]);
+      t2 = eq (claimBad.flake) (null);
+    };
+    claim-rank = {
+      t1 = eq (claimRank.errors) ([ ]);
+      t2 = eq (claimRank.flake.got.gpu0.prio) (9);
+    };
+    ordered = eq (orderedOk.flake.got) ([
+      "H"
+      "T"
+      "B"
+      "F"
+    ]);
+    ordered-cycle = eq (codes orderedCycle) ([ "ordered-cycle" ]);
+    ordered-unknown = eq (codes orderedTypo) ([ "ordered-unknown" ]);
+    sink-name-and-sinks-arg = {
+      t1 = eq (sinkRefs.errors) ([ ]);
+      t2 = eq (sinkRefs.flake.sys.a) ([
+        {
+          seen = [ "steam" ];
+          hasSys = true;
+          hasOut = true;
+          name = "names";
+        }
+      ]);
+    };
+    sink-named-sinks = yes (b.any (e: (e.code or null) == "reserved") reserved.errors);
+    field-named-key = yes (
+      b.any (
+        e:
+        (e.code or null) == "reserved"
+        &&
+          e.path or null == [
+            "box"
+            "key"
+          ]
+      ) reservedField.errors
+    );
+    functor = eq (functorR.flake.sys.c) ([ "at c" ]);
+    users = {
+      t1 = eq (usersR.errors) ([ ]);
+      t2 = eq (usersR.flake.sys.a) ([
+        { networking.hostName = "a"; }
+        {
+          users.users.p = {
+            isNormalUser = true;
+            home = "/home/p";
+          };
+        }
+        {
+          users.users.p.extraGroups = [
+            "wheel"
+            "networkmanager"
+          ];
+        }
+      ]);
+      t3 = no ((usersR.flake.sys ? c));
+    };
+    unfree = {
+      t1 = eq (unfreeR.errors) ([ ]);
+      t2 = yes (pred {
+        pname = "steam";
+      });
+      t3 = yes (pred {
+        pname = "vscode";
+      });
+      t4 = no ((pred { pname = "zoom"; }));
+      t5 = no ((unfreeR.flake.sys ? c)); # a sink with no elements gives nothing
+    };
   };
 in
 {
   inherit checks;
-  failed = b.filter (n: !checks.${n}) (b.attrNames checks);
+  tests = checks; # fastest: tests.<test> = { expr; expected; }
 }

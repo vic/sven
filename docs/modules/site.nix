@@ -3,7 +3,6 @@
 {
   yen,
   lib,
-  inputs,
   ...
 }:
 let
@@ -34,31 +33,13 @@ in
         reduce = list;
         of = is (v: v ? section && v ? item);
       };
-      # `nix flake check` runs the oracles too: one check for the fast ones, one for the NixOS evaluations
+      # the oracles, for github:denful/fastest: tests.fast.<page>.<check> and tests.e2e.<page>.<check> = { expr; expected; }
       tests = {
         reduce = merge;
         out =
           { tests, ... }:
-          let
-            failed =
-              k:
-              lib.concatLists (
-                lib.mapAttrsToList (
-                  p: t: map (c: "${p}/${c}") (lib.attrNames (lib.filterAttrs (_: ok: !ok) t.${k}))
-                ) tests
-              );
-            check =
-              k:
-              inputs.nixpkgs.legacyPackages.x86_64-linux.runCommand "docs-${k}" { } (
-                if failed k == [ ] then "touch $out" else "echo 'failed: ${toString (failed k)}'; exit 1"
-              );
-          in
           {
-            inherit tests;
-            checks.x86_64-linux = {
-              examples = check "fast";
-              examples-e2e = check "e2e";
-            };
+            tests = lib.genAttrs [ "fast" "e2e" ] (k: lib.mapAttrs (_: t: t.${k}) tests);
           };
       };
     };

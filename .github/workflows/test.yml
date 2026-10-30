@@ -19,7 +19,10 @@
         "name": "docs examples"
         "run": "nix develop ./docs -c docs-test"
       -
-        "name": "docs flake check: pages and workflows current, examples, e2e"
+        "name": "docs examples: real evaluations (e2e)"
+        "run": "nix develop ./docs -c docs-e2e"
+      -
+        "name": "docs flake check: pages and workflows current"
         "run": "nix develop ./docs -c docs-check"
       -
         "name": "site build"
@@ -154,7 +157,9 @@
 "name": "test"
 "on":
   "pull_request": {}
-  "push": {}
+  "push":
+    "branches":
+      - "main"
   "workflow_dispatch": {}
 "permissions":
   "contents": "read"

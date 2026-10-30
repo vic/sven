@@ -100,10 +100,16 @@ in
 
   # a new code in the engine fails this check until it has a meaning here
   checks =
-    { inputs, ... }:
     {
-      every-code-explained = builtins.all (c: meaning ? ${c}) (
-        codesOf (builtins.readFile (inputs.yen + "/default.nix"))
+      inputs,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      every-code-explained = yes (
+        builtins.all (c: meaning ? ${c}) (codesOf (builtins.readFile (inputs.yen + "/default.nix")))
       );
     };
 }

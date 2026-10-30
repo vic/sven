@@ -95,21 +95,27 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      active =
-        result.flake.active == {
-          builder = [ "big" ];
-          cuda = [ "big" ];
-          monitored = [
-            "big"
-            "small"
-          ];
-          tiny = [ "small" ];
-          vm-host = [ "big" ];
-          vm-tools = [ "ci" ];
-        };
-      undefined = builtins.length (variant "variants/cycle.nix").undefined == 4;
-      at-string = map (e: e.code) (variant "variants/cycle.nix").errors == [ "at" ];
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      active = eq (result.flake.active) ({
+        builder = [ "big" ];
+        cuda = [ "big" ];
+        monitored = [
+          "big"
+          "small"
+        ];
+        tiny = [ "small" ];
+        vm-host = [ "big" ];
+        vm-tools = [ "ci" ];
+      });
+      undefined = eq (builtins.length (variant "variants/cycle.nix").undefined) (4);
+      at-string = eq (map (e: e.code) (variant "variants/cycle.nix").errors) ([ "at" ]);
     };
 }

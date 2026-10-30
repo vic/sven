@@ -67,20 +67,27 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      flake =
-        result.flake == {
-          dns = {
-            fleet = [ "box A" ];
-            prod = [ "web A" ];
-          };
-          os = {
-            bob = [ "account bob" ];
-            web = [ "account alice" ];
-          };
-          packages.web = [ "vim for alice" ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      flake = eq (result.flake) ({
+        dns = {
+          fleet = [ "box A" ];
+          prod = [ "web A" ];
         };
-      wall = result.reduced.packages."fleet:main/environment:prod/host:web/home:bob" == [ "vim for bob" ];
+        os = {
+          bob = [ "account bob" ];
+          web = [ "account alice" ];
+        };
+        packages.web = [ "vim for alice" ];
+      });
+      wall = eq (result.reduced.packages."fleet:main/environment:prod/host:web/home:bob") ([
+        "vim for bob"
+      ]);
     };
 }

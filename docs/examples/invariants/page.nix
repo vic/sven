@@ -118,24 +118,34 @@
     ];
 
   checks =
-    { result, variant, ... }:
+    {
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       m = (variant "variants/mistakes.nix").check;
     in
     {
-      ok = result.check.ok;
-      certified = result.check.certified && (variant "variants/mistakes.nix").check.certified;
-      sealed =
-        result.check.verify result.check.seal == {
+      ok = yes (result.check.ok);
+      certified = {
+        t1 = yes (result.check.certified);
+        t2 = yes ((variant "variants/mistakes.nix").check.certified);
+      };
+      sealed = {
+        t1 = eq (result.check.verify result.check.seal) ({
           ok = true;
-        }
-        &&
-          (variant "variants/mistakes.nix").check.verify result.check.seal == {
-            ok = false;
-            why = "facts";
-          };
-      violations =
-        m.violations == [
+        });
+        t2 = eq ((variant "variants/mistakes.nix").check.verify result.check.seal) ({
+          ok = false;
+          why = "facts";
+        });
+      };
+      violations = {
+        t1 = eq (m.violations) ([
           [
             "bad"
             "desktop-on-server"
@@ -147,7 +157,8 @@
             "fleet:main/host:db"
             "fleet:main/host:spare"
           ]
-        ]
-        && !m.ok;
+        ]);
+        t2 = no (m.ok);
+      };
     };
 }

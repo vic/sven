@@ -31,21 +31,33 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      zones =
-        result.flake.timeZones == {
-          api-next = "UTC";
-          web = "UTC";
-          web-next = "Europe/Berlin";
-        };
-      access = builtins.length (builtins.filter (s: s.name == "dev") result.scopes) == 2;
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      zones = eq (result.flake.timeZones) ({
+        api-next = "UTC";
+        web = "UTC";
+        web-next = "Europe/Berlin";
+      });
+      access = eq (builtins.length (builtins.filter (s: s.name == "dev") result.scopes)) (2);
     };
   e2e =
-    { flake, ... }:
     {
-      domain =
-        flake.nixosConfigurations.api-next.config.networking.fqdn == "api-next.staging.example.com";
-      tz = flake.nixosConfigurations.api-next.config.time.timeZone == "UTC";
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      domain = eq (flake.nixosConfigurations.api-next.config.networking.fqdn) (
+        "api-next.staging.example.com"
+      );
+      tz = eq (flake.nixosConfigurations.api-next.config.time.timeZone) ("UTC");
     };
 }

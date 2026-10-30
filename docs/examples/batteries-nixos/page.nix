@@ -42,55 +42,93 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      hosts =
-        builtins.attrNames result.flake.nixosConfigurations == [
-          "desk"
-          "nas"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      hosts = eq (builtins.attrNames result.flake.nixosConfigurations) ([
+        "desk"
+        "nas"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = flake.nixosConfigurations.desk.config;
       nas = flake.nixosConfigurations.nas.config;
       ok = p: (builtins.tryEval flake.nixosConfigurations.desk.pkgs.${p}.drvPath).success;
     in
     {
-      hostname = c.networking.hostName == "desk";
-      accounts = c.users.users.ana.isNormalUser && c.users.users.bob.home == "/home/bob";
-      admin =
-        builtins.elem "wheel" c.users.users.ana.extraGroups
-        && !(builtins.elem "wheel" c.users.users.bob.extraGroups);
-      unfree = ok "steam-unwrapped" && ok "vscode" && !(ok "zoom-us");
-      insecure = c.nixpkgs.config.permittedInsecurePackages == [ "olm-3.2.16" ];
-      shell =
-        c.users.users.ana.shell.pname == "fish"
-        && c.programs.fish.enable
-        && c.users.users.bob.shell.pname != "fish";
-      autologin = c.services.getty.autologinUser == "ana" && nas.services.getty.autologinUser == null;
-      firewall =
-        builtins.elem 53 nas.networking.firewall.allowedUDPPorts
-        && builtins.elem 22 c.networking.firewall.allowedTCPPorts
-        && !(builtins.elem 53 c.networking.firewall.allowedTCPPorts);
-      hosts =
-        c.networking.hosts."10.0.0.1" == [ "nas" ]
-        && !(c.networking.hosts ? "10.0.0.2")
-        && builtins.attrNames c.programs.ssh.knownHosts == [ "nas" ];
-      persist =
-        c.environment.persistence."/persist".directories != [ ]
-        && builtins.elem "/etc/ssh/ssh_host_ed25519_key" (
-          map (f: f.file) c.environment.persistence."/persist".files
-        )
-        && builtins.elem "/home/ana/.local/share" (
-          map (d: d.directory) c.environment.persistence."/persist".directories
-        )
-        && !(builtins.elem "/home/ana/.local/share" (
-          map (d: d.directory) nas.environment.persistence."/persist".directories
-        ));
-      facter = nas.facter.reportPath != null && !(c ? facter);
-      builders = c.nix.distributedBuilds && map (m: m.hostName) c.nix.buildMachines == [ "10.0.0.1" ];
+      hostname = eq (c.networking.hostName) ("desk");
+      accounts = {
+        t1 = yes (c.users.users.ana.isNormalUser);
+        t2 = eq (c.users.users.bob.home) ("/home/bob");
+      };
+      admin = {
+        t1 = yes (builtins.elem "wheel" c.users.users.ana.extraGroups);
+        t2 = no ((builtins.elem "wheel" c.users.users.bob.extraGroups));
+      };
+      unfree = {
+        t1 = yes (ok "steam-unwrapped");
+        t2 = yes (ok "vscode");
+        t3 = no ((ok "zoom-us"));
+      };
+      insecure = eq (c.nixpkgs.config.permittedInsecurePackages) ([ "olm-3.2.16" ]);
+      shell = {
+        t1 = eq (c.users.users.ana.shell.pname) ("fish");
+        t2 = yes (c.programs.fish.enable);
+        t3 = yes (c.users.users.bob.shell.pname != "fish");
+      };
+      autologin = {
+        t1 = eq (c.services.getty.autologinUser) ("ana");
+        t2 = eq (nas.services.getty.autologinUser) (null);
+      };
+      firewall = {
+        t1 = yes (builtins.elem 53 nas.networking.firewall.allowedUDPPorts);
+        t2 = yes (builtins.elem 22 c.networking.firewall.allowedTCPPorts);
+        t3 = no ((builtins.elem 53 c.networking.firewall.allowedTCPPorts));
+      };
+      hosts = {
+        t1 = eq (c.networking.hosts."10.0.0.1") ([ "nas" ]);
+        t2 = no ((c.networking.hosts ? "10.0.0.2"));
+        t3 = eq (builtins.attrNames c.programs.ssh.knownHosts) ([ "nas" ]);
+      };
+      persist = {
+        t1 = yes (c.environment.persistence."/persist".directories != [ ]);
+        t2 = yes (
+          builtins.elem "/etc/ssh/ssh_host_ed25519_key" (
+            map (f: f.file) c.environment.persistence."/persist".files
+          )
+        );
+        t3 = yes (
+          builtins.elem "/home/ana/.local/share" (
+            map (d: d.directory) c.environment.persistence."/persist".directories
+          )
+        );
+        t4 = no (
+          (builtins.elem "/home/ana/.local/share" (
+            map (d: d.directory) nas.environment.persistence."/persist".directories
+          ))
+        );
+      };
+      facter = {
+        t1 = yes (nas.facter.reportPath != null);
+        t2 = no ((c ? facter));
+      };
+      builders = {
+        t1 = yes (c.nix.distributedBuilds);
+        t2 = eq (map (m: m.hostName) c.nix.buildMachines) ([ "10.0.0.1" ]);
+      };
     };
 }

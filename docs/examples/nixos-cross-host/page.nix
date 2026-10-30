@@ -44,35 +44,44 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      hosts =
-        builtins.attrNames result.flake.nixosConfigurations == [
-          "desk"
-          "laptop"
-          "nas"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      hosts = eq (builtins.attrNames result.flake.nixosConfigurations) ([
+        "desk"
+        "laptop"
+        "nas"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = n: flake.nixosConfigurations.${n}.config;
       peers = n: map (p: p.allowedIPs) (c n).networking.wireguard.interfaces.wg0.peers;
     in
     {
-      known =
-        builtins.attrNames (c "desk").programs.ssh.knownHosts == [
-          "laptop"
-          "nas"
-        ];
-      peers =
-        peers "laptop" == [
-          [ "10.9.0.2/32" ]
-          [ "10.9.0.1/32" ]
-        ];
-      syncthing = builtins.attrNames (c "desk").services.syncthing.settings.devices == [ "nas" ];
-      syncthing-nas = builtins.attrNames (c "nas").services.syncthing.settings.devices == [ "desk" ];
-      no-syncthing = !(c "laptop").services.syncthing.enable;
+      known = eq (builtins.attrNames (c "desk").programs.ssh.knownHosts) ([
+        "laptop"
+        "nas"
+      ]);
+      peers = eq (peers "laptop") ([
+        [ "10.9.0.2/32" ]
+        [ "10.9.0.1/32" ]
+      ]);
+      syncthing = eq (builtins.attrNames (c "desk").services.syncthing.settings.devices) ([ "nas" ]);
+      syncthing-nas = eq (builtins.attrNames (c "nas").services.syncthing.settings.devices) ([ "desk" ]);
+      no-syncthing = no ((c "laptop").services.syncthing.enable);
     };
 }

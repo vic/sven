@@ -34,18 +34,22 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      allow =
-        result.flake.config.nas.backup.allow == [
-          "10.0.0.1"
-          "10.0.0.2"
-        ];
-      members =
-        map (s: s.id) (builtins.filter (s: s.kind == "member") result.scopes) == [
-          "fleet:main/host:db/member:backup.client"
-          "fleet:main/host:nas/member:backup.server"
-          "fleet:main/host:web/member:backup.client"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      allow = eq (result.flake.config.nas.backup.allow) ([
+        "10.0.0.1"
+        "10.0.0.2"
+      ]);
+      members = eq (map (s: s.id) (builtins.filter (s: s.kind == "member") result.scopes)) ([
+        "fleet:main/host:db/member:backup.client"
+        "fleet:main/host:nas/member:backup.server"
+        "fleet:main/host:web/member:backup.client"
+      ]);
     };
 }

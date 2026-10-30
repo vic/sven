@@ -527,19 +527,21 @@ The infra checks come from the fleet, not from a hand-written list. Add an aspec
 
 ## Tests
 
-From this directory:
+Every suite runs on [fastest](https://github.com/denful/fastest), in parallel; each assertion is `{ expr; expected; }`. From this directory:
 
 ```sh
-nix eval --impure --file tests.nix failed       # [ ]: a check for each pattern above
-nix eval --impure --file tests.nix e2e.failed   # [ ]: real NixOS, darwin and home-manager evaluations
+nix run github:denful/fastest#fastest -- --flake ".#tests" fleet   # a check for each pattern above
+nix run github:denful/fastest#fastest -- --flake ".#tests" e2e     # real NixOS, darwin and home-manager evaluations
 bash mcp/test.sh                                # PASS for each MCP case, the flake app included
 ```
 
 From the yen repository root, the engine and library oracles, and the cost oracles. A memo is invisible to an eval, so `tests/cost.sh` bounds Nix's own counters (`NIX_SHOW_STATS`): 30 levels of aspect-ref diamonds and a 150-host fan-in must each stay under 200,000 function calls. Without the memos they take 26 million calls (at 16 levels) and 954,000.
 
 ```sh
-nix-instantiate --eval --strict tests -A failed   # [ ]: engine, datalog, rdf, krn and shacl suites
-bash tests/cost.sh                                # PASS aspect-ref-memo, PASS reduction-memo
+nix run github:denful/fastest#fastest -- --flake ".#tests"   # engine, datalog, rdf, krn, shacl and batteries suites
+bash tests/cost.sh                                         # PASS aspect-ref-memo, reduction-memo, scale-400/800-services
 ```
+
+All of them at once, in parallel: `fastest-tests` in the devshell (`nix develop ./docs`).
 
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.

@@ -86,26 +86,31 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      waves =
-        result.flake.deploy.waves == [
-          [
-            "cache"
-            "db"
-          ]
-          [ "api" ]
-          [ "web" ]
-          [ "lb" ]
-        ];
-      impact =
-        result.flake.deploy.impact.db == [
-          "api"
-          "lb"
-          "web"
-        ];
-      cycle =
-        map (e: e.error) (variant "variants/cycle.nix").errors
-        == [ "deploy: a dependency cycle: api -> db -> lb -> web" ];
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      waves = eq (result.flake.deploy.waves) ([
+        [
+          "cache"
+          "db"
+        ]
+        [ "api" ]
+        [ "web" ]
+        [ "lb" ]
+      ]);
+      impact = eq (result.flake.deploy.impact.db) ([
+        "api"
+        "lb"
+        "web"
+      ]);
+      cycle = eq (map (e: e.error) (variant "variants/cycle.nix").errors) ([
+        "deploy: a dependency cycle: api -> db -> lb -> web"
+      ]);
     };
 }

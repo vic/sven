@@ -57,28 +57,38 @@
     ];
 
   checks =
-    { result, variant, ... }:
+    {
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     {
       duplicate =
-        map (e: {
-          inherit (e)
-            code
-            error
-            from
-            class
-            ;
-        }) (variant "variants/duplicate.nix").errors == [
-          {
-            code = "duplicate-addr";
-            error = "10.0.0.1 is the address of cache and web";
-            from = "fleet:main";
-            class = "fixable";
-          }
-        ];
-      no-outputs = (variant "variants/duplicate.nix").flake == null;
-      warnings = result.flake.warnings == [ "scratch has no backup" ];
-      typo = builtins.any (
-        e: e.code == "unknown-field" && e.near == [ "backup" ]
-      ) (variant "variants/typo.nix").errors;
+        eq
+          (map (e: {
+            inherit (e)
+              code
+              error
+              from
+              class
+              ;
+          }) (variant "variants/duplicate.nix").errors)
+          ([
+            {
+              code = "duplicate-addr";
+              error = "10.0.0.1 is the address of cache and web";
+              from = "fleet:main";
+              class = "fixable";
+            }
+          ]);
+      no-outputs = eq ((variant "variants/duplicate.nix").flake) (null);
+      warnings = eq (result.flake.warnings) ([ "scratch has no backup" ]);
+      typo = yes (
+        builtins.any (e: e.code == "unknown-field" && e.near == [ "backup" ])
+          (variant "variants/typo.nix").errors
+      );
     };
 }

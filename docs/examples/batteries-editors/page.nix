@@ -26,31 +26,44 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      homes = builtins.attrNames result.flake.homeConfigurations == [ "ana" ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      homes = eq (builtins.attrNames result.flake.homeConfigurations) ([ "ana" ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = flake.homeConfigurations.ana.config;
       vs = c.programs.vscode.profiles.default;
     in
     {
-      vscode =
-        c.programs.vscode.enable
-        && map (e: e.pname or e.name) vs.extensions != [ ]
-        && builtins.length vs.extensions == 2
-        && vs.userSettings."nix.enableLanguageServer";
-      zed =
-        builtins.sort builtins.lessThan c.programs.zed-editor.extensions == [
-          "go"
-          "nix"
-        ];
-      skills =
-        c.home.file ? ".claude/skills/review"
-        && !(c.home.file ? ".claude/skills/notes") # no SKILL.md: not a skill
-        && !(c.home.file ? ".claude/skills/github"); # an mcp record: the skills agent skips it
+      vscode = {
+        t1 = yes (c.programs.vscode.enable);
+        t2 = yes (map (e: e.pname or e.name) vs.extensions != [ ]);
+        t3 = eq (builtins.length vs.extensions) (2);
+        t4 = yes (vs.userSettings."nix.enableLanguageServer");
+      };
+      zed = eq (builtins.sort builtins.lessThan c.programs.zed-editor.extensions) ([
+        "go"
+        "nix"
+      ]);
+      skills = {
+        t1 = yes (c.home.file ? ".claude/skills/review");
+        t2 = no ((c.home.file ? ".claude/skills/notes")); # no SKILL.md: not a skill
+        t3 = no ((c.home.file ? ".claude/skills/github")); # an mcp record: the skills agent skips it
+      };
     };
 }

@@ -44,22 +44,30 @@
     ];
 
   checks =
-    { result, dir, ... }:
+    {
+      result,
+      dir,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       gen = (builtins.head result.reduced.files."fleet:main").files.file;
     in
     {
-      readme = gen."README.md".text == builtins.readFile (dir + "/README.md");
-      readme-mermaid = builtins.match ".*```mermaid\n.*" gen."README.md".text != null;
-      ci = gen.".github/workflows/ci.yml".text == builtins.readFile (dir + "/.github/workflows/ci.yml");
-      inputs =
-        builtins.attrNames result.reduced.flake-file."fleet:main".inputs == [
-          "files"
-          "flake-file"
-          "import-tree"
-          "nixpkgs"
-          "nixpkgs-unstable"
-          "yen"
-        ];
+      readme = eq (gen."README.md".text) (builtins.readFile (dir + "/README.md"));
+      readme-mermaid = yes (builtins.match ".*```mermaid\n.*" gen."README.md".text != null);
+      ci = eq (gen.".github/workflows/ci.yml".text) (
+        builtins.readFile (dir + "/.github/workflows/ci.yml")
+      );
+      inputs = eq (builtins.attrNames result.reduced.flake-file."fleet:main".inputs) ([
+        "files"
+        "flake-file"
+        "import-tree"
+        "nixpkgs"
+        "nixpkgs-unstable"
+        "yen"
+      ]);
     };
 }

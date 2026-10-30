@@ -54,12 +54,17 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      bridges =
-        result.flake.bridges.server == [
-          "br-ci"
-          "br-db"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      bridges = eq (result.flake.bridges.server) ([
+        "br-ci"
+        "br-db"
+      ]);
     };
 }
