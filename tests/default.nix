@@ -2379,10 +2379,70 @@ let
       in
       codes r == [ "invariant-function" ] && r.flake == null;
     r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
-    # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
-    # a derived tuple that fails its relation's check is an error (ok takes one string term here)
-    # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
-    # .43: where a fact comes from is its own answer, never part of the fact: one fact, two files
+    # rung 4: a type is a predicate in a rule (`type`), and so is any total function (`holds`); a non-bool answer is an
+    # error. Tag "b:1" is not digits, tag "2" is.
+    r4-types =
+      let
+        rule = {
+          head = [
+            "bad"
+            "not-digits"
+            (v "H")
+          ];
+          pos = [
+            [
+              "val"
+              "tag"
+              (v "H")
+              (v "X")
+            ]
+          ];
+          neg = [
+            [
+              "digits"
+              (v "X")
+            ]
+          ];
+        };
+        run =
+          rel:
+          yen.eval (
+            { yen, ... }:
+            {
+              yen.kinds.top.spawns.host = _: yen.host;
+              yen.kinds.host.fields.tag = yen.lib.is (_: true);
+              yen.top.t = { };
+              yen.host = {
+                a.tag = "b:1";
+                "a:b".tag = "2";
+              };
+              yen.relations.digits = rel;
+              yen.invariants.r = [ rule ];
+            }
+          );
+        digits = s: b.match "[0-9]+" s != null;
+        byType = run { type.check = digits; };
+        byFn = run {
+          arity = 1;
+          holds = ts: digits (b.head ts);
+        };
+        broken = run {
+          arity = 1;
+          holds = ts: "yes";
+        };
+        bad = [
+          [
+            "bad"
+            "not-digits"
+            "top:t/host:a"
+          ]
+        ];
+      in
+      byType.check.violations == bad
+      && byFn.check.violations == bad
+      && codes broken != [ ]
+      && b.all (c: c == "external-not-bool") (codes broken)
+      && broken.flake == null;
     # .41 (E1): a field a rule reads through an even number of `not` from `bad` gives a fact for every value, or the
     # verdict is not ok. Host a.tag is an attrset: no fact, so `bad` could be missed. Read under `not`, a missing fact
     # can only add a violation, so it is safe.
@@ -2453,6 +2513,7 @@ let
           }
         ]
       && safe.check.opaque == [ ];
+    # .43: where a fact comes from is its own answer, never part of the fact: one fact, two files
     r3-provenance =
       let
         r = yen.eval {
@@ -2508,6 +2569,7 @@ let
           ok = false;
           why = "rules";
         };
+    # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
     r3-certified =
       let
         p = (ports { }).check;
@@ -2528,6 +2590,7 @@ let
       && c.certified
       && c.incomplete != [ ]
       && !(b.elem [ "bad" "cycle" ] (map (e: e.atom) (c.certificate.true ++ c.certificate.false)));
+    # a derived tuple that fails its relation's check is an error (ok takes one string term here)
     relation-check =
       let
         r = tagsWith [
@@ -2548,6 +2611,7 @@ let
         ] { };
       in
       codes r == [ "relation-check" ];
+    # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
     check-not-bool =
       let
         r = yen.eval (

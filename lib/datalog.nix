@@ -42,12 +42,18 @@ let
     go { };
   # ── the grounder: a variable is { var = "X"; }, every other term a constant (int, string, bool) ──
   isVar = t: b.isAttrs t && t ? var;
-  # comparisons hold on ground terms of one type; they filter bindings, never facts
+  # externals decide an atom on bound terms with a function: never a fact, never a head. The comparisons are built in;
+  # they hold on terms of one type
   comparisons = {
-    neq = x: y: x != y;
-    lt = x: y: (b.isInt x && b.isInt y || b.isString x && b.isString y) && x < y;
+    neq = ts: b.elemAt ts 0 != b.elemAt ts 1;
+    lt =
+      ts:
+      let
+        x = b.elemAt ts 0;
+        y = b.elemAt ts 1;
+      in
+      (b.isInt x && b.isInt y || b.isString x && b.isString y) && x < y;
   };
-  isCmp = a: comparisons ? ${b.head a};
   bind =
     s: t: v:
     if isVar t then
@@ -72,60 +78,70 @@ let
         b.genList (i: i) (b.length atom)
       );
   sub = s: map (t: if isVar t then s.${t.var} else t);
-  holdsCmp =
-    s: a:
-    let
-      x = sub s a;
-    in
-    comparisons.${b.head x} (b.elemAt x 1) (b.elemAt x 2);
-  # the bindings of r's positive atoms over idx (relation -> tuples), left to right, comparisons applied
+  # an external atom's answer on the bound terms: true, false, or anything else, which is a fault
+  call =
+    ext: s: a:
+    ext.${b.head a} (b.tail (sub s a));
+  # the bindings of r's positive atoms (externals aside) over idx (relation -> tuples), left to right
+  joins =
+    ext: idx: r:
+    b.foldl'
+      (ss: a: b.concatMap (s: b.filter (x: x != null) (map (unify s a) (idx.${b.head a} or [ ]))) ss)
+      [
+        { }
+      ]
+      (b.filter (a: !(ext ? ${b.head a})) (r.pos or [ ]));
+  # the joins where every positive external is true and no negative one is
   bindings =
-    idx: r:
-    b.filter
-      (
-        s:
-        b.all (holdsCmp s) (b.filter isCmp (r.pos or [ ]))
-        && !b.any (holdsCmp s) (b.filter isCmp (r.neg or [ ]))
-      )
-      (
-        b.foldl'
-          (ss: a: b.concatMap (s: b.filter (x: x != null) (map (unify s a) (idx.${b.head a} or [ ]))) ss)
-          [
-            { }
-          ]
-          (b.filter (a: !isCmp a) (r.pos or [ ]))
-      );
+    ext: idx: r:
+    b.filter (
+      s:
+      b.all (a: call ext s a == true) (b.filter (a: ext ? ${b.head a}) (r.pos or [ ]))
+      && !b.any (a: call ext s a == true) (b.filter (a: ext ? ${b.head a}) (r.neg or [ ]))
+    ) (joins ext idx r);
   byRel = b.groupBy (x: b.head x);
   # what may hold: the least model of the rules without their negative atoms, over the facts (an upper bound of the WFM)
   possible =
-    rules: known:
+    ext: rules: known:
     let
       next = b.attrValues (
-        index (known ++ b.concatMap (r: map (s: sub s r.head) (bindings (byRel known) r)) rules)
+        index (known ++ b.concatMap (r: map (s: sub s r.head) (bindings ext (byRel known) r)) rules)
       );
     in
-    if b.length next == b.length known then known else possible rules next;
+    if b.length next == b.length known then known else possible ext rules next;
   # Gelfond-Lifschitz reduct by the set i, then its least model
   gamma = rules: i: lm (b.filter (r: !b.any (n: i ? ${n}) (r.neg or [ ])) rules);
 in
 rec {
   inherit isVar comparisons;
   # ground instances of range-restricted rules over tuple facts: every instance whose positive atoms may hold.
-  # The rest can never fire, so the well-founded model is the same. Comparison atoms are applied, then dropped.
-  ground =
-    rules: facts:
+  # The rest can never fire, so the well-founded model is the same. External atoms (ext: name -> terms -> bool) are
+  # decided, then dropped. `faults`: the external atoms whose answer was not a bool
+  groundWith =
+    ext: rules: facts:
     let
-      idx = byRel (possible rules (b.attrValues (index facts)));
-      plain = a: !isCmp a;
+      idx = byRel (possible ext rules (b.attrValues (index facts)));
+      isExt = a: ext ? ${b.head a};
+      plain = a: !isExt a;
     in
-    b.concatMap (
-      r:
-      map (s: {
-        head = sub s r.head;
-        pos = map (sub s) (b.filter plain (r.pos or [ ]));
-        neg = map (sub s) (b.filter plain (r.neg or [ ]));
-      }) (bindings idx r)
-    ) rules;
+    {
+      rules = b.concatMap (
+        r:
+        map (s: {
+          head = sub s r.head;
+          pos = map (sub s) (b.filter plain (r.pos or [ ]));
+          neg = map (sub s) (b.filter plain (r.neg or [ ]));
+        }) (bindings ext idx r)
+      ) rules;
+      faults = b.concatMap (
+        r:
+        b.concatMap (
+          s:
+          map (sub s) (b.filter (a: isExt a && !b.isBool (call ext s a)) ((r.pos or [ ]) ++ (r.neg or [ ])))
+        ) (joins ext idx r)
+      ) rules;
+    };
+  ground = rules: facts: (groundWith comparisons rules facts).rules;
   wfs =
     rules:
     let

@@ -1094,15 +1094,27 @@ let
               fix = "write the rules as data: [ { head = [ \"bad\" … ]; pos = [ … ]; neg = [ … ]; } ], with { var = \"X\"; }";
             }
           ) (filter (n: !isList invs.${n}) (attrNames invs));
-          # every relation a rule may name: the extracted ones, the comparisons, and the user's; `bad` takes any arity
-          arity = edbArity // mapAttrs (_: _: 2) D.comparisons // mapAttrs (_: r: r.arity) yen.relations;
+          # externals decide atoms on bound terms: the comparisons, a relation with `holds = terms: bool`, and a
+          # relation with `type` (rung 4: a type is a predicate, true when the term passes its check)
+          externals =
+            D.comparisons
+            // mapAttrs (_: r: if r ? type then (ts: checkOf r.type (head ts)) else r.holds) (
+              intersectAttrs (genAttrs (filter (n: yen.relations.${n} ? holds || yen.relations.${n} ? type) (
+                attrNames yen.relations
+              )) (_: null)) yen.relations
+            );
+          # every relation a rule may name: the extracted ones, the externals, and the user's; `bad` takes any arity
+          arity =
+            edbArity
+            // mapAttrs (_: _: 2) D.comparisons
+            // mapAttrs (_: r: if r ? type then 1 else r.arity) yen.relations;
           isAtom =
             a:
             isList a
             && a != [ ]
             && isString (head a)
             && all (t: isString t || b.isInt t || b.isBool t || D.isVar t) (tail a);
-          isCmp = a: D.comparisons ? ${head a};
+          isCmp = a: externals ? ${head a};
           varsOf = concatMap (a: map (t: t.var) (filter D.isVar (tail a)));
           # the first thing wrong with a rule, as { code; error; got; }, or null
           problem =
@@ -1125,7 +1137,7 @@ let
             else if edbArity ? ${head r.head} || isCmp r.head then
               {
                 code = "edb-head";
-                error = "a rule derives `${head r.head}`, a relation yen gives: a rule never states it";
+                error = "a rule derives `${head r.head}`, a relation yen or a function decides: a rule never states it";
                 got = r.head;
               }
             else if unknownRel != [ ] then
@@ -1188,8 +1200,21 @@ let
                   filter (
                     a: yen.relations.${head a}.check or null != null && !checkOf yen.relations.${head a} (tail a)
                   ) m.true
-                );
-          ground = D.ground (map (x: x.r) (filter (x: x.p == null) checked)) facts;
+                )
+            # an external whose function gave no bool: the verdict cannot rest on it
+            ++ map (
+              a:
+              errWith "relation ${head a}" "${head a} answers ${b.toJSON (tail a)} with no bool" {
+                code = "external-not-bool";
+                got = a;
+                path = [
+                  "relations"
+                  (head a)
+                ];
+              }
+            ) grounded.faults;
+          grounded = D.groundWith externals (map (x: x.r) (filter (x: x.p == null) checked)) facts;
+          ground = grounded.rules;
           key = b.toJSON;
           mentioned = keySet (map key (concatMap (r: r.pos ++ r.neg) ground));
           verdictProgram = ground ++ D.facts (filter (a: mentioned ? ${key a}) facts);

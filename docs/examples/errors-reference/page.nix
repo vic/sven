@@ -36,6 +36,7 @@ let
     spawns = "a `spawns` function gives no attrset, or an instance in it is no attrset";
     tree-request = "a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds)";
     check-not-bool = "a field type's check gives no bool (a curried check, such as a gen-types one, needs its other argument)";
+    external-not-bool = "a relation's `holds` function answers a tuple with something other than a bool";
     relation-check = "a rule derives a tuple that fails the `check` of its relation in `yen.relations`";
     invariant-function = "an invariant is a function: an invariant is a list of rules, as data, so a verdict's rules can be read";
     law-change = "a staged change declares `invariants`, `relations`, `labels` or `flake`: the law is the owner's, never a change's";

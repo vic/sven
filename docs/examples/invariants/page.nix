@@ -21,7 +21,11 @@
       ''
         A rule is `{ head; pos ? [ ]; neg ? [ ]; }`. An atom is a list `[ rel t… ]`. A term is a string, an int, a bool,
         or a variable `{ var = "X"; }`: every string is a constant. `lt` and `neq` compare two bound terms. A relation you derive
-        (other than `bad`) is declared with its arity and an optional `check` on its terms: `yen.relations.reach.arity = 2;`. A derived tuple that fails the check is the error `relation-check`. The facts:
+        (other than `bad`) is declared with its arity and an optional `check` on its terms: `yen.relations.reach.arity = 2;`. A derived tuple that fails the check is the error `relation-check`.
+        A relation can also be decided by a function on bound terms: `yen.relations.digits = { arity = 1; holds = ts: …; }`,
+        or by a type: `yen.relations.port.type = yen.kinds.host.fields.port;`, true when the term passes the type's check.
+        Such a relation is never a fact and never a rule head, and its variables must be bound by other atoms. A
+        `holds` answer that is not a bool is the error `external-not-bool`. The facts:
       ''
       (docs.table
         [ "Fact" "Holds when" ]
