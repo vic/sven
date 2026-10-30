@@ -1,9 +1,15 @@
 ---
-// "On this page": the page title, its description as a quote, then the page headings.
+// "On this page": the page title, its description as a quote, the template command, then the page headings.
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import TocItems from './TocItems.astro';
 
 const { toc } = Astro.locals.starlightRoute;
 const { title, description } = Astro.locals.starlightRoute.entry.data;
+// every example with a flake.nix is a template named after its directory (docs/templates.nix)
+const name = Astro.locals.starlightRoute.entry.id.split('/').pop();
+const isTemplate = existsSync(join(process.cwd(), 'examples', name, 'flake.nix')); // astro runs from docs/
+const source = `https://github.com/vic/yen/blob/main/docs/examples/${name}/`;
 ---
 
 {
@@ -11,6 +17,13 @@ const { title, description } = Astro.locals.starlightRoute.entry.data;
 		<nav aria-label="On this page">
 			<h2 class="page-title">{title}</h2>
 			{description && <blockquote class="page-description">{description}</blockquote>}
+			{
+				isTemplate && (
+					<a class="template-link" href={source}>
+						<code>{`github:vic/yen#${name}`}</code>
+					</a>
+				)
+			}
 			<TocItems items={toc.items.filter((item) => item.slug !== '_top')} />
 		</nav>
 	)
@@ -45,6 +58,29 @@ const { title, description } = Astro.locals.starlightRoute.entry.data;
 		font-weight: 600;
 		line-height: var(--sl-line-height-headings);
 		margin: 0;
+	}
+	/* a tiny terminal: dark block, prompt, no wrapping, scrolls sideways */
+	.template-link {
+		display: block;
+		text-decoration: none;
+	}
+	.template-link code {
+		display: block;
+		padding: 0.25rem 0.5rem;
+		overflow-x: auto;
+		white-space: pre;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 3px;
+		background: var(--sl-color-black);
+		color: var(--sl-color-white);
+		font-family: var(--__sl-font-mono, monospace);
+		font-size: 0.7rem;
+		line-height: 1.4;
+	}
+	.template-link code::before {
+		content: '$ ';
+		color: var(--sl-color-accent-high);
+		user-select: none;
 	}
 	.page-description {
 		margin: 0;
