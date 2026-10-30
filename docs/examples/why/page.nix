@@ -1,90 +1,156 @@
 let
   site = "https://yen.oeiuwq.com";
   link = text: path: "[${text}](${site}${path})"; # absolute: this page is also the repository README
-  doc = path: "<sub>[docs](${site}${path})</sub>"; # a small link after a point, so the prose stays clean
+  doc = path: "<sup>[docs](${site}${path})</sup>"; # a small link after a point, so the prose stays clean
 in
 {
   title = "Why Yen";
-  plainTitle = "Yen: your whole Nix fleet, in plain data";
-  description = "Every Den capability and more, with a minimal language and less evaluation; rules across machines checked before you deploy.";
+  plainTitle = "Yen: Nix fleets you can formally verify before deployment.";
+  description = "Yen is a cycle.js based language for Nix configurations";
   section = "start";
   order = 0;
   alsoAt = "../README.md"; # the same text is the repository README: plain markdown only
 
   body =
-    { ... }:
+    { docs, ... }:
     [
       ''
-        **Your homelab, your laptops, your servers: one fleet, described as plain data.**
 
-        Yen configures NixOS, nix-darwin and home-manager machines from a few files you can read. Say what you have
-        (hosts, users, environments) and what each feature needs, and Yen puts every piece of configuration where it
-        belongs. It does everything [Den](https://github.com/denful/den) does, and more, with less to learn and less to
-        evaluate.
+        **Yen is a minimal pure-Nix language for verified fleet configurations**: no dependencies, no nixpkgs module system.
+        You describe your fleet as terms and the relationships between them. Yen answers queries about it: which systems to build,
+        verification errors, dependency graphs of who gives what to whom, and whether your invariant rules hold across all machines.
 
-        ${link "Documentation" "/"} · ${link "Getting started" "/start/getting-started/"} · ${link "A fleet on one page" "/start/one-page-fleet/"} · [Reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
+        Yen is built on four concepts: **kinds**, **scopes**, **aspects** and **sinks**. The Yen kernel knows nothing about
+        NixOS, but it can describe fleets over any configuration domain: NixOS, nix-darwin, home-manager, clusters, terraform, k8s,
+        or anything else you can model as Nix values. You define your own domain language, and Yen uses it.
 
-        ## A fleet is data
+
+        ${link "Documentation" "/"} · ${link "Getting started" "/start/getting-started/"} · ${link "A fleet on one page" "/start/one-page-fleet/"} · [Reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [vic/vix@yen](https://github.com/vic/vix/tree/yen) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
+
+
+        ## The Cycle model
+
+        Yen is designed around [Cycle.js](https://cycle.js.org) and other functional reactive programming principles.
+        As in Cycle, an aspect (a behavior) is a function `sources -> sinks`. It sends requests through its `sinks` to its parent cycles
+        to observe the world, and it gets their answers back through `sources`.
+
+        For example, a user aspect can ask which host it lives on, or whether a service is enabled somewhere else in the fleet.
+        Most of the time, aspects are simple and look like plain Nix configurations. They need no knowledge of the underlying query model.
+
+
+        ## Main Concepts
+
+        - **Kinds**: the nouns of the things in your fleet, and their typed fields.
+        - **Scopes**: how kinds nest inside each other. `.spawns.` builds the nested cycles from your data: a user under each host.
+        - **Aspects**: reactive behavior. `.at` sets a predicate that must hold for the behavior to be active: a kind, an instance of a kind, another aspect, or any custom predicate.
+        - **Sinks**: data channels. A configuration element goes up to the nearest scope that collects a sink, and that scope decides how to reduce all the contributions.
+
+        ## Annotated example
+
+        Yen has no dependencies. It is built only on Nix `builtins`. This is the most basic flake
+        that takes a single Yen module.
+
+      ''
+
+      (docs.file "flake.nix")
+
+      ''
+
+        Yen imposes no domain language, so you can define the nouns of your own world, how they relate to each other,
+        and how they contribute to the final Nix configuration.
+
+      ''
+
+      (docs.file "modules/hello.nix")
+
+      ''
+
+        The output of this flake looks like this:
+
+      ''
+
+      (docs.file "result.nix")
+
+      ''
+
+        ## Design Principles
+
+        Unlike the nixpkgs module system, where a type's `check` and `merge` are part of the same definition, Yen keeps data validation
+        separate from the `reduce` (merge) strategy. Each sink boundary defines how data is collected or transformed. Data is queried
+        instead of being merged into one global `config` attribute.
+
+        Yen treats errors as data. Since every relationship and read between kinds is traceable, Yen can build a dependency graph
+        showing what reads from what, and where the data comes from.
+
+        From your definitions, Yen derives logic facts and relationships. You use them with logic variables to state invariants
+        that must hold across the parts of your fleet before it can even be built. Think of them as formal constraints over
+        services or fleet members.
+
+
+        ## Two Logic Languages
+
+        Yen ships two pure-Nix logic languages to help you deploy in waves: well-founded models with proofs, why-not explanations,
+        and values synthesized under constraints ${doc "/query/queries"}.
+
+        µKanren-style logic programs let you synthesize configurations from constraints. For example, allocate a free port,
+        or compute a VM's memory so it takes only a percentage of its host.
+
+        Datalog facts describe invariants about your fleet. For example, you can state that a web server and its database
+        must be in the same region or environment.
 
         ```nix
-        yen.env.prod.domain = "example.com";
-        yen.env.lab.domain = "lab.example.com";
-        yen.host.web = { env = yen.env.prod; db = yen.host.db; };
-        yen.host.db.env = yen.env.prod;
-        yen.host.box.env = yen.env.lab;
-        yen.user.ana.on = [ yen.host.web yen.host.box ];   # ana gets an account on both
-
-        yen.aspects.postgres = {
-          at = s: lib.any (h: same h.db s) (lib.attrValues yen.host);   # wherever some host uses me as its database
-          os.services.postgresql.enable = true;
+        # `facts.host` and `host.region` were derived here by Yen,
+        # it follows your own domain definitions.
+        let inherit (yen.facts.host); in
+        yen.invariants.db-same-region = { H, D, R }: {
+          bad = H;
+          pos = [ (host.db H D) (host.region H R) ];  # H uses D as its database, and lives in region R
+          neg = [ (host.region D R) ];                # and D does not
         };
         ```
 
-        No host file lists its features: the data decides. Add a host and it gets everything it should.
-
-        ## A rule across machines
-
-        Some mistakes live between machines: no single host can see them. Say once that a host's database lives in its own
-        environment:
-
-        ```nix
-        yen.invariants.db-same-env = { H, D, E }: {
-          bad = H;
-          pos = [ (host.db H D) (host.env H E) ];  # H uses D as its database, and lives in environment E
-          neg = [ (host.env D E) ];                # and D does not
-        };                                         # host = yen.facts.host
-        ```
-
         Fields, aspects and variables are references, not strings: a typo is an evaluation error. A lab host that points at
-        the prod database gives `[ "bad" "db-same-env" "fleet:main/env:lab/host:api" ]`, and the fleet builds nothing until
+        the prod database gives `[ "bad" "db-same-region" "fleet:main/region:eu/host:api" ]`, and the fleet builds nothing until
         it is fixed.
+
+        ## Agents as first-class team members
+
+        Everything in Yen is expressed as a query, and every answer is JSON-safe data. Agents can propose changes to your
+        infrastructure, and those changes are verified **before** any file is edited. Changes are staged, checked against
+        invariants, limited by grants that can only narrow, and written as change programs. An MCP server answers agents and
+        lets them write only verified changes. ${doc "/agents/agent-surface"}
+
+        ## Errors are data
+
+        Errors are not throws. They are data that agents and humans can inspect, with **hints for fixes**: `code`, `path`,
+        `got`, `want`, `fix`, and `near` for typos. ${doc "/concepts/errors"}
 
         ## Why Yen
 
-        - **Minimal language.** A handful of ideas: the things in your world, a tree built from your data, features that
-          apply where a condition holds, and a place for each piece of configuration to go. ${doc "/start/overview/"}
-        - **Domain agnostic.** Anything Nix can configure: NixOS, nix-darwin, home-manager, clusters and more. Name the
+        - **Minimal surface.** The Yen language is minimal. It lets you define the things in your world, a tree built from your data,
+          features that apply where a condition holds, and a place for each piece of configuration to go. ${doc "/start/overview/"}
+        - **Domain agnostic.** Yen can configure anything Nix can: NixOS, nix-darwin, home-manager, clusters and more. Name the
           things in your world: hosts, users, services, or your own.
-        - **Everything Den does, and more.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
-          generated files. Migration guides build the same systems before and after, from `configuration.nix`, a flake or
-          Den. ${doc "/migrate/from-den/"}
-        - **Queried, not merged.** Each value is a query on the files that declare it. Content in many files never
+        - **On par with advanced frameworks like Den.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
+          generated files. Moving from Den is easy. ${doc "/migrate/from-den/"}
+        - **Queries, not merges.** Each value is a query on the files that declare it. Content spread over many files never
           overwrites itself, and two different answers are an error you can read. ${doc "/concepts/queried-not-merged/"}
-        - **Less to evaluate.** Yen itself is about 1% of a host's evaluation. One nixpkgs per system instead of one per
-          host saves about a third, with a check that proves every system is the same. ${doc "/perf/shared-pkgs/"}
+        - **Less to evaluate.** Yen itself is about 1% of a host's evaluation. Sharing one nixpkgs per system instead of one per host
+          saves about a third, and a check proves that every system is the same. ${doc "/perf/shared-pkgs/"}
         - **Mistakes are caught early, with a fix.** A typo gets a "did you mean". Every error says where it is, what was
-          expected and how to fix it. ${doc "/concepts/errors/"}
-        - **Ask your fleet anything.** Graphs for deploy waves, cycles and impact; Datalog with negation; stored queries
-          you name once and ask from Nix, the CLI or an agent. ${doc "/query/queries/"}
+          expected, and how to fix it. ${doc "/concepts/errors/"}
+        - **Ask your fleet anything.** Graphs for deploy waves, cycles and impact; Datalog with negation; stored queries you name
+          once and ask from Nix, the CLI, or an agent. ${doc "/query/queries/"}
         - **Values that solve themselves.** µKanren with finite domains, in pure Nix: a free port, guest memory that fits,
           relations that run backward. ${doc "/query/krn/"}
         - **Rules across machines.** Write a rule once, and a fleet that breaks it builds nothing. Each verdict comes with
           a proof that a small checker verifies, and a seal anyone can check again. ${doc "/query/invariants/"}
-        - **Time and impact.** What a host's elements reach, the fleet without one declaration, instances valid at a
-          date. ${doc "/agents/history/"}
-        - **Ready for agents.** An AI agent can ask about your fleet, stage a change and see why it is refused, before
+        - **Time and impact.** See what a host's elements reach, the fleet without one declaration, and instances valid at a
+          given date. ${doc "/agents/history/"}
+        - **Ready for agents.** An AI agent can ask about your fleet, stage a change, and see why it is refused, before
           anything is applied. Yen ships an MCP server and a skill that teaches agents to use it. ${doc "/agents/mcp/"}
-        - **Just Nix.** A few files of Nix builtins, no dependencies. Every page of the docs is a tested example.
+        - **Just Nix.** Yen is built on Nix builtins with no dependencies. It provides two logic languages alongside its configuration kernel.
+        - **Tested and documented.** Every page you read is a tested example checked by CI, and all the docs are generated.
 
         ## Try it
 
@@ -96,11 +162,16 @@ in
 
         ## Sponsor
 
-        Yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
-        It brings formal verification to reproducible Nix fleets: your rules across machines, decided and proved before
-        you deploy, so that big fleets stay correct as they grow. If Yen helps
-        your homelab, your team or your agents, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor).
+        Yen is made with love by [vic](https://github.com/vic). Years of work have gone into bringing formal verification
+        to reproducible Nix fleets in our agentic era, because correctness matters most here.
+        If Yen helps your business, your homelab, your team or your agents, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor).
         Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
       ''
     ];
+
+  checks =
+    { result, eq, ... }:
+    {
+      result = eq result.flake (import ./result.nix);
+    };
 }

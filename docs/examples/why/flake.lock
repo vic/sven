@@ -1,0 +1,26 @@
+{
+  "nodes": {
+    "root": {
+      "inputs": {
+        "yen": "yen"
+      }
+    },
+    "yen": {
+      "locked": {
+        "lastModified": 1793341817,
+        "narHash": "sha256-v0L+5tn/ioZdHq4VL+33Ac5PvYxbTqUyyim8R3NZ1MI=",
+        "owner": "vic",
+        "repo": "yen",
+        "rev": "44d4eb6890d4499c9348024d532f02dbd136429d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vic",
+        "repo": "yen",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
