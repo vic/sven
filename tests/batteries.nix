@@ -551,60 +551,59 @@ let
     )
   ];
 
-  # clan batteries as plain functions of data
-  cl = bat.clan;
-  clServices = {
-    db = {
-      roles.server.interface.port = {
-        type = {
-          check = b.isInt;
-          description = "int";
-        };
-        default = 5432;
+  # kits batteries as plain functions of data: refs are `{ kind; name; }`, kHolds runs a function predicate
+  kt = bat.kits;
+  kHolds = p: m: b.isFunction p && p m;
+  kRef = kind: name: { inherit kind name; };
+  kIs = h: m: m.name == h.name;
+  kDb = kRef "kit" "db" // {
+    roles.server.interface.port = {
+      type = {
+        check = b.isInt;
+        description = "int";
       };
-      roles.client = { };
-      constraints = {
-        roles.server = {
-          min = 1;
-          max = 1;
-        };
-        maxInstances = 1;
-      };
-      exports = [ "endpoint" ];
+      default = 5432;
     };
-  };
-  clMachines = [
-    {
-      name = "a";
-      labels = [ "dbs" ];
-    }
-    {
-      name = "c";
-      labels = [ ];
-    }
-  ];
-  clInstances = {
-    main = {
-      module = "db";
+    roles.client = { };
+    constraints = {
       roles.server = {
-        tags = [ "dbs" ];
-        machines.a.settings.port = 1;
+        min = 1;
+        max = 1;
       };
-      roles.client.machines.c = { };
+      maxAssemblies = 1;
     };
+    exports = [ "endpoint" ];
   };
-  clContract =
-    instances:
-    cl.contract {
-      inherit instances;
-      services = clServices;
-      machines = clMachines;
+  hA = kRef "host" "a" // {
+    db = true;
+  };
+  hC = kRef "host" "c" // {
+    db = false;
+  };
+  kMachines = [
+    hA
+    hC
+  ];
+  aMain = kRef "assembly" "main" // {
+    kit = kDb;
+    roles.server = {
+      at = m: m.db;
+      settings = m: { port = 1; };
+    };
+    roles.client.at = kIs hC;
+  };
+  kContract =
+    assemblies:
+    kt.contract {
+      inherit assemblies;
+      holds = kHolds;
+      machines = kMachines;
     };
 
-  # clan vars batteries as plain functions
+  # vars batteries as plain functions
   gen =
     xs:
-    cl.generators { machineOf = s: s; } (
+    bat.vars.generators { machineOf = s: s; } (
       map (x: {
         from.name = x.m;
         value = x.v;
@@ -668,13 +667,13 @@ let
     }
   ];
   plan =
-    (cl.vars-plan {
+    (bat.vars.vars-plan {
       from.__sink = "g";
       machines = [ "a" ];
       recipientsOf = m: [ "r-${m}" ];
     } { sinks.g = gens.value; }).varsPlan.a;
   secretReads =
-    cl.secret-reads
+    bat.vars.secret-reads
       {
         from.__sink = "g";
         reads.__sink = "r";
@@ -700,7 +699,7 @@ let
           ];
         };
       };
-  pub = cl.public-value { root = ./fixtures/vars; };
+  pub = bat.vars.public-value { root = ./fixtures/vars; };
 
   # secretspec through a claim sink: one secret per (profile, name)
   specRun =
@@ -1082,7 +1081,8 @@ let
       && !(bat.docs.templates {
         root = ../docs/examples;
         description = _: "";
-      }) ? about; # docs/examples/about has no flake.nix
+      })
+        ? about; # docs/examples/about has no flake.nix
     files-comment =
       bat.files.comment "README.md" "x" == "<!-- x -->\n"
       && bat.files.comment "a/ci.yml" "x" == "# x\n"
@@ -1244,7 +1244,7 @@ let
         extra-trusted-public-keys = [ "k" ];
       };
     cachix-action = (bat.cachix.action { name = "vix"; }).uses == "cachix/cachix-action@v17";
-    clan-generators =
+    vars-generators =
       b.attrNames gens.value == [
         "borg@a"
         "ssh@a"
@@ -1257,9 +1257,9 @@ let
           "c"
         ]
       && gens.errors == [ ];
-    clan-generators-dependency =
+    vars-generators-dependency =
       map (e: e.error) badDeps.errors == [ "vars: generator borg@c depends on nope, which c has not" ];
-    clan-vars-plan =
+    vars-vars-plan =
       map (g: g.name) plan.order == [
         "ssh"
         "borg"
@@ -1272,106 +1272,113 @@ let
           "/run/secrets/vars/wifi/pw"
         ]
       && plan.recipients == [ "r-a" ];
-    clan-secret-reads = secretReads == [ "vars: a reads ssh/key, a secret file" ];
-    clan-public-value =
+    vars-secret-reads = secretReads == [ "vars: a reads ssh/key, a secret file" ];
+    vars-public-value =
       pub "lb" "openssh" "key.pub" "absent" == "ssh-ed25519 PUB"
       && pub "lb" "openssh" "nope" "absent" == "absent";
-    clan-members-by-tag =
-      b.attrNames (
-        cl.members {
-          instances.t = {
-            module = "db";
-            roles.server.tags = [ "dbs" ];
-          };
-          services = clServices;
-        } (b.head clMachines)
-      ) == [ "t.server" ];
-    clan-members =
-      cl.members {
-        instances = clInstances;
-        services = clServices;
-      } (b.head clMachines) == {
-        "main.server" = {
-          instance = "main";
-          service = "db";
-          role = "server";
-          settings.port = 1;
-          extraModules = [ ];
-        };
+    kits-members =
+      let
+        ms = kt.members {
+          assemblies = [ aMain ];
+          holds = kHolds;
+        } hA;
+        m = ms."main.server";
+      in
+      b.attrNames ms == [ "main.server" ]
+      && m.assembly.name == "main"
+      && m.kit.name == "db"
+      && m.role == "server"
+      && m.settings == { port = 1; };
+    kits-members-default-settings =
+      (kt.members {
+        assemblies = [ (aMain // { roles.server.at = m: m.db; }) ];
+        holds = kHolds;
+      } hA)."main.server".settings == {
+        port = 5432;
       };
-    clan-contract-ok = clContract clInstances == [ ];
-    clan-contract-min =
-      clContract {
-        x = {
-          module = "db";
-          roles.server.tags = [ "none" ];
-        };
-      } == [ "clan: instance x role server: 0 machines, at least 1" ];
-    clan-contract-unknown-role =
-      clContract {
-        x = {
-          module = "db";
-          roles.server.machines.a = { };
-          roles.ghost.machines.a = { };
-        };
-      } == [ "clan: instance x: service db has no role ghost" ];
-    clan-contract-max-instances =
-      b.length (
-        clContract (
-          clInstances
+    kits-members-none =
+      kt.members {
+        assemblies = [ aMain ];
+        holds = kHolds;
+      } (kRef "host" "z" // { db = false; }) == { };
+    kits-contract-ok = kContract [ aMain ] == [ ];
+    kits-contract-min =
+      kContract [
+        (
+          kRef "assembly" "x"
           // {
-            two = clInstances.main;
+            kit = kDb;
+            roles.server.at = _: false;
           }
         )
-      ) == 2;
-    clan-unknown-tags =
-      cl.unknown-tags {
-        instances = clInstances // {
-          t = {
-            module = "db";
-            roles.client.tags = [ "nope" ];
-          };
-        };
-        machines = clMachines;
-      } == [ "clan: instance t role client: tag nope matches no machine" ];
-    clan-exports =
+      ] == [ "kits: assembly x role server: 0 machines, at least 1" ];
+    kits-contract-unknown-role =
+      kContract [
+        (
+          kRef "assembly" "x"
+          // {
+            kit = kDb;
+            roles.server.at = kIs hA;
+            roles.ghost.at = kIs hA;
+          }
+        )
+      ] == [ "kits: assembly x: kit db has no role ghost" ];
+    kits-contract-string-kit =
+      kContract [
+        (
+          kRef "assembly" "x"
+          // {
+            kit = "db";
+            roles.server.at = kIs hA;
+          }
+        )
+      ] == [ "kits: assembly x: kit is a string, not a kit" ];
+    kits-contract-string-at =
+      kContract [
+        (
+          kRef "assembly" "x"
+          // {
+            kit = kDb;
+            roles.server.at = "a";
+          }
+        )
+      ] == [ "kits: assembly x role server: `at` is a string, not a predicate" ];
+    kits-contract-max-assemblies =
+      b.length (kContract [
+        aMain
+        (aMain // { name = "two"; })
+      ]) == 2;
+    kits-exports =
       let
-        member = name: {
-          id = "m:${name}";
-          service = "db";
-          instance = "main";
+        member = h: {
+          kind = "member";
+          assembly = aMain;
+          kit = kDb;
           role = "server";
-          parent.name = name;
+          parent = h;
         };
-        r =
-          cl.exports
-            {
-              services = clServices;
-              isMember = s: s ? service;
-            }
-            [
-              {
-                from = member "a";
-                value.endpoint = "a:1";
-              }
-              {
-                from = member "c";
-                value.secret = "x";
-              }
-              {
-                from.id = "fleet";
-                value = {
-                  service = "db";
-                  instance = "main";
-                  role = "server";
-                  machine = "a";
-                  value.endpoint = "over";
-                };
-              }
-            ];
+        r = kt.exports { isMember = s: s.kind or null == "member"; } [
+          {
+            from = member hA;
+            value.endpoint = "a:1";
+          }
+          {
+            from = member hC;
+            value.secret = "x";
+          }
+          {
+            from = kRef "fleet" "f";
+            value = {
+              assembly = aMain;
+              role = "server";
+              machine = hA;
+              value.endpoint = "over";
+            };
+          }
+        ];
       in
       (b.head r.value).value.endpoint == "over"
-      && map (e: e.error) r.errors == [ "clan: db:main:server:c: service db does not export secret" ];
+      && map (e: e.error) r.errors == [ "kits: main.server@c: kit db does not export secret" ];
     maybe-ref-schema = viewR.schema.kinds.person.fields.home.ref or null == "box";
     files-json = jsonR.flake.sys.a == [ { files.file."ci.json".text = "[\"a\",\"b\"]\n"; } ];
     flake-file-write =

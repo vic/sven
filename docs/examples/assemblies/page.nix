@@ -1,6 +1,6 @@
 {
-  title = "Services and roles";
-  description = "Service instances as data: each machine gets one member scope per role, and members exchange data.";
+  title = "Assemblies and roles";
+  description = "Assemblies as data: each machine gets one member scope per role, and members exchange data.";
   section = "recipes";
   order = 8;
   badge = "advanced";
@@ -9,15 +9,15 @@
     { docs, result, ... }:
     [
       ''
-        A service such as backup has roles: one server, many clients. The instance says which machine takes which role.
-        This is [clan](https://clan.lol)'s inventory model, in plain yen.
+        A backup has roles: one server, many clients. An assembly says which machine takes which role, with refs.
       ''
       (docs.file "modules/inventory.nix")
       ''
-        Each machine spawns one `member` scope per (instance, role) it takes part in. An aspect at a member scope runs once
-        per instance (clan's `perInstance`). An aspect at a machine that `has` a member runs once per machine (`perMachine`).
+        Each machine spawns one `member` scope per (assembly, role) it takes part in. The member holds a ref to its
+        assembly. An aspect at a member scope runs once per assembly and role. An aspect at a machine that `has` a
+        member runs once per machine.
       ''
-      (docs.fileWith "{5-7,35}" "modules/kinds.nix")
+      (docs.fileWith "{12-15,33}" "modules/kinds.nix")
       (docs.scopes result)
       ''
         ## Members exchange data
@@ -25,11 +25,12 @@
         Clients publish their address to a fleet sink with `entries`. The engine sets `from`, so a member can only publish
         as itself. The server reads the entries and builds its allow list:
       ''
-      (docs.fileWith "{8,14}" "modules/backup.nix")
+      (docs.fileWith "{9,15}" "modules/backup.nix")
       (docs.value result.flake.config)
       (docs.tip "The full model" ''
-        The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
-        typed role settings with errors, exports per service with owner overrides, install order, and vars generators.
+        [Kits batteries](/batteries/kits/) add kits as data with typed role settings and errors, `at` predicates as
+        role members, exports with owner overrides, and vars generators. The
+        [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/assemblies.nix) uses them.
       '')
     ];
 

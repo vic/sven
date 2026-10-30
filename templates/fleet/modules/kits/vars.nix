@@ -1,8 +1,8 @@
-# clan vars, the configuration half: services declare generators; generation itself is a tool, not yen.
+# vars, the configuration half: kits declare generators; generation itself is a tool, not yen.
 # A shared generator is one for all machines that use it; a per-machine one is keyed by machine. A dependency must
 # name a generator the same machine has (or a shared one). A null element gives nothing. The plan per machine
 # (paths by `neededFor`, generation order) is data. Public values are read at eval time from the repo, with a
-# default; a read of a secret file is an error. Machines come from directories too (clan autoincludes).
+# default; a read of a secret file is an error. Machines come from directories too.
 { yen, lib, ... }:
 let
   inherit (yen.lib)
@@ -10,16 +10,17 @@ let
     has
     opt
     maybe
+    same
     ;
   machineOf = s: if yen.lib.holds yen.kinds.member s then s.parent else s;
-  publicValue = yen.lib.batteries.clan.public-value { root = ../../vars/per-machine; };
+  publicValue = yen.lib.batteries.vars.public-value { root = ../../vars/per-machine; };
   machineNames = lib.attrNames yen.host ++ lib.attrNames yen.mac;
 in
 {
   yen.kinds.fleet.sinks.generators = {
-    reduce = yen.lib.batteries.clan.generators { inherit machineOf; };
+    reduce = yen.lib.batteries.vars.generators { inherit machineOf; };
     # the plan per machine: secret files with their path, and the order to generate in (dependencies first)
-    out = yen.lib.batteries.clan.vars-plan {
+    out = yen.lib.batteries.vars.vars-plan {
       from = yen.kinds.fleet.sinks.generators;
       machines = machineNames;
       recipientsOf =
@@ -47,6 +48,7 @@ in
       "age1admin"
     ];
   };
+  yen.kinds.machine.fields.fromDir = opt lib.types.bool false; # a host from a directory under machines/
   yen.kinds.machine.fields.secretStore = maybe (
     yen.helpers.enum [
       "sops"
@@ -56,7 +58,7 @@ in
   );
   yen.aspects.vars-secret-reads = {
     at = yen.kinds.fleet;
-    errors = yen.lib.batteries.clan.secret-reads {
+    errors = yen.lib.batteries.vars.secret-reads {
       from = yen.kinds.fleet.sinks.generators;
       reads = yen.kinds.fleet.sinks.public-reads;
     };
@@ -82,7 +84,7 @@ in
   yen.aspects.vars-openssh = {
     at = all [
       yen.helpers.machines
-      (has (s: s.service or null == "sshd"))
+      (has (s: same (s.kit or null) yen.kit.sshd))
     ];
     generators =
       { scope, ... }:
@@ -111,7 +113,7 @@ in
   yen.aspects.vars-wifi = {
     at = all [
       yen.kinds.member
-      (s: s.service == "wifi")
+      (s: same (s.kit or null) yen.kit.wifi)
     ];
     generators = {
       name = "wifi.home";
@@ -128,17 +130,17 @@ in
   yen.aspects.vars-borg = {
     at = all [
       yen.kinds.member
-      (s: s.service == "borg" && s.role == "client")
+      (s: same (s.kit or null) yen.kit.borg && s.role == "client")
     ];
     generators =
       { member, ... }:
       {
-        name = "borg-${member.instance}";
+        name = "borg-${member.assembly.name}";
         dependencies = [ "openssh" ];
         files.passphrase = {
           secret = true;
           neededFor = "users";
-          restartUnits = [ "borgbackup-job-${member.instance}.service" ];
+          restartUnits = [ "borgbackup-job-${member.assembly.name}.service" ];
         };
       };
   };
@@ -162,7 +164,7 @@ in
   };
 
   # machines from directories: every directory under machines/ is a host; its configuration.nix joins the config
-  yen.host = lib.mapAttrs (_: _: { labels = [ "from-dir" ]; }) (
+  yen.host = lib.mapAttrs (_: _: { fromDir = true; }) (
     lib.filterAttrs (_: t: t == "directory") (builtins.readDir ../../machines)
   );
   yen.aspects.autoinclude = {

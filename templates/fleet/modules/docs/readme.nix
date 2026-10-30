@@ -29,7 +29,7 @@ let
         home = parallelogram;
         user = circle;
         member = hexagon;
-        instance = hexagon;
+        assembly = hexagon;
         sink = round;
         output = cylinder;
       };
@@ -113,26 +113,35 @@ let
         );
   };
 
-  # clan instances: instance (service) to the machines of each role
+  # assemblies: each assembly (its kit) to the machines of each role
   members = lib.filter (s: yen.lib.holds yen.kinds.member s) g.scopes;
-  instanceOf = s: lib.head (lib.splitString "." s.name);
-  clan = {
+  # graph scopes carry no fields: a member scope is named `<assembly>.<role>` by kits.members
+  memberRoles = lib.concatMap (
+    a:
+    lib.concatMap (
+      r:
+      map (s: {
+        inherit a r s;
+      }) (lib.filter (s: s.name == "${a.name}.${r}") members)
+    ) (lib.attrNames a.roles)
+  ) yen.helpers.assemblies;
+  assemblyView = {
     nodes =
-      map (i: {
-        id = "inst:${i}";
-        label = "${i} (${yen.helpers.clan.instances.${i}.module})";
-        kind = "instance";
-      }) (sorted (map instanceOf members))
+      map (a: {
+        id = "asm:${a.name}";
+        label = "${a.name} (${a.kit.name})";
+        kind = "assembly";
+      }) (lib.filter (a: lib.any (x: x.a.name == a.name) memberRoles) yen.helpers.assemblies)
       ++ map (m: {
         id = m;
         label = nameOf.${m};
         kind = kindOf.${m};
       }) (sorted (map (s: parentOf s.id) members));
-    edges = map (s: {
-      from = "inst:${instanceOf s}";
-      to = parentOf s.id;
-      label = lib.last (lib.splitString "." s.name);
-    }) members;
+    edges = map (x: {
+      from = "asm:${x.a.name}";
+      to = parentOf x.s.id;
+      label = x.r;
+    }) memberRoles;
   };
 
   # vars: generator dependencies; a shared generator is one node for all its machines
@@ -270,7 +279,7 @@ let
 
     ${mermaid kindTree}
 
-    <details><summary>Sinks, pools, clan instances, vars, deploy order (diagrams)</summary>
+    <details><summary>Sinks, pools, assemblies, vars, deploy order (diagrams)</summary>
 
     **Sink forwarding**: a dashed edge is a sink key that feeds another sink (label: the kind). A solid edge is `out`, labelled with the receivers that build an output.
 
@@ -284,9 +293,9 @@ let
 
     ${sequence}
 
-    **clan instances**: each instance (its service) to the machines of each role.
+    **assemblies**: each assembly (its kit) to the machines of each role.
 
-    ${mermaid clan}
+    ${mermaid assemblyView}
 
     **vars generators**: an edge is a dependency. A hexagon is shared by every machine that uses it.
 

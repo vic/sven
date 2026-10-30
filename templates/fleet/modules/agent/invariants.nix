@@ -125,7 +125,7 @@ in
         ]
       )
     ];
-    # every host and mac (not a variant) is reachable for management: it runs sshd through the clan sshd instance
+    # every host and mac (not a variant) is reachable for management: it runs sshd through the sshd assembly
     ssh =
       map
         (
@@ -147,7 +147,7 @@ in
               nested
               [
                 "has"
-                "clan-sshd"
+                "kit-sshd"
                 H
               ]
             ]
