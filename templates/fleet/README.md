@@ -123,7 +123,7 @@ An aspect is active only at the scope where `at` holds. It never flows down to c
 
 Static content counts once per receiver. An aspect active at a host and at its users, with the same static `nixos` value, lands once on the host. Content that names the scope (`{ user, ... }:`) lands once per scope.
 
-This rule decides how you write a value for a fleet-wide sink. A static value from many machines arrives once: use it for data that all machines share (a shared vars generator). A function value arrives once per machine: use it for data that each machine owns (a per-machine generator, `{ scope, ... }: …`). See [clan/vars.nix](modules/clan/vars.nix).
+This rule decides how you write a value for a fleet-wide sink. A static value from many machines arrives once: use it for data that all machines share (a shared vars generator). A function value arrives once per machine: use it for data that each machine owns (a per-machine generator, `{ scope, ... }: …`). See [kits/vars.nix](modules/kits/vars.nix).
 
 Structure can depend on presence: a `spawns` function can ask `yen.lib.holds yen.aspects.role-server s` at the parent ([den/presence-structure.nix](modules/den/presence-structure.nix)).
 
@@ -158,9 +158,9 @@ yen.kinds.guest.sinks.nixos.nixos = { guest, nixos, ... }: {           # its own
 
 A sink that nobody reads is not an error. Nothing happens. A sink with no keys is a wall: `yen.kinds.home.sinks.os = { }` keeps a home's elements away from the host above it.
 
-A sink's `reduce` can be any function `[ { from; value; } ] -> { value; errors; }`. Write your own when the merge order is the point: per-key strategies with provenance ([hoag/ci.nix](modules/hoag/ci.nix)), ranked layers ([hoag/settings.nix](modules/hoag/settings.nix)), dedup of claims, an export store where a member can only write its own scope ([clan/inventory.nix](modules/clan/inventory.nix)). The engine sets `from`. An element cannot say where it comes from, so a scope cannot write for another.
+A sink's `reduce` can be any function `[ { from; value; } ] -> { value; errors; }`. Write your own when the merge order is the point: per-key strategies with provenance ([hoag/ci.nix](modules/hoag/ci.nix)), ranked layers ([hoag/settings.nix](modules/hoag/settings.nix)), dedup of claims, an export store where a member can only write its own scope ([kits/assemblies.nix](modules/kits/assemblies.nix)). The engine sets `from`. An element cannot say where it comes from, so a scope cannot write for another.
 
-Give errors and warnings as data. An aspect key `errors` adds records to the `errors` query. A sink such as `warnings` (with `reduce.list`) holds messages that do not fail the fleet ([clan/inventory.nix](modules/clan/inventory.nix): a tag that matches no machine).
+Give errors and warnings as data. An aspect key `errors` adds records to the `errors` query. A sink such as `warnings` (with `reduce.list`) holds messages that do not fail the fleet.
 
 Do not give a sink the name of a field or an arg. A sink `tags` and a field `tags` read as one arg. In this fleet, clan tags are the field `labels` for that reason.
 
@@ -322,7 +322,7 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Change programs.** `yen.lib.program` writes a change as data ops: `set`, `ref`, `place` and `new`. `validate result prog` checks it against the schema (with `near`), `toModule` makes the module, `dryRun { base; prog; }` validates and stages it, and `render` gives JSON. An agent writes a program, not Nix code.
 
-**Install order.** The stored query `installOrder { instance }` gives the waves of a clan service instance: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
+**Install order.** The stored query `installOrder { assembly }` gives the waves of an assembly: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
 
 **Synthesis, checked.** Stored queries in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
 
@@ -370,10 +370,10 @@ result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 | two pools joined by host, in the cluster's environment; a guest's intent read by its parent | sini | [sini/joins.nix](modules/sini/joins.nix) |
 | aspect factories; an aspect checked alone with stand-in args; one DNS edge at most | sini | [sini/joins.nix](modules/sini/joins.nix) |
 | merge strategy per key with provenance and refs; claim dedup; negation; demand cascade; shadowing query; suppression chain | den-hoag CI | [hoag/ci.nix](modules/hoag/ci.nix) |
-| service instances × roles, perInstance and perMachine, layered typed settings, contract errors | clan | [clan/inventory.nix](modules/clan/inventory.nix), [clan/services.nix](modules/clan/services.nix) |
-| exports: scoped by the engine, allow-listed per service, read across services, overridden by the owner | clan | [clan/inventory.nix](modules/clan/inventory.nix), [services/borg.nix](services/borg.nix) |
-| vars: generator graph, shared or per machine, a deploy plan as data, secret-read guard | clan | [clan/vars.nix](modules/clan/vars.nix) |
-| machines from directories, a service from outside `modules/` | clan | [clan/vars.nix](modules/clan/vars.nix), [services/borg.nix](services/borg.nix) |
+| assemblies of kits × roles, once per assembly and once per machine, layered typed settings, contract errors | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [kits/kits.nix](modules/kits/kits.nix) |
+| exports: scoped by the engine, allow-listed per kit, read across kits, overridden by the owner | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [services/borg.nix](services/borg.nix) |
+| vars: generator graph, shared or per machine, a deploy plan as data, secret-read guard | clan | [kits/vars.nix](modules/kits/vars.nix) |
+| machines from directories, a kit from outside `modules/` | clan | [kits/vars.nix](modules/kits/vars.nix), [services/borg.nix](services/borg.nix) |
 | deploy waves, impact of losing a host, a dependency cycle as an error (`yen.lib.graphs`) | den-hoag | [hoag/relations.nix](modules/hoag/relations.nix) |
 | a serving policy with maintenance, drain by dependency, a primary chosen by stable models (`yen.lib.datalog`) | Gen | [query/datalog.nix](modules/query/datalog.nix) |
 | port allocation, guest memory, database placement, a query run backward (`yen.lib.krn` with finite domains) | µKanren, CLP(FD) | [query/krn.nix](modules/query/krn.nix) |
@@ -453,20 +453,20 @@ Three families of Den bugs cannot happen in yen:
 
 ## yen and clan
 
-[clan](https://clan.lol) adds service instances, roles, exports and vars on top of NixOS. All its docs, its 31 services and its library give 79 capabilities ([vic/clan-patterns.txt](https://github.com/vic/yen/blob/main/vic/clan-patterns.txt)): 64 have a check here, 6 are clan internals, and 9 are tools (CLI, installers, secret generation). yen covers the configuration, not the tools.
+[clan](https://clan.lol) adds service instances, roles, exports and vars on top of NixOS. yen models them with its own words: a kit is data, an assembly is one use of a kit, and every selection is a ref or a predicate, never a name or a tag. All its docs, its 31 services and its library give 79 capabilities ([vic/clan-patterns.txt](https://github.com/vic/yen/blob/main/vic/clan-patterns.txt)): 64 have a check here, 6 are clan internals, and 9 are tools (CLI, installers, secret generation). yen covers the configuration, not the tools.
 
 | clan | yen | File |
 |---|---|---|
-| machines with tags (`all`, `nixos`, `darwin` are automatic) | host and mac instances with the field `labels` | [clan/inventory.nix](modules/clan/inventory.nix) |
-| `inventory.instances.<i>`, `module.name` | the data kind `instance`; `module` defaults to the instance name | [clan/inventory.nix](modules/clan/inventory.nix) |
-| role members: named machines and tagged machines | each machine spawns one `member` scope per (instance, role) | [clan/inventory.nix](modules/clan/inventory.nix) |
-| `perInstance` | an aspect at a member scope | [clan/services.nix](modules/clan/services.nix) |
-| `perMachine` | an aspect at a machine that `has` a member | [clan/services.nix](modules/clan/services.nix) |
-| role settings, then machine settings, typed by the role interface | interface defaults, role, machine; a wrong type is an error record | [clan/inventory.nix](modules/clan/inventory.nix) |
-| exports, `selectExports`, scope rules | a fleet sink; the engine sets the writer; a service lists its keys; the owner overrides from the fleet scope | [clan/inventory.nix](modules/clan/inventory.nix) |
-| a service from another flake (`module.input`) | a module file imported as a function with args | [services/borg.nix](services/borg.nix) |
-| vars generators, `share`, dependencies, `neededFor`, `deploy = false`, recipients | the `generators` sink and `out.varsPlan` | [clan/vars.nix](modules/clan/vars.nix) |
-| autoincludes from `machines/<name>/` | a host per directory, its `configuration.nix` imported | [clan/vars.nix](modules/clan/vars.nix) |
+| machines with tags (`all`, `nixos`, `darwin` are automatic) | predicates: a kind (`yen.kinds.host`), a ref (`yen.host.lb`), an aspect, a function of the machine | [kits/kits.nix](modules/kits/kits.nix) |
+| `inventory.instances.<i>`, `module.name` | the data kind `assembly`; its field `kit` is a ref to a `kit` | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| role members: named machines and tagged machines | `roles.<r>.at`, a predicate; each machine spawns one `member` scope per (assembly, role) | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| `perInstance` | an aspect at a member scope | [kits/kits.nix](modules/kits/kits.nix) |
+| `perMachine` | an aspect at a machine that `has` a member | [kits/kits.nix](modules/kits/kits.nix) |
+| role settings, then machine settings, typed by the role interface | interface defaults, then the role's settings (attrs, or a function of the machine); a wrong type is an error record | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| exports, `selectExports`, scope rules | a fleet sink; the engine sets the writer; a kit lists its keys; a reader filters by refs (`yen.lib.same`); the owner overrides from the fleet scope | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| a service from another flake (`module.input`) | a module file that declares a kit, imported | [services/borg.nix](services/borg.nix) |
+| vars generators, `share`, dependencies, `neededFor`, `deploy = false`, recipients | the `generators` sink and `out.varsPlan` | [kits/vars.nix](modules/kits/vars.nix) |
+| autoincludes from `machines/<name>/` | a host per directory (field `fromDir`), its `configuration.nix` imported | [kits/vars.nix](modules/kits/vars.nix) |
 
 ## Shared pkgs: one nixpkgs per channel and system
 
@@ -551,9 +551,10 @@ All of them at once, in parallel: `fastest-tests` in the devshell (`nix develop 
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 28 kinds, 196 aspects, 992 routed elements.
+Generated from the fleet's queries: 87 scopes, 29 kinds, 195 aspects, 991 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
+| `assembly` | `kit`, `roles` |  |  | 0 |
 | `backup` |  |  | `nixos` | 3 |
 | `channel` | `darwin`, `home-manager`, `nixpkgs` |  |  | 0 |
 | `cluster` | `environment`, `hosts`, `ingestUrl`, `settings` |  | `age-secrets`, `k8s-manifests` | 1 |
@@ -562,15 +563,15 @@ Generated from the fleet's queries: 87 scopes, 28 kinds, 196 aspects, 992 routed
 | `domain` | `mail`, `under` | `domain` |  | 3 |
 | `environment` | `base`, `delegates`, `dns`, `edge`, `grants`, `monitoring`, `settings`, `unifi` | `cluster`, `host`, `mac`, `phone` | `backends`, `idm-users`, `k3s-nodes`, `mesh-peers`, `port-forwards`, `terraform`, `terranix`, `unifi` | 3 |
 | `export` |  |  | `os` | 1 |
-| `fleet` | `recipients`, `secretStore` | `database`, `domain`, `environment`, `export`, `hive`, `home`, `replica`, `system` | `certificate-domains`, `ci`, `class-members`, `colmena`, `connect-claims`, `db-claims`, `dns-records`, `dns-zones`, `exports`, `flake-file`, `gateway-upstreams`, `generators`, `globals`, `host-addrs`, `inference-clients`, `infra`, `monitoring-ingest`, `nodes`, `out`, `overlays`, `peer-dev`, `public-reads`, `records`, `replicate-home`, `route-claims`, `scrape`, `secret-claims`, `served-domains`, `syncthing-peers`, `templates`, `token-claims`, `unit-checks`, `user-packages`, `vars`, `warnings`, `xmsg-nodes` | 1 |
+| `fleet` | `recipients`, `secretStore` | `database`, `domain`, `environment`, `export`, `hive`, `home`, `replica`, `system` | `certificate-domains`, `ci`, `class-members`, `colmena`, `connect-claims`, `db-claims`, `dns-records`, `dns-zones`, `exports`, `flake-file`, `gateway-upstreams`, `generators`, `globals`, `host-addrs`, `inference-clients`, `infra`, `monitoring-ingest`, `nodes`, `out`, `overlays`, `peer-dev`, `public-reads`, `records`, `replicate-home`, `route-claims`, `scrape`, `secret-claims`, `served-domains`, `syncthing-peers`, `templates`, `token-claims`, `unit-checks`, `user-packages`, `vars`, `xmsg-nodes` | 1 |
 | `group` | `label`, `members` |  |  | 0 |
-| `guest` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `on`, `passthrough`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `user` | `age-secrets`, `nixos`, `os`, `persist`, `unfree` | 1 |
+| `guest` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `on`, `passthrough`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `user` | `age-secrets`, `nixos`, `os`, `persist`, `unfree` | 1 |
 | `hive` | `environment` |  | `meta` | 2 |
 | `home` | `channel`, `on`, `system`, `user` | `user` | `homeManager`, `os` | 2 |
-| `host` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `backup`, `guest`, `home`, `host`, `member`, `pet`, `user`, `variant` | `age-secrets`, `aspect-settings`, `deploy`, `dev`, `fw`, `fw-tcp`, `isNixos`, `monitor`, `nixos`, `os`, `osConfig`, `pairs`, `persist`, `platform`, `service-domains`, `tags`, `tuning`, `unfree` | 9 |
-| `instance` | `module`, `roles` |  |  | 0 |
-| `mac` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `member`, `user` | `darwin`, `os` | 1 |
-| `machine` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `gates`, `grants`, `labels`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` |  |  | 0 |
+| `host` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `backup`, `guest`, `home`, `host`, `member`, `pet`, `user`, `variant` | `age-secrets`, `aspect-settings`, `deploy`, `dev`, `fw`, `fw-tcp`, `isNixos`, `monitor`, `nixos`, `os`, `osConfig`, `pairs`, `persist`, `platform`, `service-domains`, `tags`, `tuning`, `unfree` | 9 |
+| `kit` | `adds`, `constraints`, `exports`, `roles` |  |  | 0 |
+| `mac` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `member`, `user` | `darwin`, `os` | 1 |
+| `machine` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` |  |  | 0 |
 | `member` |  |  |  | 26 |
 | `pet` | `of` | `toy` |  | 2 |
 | `phone` | `channel`, `environment`, `system` | `user` | `droid`, `homeManager` | 1 |
@@ -627,9 +628,9 @@ flowchart LR
   nf9eca2c328{{"backup.client"}}
   ned6752757e{{"sshd.server"}}
   nc0428e065b(("alice"))
+  ncfc94105eb{{"backup-sshd.server"}}
   n0970bac0a6{{"backup.client"}}
   n098e9b5bd6{{"backup.server"}}
-  ne859c3e18b{{"fleet-sshd-for-backup.server"}}
   n0f9a4fe1ad{{"sshd.server"}}
   n72a161654c{{"svc-a.default"}}
   n70b6ad1c8a{{"svc-b.default"}}
@@ -706,9 +707,9 @@ flowchart LR
   n701b3a108b --> nf9eca2c328
   n701b3a108b --> ned6752757e
   n701b3a108b --> nc0428e065b
+  nc1312ce7ae --> ncfc94105eb
   nc1312ce7ae --> n0970bac0a6
   nc1312ce7ae --> n098e9b5bd6
-  nc1312ce7ae --> ne859c3e18b
   nc1312ce7ae --> n0f9a4fe1ad
   nc1312ce7ae --> n72a161654c
   nc1312ce7ae --> n70b6ad1c8a
@@ -760,6 +761,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
+  ne22ac4f8aa["assembly"]
   n7cbc0bc9ca["backup"]
   n827e34afc1["channel"]
   nc92432ddea["cluster"]
@@ -774,7 +776,7 @@ flowchart LR
   nbdd2e394af["hive"]
   nd265c5f895["home"]
   n91a43a88c2["host"]
-  n7db9bbfe88["instance"]
+  n969fdcbc29["kit"]
   n25061baf77["mac"]
   n5e4f590e9f["machine"]
   nf384c24853["member"]
@@ -788,6 +790,7 @@ flowchart LR
   naf777705f2["user"]
   nb5e23250d3["variant"]
   ne5b792c758["vim"]
+  ne22ac4f8aa -.->|"kit"| n969fdcbc29
   nc92432ddea -.->|"environment"| nba34edff52
   n52f2128ad0 --> n6b201efe64
   n52f2128ad0 --> n8c182f1484
@@ -858,7 +861,7 @@ flowchart LR
   nb5e23250d3 -.->|"of"| n91a43a88c2
 ```
 
-<details><summary>Sinks, pools, clan instances, vars, deploy order (diagrams)</summary>
+<details><summary>Sinks, pools, assemblies, vars, deploy order (diagrams)</summary>
 
 **Sink forwarding**: a dashed edge is a sink key that feeds another sink (label: the kind). A solid edge is `out`, labelled with the receivers that build an output.
 
@@ -946,7 +949,6 @@ flowchart LR
   n40ab2ba9bb("user-packages")
   n54328a6510("vars")
   n9d0b46520b("vimrc")
-  nc1ff286d7d("warnings")
   ne2b781d168("xmsg-nodes")
   n4218c12206[("flake outputs")]
   na788f0f454 -.->|"backup"| na788f0f454
@@ -1112,18 +1114,18 @@ sequenceDiagram
   vim->>fleet: out
 ```
 
-**clan instances**: each instance (its service) to the machines of each role.
+**assemblies**: each assembly (its kit) to the machines of each role.
 
 ```mermaid
 flowchart LR
-  n8124926b70{{"backup (borg)"}}
-  n6bc5679698{{"banner (banner)"}}
-  n68ed50a098{{"docs (site)"}}
-  n7c202b078d{{"fleet-sshd-for-backup (sshd)"}}
-  n3f242defca{{"sshd (sshd)"}}
-  n11f8045e3c{{"svc-a (users)"}}
-  n4748d5f1db{{"svc-b (users)"}}
-  n29bce928a3{{"wifi (wifi)"}}
+  nf0331b9733{{"backup (borg)"}}
+  n91dab8a035{{"banner (banner)"}}
+  n978357e468{{"docs (site)"}}
+  nc28872f0f3{{"sshd (sshd)"}}
+  n1e618804c1{{"svc-a (users)"}}
+  nb45a9ed3ff{{"svc-b (users)"}}
+  nf8c77851a0{{"wifi (wifi)"}}
+  nb360d61bee{{"backup-sshd (sshd)"}}
   n6f22ef9133["app-1"]
   n0300c386fd["app-2"]
   n5358012523["app-3"]
@@ -1134,32 +1136,32 @@ flowchart LR
   n83e8ed4efa["web-2"]
   n6d0ac6bdcf["stage"]
   n2ed910d1a2("studio")
-  n8124926b70 -->|"client"| n6f22ef9133
-  n3f242defca -->|"server"| n6f22ef9133
-  n8124926b70 -->|"client"| n0300c386fd
-  n3f242defca -->|"server"| n0300c386fd
-  n8124926b70 -->|"client"| n5358012523
-  n3f242defca -->|"server"| n5358012523
-  n8124926b70 -->|"client"| nb446a1a284
-  n3f242defca -->|"server"| nb446a1a284
-  n8124926b70 -->|"client"| n701b3a108b
-  n3f242defca -->|"server"| n701b3a108b
-  n8124926b70 -->|"client"| nc1312ce7ae
-  n8124926b70 -->|"server"| nc1312ce7ae
-  n7c202b078d -->|"server"| nc1312ce7ae
-  n3f242defca -->|"server"| nc1312ce7ae
-  n11f8045e3c -->|"default"| nc1312ce7ae
-  n4748d5f1db -->|"default"| nc1312ce7ae
-  n8124926b70 -->|"client"| n348d430633
-  n68ed50a098 -->|"default"| n348d430633
-  n3f242defca -->|"server"| n348d430633
-  n8124926b70 -->|"client"| n83e8ed4efa
-  n3f242defca -->|"server"| n83e8ed4efa
-  n8124926b70 -->|"client"| n6d0ac6bdcf
-  n3f242defca -->|"server"| n6d0ac6bdcf
-  n29bce928a3 -->|"default"| n6d0ac6bdcf
-  n6bc5679698 -->|"default"| n2ed910d1a2
-  n3f242defca -->|"server"| n2ed910d1a2
+  nf0331b9733 -->|"client"| n6f22ef9133
+  nf0331b9733 -->|"client"| n0300c386fd
+  nf0331b9733 -->|"client"| n5358012523
+  nf0331b9733 -->|"client"| nb446a1a284
+  nf0331b9733 -->|"client"| n701b3a108b
+  nf0331b9733 -->|"client"| nc1312ce7ae
+  nf0331b9733 -->|"client"| n348d430633
+  nf0331b9733 -->|"client"| n83e8ed4efa
+  nf0331b9733 -->|"client"| n6d0ac6bdcf
+  nf0331b9733 -->|"server"| nc1312ce7ae
+  n91dab8a035 -->|"default"| n2ed910d1a2
+  n978357e468 -->|"default"| n348d430633
+  nc28872f0f3 -->|"server"| n6f22ef9133
+  nc28872f0f3 -->|"server"| n0300c386fd
+  nc28872f0f3 -->|"server"| n5358012523
+  nc28872f0f3 -->|"server"| nb446a1a284
+  nc28872f0f3 -->|"server"| n701b3a108b
+  nc28872f0f3 -->|"server"| nc1312ce7ae
+  nc28872f0f3 -->|"server"| n348d430633
+  nc28872f0f3 -->|"server"| n83e8ed4efa
+  nc28872f0f3 -->|"server"| n6d0ac6bdcf
+  nc28872f0f3 -->|"server"| n2ed910d1a2
+  n1e618804c1 -->|"default"| nc1312ce7ae
+  nb45a9ed3ff -->|"default"| nc1312ce7ae
+  nf8c77851a0 -->|"default"| n6d0ac6bdcf
+  nb360d61bee -->|"server"| nc1312ce7ae
 ```
 
 **vars generators**: an edge is a dependency. A hexagon is shared by every machine that uses it.
@@ -1222,17 +1224,17 @@ flowchart LR
 
 | Machine | Kind | Aspects giving elements | Some aspects |
 |---|---|---|---|
-| `app-1` | host | 32 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +26 |
-| `app-2` | host | 32 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +26 |
-| `app-3` | host | 32 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +26 |
-| `app-4` | host | 31 | alloy, base, ci-host, clan-sshd, db-lockdown, db-provide, +25 |
-| `lb` | host | 50 | alloy, attic, base, caddy, ci-host, clan-sshd, +44 |
-| `lb-minimal` | host | 31 | alloy, base, clan-sshd, deploy-record, dev, env-tuning, +25 |
-| `web-1` | host | 48 | alloy, api-route, base, ci-host, clan-sshd, db-claim, +42 |
-| `web-2` | host | 46 | alloy, autoinclude, base, ci-host, clan-sshd, db-claim, +40 |
-| `stage` | host | 53 | alloy, base, ci-host, clan-sshd, db-claim, db-client, +47 |
+| `app-1` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
+| `app-2` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
+| `app-3` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
+| `app-4` | host | 31 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +25 |
+| `lb` | host | 50 | alloy, attic, base, caddy, ci-host, db-lockdown, +44 |
+| `lb-minimal` | host | 31 | alloy, base, deploy-record, dev, env-tuning, facter, +25 |
+| `web-1` | host | 48 | alloy, api-route, base, ci-host, db-claim, db-client, +42 |
+| `web-2` | host | 46 | alloy, autoinclude, base, ci-host, db-claim, db-client, +40 |
+| `stage` | host | 53 | alloy, base, ci-host, db-claim, db-client, db-lockdown, +47 |
 | `ci` | guest | 12 | alloy, base, dev, docker, global-pkgs, globals-addr, +6 |
-| `studio` | mac | 13 | base, ci-mac, clan-sshd, darwin-base, darwin-primary-user, dev, +7 |
+| `studio` | mac | 13 | base, ci-mac, darwin-base, darwin-primary-user, dev, dock, +7 |
 
 | Sink | Given at | Received at | Elements |
 |---|---|---|---|
@@ -1318,7 +1320,6 @@ flowchart LR
 | `user-packages` | user | fleet | 9 |
 | `vars` | fleet, host | fleet | 10 |
 | `vimrc` | vim | vim | 5 |
-| `warnings` | fleet | fleet | 1 |
 | `xmsg-nodes` | user | fleet | 13 |
 
 ## Capability index (generated)
@@ -1345,7 +1346,7 @@ Reduce strategies: `entries`, `list`, `merge`, `one`, `set`. Change programs (`y
 | `errorsBy` |  | `code` | queries.nix |
 | `freePort` | `host` |  | synthesis.nix |
 | `hostsIn` | `env` |  | queries.nix |
-| `installOrder` | `instance` |  | queries.nix |
+| `installOrder` | `assembly` |  | queries.nix |
 | `placeDb` | `host` |  | synthesis.nix |
 | `safeHostsFor` | `aspect`, `env` |  | synthesis.nix |
 

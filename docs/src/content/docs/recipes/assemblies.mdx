@@ -1,11 +1,10 @@
 ---
-{"description":"Service instances as data: each machine gets one member scope per role, and members exchange data.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/services/page.nix","title":"Services and roles"}
+{"description":"Assemblies as data: each machine gets one member scope per role, and members exchange data.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/assemblies/page.nix","title":"Assemblies and roles"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-A service such as backup has roles: one server, many clients. The instance says which machine takes which role.
-This is [clan](https://clan.lol)'s inventory model, in plain yen.
+A backup has roles: one server, many clients. An assembly says which machine takes which role, with refs.
 
 
 ```nix title="modules/inventory.nix"
@@ -14,7 +13,7 @@ This is [clan](https://clan.lol)'s inventory model, in plain yen.
   yen.host.nas.addr = "10.0.0.10";
   yen.host.web.addr = "10.0.0.1";
   yen.host.db.addr = "10.0.0.2";
-  yen.instance.backup.roles = {
+  yen.assembly.backup.roles = {
     server = [ yen.host.nas ];
     client = [
       yen.host.web
@@ -24,32 +23,31 @@ This is [clan](https://clan.lol)'s inventory model, in plain yen.
 }
 ```
 
-Each machine spawns one `member` scope per (instance, role) it takes part in. An aspect at a member scope runs once
-per instance (clan's `perInstance`). An aspect at a machine that `has` a member runs once per machine (`perMachine`).
+Each machine spawns one `member` scope per (assembly, role) it takes part in. The member holds a ref to its
+assembly. An aspect at a member scope runs once per assembly and role. An aspect at a machine that `has` a
+member runs once per machine.
 
 
-```nix title="modules/kinds.nix" {5-7,35}
-# A service instance is data: which machines take which role. Each machine spawns one `member` scope per role it has.
+```nix title="modules/kinds.nix" {12-15,33}
+# An assembly is data: which machines take which role. Each machine spawns one `member` scope per role it has.
 { yen, lib, ... }:
 let
   inherit (yen.lib) same is;
   membersOf =
     m:
     lib.listToAttrs (
-      lib.concatLists (
-        lib.mapAttrsToList (
-          n: i:
-          lib.concatMap (
-            role:
-            lib.optional (lib.any (same m) i.roles.${role}) (
-              lib.nameValuePair "${n}.${role}" {
-                instance = n;
-                inherit role;
-              }
-            )
-          ) (lib.attrNames i.roles)
-        ) yen.instance
-      )
+      lib.concatMap (
+        a:
+        lib.concatMap (
+          role:
+          lib.optional (lib.any (same m) a.roles.${role}) (
+            lib.nameValuePair "${a.name}.${role}" {
+              assembly = a;
+              inherit role;
+            }
+          )
+        ) (lib.attrNames a.roles)
+      ) (lib.attrValues yen.assembly)
     );
 in
 {
@@ -60,7 +58,7 @@ in
       exports.reduce = yen.lib.reduce.entries; # what members publish, with the scope that published it
     };
   };
-  yen.kinds.instance.fields.roles = is lib.isAttrs; # role name -> host refs
+  yen.kinds.assembly.fields.roles = is lib.isAttrs; # role name -> host refs
   yen.kinds.host = {
     fields.addr = lib.types.str;
     spawns.member = membersOf;
@@ -103,15 +101,16 @@ Clients publish their address to a fleet sink with `entries`. The engine sets `f
 as itself. The server reads the entries and builds its allow list:
 
 
-```nix title="modules/backup.nix" {8,14}
-# The service: an aspect per role, at member scopes. Clients export their address; the server reads them.
+```nix title="modules/backup.nix" {9,15}
+# The backup: an aspect per role, at member scopes. Clients export their address; the server reads them.
 { yen, lib, ... }:
 let
+  inherit (yen.lib) same;
   role =
     r:
     yen.lib.all [
       yen.kinds.member
-      (s: s.instance == "backup" && s.role == r)
+      (s: same s.assembly yen.assembly.backup && s.role == r)
     ];
 in
 {
@@ -135,9 +134,9 @@ in
         );
       };
   };
-  # once per machine that takes part in any role of the service
+  # once per machine that takes part in any role of the assembly
   yen.aspects.backup-tools = {
-    at = yen.lib.has (s: yen.lib.holds yen.kinds.member s && s.instance == "backup");
+    at = yen.lib.has (s: yen.lib.holds yen.kinds.member s && same s.assembly yen.assembly.backup);
     config.packages = [ "borgbackup" ];
   };
 }
@@ -178,15 +177,16 @@ in
 ```
 
 :::tip[The full model]
-The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) adds tags as role members,
-typed role settings with errors, exports per service with owner overrides, install order, and vars generators.
+[Kits batteries](/batteries/kits/) add kits as data with typed role settings and errors, `at` predicates as
+role members, exports with owner overrides, and vars generators. The
+[reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/assemblies.nix) uses them.
 :::
 
 :::tip[Run this example]
-Every block on this page is a file of the template `services`. Copy it and run it:
+Every block on this page is a file of the template `assemblies`. Copy it and run it:
 
 ```sh frame="terminal"
-nix flake init -t github:vic/yen#services
+nix flake init -t github:vic/yen#assemblies
 ```
 
 <FileTree>

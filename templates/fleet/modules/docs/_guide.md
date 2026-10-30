@@ -119,7 +119,7 @@ An aspect is active only at the scope where `at` holds. It never flows down to c
 
 Static content counts once per receiver. An aspect active at a host and at its users, with the same static `nixos` value, lands once on the host. Content that names the scope (`{ user, ... }:`) lands once per scope.
 
-This rule decides how you write a value for a fleet-wide sink. A static value from many machines arrives once: use it for data that all machines share (a shared vars generator). A function value arrives once per machine: use it for data that each machine owns (a per-machine generator, `{ scope, ... }: …`). See [clan/vars.nix](modules/clan/vars.nix).
+This rule decides how you write a value for a fleet-wide sink. A static value from many machines arrives once: use it for data that all machines share (a shared vars generator). A function value arrives once per machine: use it for data that each machine owns (a per-machine generator, `{ scope, ... }: …`). See [kits/vars.nix](modules/kits/vars.nix).
 
 Structure can depend on presence: a `spawns` function can ask `yen.lib.holds yen.aspects.role-server s` at the parent ([den/presence-structure.nix](modules/den/presence-structure.nix)).
 
@@ -154,9 +154,9 @@ yen.kinds.guest.sinks.nixos.nixos = { guest, nixos, ... }: {           # its own
 
 A sink that nobody reads is not an error. Nothing happens. A sink with no keys is a wall: `yen.kinds.home.sinks.os = { }` keeps a home's elements away from the host above it.
 
-A sink's `reduce` can be any function `[ { from; value; } ] -> { value; errors; }`. Write your own when the merge order is the point: per-key strategies with provenance ([hoag/ci.nix](modules/hoag/ci.nix)), ranked layers ([hoag/settings.nix](modules/hoag/settings.nix)), dedup of claims, an export store where a member can only write its own scope ([clan/inventory.nix](modules/clan/inventory.nix)). The engine sets `from`. An element cannot say where it comes from, so a scope cannot write for another.
+A sink's `reduce` can be any function `[ { from; value; } ] -> { value; errors; }`. Write your own when the merge order is the point: per-key strategies with provenance ([hoag/ci.nix](modules/hoag/ci.nix)), ranked layers ([hoag/settings.nix](modules/hoag/settings.nix)), dedup of claims, an export store where a member can only write its own scope ([kits/assemblies.nix](modules/kits/assemblies.nix)). The engine sets `from`. An element cannot say where it comes from, so a scope cannot write for another.
 
-Give errors and warnings as data. An aspect key `errors` adds records to the `errors` query. A sink such as `warnings` (with `reduce.list`) holds messages that do not fail the fleet ([clan/inventory.nix](modules/clan/inventory.nix): a tag that matches no machine).
+Give errors and warnings as data. An aspect key `errors` adds records to the `errors` query. A sink such as `warnings` (with `reduce.list`) holds messages that do not fail the fleet.
 
 Do not give a sink the name of a field or an arg. A sink `tags` and a field `tags` read as one arg. In this fleet, clan tags are the field `labels` for that reason.
 
@@ -318,7 +318,7 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Change programs.** `yen.lib.program` writes a change as data ops: `set`, `ref`, `place` and `new`. `validate result prog` checks it against the schema (with `near`), `toModule` makes the module, `dryRun { base; prog; }` validates and stages it, and `render` gives JSON. An agent writes a program, not Nix code.
 
-**Install order.** The stored query `installOrder { instance }` gives the waves of a clan service instance: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
+**Install order.** The stored query `installOrder { assembly }` gives the waves of an assembly: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
 
 **Synthesis, checked.** Stored queries in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
 
@@ -366,10 +366,10 @@ result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 | two pools joined by host, in the cluster's environment; a guest's intent read by its parent | sini | [sini/joins.nix](modules/sini/joins.nix) |
 | aspect factories; an aspect checked alone with stand-in args; one DNS edge at most | sini | [sini/joins.nix](modules/sini/joins.nix) |
 | merge strategy per key with provenance and refs; claim dedup; negation; demand cascade; shadowing query; suppression chain | den-hoag CI | [hoag/ci.nix](modules/hoag/ci.nix) |
-| service instances × roles, perInstance and perMachine, layered typed settings, contract errors | clan | [clan/inventory.nix](modules/clan/inventory.nix), [clan/services.nix](modules/clan/services.nix) |
-| exports: scoped by the engine, allow-listed per service, read across services, overridden by the owner | clan | [clan/inventory.nix](modules/clan/inventory.nix), [services/borg.nix](services/borg.nix) |
-| vars: generator graph, shared or per machine, a deploy plan as data, secret-read guard | clan | [clan/vars.nix](modules/clan/vars.nix) |
-| machines from directories, a service from outside `modules/` | clan | [clan/vars.nix](modules/clan/vars.nix), [services/borg.nix](services/borg.nix) |
+| assemblies of kits × roles, once per assembly and once per machine, layered typed settings, contract errors | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [kits/kits.nix](modules/kits/kits.nix) |
+| exports: scoped by the engine, allow-listed per kit, read across kits, overridden by the owner | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [services/borg.nix](services/borg.nix) |
+| vars: generator graph, shared or per machine, a deploy plan as data, secret-read guard | clan | [kits/vars.nix](modules/kits/vars.nix) |
+| machines from directories, a kit from outside `modules/` | clan | [kits/vars.nix](modules/kits/vars.nix), [services/borg.nix](services/borg.nix) |
 | deploy waves, impact of losing a host, a dependency cycle as an error (`yen.lib.graphs`) | den-hoag | [hoag/relations.nix](modules/hoag/relations.nix) |
 | a serving policy with maintenance, drain by dependency, a primary chosen by stable models (`yen.lib.datalog`) | Gen | [query/datalog.nix](modules/query/datalog.nix) |
 | port allocation, guest memory, database placement, a query run backward (`yen.lib.krn` with finite domains) | µKanren, CLP(FD) | [query/krn.nix](modules/query/krn.nix) |
@@ -449,20 +449,20 @@ Three families of Den bugs cannot happen in yen:
 
 ## yen and clan
 
-[clan](https://clan.lol) adds service instances, roles, exports and vars on top of NixOS. All its docs, its 31 services and its library give 79 capabilities ([vic/clan-patterns.txt](https://github.com/vic/yen/blob/main/vic/clan-patterns.txt)): 64 have a check here, 6 are clan internals, and 9 are tools (CLI, installers, secret generation). yen covers the configuration, not the tools.
+[clan](https://clan.lol) adds service instances, roles, exports and vars on top of NixOS. yen models them with its own words: a kit is data, an assembly is one use of a kit, and every selection is a ref or a predicate, never a name or a tag. All its docs, its 31 services and its library give 79 capabilities ([vic/clan-patterns.txt](https://github.com/vic/yen/blob/main/vic/clan-patterns.txt)): 64 have a check here, 6 are clan internals, and 9 are tools (CLI, installers, secret generation). yen covers the configuration, not the tools.
 
 | clan | yen | File |
 |---|---|---|
-| machines with tags (`all`, `nixos`, `darwin` are automatic) | host and mac instances with the field `labels` | [clan/inventory.nix](modules/clan/inventory.nix) |
-| `inventory.instances.<i>`, `module.name` | the data kind `instance`; `module` defaults to the instance name | [clan/inventory.nix](modules/clan/inventory.nix) |
-| role members: named machines and tagged machines | each machine spawns one `member` scope per (instance, role) | [clan/inventory.nix](modules/clan/inventory.nix) |
-| `perInstance` | an aspect at a member scope | [clan/services.nix](modules/clan/services.nix) |
-| `perMachine` | an aspect at a machine that `has` a member | [clan/services.nix](modules/clan/services.nix) |
-| role settings, then machine settings, typed by the role interface | interface defaults, role, machine; a wrong type is an error record | [clan/inventory.nix](modules/clan/inventory.nix) |
-| exports, `selectExports`, scope rules | a fleet sink; the engine sets the writer; a service lists its keys; the owner overrides from the fleet scope | [clan/inventory.nix](modules/clan/inventory.nix) |
-| a service from another flake (`module.input`) | a module file imported as a function with args | [services/borg.nix](services/borg.nix) |
-| vars generators, `share`, dependencies, `neededFor`, `deploy = false`, recipients | the `generators` sink and `out.varsPlan` | [clan/vars.nix](modules/clan/vars.nix) |
-| autoincludes from `machines/<name>/` | a host per directory, its `configuration.nix` imported | [clan/vars.nix](modules/clan/vars.nix) |
+| machines with tags (`all`, `nixos`, `darwin` are automatic) | predicates: a kind (`yen.kinds.host`), a ref (`yen.host.lb`), an aspect, a function of the machine | [kits/kits.nix](modules/kits/kits.nix) |
+| `inventory.instances.<i>`, `module.name` | the data kind `assembly`; its field `kit` is a ref to a `kit` | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| role members: named machines and tagged machines | `roles.<r>.at`, a predicate; each machine spawns one `member` scope per (assembly, role) | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| `perInstance` | an aspect at a member scope | [kits/kits.nix](modules/kits/kits.nix) |
+| `perMachine` | an aspect at a machine that `has` a member | [kits/kits.nix](modules/kits/kits.nix) |
+| role settings, then machine settings, typed by the role interface | interface defaults, then the role's settings (attrs, or a function of the machine); a wrong type is an error record | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| exports, `selectExports`, scope rules | a fleet sink; the engine sets the writer; a kit lists its keys; a reader filters by refs (`yen.lib.same`); the owner overrides from the fleet scope | [kits/assemblies.nix](modules/kits/assemblies.nix) |
+| a service from another flake (`module.input`) | a module file that declares a kit, imported | [services/borg.nix](services/borg.nix) |
+| vars generators, `share`, dependencies, `neededFor`, `deploy = false`, recipients | the `generators` sink and `out.varsPlan` | [kits/vars.nix](modules/kits/vars.nix) |
+| autoincludes from `machines/<name>/` | a host per directory (field `fromDir`), its `configuration.nix` imported | [kits/vars.nix](modules/kits/vars.nix) |
 
 ## Shared pkgs: one nixpkgs per channel and system
 

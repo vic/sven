@@ -15,7 +15,8 @@
   docs = import ./docs;
   devshell = import ./devshell;
   flake-file = import ./flake-file;
-  clan = import ./clan;
+  kits = import ./kits;
+  vars = import ./vars;
   cachix = import ./cachix;
   secretspec = import ./secretspec;
   exports = import ./exports;

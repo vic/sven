@@ -1,24 +1,22 @@
-# A service instance is data: which machines take which role. Each machine spawns one `member` scope per role it has.
+# An assembly is data: which machines take which role. Each machine spawns one `member` scope per role it has.
 { yen, lib, ... }:
 let
   inherit (yen.lib) same is;
   membersOf =
     m:
     lib.listToAttrs (
-      lib.concatLists (
-        lib.mapAttrsToList (
-          n: i:
-          lib.concatMap (
-            role:
-            lib.optional (lib.any (same m) i.roles.${role}) (
-              lib.nameValuePair "${n}.${role}" {
-                instance = n;
-                inherit role;
-              }
-            )
-          ) (lib.attrNames i.roles)
-        ) yen.instance
-      )
+      lib.concatMap (
+        a:
+        lib.concatMap (
+          role:
+          lib.optional (lib.any (same m) a.roles.${role}) (
+            lib.nameValuePair "${a.name}.${role}" {
+              assembly = a;
+              inherit role;
+            }
+          )
+        ) (lib.attrNames a.roles)
+      ) (lib.attrValues yen.assembly)
     );
 in
 {
@@ -29,7 +27,7 @@ in
       exports.reduce = yen.lib.reduce.entries; # what members publish, with the scope that published it
     };
   };
-  yen.kinds.instance.fields.roles = is lib.isAttrs; # role name -> host refs
+  yen.kinds.assembly.fields.roles = is lib.isAttrs; # role name -> host refs
   yen.kinds.host = {
     fields.addr = lib.types.str;
     spawns.member = membersOf;

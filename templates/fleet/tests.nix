@@ -1202,16 +1202,16 @@ let
       t1 = yes (out.classShare ? nixos);
       t2 = no ((out.classShare ? homeManager));
     };
-    clan-members = {
+    kits-members = {
       t1 =
         eq
           (lib.sort (a: b: a < b) (
             map (s: s.name) (lib.filter (s: s.kind == "member" && s.parent.id == lb) r.scopes)
           ))
           ([
+            "backup-sshd.server"
             "backup.client"
             "backup.server"
-            "fleet-sshd-for-backup.server"
             "sshd.server"
             "svc-a.default"
             "svc-b.default"
@@ -1226,7 +1226,7 @@ let
             "sshd.server"
           ]);
     };
-    clan-settings-layers = {
+    kits-settings-layers = {
       t1 = eq (nixosAt stage [
         "environment"
         "etc"
@@ -1241,13 +1241,13 @@ let
         "startAt"
       ]) ([ "02:00" ]);
     };
-    clan-interface-default = eq (osAt studio [
+    kits-interface-default = eq (osAt studio [
       "environment"
       "etc"
       "banner"
       "text"
     ]) ([ "managed by yen" ]);
-    clan-multi-instance =
+    kits-multi-assembly =
       eq
         (lib.sort (a: b: a < b) (
           lib.concatMap lib.attrNames (
@@ -1261,7 +1261,7 @@ let
           "svc-a"
           "svc-b"
         ]);
-    clan-per-machine = {
+    kits-per-machine = {
       t1 = eq (lib.length (
         osAt lb [
           "services"
@@ -1272,16 +1272,16 @@ let
       t2 = yes (
         (
           let
-            es = lib.filter (e: e.origin == "aspect clan-sshd") r.graph.edges;
+            es = lib.filter (e: e.origin == "aspect kit-sshd") r.graph.edges;
           in
           es != [ ] && lib.all (e: e.from == e.to) es
         )
       );
       t3 = eq (lib.length (
-        lib.filter (s: s.kind == "member" && s.parent.id == lb && s.service == "sshd") r.scopes
+        lib.filter (s: s.kind == "member" && s.parent.id == lb && s.kit.name == "sshd") r.scopes
       )) (2);
     };
-    clan-exports = {
+    kits-exports = {
       t1 = eq (nixosAt web1 [
         "services"
         "borgbackup"
@@ -1290,14 +1290,17 @@ let
         "repo"
       ]) ([ "borg@10.0.1.1:/srv/web-1" ]);
       t2 =
-        eq (map (e: "${e.service}:${e.instance}:${e.role}:${e.machine}") (red "exports" "fleet:main"))
+        eq
+          (map (e: "${e.kit.name}:${e.assembly.name}:${e.role}:${e.machine.name}") (
+            red "exports" "fleet:main"
+          ))
           ([
             "borg:backup:server:lb"
             "site:docs:default:web-1"
           ]);
     };
-    clan-exports-owned = {
-      t1 = eq (map (e: e.service) (red "exports" "fleet:main" ++ [ ])) ([
+    kits-exports-owned = {
+      t1 = eq (map (e: e.kit.name) (red "exports" "fleet:main" ++ [ ])) ([
         "borg"
         "site"
       ]); # a forged export is an error, and an erroring fleet gives no reduced values (D13)
@@ -1310,29 +1313,29 @@ let
                 yen.aspects.forge = {
                   at = yen.lib.all [
                     yen.kinds.member
-                    (s: s.service == "sshd")
+                    (s: yen.lib.same s.kit yen.kit.sshd)
                   ];
                   exports = {
-                    service = "borg";
+                    kit = yen.kit.borg;
                   };
                 };
               }
             );
           in
-          hasMsg f ".*service sshd does not export service" && f.reduced == null
+          hasMsg f ".*kit sshd does not export kit" && f.reduced == null
         )
       );
     };
-    clan-exports-per-instance =
+    kits-exports-per-assembly =
       let
         x = with' (
-          { ... }:
+          { yen, ... }:
           {
-            yen.instance.offsite = {
-              module = "borg";
+            yen.assembly.offsite = {
+              kit = yen.kit.borg;
               roles = {
-                client.machines.web-1 = { };
-                server.machines.web-2 = { };
+                client.at = yen.host.web-1;
+                server.at = yen.host.web-2;
               };
             };
           }
@@ -1344,37 +1347,37 @@ let
         t1 = yes (lib.elem "borg@10.0.1.11:/srv/web-1" (job "offsite"));
         t2 = yes (lib.elem "borg@10.0.1.1:/srv/web-1" (job "backup"));
       };
-    clan-role-union =
+    kits-role-union =
       let
         x = with' (
-          { ... }:
+          { yen, ... }:
           {
-            yen.instance.mix = {
-              module = "banner";
-              roles.default = {
-                tags = [ "darwin" ];
-                machines.web-1 = { };
-              };
+            yen.assembly.mix = {
+              kit = yen.kit.banner;
+              roles.default.at = [
+                yen.kinds.mac
+                yen.host.web-1
+              ];
             };
           }
         );
       in
       eq
         (lib.sort (a: b: a < b) (
-          map (s: s.parent.name) (lib.filter (s: s.kind == "member" && s.instance or null == "mix") x.scopes)
+          map (s: s.parent.name) (lib.filter (s: s.kind == "member" && s.assembly.name == "mix") x.scopes)
         ))
         ([
           "studio"
           "web-1"
         ]);
-    clan-export-allowlist = yes (
+    kits-export-allowlist = yes (
       hasMsg (with' (
         { yen, ... }:
         {
           yen.aspects.leak = {
             at = yen.lib.all [
               yen.kinds.member
-              (s: s.service == "borg" && s.role == "server")
+              (s: yen.lib.same s.kit yen.kit.borg && s.role == "server")
             ];
             exports =
               { scope, ... }:
@@ -1383,9 +1386,9 @@ let
               };
           };
         }
-      )) ".*borg:backup:server:lb: service borg does not export token.*"
+      )) ".*backup.server@lb: kit borg does not export token.*"
     );
-    clan-export-override =
+    kits-export-override =
       let
         x = with' (
           { yen, ... }:
@@ -1393,10 +1396,9 @@ let
             yen.aspects.owner-pin = {
               at = yen.kinds.fleet;
               exports = {
-                service = "borg";
-                instance = "backup";
+                assembly = yen.assembly.backup;
                 role = "server";
-                machine = "lb";
+                machine = yen.host.lb;
                 value.repo = "borg@vault";
               };
             };
@@ -1408,7 +1410,7 @@ let
           map (v: v.services.borgbackup.jobs.backup.repo or null) (list (x.reduced.nixos.${web1} or null))
         )
       );
-    clan-vars-plan =
+    vars-plan =
       let
         p = out.varsPlan.web-1;
       in
@@ -1435,13 +1437,13 @@ let
         t4 = yes (lib.any (f: f.generator == "wifi.home") out.varsPlan.stage.files);
         t5 = no ((lib.any (f: f.generator == "wifi.home") out.varsPlan.lb.files));
       };
-    clan-export-generators = {
+    vars-export-generators = {
       t1 = eq ((red "generators" "fleet:main")."from-exports@web-1".files) ({
         "borg.known_hosts".secret = false;
       });
       t2 = no (((red "generators" "fleet:main") ? "from-exports@web-2"));
     };
-    clan-secret-read = yes (
+    vars-secret-read = yes (
       hasMsg (with' (
         { yen, ... }:
         {
@@ -1456,7 +1458,7 @@ let
         }
       )) ".*web-1 reads openssh/ssh.id_ed25519, a secret file.*"
     );
-    clan-store-consistency = yes (
+    vars-store-consistency = yes (
       hasMsg (with' (
         { ... }:
         {
@@ -1464,56 +1466,35 @@ let
         }
       )) ".*web-2 uses secret store age, the fleet uses sops.*"
     );
-    clan-darwin-restart = yes (
+    vars-darwin-restart = yes (
       hasMsg (with' (
-        { ... }:
+        { yen, ... }:
         {
-          yen.instance.backup-mac = {
-            module = "borg";
+          yen.assembly.backup-mac = {
+            kit = yen.kit.borg;
             roles = {
-              client.machines.studio = { };
-              server.machines.lb = { };
+              client.at = yen.mac.studio;
+              server.at = yen.host.lb;
             };
           };
         }
       )) ".*borg-backup-mac: restartUnits is NixOS only.*"
     );
-    clan-dir-hosts = {
-      t1 = yes (lib.elem "from-dir" (scope web2).labels);
+    vars-dir-hosts = {
+      t1 = yes ((scope web2).fromDir);
       t2 = no ((lib.any (s: s.name == "notes.txt") r.scopes));
     };
-    clan-unknown-tag-warns = {
-      t1 = eq (lib.flatten (red "warnings" "fleet:main")) ([ ]);
-      t2 = yes (
-        (
-          let
-            x = with' (
-              { ... }:
-              {
-                yen.instance.ghost = {
-                  module = "site"; # no instance limit: the fleet stays clean, so its reduced warnings are readable
-                  roles.default.tags = [ "nobody" ];
-                };
-              }
-            );
-          in
-          lib.flatten (x.reduced.warnings."fleet:main")
-          == [ "clan: instance ghost role default: tag nobody matches no machine" ]
-          && !lib.any (e: lib.hasInfix "nobody" e.error) x.errors
-        )
-      );
-    };
-    clan-cross-service-exports = eq (out.cnames) ([
+    kits-cross-kit-exports = eq (out.cnames) ([
       {
         name = "docs.example.org";
         target = "web-1";
       }
     ]);
-    clan-vars-deploy-false = {
+    vars-deploy-false = {
       t1 = no (lib.any (f: f.file == "ca-key") out.varsPlan.stage.files);
       t2 = yes (lib.any (f: f.file == "password") out.varsPlan.stage.files);
     };
-    clan-recipients = {
+    vars-recipients = {
       t1 = eq (out.varsPlan.lb.recipients) ([
         "age1lb"
         "age1admin"
@@ -1774,7 +1755,7 @@ let
       t1 = eq (r.schema.kinds.host.sinks.deploy.reduce) ("one");
       t2 = eq (r.schema.kinds.environment.sinks.k3s-nodes.reduce) ("entries");
       t3 = eq (b.elem "sshd" (lib.attrNames r.schema.aspects)) (false);
-      t4 = yes (r.schema.aspects.clan-sshd.activeAt > 0);
+      t4 = yes (r.schema.aspects.kit-sshd.activeAt > 0);
       t5 = eq (b.fromJSON (b.toJSON r.agent)) (r.agent);
     };
     agent-whynot =
@@ -2041,9 +2022,9 @@ let
             ]
           ];
         });
-    clan-install-order =
+    kits-install-order =
       let
-        w = r.ask "installOrder" { instance = "backup"; };
+        w = r.ask "installOrder" { assembly = "backup"; };
       in
       {
         t1 = eq (lib.head w) ([ "lb" ]);
@@ -2051,41 +2032,51 @@ let
         t3 = yes (lib.elem "web-1" (lib.elemAt w 1));
         t4 = no ((lib.elem "lb" (lib.elemAt w 1)));
       };
-    clan-extra-modules = yes (
-      lib.elem { imports = [ { environment.etc."extra".text = "svc-a"; } ]; } (list (red "os" lb))
-    );
-    clan-contract =
+    kits-one-assembly-more = eq (osAt lb [
+      "environment"
+      "etc"
+      "extra"
+      "text"
+    ]) ([ "svc-a" ]);
+    kits-contract =
       let
         e = with' (
           { yen, ... }:
           {
-            yen.instance = {
-              bad-role.roles.nope.machines.lb = { };
+            yen.assembly = {
+              bad-role = {
+                kit = yen.kit.sshd;
+                roles.nope.at = yen.host.lb;
+              };
               empty = {
-                module = "sshd";
+                kit = yen.kit.sshd;
                 roles = { };
               };
               backup2 = {
-                module = "borg";
-                roles.server.machines = {
-                  lb = { };
-                  web-1 = { };
-                };
+                kit = yen.kit.borg;
+                roles.server.at = [
+                  yen.host.lb
+                  yen.host.web-1
+                ];
               };
               banner2 = {
-                module = "banner";
-                roles.default.machines.lb = { };
+                kit = yen.kit.banner;
+                roles.default.at = yen.host.lb;
               };
               nouser = {
-                module = "users";
-                roles.default.machines.web-1 = { };
+                kit = yen.kit.users;
+                roles.default.at = yen.host.web-1;
               };
               badtype = {
-                module = "users";
+                kit = yen.kit.users;
                 roles.default = {
-                  machines.web-1 = { };
+                  at = yen.host.web-1;
                   settings.user = 42;
                 };
+              };
+              by-name = {
+                kit = yen.kit.sshd;
+                roles.server.at = "lb";
               };
             };
           }
@@ -2093,14 +2084,16 @@ let
       in
       yes (
         lib.all (hasMsg e) [
-          ".*instance bad-role uses unknown service bad-role.*"
-          ".*instance empty has no roles.*"
+          ".*assembly bad-role: kit sshd has no role nope.*"
+          ".*assembly empty has no roles.*"
           ".*backup2 role server: 2 machines, at most 1.*"
+          ".*kit banner allows 1 assemblies.*"
+          ".*by-name role server: `at` is a string, not a predicate.*"
           ".*nouser.default: setting user is not a string.*"
           ".*badtype.default: setting user is not a string.*"
         ]
       );
-    clan-vars = {
+    vars-generators = {
       t1 = eq (noApps (lib.sort (a: b: a < b) (lib.attrNames (red "generators" "fleet:main")))) ([
         "borg-backup@lb"
         "borg-backup@lb-minimal"
@@ -2133,7 +2126,7 @@ let
         )) ".*x@web-1 depends on missing, which web-1 has not.*"
       );
     };
-    clan-public-value = {
+    vars-public-value = {
       t1 = eq (osAt lb [
         "environment"
         "etc"
@@ -2147,7 +2140,7 @@ let
         "text"
       ]) ([ "absent" ]);
     };
-    clan-autoinclude = {
+    vars-autoinclude = {
       t1 = yes (
         lib.any (m: lib.isAttrs m && lib.elem ./machines/web-2/configuration.nix (m.imports or [ ])) (
           list (red "nixos" web2)
@@ -2308,7 +2301,7 @@ let
           no-app-4 = no (out.sharedPkgs ? app-4);
           no-stage = no (out.sharedPkgs ? stage);
         };
-      clan-built = {
+      kits-built = {
         t1 = eq (lbCfg.services.borgbackup.jobs.backup.repo) ("borg@10.0.1.1:/srv/lb");
         t2 = yes (lbCfg.users.users ? svc-a);
         t3 = yes (lbCfg.users.users ? svc-b);

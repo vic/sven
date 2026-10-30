@@ -25,14 +25,12 @@
         result,
       }:
       lib.filter (e: code == null || e.code == code) result.errors;
-    # clan install order: in a service instance, each client machine waits for the servers (yen.lib.graphs.layers)
+    # install order: in an assembly, each client machine waits for the servers (yen.lib.graphs.layers)
     installOrder =
-      { instance, result }:
+      { assembly, result }:
       let
-        ms = lib.filter (
-          s: yen.lib.holds yen.kinds.member s && lib.hasPrefix "${instance}." s.name
-        ) result.scopes;
-        role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: lib.hasSuffix ".${rl}" s.name) ms));
+        ms = lib.filter (s: yen.lib.holds yen.kinds.member s && s.assembly.name == assembly) result.scopes;
+        role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: s.role == rl) ms));
         servers = role "server";
       in
       yen.lib.graphs.layers (

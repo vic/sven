@@ -32,14 +32,6 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 | [`agent/rdf.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/rdf.nix) | The fleet as a knowledge pack: sorted N-Triples and their sha256 (yen.lib.rdf). The same fleet gives the same hash |
 | [`agent/synthesis.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/synthesis.nix) | Synthesis an agent can call (stored queries, so `ask` and the MCP server reach them). Each answer is checked |
 
-## clan
-
-| Module | What it shows |
-|---|---|
-| [`clan/inventory.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/inventory.nix) | clan's inventory in yen: a service instance is data. Each machine spawns one `member` scope per (instance, role) |
-| [`clan/services.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/services.nix) | clan services written in yen. A service is data (roles, typed interface, constraints, nested instances) plus |
-| [`clan/vars.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/vars.nix) | clan vars, the configuration half: services declare generators; generation itself is a tool, not yen. |
-
 ## den
 
 | Module | What it shows |
@@ -109,6 +101,14 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 | [`hosts/pixel.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/pixel.nix) |  |
 | [`hosts/stage.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/stage.nix) |  |
 | [`hosts/studio.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hosts/studio.nix) |  |
+
+## kits
+
+| Module | What it shows |
+|---|---|
+| [`kits/assemblies.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/assemblies.nix) | kits and assemblies in yen. A kit is data: roles, a typed interface per role, constraints, the export keys it may |
+| [`kits/kits.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/kits.nix) | kits written in yen. A kit is data (roles, typed interface, constraints, the assemblies it adds) plus aspects: an |
+| [`kits/vars.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/vars.nix) | vars, the configuration half: kits declare generators; generation itself is a tool, not yen. |
 
 ## platforms
 
