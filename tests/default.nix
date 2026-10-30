@@ -452,7 +452,10 @@ let
           "a:b".tag = "2";
         }
         // hosts;
-        yen.relations.ok.arity = 1;
+        yen.relations.ok = {
+          arity = 1;
+          check = ts: b.match "[0-9]+" (b.head ts) != null; # digits only: tag "b:1" fails, "2" passes
+        };
         yen.invariants.r = rules;
       }
     );
@@ -2376,6 +2379,41 @@ let
       in
       codes r == [ "invariant-function" ] && r.flake == null;
     r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
+    # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
+    # a derived tuple that fails its relation's check is an error (ok takes one string term here)
+    relation-check =
+      let
+        r = tagsWith [
+          {
+            head = [
+              "ok"
+              (v "X")
+            ];
+            pos = [
+              [
+                "val"
+                "tag"
+                (v "H")
+                (v "X")
+              ]
+            ];
+          }
+        ] { };
+      in
+      codes r == [ "relation-check" ];
+    check-not-bool =
+      let
+        r = yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.host.a.w = 1;
+            yen.kinds.host.fields.w.check = v: (_: true);
+            yen.top.t = { };
+          }
+        );
+      in
+      codes r == [ "check-not-bool" ];
     r2-string-atom =
       codes (rule2 {
         head = "bad:x";

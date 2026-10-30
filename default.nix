@@ -131,7 +131,14 @@ let
   isLeaf =
     v: !isAttrs v || v ? check || v ? __kind || v ? __functor || (v.type or null) == "derivation";
   isType = t: isAttrs t && (t ? check || t ? __kind);
-  checkOf = t: if t ? __kind then (v: isAttrs v && (v.kind or null) == t.__kind) else t.check;
+  # a check that gives no bool (a curried gen-types check) fails, never throws; `boolCheck` names it in the error
+  checkOf =
+    t:
+    if t ? __kind then
+      (v: isAttrs v && (v.kind or null) == t.__kind)
+    else
+      (v: b.isBool (t.check v) && t.check v);
+  boolCheck = t: v: t ? __kind || b.isBool (t.check v);
   get =
     path: v:
     foldl' (
@@ -390,6 +397,7 @@ let
           id = "${k}:${n}";
           p = concatStringsSep "." path;
           bad = first (t: !checkOf t r.ok) tys;
+          notBool = first (t: !boolCheck t r.ok) tys;
           kr = first (t: t ? __kind) tys;
           fail = e: {
             value = null;
@@ -403,6 +411,13 @@ let
             code = "missing";
             want = typeName (head tys);
             fix = "set ${id}.${p}";
+          }
+        else if tys != [ ] && notBool != null then
+          fail {
+            error = "the check of ${p} gives a ${b.typeOf (notBool.check r.ok)}, not a bool";
+            code = "check-not-bool";
+            want = typeName notBool;
+            fix = "make the check `v: bool`; a curried check needs its other argument first";
           }
         else if tys != [ ] && bad != null then
           fail {
@@ -1147,7 +1162,26 @@ let
                   ];
                 }
               )
-            ) (filter (x: x.p != null) checked);
+            ) (filter (x: x.p != null) checked)
+            # a derived tuple of a user relation that fails the relation's check
+            ++
+              map
+                (
+                  a:
+                  errWith "relation ${head a}" "${head a} derives ${b.toJSON (tail a)}, which fails its check" {
+                    code = "relation-check";
+                    got = a;
+                    path = [
+                      "relations"
+                      (head a)
+                    ];
+                  }
+                )
+                (
+                  filter (
+                    a: yen.relations.${head a}.check or null != null && !checkOf yen.relations.${head a} (tail a)
+                  ) m.true
+                );
           ground = D.ground (map (x: x.r) (filter (x: x.p == null) checked)) facts;
           key = b.toJSON;
           mentioned = keySet (map key (concatMap (r: r.pos ++ r.neg) ground));

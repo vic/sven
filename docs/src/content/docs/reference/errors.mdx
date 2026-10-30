@@ -17,6 +17,7 @@ The codes below are read from the engine source when the docs are written.
 | `bad-atom` | a rule atom is not a list `[ rel t… ]` of strings, ints, bools and `{ var = "X"; }` |
 | `bare-function` | an element is a function without named args (`x: …`): wrap it as `{ ... }:` |
 | `check` | a field value fails its type |
+| `check-not-bool` | a field type's check gives no bool (a curried check, such as a gen-types one, needs its other argument) |
 | `cycle` | an instance appears twice on its own scope path: `spawns` loops |
 | `edb-head` | a rule derives a fact yen extracts (`scope`, `instance`, `parent`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison) |
 | `error` | a message from an aspect's `errors` key |
@@ -33,6 +34,7 @@ The codes below are read from the engine source when the docs are written.
 | `program` | a change program op is not valid |
 | `ref` | a field wants an instance ref and got something else |
 | `rejected` | a staged change was rejected before (its sha is in `rejected`) |
+| `relation-check` | a rule derives a tuple that fails the `check` of its relation in `yen.relations` |
 | `spawns` | a `spawns` function gives no attrset, or an instance in it is no attrset |
 | `tree-request` | a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds) |
 | `two-answers` | one declaration leaf has two different values |
