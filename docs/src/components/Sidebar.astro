@@ -7,9 +7,24 @@ const { sidebar } = Astro.locals.starlightRoute;
 
 import { Icon } from '@astrojs/starlight/components';
 
-/** Get the icon for a group. Update the icon names in the array to change the icons associated with a group. */
+/** Get the icon for a group, by its position in yen.section order. Update the icon names in the array to change the icons associated with a group. */
 const getIcon = (index: number) =>
-	(['nix', 'open-book', 'rocket', 'puzzle', 'information', 'setting'] as const)[index];
+	(
+		[
+			'rocket', // Start
+			'right-arrow', // Move to yen
+			'information', // Concepts
+			'pencil', // Recipes
+			'nix', // NixOS patterns in yen
+			'puzzle', // Den patterns in yen
+			'star', // Battery packs
+			'question', // Ask and prove
+			'laptop', // For agents
+			'analytics', // Performance
+			'list-format', // Reference
+			'github', // Project
+		] as const
+	)[index] ?? 'document';
 
 /** Determine if an array of sidebar items contains the current page.  */
 const isCurrent = (sidebar: SidebarEntry[]): boolean =>
