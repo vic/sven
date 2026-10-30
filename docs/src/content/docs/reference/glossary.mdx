@@ -26,9 +26,9 @@ import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, Ta
 | component | an aspect's `cycle`: sources in, sinks out, 0 to n elements | [The cycle form](/concepts/cycle/) |
 | error record | an error as data, with `code`, `fix` and `class` | [Errors as data](/concepts/errors/) |
 | query | an answer of `eval`: errors, graph, active, reduced, … | [Queries](/query/queries/) |
-| invariant | Datalog rules over the facts; a true `bad:` atom is a violation | [Invariants](/query/invariants/) |
+| invariant | Datalog rules over the facts, as data; a true `[ "bad" … ]` atom is a violation | [Invariants](/query/invariants/) |
 | stored query | a named question, asked with `result.ask` | [Stored queries](/query/stored-queries/) |
 | stage | the fleet without and with a change, compared | [Stage a change](/agents/stage/) |
-| grant | where a change may give elements; grants only narrow | [Stage a change](/agents/stage/#grants-only-narrow) |
+| grant | where a change may reach; grants only narrow | [Stage a change](/agents/stage/#grants-only-narrow) |
 | change program | a change as data ops: set, ref, place, new | [Change programs](/agents/programs/) |
 | knowledge pack | the fleet as sorted N-Triples with a sha256 | [Knowledge packs](/agents/knowledge/) |

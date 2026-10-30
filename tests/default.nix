@@ -200,62 +200,67 @@ let
     }
   );
   # every tree request at one node: parent, a nearest with no answer, children, scopesOf, holds, one unknown
-  treeAll = yen.eval (
-    { yen, ... }:
-    {
-      yen.kinds.top.spawns.cluster = _: yen.cluster;
-      yen.kinds.cluster.spawns.node = _: { n1 = { }; };
-      yen.kinds.node.spawns.pod = _: {
-        p1 = { };
-        p2 = { };
-      };
-      yen.kinds.node.sinks.seen = { };
-      yen.kinds.pod = { };
-      yen.top.t = { };
-      yen.cluster.c1 = { };
-      yen.aspects.see = {
-        at = yen.kinds.node;
-        cycle =
-          { tree, ... }:
-          {
-            tree = [
-              {
-                category = "parent";
-                parent = true;
-              }
-              {
-                category = "none";
-                nearest = yen.kinds.pod;
-              } # no pod above a node: no answer
-              {
-                category = "kids";
-                children = yen.kinds.pod;
-              }
-              {
-                category = "same";
-                scopesOf = yen.cluster.c1;
-              }
-              {
-                category = "holds";
-                holds = yen.kinds.node;
-              }
-              {
-                category = "bad";
-                bogus = true;
-              }
-            ];
-            seen = {
-              parent = map (s: s.id) (tree.select "parent");
-              none = tree.select "none";
-              kids = map (map (s: s.name)) (tree.select "kids");
-              same = map (map (s: s.id)) (tree.select "same");
-              holds = tree.select "holds";
-              bad = tree.select "bad";
+  treeAll = treeAllWith false;
+  treeAllWith =
+    bogus:
+    yen.eval (
+      { yen, ... }:
+      {
+        yen.kinds.top.spawns.cluster = _: yen.cluster;
+        yen.kinds.cluster.spawns.node = _: { n1 = { }; };
+        yen.kinds.node.spawns.pod = _: {
+          p1 = { };
+          p2 = { };
+        };
+        yen.kinds.node.sinks.seen = { };
+        yen.kinds.pod = { };
+        yen.top.t = { };
+        yen.cluster.c1 = { };
+        yen.aspects.see = {
+          at = yen.kinds.node;
+          cycle =
+            { tree, ... }:
+            {
+              tree = [
+                {
+                  category = "parent";
+                  parent = true;
+                }
+                {
+                  category = "none";
+                  nearest = yen.kinds.pod;
+                } # no pod above a node: no answer
+                {
+                  category = "kids";
+                  children = yen.kinds.pod;
+                }
+                {
+                  category = "same";
+                  scopesOf = yen.cluster.c1;
+                }
+                {
+                  category = "holds";
+                  holds = yen.kinds.node;
+                }
+              ]
+              ++ b.filter (_: bogus) [
+                {
+                  category = "bad";
+                  bogus = true;
+                }
+              ];
+              seen = {
+                parent = map (s: s.id) (tree.select "parent");
+                none = tree.select "none";
+                kids = map (map (s: s.name)) (tree.select "kids");
+                same = map (map (s: s.id)) (tree.select "same");
+                holds = tree.select "holds";
+                bad = tree.select "bad";
+              };
             };
-          };
-      };
-    }
-  );
+        };
+      }
+    );
   # one error per code: a module, spawns, an element, a sink `of`, an order
   codesFix = yen.eval {
     imports = [
@@ -391,6 +396,71 @@ let
     }
   );
   # rung 1 (vic/formally-verified.md): the law gates outputs and stage; grants by path segment, edges and values
+  # a variable is { var = "X"; }; every string is a constant
+  v = x: { var = x; };
+  nofw = id: [
+    "bad"
+    "no-firewall"
+    id
+  ];
+  hasFw = id: [
+    "has"
+    "firewall"
+    id
+  ];
+  cyc = [
+    "has"
+    "cyc"
+    "top:t"
+  ];
+  # every host has the firewall aspect
+  fwRules = [
+    {
+      head = [
+        "bad"
+        "no-firewall"
+        (v "H")
+      ];
+      pos = [
+        [
+          "kind"
+          "host"
+          (v "H")
+        ]
+      ];
+      neg = [
+        [
+          "has"
+          "firewall"
+          (v "H")
+        ]
+      ];
+    }
+  ];
+  codes = r: map (e: e.code) r.errors;
+  # rung 2 fixture: hosts `a` (tag "b:1") and `a:b` (tag "2"); `ok` is a user relation of arity 1
+  tagsWith =
+    rules: hosts:
+    yen.eval (
+      { yen, ... }:
+      {
+        yen.kinds.top.spawns.host = _: yen.host;
+        yen.kinds.host.fields.tag = yen.lib.is (_: true);
+        yen.top.t = { };
+        yen.host = {
+          a.tag = "b:1";
+          "a:b".tag = "2";
+        }
+        // hosts;
+        yen.relations.ok = {
+          arity = 1;
+          check = ts: b.match "[0-9]+" (b.head ts) != null; # digits only: tag "b:1" fails, "2" passes
+        };
+        yen.invariants.r = rules;
+      }
+    );
+  tags = rules: tagsWith rules { };
+  rule2 = r: tags [ r ];
   rung1 = extra: {
     imports = [
       (
@@ -427,20 +497,27 @@ let
             fw = "on";
           };
           yen.aspects.cyc.at = [ ];
+          yen.relations = {
+            p.arity = 0;
+            q.arity = 0;
+          };
           yen.invariants.cycle = [
             {
-              head = "p";
-              pos = [ "has:cyc:top:t" ];
-              neg = [ "q" ];
+              head = [ "p" ];
+              pos = [ cyc ];
+              neg = [ [ "q" ] ];
             }
             {
-              head = "q";
-              pos = [ "has:cyc:top:t" ];
-              neg = [ "p" ];
+              head = [ "q" ];
+              pos = [ cyc ];
+              neg = [ [ "p" ] ];
             }
             {
-              head = "bad:cycle";
-              pos = [ "p" ];
+              head = [
+                "bad"
+                "cycle"
+              ];
+              pos = [ [ "p" ] ];
             }
           ];
           yen.flake.ok = true; # outputs exist only when the fleet is clean
@@ -456,6 +533,13 @@ let
       inherit change grant;
     };
   r1grant = yen.grant { scopes = [ "top:t/host:web" ]; };
+  r1outside =
+    s: b.sort b.lessThan (map (e: e.got) (b.filter (e: e.code == "outside-grant") s.refused));
+  r1others = [
+    "top:t"
+    "top:t/host:db"
+    "top:t/host:webhook"
+  ];
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -513,7 +597,14 @@ let
   );
 
   # Den CI gaps closed: derived defaults, bad `at`, one key from many files, static once per receiver
-  gaps = yen.eval (
+  gaps = yen.eval gapsModule;
+  gapsBadAt = yen.eval {
+    imports = [
+      gapsModule
+      { yen.aspects.typo.at = "host"; }
+    ];
+  };
+  gapsModule =
     { yen, ... }:
     {
       imports = [
@@ -545,9 +636,7 @@ let
         ];
         nixos = "marker";
       };
-      yen.aspects.typo.at = "host";
-    }
-  );
+    };
   # aspect refs on cycles: three values (well-founded semantics)
   logic =
     cyclic:
@@ -697,13 +786,7 @@ let
         at = yen.host.a;
         fw = "on";
       };
-      yen.invariants.fw =
-        { scopes, ... }:
-        map (s: {
-          head = "bad:no-firewall:${s.id}";
-          pos = [ "kind:host:${s.id}" ];
-          neg = [ "has:firewall:${s.id}" ];
-        }) scopes;
+      yen.invariants.fw = fwRules;
     };
   ports =
     extra:
@@ -728,13 +811,7 @@ let
           at = yen.host.a;
           fw = "on";
         };
-        yen.invariants.fw =
-          { scopes, ... }:
-          map (s: {
-            head = "bad:no-firewall:${s.id}";
-            pos = [ "kind:host:${s.id}" ];
-            neg = [ "has:firewall:${s.id}" ];
-          }) scopes;
+        yen.invariants.fw = fwRules;
       }
     );
   rec1 = r: code: b.head (b.filter (e: e.code == code) r.errors);
@@ -782,7 +859,7 @@ let
       let
         r = ports { };
       in
-      r.check.violations == [ "bad:no-firewall:top:t/host:b" ]
+      r.check.violations == [ (nofw "top:t/host:b") ]
       && r.check.incomplete == [ ]
       && !r.check.ok
       && (ports (
@@ -798,19 +875,28 @@ let
     invariants-incomplete =
       let
         r = ports {
+          yen.relations.ok.arity = 1;
           yen.invariants.loop = [
             {
-              head = "bad:loop";
-              neg = [ "ok:loop" ];
+              head = loop;
+              neg = [ okLoop ];
             }
             {
-              head = "ok:loop";
-              neg = [ "bad:loop" ];
+              head = okLoop;
+              neg = [ loop ];
             }
           ];
         };
+        loop = [
+          "bad"
+          "loop"
+        ];
+        okLoop = [
+          "ok"
+          "loop"
+        ];
       in
-      r.check.incomplete == [ "bad:loop" ] && !b.elem "bad:loop" r.check.violations && !r.check.ok;
+      r.check.incomplete == [ loop ] && !b.elem loop r.check.violations && !r.check.ok;
     schema-exact =
       let
         s =
@@ -941,7 +1027,7 @@ let
             change = yen.change.set [ "host" "c" "port" ] 1;
           };
         in
-        v.violations == [ "bad:no-firewall:top:t/host:c" ] && v.errors == [ ] && !v.ok
+        v.violations == [ (nofw "top:t/host:c") ] && v.errors == [ ] && !v.ok
       );
     grants-narrow =
       let
@@ -1236,6 +1322,63 @@ let
       && (r.impact "top:t/host:db" { sinks = [ "nixos" ]; }).reached == [ ]
       && (r.impact "top:t/host:db" { sinks = [ "peer" ]; }).code == "unknown-sink"
       && (r.impact "top:t/host:dd" { }).code == "unknown-scope";
+    # .20: when a fleet has labels, an aspect from an unlabeled file has trust 0 (floor sees it); a prefix is literal,
+    # never a regex ("agen./" does not label "agent/")
+    labels-unlabeled =
+      let
+        r = yen.eval {
+          imports = [
+            ./fixtures/labels/modules/base.nix
+            ./fixtures/labels/agent/web.nix
+            { yen.aspects.extra.at = [ ]; }
+          ];
+        };
+        lit = yen.eval {
+          imports = [
+            ./fixtures/labels/modules/base.nix
+            ./fixtures/labels/agent/web.nix
+            { yen.labels."agen./".trust = 0; } # as a regex it would match agent/ and win as the lowest
+          ];
+        };
+      in
+      r.labels.extra.trust == 0 && r.labels.extra.prefix == null && lit.labels.cache.trust == 1;
+    # .20 .13: a staged change or a program carries its submitter's label; floor sees the agent, not a file
+    labels-submitter =
+      let
+        base = {
+          imports = [ ./fixtures/labels/modules/base.nix ];
+        };
+        s = yen.stage {
+          inherit base;
+          by = {
+            name = "bot";
+            trust = 1;
+          };
+          change = {
+            yen.aspects.web.nixos.services.redis.enable = true;
+          };
+        };
+        p = yen.program.dryRun {
+          inherit base;
+          by = {
+            name = "bot";
+            trust = 1;
+          };
+          prog = [
+            {
+              op = "place";
+              aspect = "web";
+              kind = "host";
+              name = "h";
+            }
+          ];
+        };
+      in
+      s.labels.web.by == "bot"
+      && s.labels.web.trust == 1
+      && b.all (x: x.aspect == "web" && x.trust == 1) (s.floor 2)
+      && s.floor 2 != [ ]
+      && p.labels.web.by == "bot";
     labels-floor =
       let
         r = yen.eval {
@@ -1262,9 +1405,9 @@ let
           }
         );
       in
-      b.elem "val:port:top:t/host:a:22" r.facts
-      && b.elem "ref:peer:top:t/host:b:host:a" r.facts
-      && !(b.elem "ref:peer:top:t/host:a:host:b" r.facts);
+      b.elem [ "val" "port" "top:t/host:a" 22 ] r.facts
+      && b.elem [ "ref" "peer" "top:t/host:b" "host" "a" ] r.facts
+      && !(b.elem [ "ref" "peer" "top:t/host:a" "host" "b" ] r.facts);
     check-whynot =
       let
         r = ports (
@@ -1279,11 +1422,34 @@ let
         );
       in
       r.check.ok
-      && b.any (x: x.blocking == [ "has:firewall:top:t/host:b" ]) (
-        r.check.whyNot "bad:no-firewall:top:t/host:b"
+      && b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot (nofw "top:t/host:b"))
+      &&
+        (r.check.proof [
+          "kind"
+          "host"
+          "top:t/host:a"
+        ]).atom == [
+          "kind"
+          "host"
+          "top:t/host:a"
+        ]
+      && (ports { }).check.whyNot (nofw "top:t/host:b") == [ ];
+    # D10: explanations and the verdict read one model; a fact no rule mentions is still true
+    explain-same-model =
+      let
+        c = (ports { }).check;
+      in
+      !(
+        (c.proof [
+          "scope"
+          "top:t/host:a"
+        ]) ? status
       )
-      && (r.check.proof "kind:host:top:t/host:a").atom == "kind:host:top:t/host:a"
-      && (ports { }).check.whyNot "bad:no-firewall:top:t/host:b" == [ ];
+      &&
+        c.whyNot [
+          "scope"
+          "top:t/host:a"
+        ] == [ ];
     program-validate =
       let
         r = ports { };
@@ -1380,7 +1546,7 @@ let
       && ok.diff.scopes.added == [ "top:t/host:c" ]
       && b.isString ok.sha
       && !bad.ok
-      && bad.violations == [ "bad:no-firewall:top:t/host:c" ]
+      && bad.violations == [ (nofw "top:t/host:c") ]
       && !(d [
         {
           op = "set";
@@ -1413,8 +1579,7 @@ let
           }
         ];
     invariants-why =
-      (b.head ((ports { }).check.why "bad:no-firewall:top:t/host:b")).neg
-      == [ "has:firewall:top:t/host:b" ];
+      (b.head ((ports { }).check.why (nofw "top:t/host:b"))).neg == [ (hasFw "top:t/host:b") ];
     graphs-reach =
       G.reach dag "app" == [
         "cache"
@@ -1968,8 +2133,8 @@ let
     good-flake =
       good.flake.nixosConfigurations.lb == [ { environment.etc.motd.text = "/var/lib/motd"; } ];
     neg-missing-addr = has noAddr "missing addr";
-    neg-missing-addr-no-flake-break =
-      noAddr.reduced.persist."fleet:main/host:lb" == [ "/var/lib/motd" ];
+    # D13: an error withholds the outputs and the reduced values (good-persist reads them on the clean fleet)
+    neg-missing-addr-withholds = noAddr.reduced == null && noAddr.flake == null;
     neg-unknown-field = has (yen.eval (fleet {
       addr = "a";
       adr = "b";
@@ -2085,7 +2250,9 @@ let
           bad = [ ];
         }
       ]
-      && map (e: e.code) treeAll.errors == [ "tree-request" ];
+      && treeAll.errors == [ ]
+      && map (e: e.code) (treeAllWith true).errors == [ "tree-request" ]
+      && (treeAllWith true).reduced == null;
     # yen modules are not NixOS modules: a key yen does not read is an error, at every level
     unknown-keys =
       map (e: { inherit (e) code from path; })
@@ -2129,8 +2296,17 @@ let
         {
           yen.invariants.no = [
             {
-              head = "bad:sshd-web";
-              pos = [ "has:sshd:top:t/host:web" ];
+              head = [
+                "bad"
+                "sshd-web"
+              ];
+              pos = [
+                [
+                  "has"
+                  "sshd"
+                  "top:t/host:web"
+                ]
+              ];
             }
           ];
         }
@@ -2140,12 +2316,498 @@ let
         { yen.host.web.port = 1; }
         { yen.host.web.port = 2; }
       ])).flake == null;
-    # D9: a rule head that spells an extracted fact is dropped and reported; the fleet is not ok
-    r1-forged-head =
+    # D13: a fleet that is not clean gives no reduced values to build outputs from by hand
+    r1-violation-no-reduced =
+      (yen.eval (rung1 [
+        {
+          yen.invariants.no = [
+            {
+              head = [
+                "bad"
+                "sshd-web"
+              ];
+              pos = [
+                [
+                  "has"
+                  "sshd"
+                  "top:t/host:web"
+                ]
+              ];
+            }
+          ];
+        }
+      ])).reduced == null
+      && (yen.eval (rung1 [ ])).reduced.nixos ? "top:t/host:web";
+    # a flake that cannot be filled is an error record, never a silent null
+    flake-fill-error =
       let
-        r = yen.eval (rung1 [ { yen.invariants.f = [ { head = "has:fw:top:t/host:web"; } ]; } ]);
+        r = yen.eval {
+          yen.kinds.top.spawns = { };
+          yen.kinds.host = { };
+          yen.top.t = { };
+          yen.flake = { host, ... }: host; # no host under top: the arg has no answer
+        };
       in
-      r.check.forged == [ "has:fw:top:t/host:web" ] && !r.check.ok && r.flake == null;
+      r.flake == null && b.any (e: e.code == "arg" && e.want == "host") r.errors;
+    # D9: a rule never derives a fact yen extracts; it is an error, and the fleet gives no outputs
+    r1-edb-head =
+      let
+        r = yen.eval (rung1 [
+          {
+            yen.invariants.f = [
+              {
+                head = [
+                  "has"
+                  "fw"
+                  "top:t/host:web"
+                ];
+              }
+            ];
+          }
+        ]);
+      in
+      codes r == [ "edb-head" ] && r.flake == null;
+    # rung 2 (vic/formally-verified.md section 3): typed facts, relations, rules as data
+    # two hosts whose colon strings collide (D1): two facts, and a rule on one never fires on the other
+    r2-no-collision =
+      let
+        r = tags [
+          {
+            head = [
+              "bad"
+              "collide"
+            ];
+            pos = [
+              [
+                "val"
+                "tag"
+                "top:t/host:a:b"
+                "1"
+              ]
+            ];
+          }
+        ];
+      in
+      r.check.ok
+      && b.elem [ "val" "tag" "top:t/host:a" "b:1" ] r.facts
+      && b.elem [ "val" "tag" "top:t/host:a:b" "2" ] r.facts;
+    # the same rule with a variable binds over both hosts, and lt keeps one pair
+    r2-vars =
+      (tags [
+        {
+          head = [
+            "bad"
+            "pair"
+            (v "A")
+            (v "B")
+          ];
+          pos = [
+            [
+              "val"
+              "tag"
+              (v "A")
+              (v "X")
+            ]
+            [
+              "val"
+              "tag"
+              (v "B")
+              (v "Y")
+            ]
+            [
+              "lt"
+              (v "A")
+              (v "B")
+            ]
+          ];
+        }
+      ]).check.violations == [
+        [
+          "bad"
+          "pair"
+          "top:t/host:a"
+          "top:t/host:a:b"
+        ]
+      ];
+    # D3: an invariant is data; a function is an error and gives no rules
+    r2-invariant-function =
+      let
+        r = yen.eval (rung1 [ { yen.invariants.f = _: [ ]; } ]);
+      in
+      codes r == [ "invariant-function" ] && r.flake == null;
+    r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
+    # .21: a secret field never leaves the engine in an answer: facts, data, scopes, errors, the RDF export and the
+    # seal state it by its hash, so a rule can still compare two secrets; an aspect still reads the value
+    secrets-hidden =
+      let
+        fleet =
+          extra:
+          yen.eval (
+            { yen, ... }:
+            {
+              imports = [ extra ];
+              yen.kinds.top.spawns.host = _: yen.host;
+              yen.kinds.host.fields.token = yen.lib.secret (yen.lib.is b.isString);
+              yen.kinds.host.sinks.os = { };
+              yen.top.t = { };
+              yen.host.a.token = "hunter2";
+              yen.aspects.login = {
+                at = yen.kinds.host;
+                os =
+                  { host, ... }:
+                  {
+                    pw = host.token;
+                  };
+              };
+            }
+          );
+        clean = fleet { };
+        shared = fleet {
+          yen.host.b.token = "hunter2";
+          yen.host.c.token = 424242;
+          yen.invariants.shared = [
+            {
+              head = [
+                "bad"
+                "shared-token"
+                (v "A")
+                (v "B")
+              ];
+              pos = [
+                [
+                  "val"
+                  "token"
+                  (v "A")
+                  (v "X")
+                ]
+                [
+                  "val"
+                  "token"
+                  (v "B")
+                  (v "X")
+                ]
+                [
+                  "lt"
+                  (v "A")
+                  (v "B")
+                ]
+              ];
+            }
+          ];
+        };
+        seen =
+          r:
+          b.toJSON {
+            inherit (r) facts data errors;
+            scopes = map (
+              s:
+              removeAttrs s [
+                "parent"
+                "up"
+                "rup"
+                "__here"
+              ]
+            ) r.scopes;
+            agent = r.agent;
+            export = (yen.rdf.share r).ntriples;
+            seal = r.check.seal;
+          };
+        leaks = r: b.match ".*(hunter2|424242).*" (seen r) != null;
+      in
+      shared.check.violations == [
+        [
+          "bad"
+          "shared-token"
+          "top:t/host:a"
+          "top:t/host:b"
+        ]
+      ]
+      && !leaks shared
+      && !leaks clean
+      && clean.reduced.os."top:t/host:a" == [ { pw = "hunter2"; } ];
+    r4-types =
+      let
+        rule = {
+          head = [
+            "bad"
+            "not-digits"
+            (v "H")
+          ];
+          pos = [
+            [
+              "val"
+              "tag"
+              (v "H")
+              (v "X")
+            ]
+          ];
+          neg = [
+            [
+              "digits"
+              (v "X")
+            ]
+          ];
+        };
+        run =
+          rel:
+          yen.eval (
+            { yen, ... }:
+            {
+              yen.kinds.top.spawns.host = _: yen.host;
+              yen.kinds.host.fields.tag = yen.lib.is (_: true);
+              yen.top.t = { };
+              yen.host = {
+                a.tag = "b:1";
+                "a:b".tag = "2";
+              };
+              yen.relations.digits = rel;
+              yen.invariants.r = [ rule ];
+            }
+          );
+        digits = s: b.match "[0-9]+" s != null;
+        byType = run { type.check = digits; };
+        byFn = run {
+          arity = 1;
+          holds = ts: digits (b.head ts);
+        };
+        broken = run {
+          arity = 1;
+          holds = ts: "yes";
+        };
+        bad = [
+          [
+            "bad"
+            "not-digits"
+            "top:t/host:a"
+          ]
+        ];
+      in
+      byType.check.violations == bad
+      && byFn.check.violations == bad
+      && codes broken != [ ]
+      && b.all (c: c == "external-not-bool") (codes broken)
+      && broken.flake == null;
+    # .41 (E1): a field a rule reads through an even number of `not` from `bad` gives a fact for every value, or the
+    # verdict is not ok. Host a.tag is an attrset: no fact, so `bad` could be missed. Read under `not`, a missing fact
+    # can only add a violation, so it is safe.
+    r3-opaque =
+      let
+        meta =
+          tagsWith
+            [
+              {
+                head = [
+                  "bad"
+                  "x"
+                  (v "H")
+                ];
+                pos = [
+                  [
+                    "val"
+                    "tag"
+                    (v "H")
+                    "x"
+                  ]
+                ];
+              }
+            ]
+            {
+              a.tag = {
+                x = 1;
+              };
+            };
+        safe =
+          tagsWith
+            [
+              {
+                head = [
+                  "bad"
+                  "x"
+                  (v "H")
+                ];
+                pos = [
+                  [
+                    "kind"
+                    "host"
+                    (v "H")
+                  ]
+                ];
+                neg = [
+                  [
+                    "val"
+                    "tag"
+                    (v "H")
+                    "x"
+                  ]
+                ];
+              }
+            ]
+            {
+              a.tag = {
+                x = 1;
+              };
+            };
+      in
+      !meta.check.ok
+      &&
+        meta.check.opaque == [
+          {
+            field = "tag";
+            scopes = [ "top:t/host:a" ];
+          }
+        ]
+      && safe.check.opaque == [ ];
+    # .43: where a fact comes from is its own answer, never part of the fact: one fact, two files
+    r3-provenance =
+      let
+        r = yen.eval {
+          imports = [
+            portsBase
+            { yen.host.a.port = 22; }
+          ];
+        };
+        a = [
+          "instance"
+          "top:t/host:a"
+          "host"
+          "a"
+        ];
+      in
+      b.length (b.filter (x: x == a) r.facts) == 1
+      && b.length (r.check.from a) == 2
+      && b.length (r.check.from (hasFw "top:t/host:a")) == 1
+      &&
+        r.check.from [
+          "edge"
+          "fw"
+          "top:t/host:a"
+          "top:t/host:a"
+        ] == [ "aspect firewall" ];
+    # .42: a seal binds the verdict to its rules, facts and engine; checking it means evaluating again
+    r3-seal =
+      let
+        p = ports { };
+        seal = p.check.seal;
+        tamper = seal // {
+          certificate = seal.certificate // {
+            false = seal.certificate.false ++ [
+              {
+                atom = nofw "top:t/host:b";
+                stage = 0;
+              }
+            ];
+          };
+        };
+      in
+      p.check.verify seal == {
+        ok = true;
+      }
+      &&
+        (ports { yen.host.c.port = 1; }).check.verify seal == {
+          ok = false;
+          why = "facts";
+        }
+      && (p.check.verify tamper).why == "certificate"
+      &&
+        (ports { yen.invariants.more = fwRules; }).check.verify seal == {
+          ok = false;
+          why = "rules";
+        };
+    # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
+    r3-certified =
+      let
+        p = (ports { }).check;
+        c =
+          (yen.eval (rung1 [
+            {
+              yen.aspects.cyc.at = [
+                {
+                  kind = "top";
+                  name = "t";
+                }
+              ];
+            }
+          ])).check;
+      in
+      p.certified
+      && b.elem (nofw "top:t/host:b") (map (e: e.atom) p.certificate.true)
+      && c.certified
+      && c.incomplete != [ ]
+      && !(b.elem [ "bad" "cycle" ] (map (e: e.atom) (c.certificate.true ++ c.certificate.false)));
+    # a derived tuple that fails its relation's check is an error (ok takes one string term here)
+    relation-check =
+      let
+        r = tagsWith [
+          {
+            head = [
+              "ok"
+              (v "X")
+            ];
+            pos = [
+              [
+                "val"
+                "tag"
+                (v "H")
+                (v "X")
+              ]
+            ];
+          }
+        ] { };
+      in
+      codes r == [ "relation-check" ];
+    # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
+    check-not-bool =
+      let
+        r = yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.host.a.w = 1;
+            yen.kinds.host.fields.w.check = v: (_: true);
+            yen.top.t = { };
+          }
+        );
+      in
+      codes r == [ "check-not-bool" ];
+    r2-string-atom =
+      codes (rule2 {
+        head = "bad:x";
+      }) == [ "bad-atom" ];
+    r2-unknown-relation =
+      let
+        e =
+          b.head
+            (rule2 {
+              head = [
+                "okk"
+                "x"
+              ];
+            }).errors;
+      in
+      e.code == "unknown-relation" && e.near == [ "ok" ];
+    r2-arity =
+      codes (rule2 {
+        head = [ "ok" ];
+      }) == [ "arity" ];
+    r2-unsafe =
+      codes (rule2 {
+        head = [
+          "bad"
+          (v "X")
+        ];
+        neg = [
+          [
+            "has"
+            "fw"
+            (v "X")
+          ]
+        ];
+      }) == [ "unsafe-rule" ];
+    r2-unencodable =
+      let
+        r = tagsWith [ ] { "a:b".tag = 1.5; };
+      in
+      codes r == [ "unencodable" ] && (b.head r.errors).path == [ "tag" ];
     # D6: an undefined invariant is not ok
     r1-stage-incomplete =
       let
@@ -2158,7 +2820,14 @@ let
           ];
         } null;
       in
-      !s.ok && s.incomplete == [ "bad:cycle" ];
+      !s.ok
+      &&
+        s.incomplete == [
+          [
+            "bad"
+            "cycle"
+          ]
+        ];
     # D7: the law cannot be switched off
     r1-no-invariants-arg = !((b.functionArgs yen.stage) ? invariants);
     # D8: grants by path segment; added, removed and changed values all checked
@@ -2175,9 +2844,11 @@ let
         to = "top:t/host:web/user:a";
         sink = "fw";
       };
+    # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
+    # scope: each scope outside the grant is refused, once (vic/quorum/r3-impact.md)
     r1-grant-added =
-      map (e: e.code)
-        (r1stage {
+      r1outside (
+        r1stage {
           yen.aspects.extra = {
             at = {
               kind = "host";
@@ -2185,15 +2856,63 @@ let
             };
             fw = "x";
           };
-        } r1grant).refused == [ "outside-grant" ];
-    r1-grant-removed =
-      map (e: e.code) (r1stage { yen.host.db.bypass = true; } r1grant).refused == [ "outside-grant" ];
-    r1-grant-changed =
-      map (e: e.code) (r1stage { yen.host.db.port = 2222; } r1grant).refused == [ "outside-grant" ];
-    r1-grant-inside = (r1stage { yen.host.web.port = 2222; } r1grant).refused == [ ];
+        } r1grant
+      ) == r1others;
+    r1-grant-removed = r1outside (r1stage { yen.host.db.bypass = true; } r1grant) == r1others;
+    r1-grant-changed = r1outside (r1stage { yen.host.db.port = 2222; } r1grant) == r1others;
+    r1-grant-inside = r1outside (r1stage { yen.host.web.port = 2222; } r1grant) == r1others;
+    # the closure channel: db reads web's port through `yen`; a change at web reaches db
+    r1-grant-closure =
+      let
+        s = yen.stage {
+          base = rung1 [
+            (
+              { yen, ... }:
+              {
+                yen.aspects.peer = {
+                  at = yen.host.db;
+                  fw = "${toString yen.host.web.port}";
+                };
+              }
+            )
+          ];
+          change = {
+            yen.host.web.port = 2222;
+          };
+          grant = r1grant;
+        };
+      in
+      b.elem "top:t/host:db" (r1outside s);
+    r1-grant-whole =
+      (r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; })).refused == [ ];
+    r1-grant-sinks =
+      r1outside (
+        r1stage { yen.host.web.port = 2222; } (
+          yen.grant {
+            scopes = [ "top:t" ];
+            sinks = [ "fw" ];
+          }
+        )
+      ) == [
+        "top:t"
+        "top:t/host:db"
+        "top:t/host:web"
+        "top:t/host:webhook"
+      ];
+    r1-grant-noop = (r1stage { } r1grant).refused == [ ];
     # D9: a change never declares the law
     r1-law-change =
-      map (e: e.code) (r1stage { yen.invariants.w = [ { head = "ok:web"; } ]; } null).refused == [
+      map (e: e.code)
+        (r1stage {
+          yen.invariants.w = [
+            {
+              head = [
+                "bad"
+                "web"
+              ];
+            }
+          ];
+        } null).refused == [
         "law-change"
       ];
     # D11: a program refused before is refused again
@@ -2319,7 +3038,7 @@ let
       && msgs sinkArgs == [ ]; # a and c read one tag: once
     gap-static-once-per-receiver =
       b.length (b.filter (v: v == "marker") gaps.reduced.nixos."fleet:main/host:h1") == 1;
-    gap-bad-at = has gaps "`at` holds a string, not a predicate";
+    gap-bad-at = has gapsBadAt "`at` holds a string, not a predicate";
     graph-edges = b.elem {
       sink = "persist";
       from = "fleet:main/host:lb";
@@ -2338,6 +3057,7 @@ in
     logic
     ports
     portsBase
+    rung1
     yen
     ;
   # the lib suites live in their own files; `failed` runs them all

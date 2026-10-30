@@ -1,202 +1,54 @@
-# yen: Nix fleets you can query, and prove things about, before you deploy
+# Yen: catch the broken fleet before you build it
 
-<!-- Generated from docs/examples/one-page-fleet/page.nix. Edit there, then run `nix run .#write-files` in docs/. -->
+<!-- Generated from docs/examples/why/page.nix. Edit there, then run `nix run .#write-files` in docs/. -->
 
-**yen is a query language for Nix configurations**: one file of Nix builtins, no dependencies, no module system,
-no fixpoint, and no `throw`. You describe a fleet as data and behavior. yen answers queries on it: the systems to build,
-the errors, the graph of who gives what to whom, and whether your rules hold across machines.
+**Your infrastructure builds. Is it correct?**
 
-yen is domain independent. Its engine does not know what a host, a user or NixOS is. You name your own nouns,
-so it configures NixOS, nix-darwin, home-manager, clusters, terraform or anything else you can model as Nix values.
-For reuse, `yen.lib.batteries` are functions from roles to a yen module: you give every name. Domain batteries,
-such as `yen.lib.batteries.nixos`, fill those roles with one domain's options.
+Nix made builds reproducible. It did not make fleets correct. Every machine can evaluate, build and boot,
+and the fleet is still wrong: a lab service that talks to the prod database, a client with no server,
+two services that claim the same thing. No single machine sees it. You find it in production.
 
-[Documentation](https://yen.oeiuwq.com/) · [Getting started](https://yen.oeiuwq.com/start/getting-started/) · [Reference fully-featured fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [vic/vix on yen](https://github.com/vic/vix/tree/yen) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
+Now agents write your infrastructure changes, faster than anyone can review them.
+Reading diffs does not scale to hundreds of services. Rules do.
 
-## Four words
+**Yen brings formal methods, made for agents, to reproducible infrastructure at scale.**
+Our mission: fleets of hundreds of services, reproducible and verified, where a broken rule stops a change
+before you build it and before you deploy it.
 
-- **Kinds**: your nouns, typed. `yen.kinds.host.fields.addr = lib.types.str;`
-- **Scopes**: where things live. `spawns` builds a tree from your data: a user under each host it is on.
-- **Aspects**: behavior, active where a predicate holds: a kind, an instance, another aspect, or any fact.
-- **Sinks**: where elements go. An element goes up to the nearest scope that collects it, and the sink reduces them.
+[Documentation](https://yen.oeiuwq.com/) · [A fleet on one page](https://yen.oeiuwq.com/start/one-page-fleet/) · [Reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
 
-Data is queried, not merged: each read is a query on the files that answer it, so content in many files never
-overwrites itself, and an error is a record you can read.
+## What you get today
 
-## A fleet on one page
+- **Rules across machines.** Write your invariants once, as logic over your fleet. Yen checks them on every
+  evaluation. A rule that cannot be decided is a failure, never a pass.
+- **Nothing to build from a broken fleet.** An error or a broken rule and Yen gives no outputs, and no values
+  to build them from by hand.
+- **Agents that cannot break the law.** An agent's change is staged: Yen evaluates the fleet with and without it,
+  applies nothing, and refuses it with the rule it breaks. A change can never touch your rules, and a grant
+  keeps it in its lane: anything it could reach outside the grant is refused.
+- **Answers, not stack traces.** Every answer is plain data an agent can read: errors with fixes, why a rule fires,
+  why it does not. Agents ask through queries or an MCP server.
+- **Your words, not ours.** Yen does not know what a host or a service is. You name your own nouns and facts.
+  NixOS, nix-darwin, home-manager, clusters: if you can write it as Nix values, Yen can check it.
+- **Just Nix.** A few files of Nix builtins. No dependencies.
 
-Two environments, three NixOS hosts, a user on two of them, postgres placed by a fact (some host names it as its
-database), and a rule that holds across machines. Every line runs: these files are a tested template
-(plus a `hardware.nix` stub so NixOS evaluates).
+## Where we are going
 
+Yen is young, and we say plainly what is not done yet. Each step lands with its own tests:
 
-```nix title="modules/kinds.nix"
-# Kinds are your nouns. `spawns` builds the tree from data. Sinks collect what aspects give.
-{
-  yen,
-  lib,
-  inputs,
-  ...
-}:
-let
-  inherit (yen.lib) same is maybe;
-in
-{
-  yen.kinds.fleet.spawns.env = _: yen.env;
-  yen.kinds.fleet.sinks.out.reduce = yen.lib.reduce.merge;
-  yen.kinds.env.fields.domain = lib.types.str;
-  yen.kinds.env.spawns.host = s: lib.filterAttrs (_: h: same h.env s) yen.host;
-  yen.kinds.host.fields = {
-    env = yen.kinds.env;
-    db = maybe yen.kinds.host;
-  };
-  yen.kinds.host.spawns.user = s: lib.filterAttrs (_: u: lib.any (same s) u.on) yen.user;
-  yen.kinds.host.sinks.os.nixos =
-    { os, ... }:
-    {
-      imports = os;
-    }; # os feeds nixos
-  yen.kinds.host.sinks.nixos.out =
-    { host, nixos, ... }:
-    {
-      nixosConfigurations.${host.name} = inputs.nixpkgs.lib.nixosSystem { modules = nixos; };
-    };
-  yen.kinds.user.fields.on = is lib.isList;
-  yen.flake = { out, ... }: out;
-}
-```
+- **Precise grants.** Today a grant is coarse: a change that declares anything is refused everywhere outside it.
+  Next, Yen sees every read, so a grant refuses only what the change really reaches.
+- **Typed facts and rules as data.** Facts that cannot collide, and rules Yen can inspect.
+- **Certificates.** Each verdict ships with evidence that a small, trusted checker re-verifies.
+- **Types as proofs.** A typed value carries the proof of its own check.
+- **Proven at scale.** Measured checks on fleets of hundreds of services.
 
-```nix title="modules/data.nix"
-# Instances: plain data, refs between them.
-{ yen, ... }:
-{
-  yen.fleet.main = { };
-  yen.env.prod.domain = "example.com";
-  yen.env.lab.domain = "lab.example.com";
-  yen.host.web = {
-    env = yen.env.prod;
-    db = yen.host.db;
-  };
-  yen.host.db.env = yen.env.prod;
-  yen.host.box.env = yen.env.lab;
-  yen.user.ana.on = [
-    yen.host.web
-    yen.host.box
-  ];
-}
-```
+## Try it
 
-```nix title="modules/behavior.nix"
-# Aspects are active where a predicate holds; each element goes up to the nearest `os` sink.
-{ yen, lib, ... }:
-let
-  inherit (yen.lib) same;
-in
-{
-  yen.aspects.names = {
-    at = yen.kinds.host;
-    os =
-      { host, env, ... }:
-      {
-        networking = {
-          hostName = host.name;
-          domain = env.domain;
-        };
-      };
-  };
-  yen.aspects.account = {
-    at = yen.kinds.user; # no `os` sink on a user: the account lands on each host ana is on
-    os =
-      { user, ... }:
-      {
-        users.users.${user.name}.isNormalUser = true;
-      };
-  };
-  yen.aspects.postgres = {
-    at = s: lib.any (h: same h.db s) (lib.attrValues yen.host); # a fact: some host uses me as its db
-    os.services.postgresql.enable = true;
-  };
-  # a rule across machines, checked before deploy: a host's db lives in its environment
-  yen.invariants.db-same-env =
-    { scopes, ... }:
-    map
-      (s: {
-        head = "bad:db-other-env:${s.name}";
-        pos = [ "ref:db:${s.id}:host:${s.db.name}" ];
-      })
-      (lib.filter (s: yen.lib.holds yen.kinds.host s && s.db != null && !(same s.db.env s.env)) scopes);
-}
-```
+Read [A fleet on one page](https://yen.oeiuwq.com/start/one-page-fleet/): three hosts, a rule across machines,
+and an agent's change that Yen refuses. Then the [documentation](https://yen.oeiuwq.com/): every page is a tested example.
 
-Ask it. The tree comes from the data:
-
-
-```nix title="result"
-[
-  "fleet:main"
-  "fleet:main/env:lab"
-  "fleet:main/env:lab/host:box"
-  "fleet:main/env:lab/host:box/user:ana"
-  "fleet:main/env:prod"
-  "fleet:main/env:prod/host:db"
-  "fleet:main/env:prod/host:web"
-  "fleet:main/env:prod/host:web/user:ana"
-]
-```
-
-## Change it safely
-
-An agent proposes a host in `lab` that uses the prod database. `yen.lib.stage` evaluates the fleet without and with
-the change, applies nothing, and refuses it with the rule it breaks:
-
-
-```nix title="changes/api-in-lab.nix"
-# A change, as an agent proposes it: a lab host that uses the prod database.
-{ yen, ... }:
-{
-  yen.host.api = {
-    env = yen.env.lab;
-    addr = "10.0.1.2";
-    db = yen.host.db;
-  };
-}
-```
-
-```nix title="result"
-{
-  added = [
-    "fleet:main/env:lab/host:api"
-  ];
-  ok = false;
-  violations = [
-    "bad:db-other-env:api"
-  ];
-}
-```
-
-## What else it does
-
-- **Graphs, Datalog and µKanren, in pure Nix**: deploy waves, well-founded models with proofs and why-not, and values
-  synthesized under constraints (a free port, guest memory that fits). [Ask and prove](https://yen.oeiuwq.com/query/queries/)
-- **Agents as team members**: every answer is JSON-safe data. Changes are staged, checked by invariants, limited by
-  grants that only narrow, and written as change programs. An MCP server answers agents. [For agents](https://yen.oeiuwq.com/agents/agent-surface/)
-- **Errors with fixes**: `code`, `path`, `got`, `want`, `fix`, and `near` for typos. [Errors as data](https://yen.oeiuwq.com/concepts/errors/)
-- **Fast where it counts**: one nixpkgs per system across hosts, and trimmed NixOS module lists, with drvPath oracles
-  that prove the systems are the same. [Performance](https://yen.oeiuwq.com/perf/shared-pkgs/)
-- **Every capability of Den, den-hoag and clan**, and the patterns of real fleets, each with a check, in the
-  [reference fleet](https://github.com/vic/yen/tree/main/templates/fleet). [From Den](https://yen.oeiuwq.com/migrate/from-den/)
-
-## Start
-
-
-```sh frame="terminal"
-nix flake init -t github:vic/yen#one-page-fleet
-```
-
-Then read the [documentation](https://yen.oeiuwq.com/): every page is a tested example. Coming from `configuration.nix`, a flake or Den?
-The [migration guides](https://yen.oeiuwq.com/migrate/from-configuration-nix/) build the same systems before and after.
-
-yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
-If it helps you, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor). Issues and pull requests are welcome:
+Yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
+If Yen helps you, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor). Issues and pull requests are welcome:
 see [CONTRIBUTING.md](CONTRIBUTING.md).
 

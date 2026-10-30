@@ -149,15 +149,20 @@ An unknown aspect or scope is an error record with `near`: the names it was prob
 ## Trust labels
 
 `yen.labels."<path part>" = { trust = n; }` labels the content of files whose path contains that part.
-An aspect declared in several files takes the lowest trust of them.
+An aspect declared in several files takes the lowest trust of them. A path part is plain text, never a pattern.
+When a fleet has labels, an aspect that no label covers has trust 0: unknown origin is never above a floor.
+A staged change takes its submitter's label: `stage { by = { name = "bot"; trust = 1; }; … }` gives every aspect
+the change declares that trust, and `stage.floor n` lists them, even for program ops that live in no file.
 
 
 ```nix title="modules/labels.nix"
-# Content gets the trust of the files that declare it: files under agent/ are written by agents.
+# Content gets the trust of the files that declare it: files under agent/ are written by agents. Label your own files
+# too: content that no label covers has trust 0.
 { ... }:
 {
-  yen.labels."agent/" = {
-    trust = 1;
+  yen.labels = {
+    "modules/".trust = 3;
+    "agent/".trust = 1;
   };
 }
 ```

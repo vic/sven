@@ -2,7 +2,7 @@
 #   nix eval --impure --json --file stage.nix --argstr change changes/desktop-on-web.json
 {
   change,
-  grant ? null, # where the change may give elements: yen.lib.grant { scopes = [ … ]; }
+  grant ? null, # where the change may reach: yen.lib.grant { scopes = [ … ]; }
   rejected ? [ ], # sha256 of changes refused before
   yen ? builtins.fetchTarball "https://github.com/vic/yen/archive/main.tar.gz",
   nixpkgs ? builtins.fetchTarball "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz",

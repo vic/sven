@@ -29,7 +29,10 @@
         ## Trust labels
 
         `yen.labels."<path part>" = { trust = n; }` labels the content of files whose path contains that part.
-        An aspect declared in several files takes the lowest trust of them.
+        An aspect declared in several files takes the lowest trust of them. A path part is plain text, never a pattern.
+        When a fleet has labels, an aspect that no label covers has trust 0: unknown origin is never above a floor.
+        A staged change takes its submitter's label: `stage { by = { name = "bot"; trust = 1; }; … }` gives every aspect
+        the change declares that trust, and `stage.floor n` lists them, even for program ops that live in no file.
       ''
       (docs.file "modules/labels.nix")
       (docs.file "modules/agent/metrics.nix")

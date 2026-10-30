@@ -1,0 +1,16 @@
+[
+ {"name":"yen_schema","description":"Every kind, aspect and invariant of the fleet.","inputSchema":{"type":"object","properties":{}}},
+ {"name":"yen_check","description":"Invariants: violations, incomplete, ok, and the why rules of each violation.","inputSchema":{"type":"object","properties":{}}},
+ {"name":"yen_context","description":"One scope: parent, children, aspects, elements given and received, errors.","inputSchema":{"type":"object","properties":{"id":{"type":"string"},"maxEdges":{"type":"integer"},"maxAspects":{"type":"integer"}},"required":["id"]}},
+ {"name":"yen_explain","description":"Why an aspect is active, inactive or undefined at a scope.","inputSchema":{"type":"object","properties":{"aspect":{"type":"string"},"scope":{"type":"string"},"depth":{"type":"integer"}},"required":["aspect","scope"]}},
+ {"name":"yen_errors","description":"Error records, optionally only one code.","inputSchema":{"type":"object","properties":{"code":{"type":"string"}}}},
+ {"name":"yen_declared_in","description":"The files that answer a declaration path.","inputSchema":{"type":"object","properties":{"path":{"type":"array","items":{"type":"string"}}},"required":["path"]}},
+ {"name":"yen_export","description":"The fleet as sorted N-Triples with sha256 and count. The agent decides whether to store it.","inputSchema":{"type":"object","properties":{}}},
+ {"name":"yen_stage","description":"Evaluate a change (a module as JSON) without applying it: ok, errors, violations, diff, refused, sha.","inputSchema":{"type":"object","properties":{"change":{"type":"object"}},"required":["change"]}},
+ {"name":"yen_queries","description":"The stored-query catalog: each query with its required and optional parameters.","inputSchema":{"type":"object","properties":{}}},
+ {"name":"yen_ask","description":"Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result.","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"args":{"type":"object"}},"required":["name"]}},
+ {"name":"yen_impact","description":"The scopes an element of a scope reaches over routed elements, by depth.","inputSchema":{"type":"object","properties":{"id":{"type":"string"},"hops":{"type":"integer"},"sinks":{"type":"array","items":{"type":"string"}},"max":{"type":"integer"}},"required":["id"]}},
+ {"name":"yen_labels","description":"Trust labels per aspect; with floor n, the edges whose aspect has trust below n.","inputSchema":{"type":"object","properties":{"floor":{"type":"integer"}}}},
+ {"name":"yen_why_not","description":"Whether an invariant atom (a tuple, [\"bad\", …]) is violated, and the why/whyNot rules for it.","inputSchema":{"type":"object","properties":{"atom":{"type":"array"}},"required":["atom"]}},
+ {"name":"yen_program","description":"Dry-run a change program (list of op objects): valid, errors, ok, violations, diff.","inputSchema":{"type":"object","properties":{"program":{"type":"array","items":{"type":"object"}}},"required":["program"]}}
+]

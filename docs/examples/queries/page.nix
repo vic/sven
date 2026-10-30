@@ -187,6 +187,6 @@
           "aspect git"
           "aspect nginx"
         ];
-      facts = builtins.elem "has:nginx:fleet:main/host:web" result.facts;
+      facts = builtins.elem [ "has" "nginx" "fleet:main/host:web" ] result.facts;
     };
 }

@@ -880,8 +880,8 @@ let
           }
         );
       in
-      lib.length p.reduced.nixos.${lb} > 0
-      && !(builtins.tryEval (builtins.deepSeq p.reduced.nixos.${web2} true)).success;
+      # the tree stays lazy; values need a verdict (D13), and a throwing sibling leaves none
+      lib.length p.scopes == lib.length r.scopes && !(builtins.tryEval (p.reduced == null)).success;
 
     # ── Den CI usage patterns (vic/den-patterns.md) ──
     den-cartesian-and-transitive =
@@ -1156,29 +1156,26 @@ let
         "borg"
         "site"
       ]
-      &&
-        lib.sort (a: b: a < b) (
-          map (e: e.service) (
-            (with' (
-              { yen, ... }:
-              {
-                yen.aspects.forge = {
-                  at = yen.lib.all [
-                    yen.kinds.member
-                    (s: s.service == "sshd")
-                  ];
-                  exports = {
-                    service = "borg";
-                  };
+      # a forged export is an error, and an erroring fleet gives no reduced values (D13)
+      && (
+        let
+          f = with' (
+            { yen, ... }:
+            {
+              yen.aspects.forge = {
+                at = yen.lib.all [
+                  yen.kinds.member
+                  (s: s.service == "sshd")
+                ];
+                exports = {
+                  service = "borg";
                 };
-              }
-            )).reduced.exports."fleet:main"
-          )
-        ) == [
-          "borg"
-          "site"
-          "sshd"
-        ];
+              };
+            }
+          );
+        in
+        hasMsg f ".*service sshd does not export service" && f.reduced == null
+      );
     clan-exports-per-instance =
       let
         x = with' (
@@ -1322,7 +1319,7 @@ let
             { ... }:
             {
               yen.instance.ghost = {
-                module = "banner";
+                module = "site"; # no instance limit: the fleet stays clean, so its reduced warnings are readable
                 roles.default.tags = [ "nobody" ];
               };
             }
@@ -1490,6 +1487,8 @@ let
         ];
     agent-check =
       r.check.ok
+      && r.check.certified
+      && r.check.verify r.check.seal == { ok = true; }
       &&
         r.check.invariants == [
           "attic"
@@ -1498,6 +1497,7 @@ let
           "ssh"
           "trust-order"
           "unique-addr"
+          "vocabulary"
         ]
       && r.check.violations == [ ];
     agent-stage =
@@ -1515,7 +1515,14 @@ let
         };
       in
       !s.ok
-      && s.violations == [ "bad:attic-on-mac:${studio}" ]
+      &&
+        s.violations == [
+          [
+            "bad"
+            "attic-on-mac"
+            studio
+          ]
+        ]
       && s.diff.active.added == [ "attic@${studio}" ]
       && b.isString s.render;
     agent-grant =
@@ -1531,18 +1538,23 @@ let
             grant = g;
           };
       in
-      (st {
-        kind = "host";
-        name = "stage";
-      }).refused == [ ]
+      # D14-A: a change can reach every scope, so each scope outside the grant is refused, never one inside it
+      lib.all (e: e.code == "outside-grant" && !(lib.hasPrefix "${S}/" e.got) && e.got != S)
+        (st {
+          kind = "host";
+          name = "stage";
+        }).refused
       &&
-        lib.unique (
-          map (e: e.code)
-            (st {
-              kind = "host";
-              name = "web-1";
-            }).refused
-        ) == [ "outside-grant" ];
+        (st {
+          kind = "host";
+          name = "stage";
+        }).refused != [ ]
+      &&
+        lib.any (e: lib.hasSuffix "/host:web-1" e.got)
+          (st {
+            kind = "host";
+            name = "web-1";
+          }).refused;
     agent-explain =
       let
         e = r.explain "attic" lb 2;
@@ -1684,9 +1696,20 @@ let
         };
       in
       !s.ok
-      && s.violations == [ "bad:db-cross-env:fleet:main/environment:lab/host:app-4" ]
       &&
-        r.check.whyNot "bad:db-cross-env:fleet:main/environment:lab/host:app-4" == [
+        s.violations == [
+          [
+            "bad"
+            "db-cross-env"
+            "fleet:main/environment:lab/host:app-4"
+          ]
+        ]
+      &&
+        r.check.whyNot [
+          "bad"
+          "db-cross-env"
+          "fleet:main/environment:lab/host:app-4"
+        ] == [
           {
             rule = null;
             reason = "no rule has this head";
@@ -1708,7 +1731,15 @@ let
             };
         };
       in
-      !s.ok && s.violations == [ "bad:addr-clash:10.0.1.1" ];
+      !s.ok
+      &&
+        s.violations == [
+          [
+            "bad"
+            "addr-clash"
+            "10.0.1.1"
+          ]
+        ];
     safety-trust-order =
       let
         s = yen.stage {
@@ -1721,7 +1752,15 @@ let
         };
       in
       !s.ok
-      && s.violations == [ "bad:trust-down:fleet:main/environment:lab/host:app-4:stage" ]
+      &&
+        s.violations == [
+          [
+            "bad"
+            "trust-down"
+            "fleet:main/environment:lab/host:app-4"
+            "stage"
+          ]
+        ]
       &&
         (yen.stage {
           base = fleet [ ];
@@ -1752,7 +1791,13 @@ let
         env = "staging";
       } == {
         safe = [ "stage" ];
-        refused.studio = [ "bad:attic-on-mac:fleet:main/environment:staging/mac:studio" ];
+        refused.studio = [
+          [
+            "bad"
+            "attic-on-mac"
+            "fleet:main/environment:staging/mac:studio"
+          ]
+        ];
       };
     clan-install-order =
       let

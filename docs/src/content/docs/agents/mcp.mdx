@@ -4,7 +4,9 @@
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-The reference fleet ships an MCP server: `templates/fleet/mcp/yen-mcp.sh`. It answers agents over stdio
+Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary. The reference fleet builds it as `.#yen-mcp`.
+`mcp/` is also its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
+directory, and `packages.<system>.yen-mcp` is the package. It answers agents over stdio
 (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
 
 
@@ -15,7 +17,7 @@ nix run .#yen-mcp
 
 ## Tools
 
-This table is read from the server script itself (14 tools):
+This table is read from the tool list the server embeds (`mcp/src/tools.json`) (14 tools):
 
 
 | Tool | What it answers |
@@ -32,10 +34,13 @@ This table is read from the server script itself (14 tools):
 | `yen_ask` | Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result. |
 | `yen_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
 | `yen_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
-| `yen_why_not` | Whether an invariant atom is violated, and the why/whyNot rules for it. |
+| `yen_why_not` | Whether an invariant atom (a tuple, ["bad", …]) is violated, and the why/whyNot rules for it. |
 | `yen_program` | Dry-run a change program (list of op objects): valid, errors, ok, violations, diff. |
 
 Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.
+The repository ships a skill that teaches agents the order of calls, the answer shapes and the refusals:
+`.claude/skills/yen-mcp/SKILL.md`, at the top of the repository. This page checks that it names every tool,
+and no other.
 Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation.
 
 ## Register it
@@ -49,7 +54,7 @@ Any MCP client that starts a stdio server can use it. For example, in an `mcpSer
 
 | Variable | Meaning |
 |---|---|
-| `YEN_FLEET` | the fleet directory (default: the parent of `mcp/`) |
+| `YEN_FLEET` | the fleet directory (default: the working directory) |
 | `YEN_FLAKE` | its flake ref (default: from the git top) |
 | `YEN_TIMEOUT` | seconds per nix call (default 120) |
 
