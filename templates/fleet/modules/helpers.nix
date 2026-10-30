@@ -19,7 +19,7 @@ in
       yen.kinds.host
       yen.kinds.guest
     ];
-    listOf = t: yen.lib.is (v: lib.isList v && lib.all t.check v);
+    listOf = yen.lib.listOf; # a list of refs stays a ref field
     enum = xs: yen.lib.is (v: lib.elem v xs);
     pkgsOf = m: m.channel.nixpkgs.legacyPackages.${m.system.name};
     inEnv = xs: s: lib.filterAttrs (_: x: same x.environment s) xs;

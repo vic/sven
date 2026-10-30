@@ -26,7 +26,7 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 
 | Module | What it shows |
 |---|---|
-| [`agent/invariants.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/invariants.nix) | Fleet invariants: Datalog rules, as data, over the fleet's typed facts (`[ "kind" K ID ]`, `[ "instance" ID KIND NAME ]`, |
+| [`agent/invariants.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/invariants.nix) | Fleet invariants: Datalog rules over the fleet's facts, by reference. A rule is a function of its variables; its |
 | [`agent/mcp.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/mcp.nix) | The MCP server as a flake app: `nix run .#yen-mcp` from the fleet directory serves the fleet in $PWD on stdio. |
 | [`agent/queries.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/queries.nix) | Stored queries, labels and valid time for agents. |
 | [`agent/rdf.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/rdf.nix) | The fleet as a knowledge pack: sorted N-Triples and their sha256 (yen.lib.rdf). The same fleet gives the same hash |

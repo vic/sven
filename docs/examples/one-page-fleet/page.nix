@@ -137,7 +137,7 @@ in
         t2 = eq (s.violations) ([
           [
             "bad"
-            "db-other-env"
+            "db-same-env"
             "fleet:main/env:lab/host:api"
           ]
         ]);

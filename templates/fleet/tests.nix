@@ -1663,6 +1663,7 @@ let
       t4 = eq (r.check.invariants) ([
         "attic"
         "base"
+        "db-exists"
         "db-same-env"
         "ssh"
         "trust-order"
@@ -1690,7 +1691,7 @@ let
         t2 = eq (s.violations) ([
           [
             "bad"
-            "attic-on-mac"
+            "attic"
             studio
           ]
         ]);
@@ -1914,7 +1915,7 @@ let
         t2 = eq (s.violations) ([
           [
             "bad"
-            "db-cross-env"
+            "db-same-env"
             "fleet:main/environment:lab/host:app-4"
           ]
         ]);
@@ -1922,7 +1923,7 @@ let
           eq
             (r.check.whyNot [
               "bad"
-              "db-cross-env"
+              "db-same-env"
               "fleet:main/environment:lab/host:app-4"
             ])
             ([
@@ -1953,7 +1954,7 @@ let
         t2 = eq (s.violations) ([
           [
             "bad"
-            "addr-clash"
+            "unique-addr"
             "10.0.1.1"
           ]
         ]);
@@ -1974,9 +1975,9 @@ let
         t2 = eq (s.violations) ([
           [
             "bad"
-            "trust-down"
+            "trust-order"
             "fleet:main/environment:lab/host:app-4"
-            "stage"
+            "fleet:main/environment:staging/host:stage"
           ]
         ]);
         t3 = eq ((yen.stage {
@@ -2017,7 +2018,7 @@ let
           refused.studio = [
             [
               "bad"
-              "attic-on-mac"
+              "attic"
               "fleet:main/environment:staging/mac:studio"
             ]
           ];

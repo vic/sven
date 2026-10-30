@@ -276,10 +276,10 @@ An unknown aspect or scope gives an error record with `near`: the names it was p
 { code = "unknown-field"; path = [ "prot" ]; near = [ "port" ]; … }
 ```
 
-**Invariants.** `yen.invariants.<name>` gives Datalog rules over the facts ([agent/invariants.nix](modules/agent/invariants.nix)). An atom is a list `[ rel t… ]`; a variable is `{ var = "X"; }`. A true `[ "bad" … ]` atom is a violation. An undefined one (a cycle through `not`) is `incomplete`, never a pass.
+**Invariants.** `yen.invariants.<name>` gives Datalog rules over the facts ([agent/invariants.nix](modules/agent/invariants.nix)). A rule is a function of its variables, and its literals are references from `yen.facts` and `yen.relations`, never strings: a typo is an evaluation error. A rule with `bad = M` that holds is the violation `[ "bad" <invariant> M ]`. An undefined one (a cycle through `not`) is `incomplete`, never a pass.
 
 ```nix
-yen.invariants.attic = [ { head = [ "bad" "attic-on-mac" { var = "M"; } ]; pos = [ [ "kind" "mac" { var = "M"; } ] [ "has" "attic" { var = "M"; } ] ]; } ];
+yen.invariants.attic = { M }: { bad = M; pos = [ (yen.facts.kind yen.kinds.mac M) (yen.facts.has yen.aspects.attic M) ]; };
 ```
 
 **Changes go through `stage`.** `yen.lib.stage { base; change; rejected ? [ ]; grant ? null; }` evaluates the fleet without and with the change. Nothing is applied. It returns the new errors, the new violations, a diff (scopes, routed elements, active aspects), the change's `sha` and the `refused` list. `ok` is true only when nothing new is wrong. A change in `rejected`, and a change that can reach a scope outside the grant, are refused with `class = "authority"`. `render` is the change as JSON, so it can be read back and staged again.
@@ -314,7 +314,7 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **An MCP server.** `mcp/` at the top of the yen repository, a small Rust binary, answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. `nix run .#yen-mcp` from the fleet directory runs it as a flake app ([agent/mcp.nix](modules/agent/mcp.nix)): it serves the fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
 
-**Safe between machines, before deploy.** Facts include field values: `[ "val" FIELD ID VALUE ]` and `[ "ref" FIELD ID KIND NAME ]`. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
+**Safe between machines, before deploy.** Field literals such as `yen.facts.machine.dbOn H D` read field values and refs. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-exists`, `db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
 
 **Change programs.** `yen.lib.program` writes a change as data ops: `set`, `ref`, `place` and `new`. `validate result prog` checks it against the schema (with `near`), `toModule` makes the module, `dryRun { base; prog; }` validates and stages it, and `render` gives JSON. An agent writes a program, not Nix code.
 
