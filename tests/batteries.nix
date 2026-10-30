@@ -527,7 +527,32 @@ let
     )
   ];
 
+  jsonR = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.jobs = {
+          reduce = yen.lib.reduce.merge;
+          sys = bat.files.json {
+            from = yen.kinds.box.sinks.jobs;
+            path = "ci.json";
+            value = builtins.attrNames;
+          };
+        };
+        yen.aspects.j1 = {
+          at = yen.box.a;
+          jobs.b = 1;
+        };
+        yen.aspects.j2 = {
+          at = yen.person.p;
+          jobs.a = 2;
+        };
+      }
+    )
+  ];
+
   checks = {
+    files-json = jsonR.flake.sys.a == [ { files.file."ci.json".text = "[\"a\",\"b\"]\n"; } ];
     flake-file-write =
       ffR.flake.sys.a == [
         {
