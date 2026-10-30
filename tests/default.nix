@@ -1187,6 +1187,37 @@ let
             }).data.host.a.port
             22;
       };
+    # flat joins list elements and keeps scalars; the first of a duplicate stays, so the order is the order of arrival
+    reduce-flat =
+      eq
+        (yen.reduce.flat (
+          map (value: { inherit value; }) [
+            [
+              1
+              2
+            ]
+            3
+            [
+              2
+              4
+            ]
+            [ ]
+            1
+          ]
+        ))
+        {
+          value = [
+            1
+            2
+            3
+            4
+          ];
+          errors = [ ];
+        };
+    reduce-flat-empty = eq (yen.reduce.flat [ ]) {
+      value = [ ];
+      errors = [ ];
+    };
     # reduce errors name their receiver and sink: a strategy cannot know them, the engine sets them
     reduce-error-receiver =
       let

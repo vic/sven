@@ -4,6 +4,10 @@
     at = yen.kinds.host;
     motd = "welcome";
     ports = 22;
+    packages = [
+      "git"
+      "curl"
+    ]; # `flat` joins list elements
     admin = "alice";
     nginx.http.gzip = true;
     owners = "ops";
@@ -13,6 +17,10 @@
     at = yen.host.web;
     motd = "this host serves web";
     ports = 22; # a duplicate: `set` keeps one
+    packages = [
+      "nginx"
+      "git"
+    ]; # a duplicate: `flat` keeps one, in order of arrival
     nginx.http.servers.www.port = 80; # `merge` joins the attrsets
     groups = "audio";
   };

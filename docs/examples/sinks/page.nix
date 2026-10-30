@@ -1,6 +1,6 @@
 {
   title = "Sinks and reduce";
-  description = "A sink collects elements and reduces them: list, set, one, merge, entries, or your own function.";
+  description = "A sink collects elements and reduces them: list, set, flat, one, merge, entries, or your own function.";
   section = "behavior";
   order = 4;
 
@@ -30,6 +30,11 @@
             "none"
           ]
           [
+            "`flat`"
+            "the elements joined: a list element gives its items; without duplicates"
+            "none"
+          ]
+          [
             "`one`"
             "the single element"
             "0 or 2+ elements"
@@ -51,7 +56,7 @@
           ]
         ]
       )
-      (docs.fileWith "{11-14}" "modules/sinks.nix")
+      (docs.fileWith "{12-15}" "modules/sinks.nix")
       ''
         Two aspects give elements:
       ''
@@ -108,6 +113,11 @@
           servers.www.port = 80;
         };
         owners = [ "host" ];
+        packages = [
+          "git"
+          "curl"
+          "nginx"
+        ];
         ports = [ 22 ];
       });
       failures = eq (map (e: e.code) (variant "variants/conflicts.nix").errors) ([
