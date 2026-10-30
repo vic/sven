@@ -100,8 +100,8 @@ The output of this flake looks like this:
 
 ```nix title="result.nix"
 {
-  en = "hello";
-  es = "hola";
+  en = "Hello";
+  es = "Hola";
 }
 ```
 
