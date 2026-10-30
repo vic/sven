@@ -509,15 +509,7 @@ let
     ) (lib.attrNames yen.invariants);
   };
   mcpTools = sorted (
-    lib.filter lib.isString (
-      lib.flatten (
-        map (l: builtins.match ".*\"name\":\"(yen_[a-z_]+)\".*" l) (
-          lib.splitString "\n" (
-            builtins.replaceStrings [ "{" ] [ "\n{" ] (builtins.readFile ../../mcp/yen-mcp.sh)
-          )
-        )
-      )
-    )
+    map (t: t.name) (builtins.fromJSON (builtins.readFile ../../mcp/server/src/tools.json))
   );
   mcpView = {
     nodes = [

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Drives yen-mcp.sh with JSON-RPC lines. Run from anywhere; each call is capped at 300 s.
+# Drives the yen-mcp server (mcp/server, a Rust binary) with JSON-RPC lines. Run from anywhere; each call is capped
+# at 300 s. YEN_MCP_SERVER: a server binary to test (then set YEN_TOOL_NIX); default: the fleet flake's package.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-SRV=${YEN_MCP_SERVER:-$HERE/yen-mcp.sh}
+export YEN_FLEET=${YEN_FLEET:-$HERE/..}
+SRV=${YEN_MCP_SERVER:-$(timeout 900 nix build --no-link --print-out-paths "path:$(git -C "$HERE" rev-parse --show-toplevel)?dir=templates/fleet#yen-mcp")/bin/yen-mcp}
 fails=0
 
 rpc() { printf '%s\n' "$1" | timeout -k 5 300 "$SRV"; }

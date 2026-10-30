@@ -1,0 +1,12 @@
+[package]
+name = "yen-mcp"
+version = "0.1.0"
+edition = "2021"
+description = "MCP server (JSON-RPC 2.0, one message per line on stdio) over a yen fleet"
+license = "Apache-2.0"
+
+[dependencies]
+serde_json = "1"
+
+[profile.release]
+strip = true

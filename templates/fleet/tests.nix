@@ -1555,6 +1555,16 @@ let
             kind = "host";
             name = "web-1";
           }).refused;
+    # the agent skill names every tool the server serves, and no tool it does not
+    mcp-skill =
+      let
+        skill = builtins.readFile ./.claude/skills/yen-mcp/SKILL.md;
+        tools = map (t: t.name) (builtins.fromJSON (builtins.readFile ./mcp/server/src/tools.json));
+        used = lib.filter (lib.hasPrefix "yen_") (
+          map (x: if lib.isList x then lib.head x else "") (builtins.split "(yen_[a-z_]+)" skill)
+        );
+      in
+      lib.all (t: lib.hasInfix "`${t}`" skill) tools && lib.all (n: lib.elem n tools) (lib.unique used);
     agent-explain =
       let
         e = r.explain "attic" lb 2;

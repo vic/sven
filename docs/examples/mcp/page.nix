@@ -7,14 +7,13 @@
   body =
     { docs, inputs, ... }:
     let
-      script = builtins.readFile (inputs.yen + "/templates/fleet/mcp/yen-mcp.sh");
-      lines = builtins.filter builtins.isString (builtins.split "\n" script);
-      tool = l: builtins.match ''.*\{"name":"(yen_[a-z_]+)","description":"([^"]*)".*'' l;
-      tools = builtins.filter (x: x != null) (map tool lines);
+      tools = builtins.fromJSON (
+        builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json")
+      );
     in
     [
       ''
-        The reference fleet ships an MCP server: `templates/fleet/mcp/yen-mcp.sh`. It answers agents over stdio
+        The reference fleet ships an MCP server: `templates/fleet/mcp/server`, a small Rust binary. It answers agents over stdio
         (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
       ''
       (docs.sh ''
@@ -24,16 +23,18 @@
       ''
         ## Tools
 
-        This table is read from the server script itself (${toString (builtins.length tools)} tools):
+        This table is read from the tool list the server embeds (`mcp/server/src/tools.json`) (${toString (builtins.length tools)} tools):
       ''
       (docs.table [ "Tool" "What it answers" ] (
         map (t: [
-          "`${builtins.elemAt t 0}`"
-          (builtins.elemAt t 1)
+          "`${t.name}`"
+          t.description
         ]) tools
       ))
       ''
         Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.
+        The fleet template ships a skill that teaches agents the order of calls, the answer shapes and the refusals:
+        `.claude/skills/yen-mcp/SKILL.md`. A fleet test checks that it names every tool, and no other.
         Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation.
 
         ## Register it
@@ -48,7 +49,7 @@
         [
           [
             "`YEN_FLEET`"
-            "the fleet directory (default: the parent of `mcp/`)"
+            "the fleet directory (default: the working directory)"
           ]
           [
             "`YEN_FLAKE`"
@@ -74,13 +75,7 @@
     {
       tools =
         builtins.length (
-          builtins.filter (x: x != null) (
-            map (l: builtins.match ''.*\{"name":"(yen_[a-z_]+)".*'' l) (
-              builtins.filter builtins.isString (
-                builtins.split "\n" (builtins.readFile (inputs.yen + "/templates/fleet/mcp/yen-mcp.sh"))
-              )
-            )
-          )
+          builtins.fromJSON (builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json"))
         ) == 14;
     };
 }
