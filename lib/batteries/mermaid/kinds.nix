@@ -25,11 +25,11 @@ kinds: {
         let
           t = d.fields.${f};
         in
-        if b.isAttrs t && t ? __kind then
+        if b.isAttrs t && (t ? __kind || t ? __maybe && t.__maybe ? __kind) then
           [
             {
               from = "k:${k}";
-              to = "k:${t.__kind}";
+              to = "k:${t.__kind or t.__maybe.__kind}";
               label = f;
               live = false;
             }

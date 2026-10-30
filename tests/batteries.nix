@@ -383,7 +383,7 @@ let
     (
       { yen, ... }:
       {
-        yen.kinds.person.fields.home = yen.lib.opt yen.kinds.box yen.box.a;
+        yen.kinds.person.fields.home = yen.lib.maybe yen.kinds.box; # a ref through maybe
         yen.aspects.g1.at = yen.kinds.box;
         yen.aspects.g2 = {
           at = yen.lib.all [
@@ -552,6 +552,7 @@ let
   ];
 
   checks = {
+    maybe-ref-schema = viewR.schema.kinds.person.fields.home.ref or null == "box";
     files-json = jsonR.flake.sys.a == [ { files.file."ci.json".text = "[\"a\",\"b\"]\n"; } ];
     flake-file-write =
       ffR.flake.sys.a == [

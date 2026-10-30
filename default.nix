@@ -120,6 +120,15 @@ let
   isLeaf =
     v: !isAttrs v || v ? check || v ? __kind || v ? __functor || (v.type or null) == "derivation";
   isType = t: isAttrs t && (t ? check || t ? __kind);
+  # the kind a type refers to, through `maybe`; null when it is no ref
+  refKind =
+    t:
+    if t ? __kind then
+      t.__kind
+    else if t ? __maybe then
+      refKind t.__maybe
+    else
+      null;
   checkOf = t: if t ? __kind then (v: isAttrs v && (v.kind or null) == t.__kind) else t.check;
   get =
     path: v:
@@ -196,6 +205,7 @@ let
     maybe = t: {
       check = v: v == null || checkOf t v;
       default = null;
+      __maybe = t; # the type it wraps: a maybe-ref is still a ref (refKind)
     };
     graphs = import ./lib/graphs.nix; # reach, transpose, topo, layers, sccs, cycles, paths, shortest over succ attrsets
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
@@ -381,7 +391,7 @@ let
           id = "${k}:${n}";
           p = concatStringsSep "." path;
           bad = first (t: !checkOf t r.ok) tys;
-          kr = first (t: t ? __kind) tys;
+          kr = first (t: refKind t != null) tys;
           fail = e: {
             value = null;
             errors = [ (errWith id e.error (removeAttrs e [ "error" ] // { inherit path; })) ];
@@ -397,13 +407,13 @@ let
           }
         else if tys != [ ] && bad != null then
           fail {
-            error = if kr != null then "${p} wants a ${kr.__kind} ref" else "${p} fails its check";
+            error = if kr != null then "${p} wants a ${refKind kr} ref" else "${p} fails its check";
             code = if kr != null then "ref" else "check";
             got = if isFunction r.ok then "<function>" else r.ok;
             want = typeName bad;
             fix =
               if kr != null then
-                "use yen.${kr.__kind}.<name>, not a string"
+                "use yen.${refKind kr}.<name>, not a string"
               else
                 "give ${p} a value of type ${typeName bad}";
           }
@@ -1066,7 +1076,7 @@ let
           {
             type = typeName t;
           }
-          // (if t ? __kind then { ref = t.__kind; } else { })
+          // (if refKind t != null then { ref = refKind t; } else { })
           // (
             if t ? default && elem (b.typeOf t.default) (words "string int bool null list") then
               { default = t.default; }
