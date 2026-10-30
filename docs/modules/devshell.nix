@@ -30,8 +30,8 @@ in
     pkgsOf = system: inputs.nixpkgs.legacyPackages.${system};
     name = "yen-docs";
     packages = pkgs: [
-      pkgs.nodejs
-      pkgs.pnpm
+      pkgs.nodejs_24 # Astro 7 needs Node >= 22.23.4; nodejs here is 22.20
+      (pkgs.pnpm.override { nodejs = pkgs.nodejs_24; })
       pkgs.jq
       pkgs.git
       pkgs.nixfmt-rfc-style # the same nixfmt as the fleet's flake-file

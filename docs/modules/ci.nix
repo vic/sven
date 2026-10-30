@@ -118,8 +118,9 @@ in
       '';
       doc = {
         name = "test";
+        # a PR runs once (pull_request); a branch push without a PR runs nothing; main runs on each merge
         on = {
-          push = { };
+          push.branches = [ "main" ];
           pull_request = { };
           workflow_dispatch = { };
         };
