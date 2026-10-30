@@ -1,6 +1,11 @@
 # README.md: the guide (`_guide.md`) plus live tables and diagrams computed from the fleet's own queries.
 # Every diagram is data: `yen.lib.graph` (scopes, routed elements), kind declarations, and sink values.
-{ yen, lib, ... }:
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
 let
   g = yen.lib.graph;
   code = xs: lib.concatMapStringsSep ", " (x: "`${x}`") xs;
@@ -396,15 +401,7 @@ let
     ) (lib.attrNames yen.invariants);
   };
   mcpTools = sorted (
-    lib.filter lib.isString (
-      lib.flatten (
-        map (l: builtins.match ".*\"name\":\"(yen_[a-z_]+)\".*" l) (
-          lib.splitString "\n" (
-            builtins.replaceStrings [ "{" ] [ "\n{" ] (builtins.readFile ../../mcp/yen-mcp.sh)
-          )
-        )
-      )
-    )
+    map (t: t.name) (builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json")))
   );
   mcpView = {
     nodes = [

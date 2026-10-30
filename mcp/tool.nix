@@ -28,7 +28,7 @@ let
     check = (removeAttrs r.check [ "why" ]) // {
       why = builtins.listToAttrs (
         map (v: {
-          name = v;
+          name = builtins.toJSON v; # a violation is a tuple: its JSON names it
           value = r.check.why v;
         }) r.check.violations
       );

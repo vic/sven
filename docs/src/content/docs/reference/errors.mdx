@@ -12,12 +12,18 @@ The codes below are read from the engine source when the docs are written.
 | Code | Meaning |
 |---|---|
 | `arg` | an element asks for an arg that has no answer |
+| `arity` | a rule atom has the wrong number of terms for its relation |
 | `at` | `at` holds a value that is not a predicate |
+| `bad-atom` | a rule atom is not a list `[ rel t… ]` of strings, ints, bools and `{ var = "X"; }` |
 | `bare-function` | an element is a function without named args (`x: …`): wrap it as `{ ... }:` |
 | `check` | a field value fails its type |
+| `check-not-bool` | a field type's check gives no bool (a curried check, such as a gen-types one, needs its other argument) |
 | `cycle` | an instance appears twice on its own scope path: `spawns` loops |
+| `edb-head` | a rule derives a fact yen extracts (`scope`, `instance`, `parent`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison) |
 | `error` | a message from an aspect's `errors` key |
-| `law-change` | a staged change declares `invariants`, `labels` or `flake`: the law is the owner's, never a change's |
+| `external-not-bool` | a relation's `holds` function answers a tuple with something other than a bool |
+| `invariant-function` | an invariant is a function: an invariant is a list of rules, as data, so a verdict's rules can be read |
+| `law-change` | a staged change declares `invariants`, `relations`, `labels` or `flake`: the law is the owner's, never a change's |
 | `merge` | `merge`: two different leaves at one path |
 | `missing` | a required field has no value |
 | `missing-param` | a stored query is asked without a required parameter |
@@ -25,21 +31,25 @@ The codes below are read from the engine source when the docs are written.
 | `of` | a sink element fails the sink's `of` type |
 | `one` | `one`: 0 or 2+ elements |
 | `order` | an `order` answer is not a number |
-| `outside-grant` | a staged change gives an element outside its grant |
+| `outside-grant` | a staged change can reach a scope outside its grant |
 | `program` | a change program op is not valid |
 | `ref` | a field wants an instance ref and got something else |
 | `rejected` | a staged change was rejected before (its sha is in `rejected`) |
+| `relation-check` | a rule derives a tuple that fails the `check` of its relation in `yen.relations` |
 | `reserved` | a sink is named `scope` or `sinks`: those names are fixed args of every element |
 | `spawns` | a `spawns` function gives no attrset, or an instance in it is no attrset |
 | `tree-request` | a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds) |
 | `two-answers` | one declaration leaf has two different values |
+| `unencodable` | a field holds a float, a function or a derivation: no fact can state it |
 | `unknown-aspect` | a query names an aspect that does not exist |
 | `unknown-field` | an instance sets a field its kind does not declare |
 | `unknown-key` | a module, `yen` or a kind declares a key yen does not read (yen modules are not NixOS modules) |
 | `unknown-param` | a stored query is asked with a parameter it does not take |
 | `unknown-query` | `result.ask` names a stored query that does not exist |
+| `unknown-relation` | a rule names a relation that is neither extracted nor declared in `yen.relations` |
 | `unknown-scope` | a query names a scope id that does not exist |
 | `unknown-sink` | a query names a sink that does not exist |
+| `unsafe-rule` | a variable of the head, a negative atom or a comparison is not bound by a positive atom |
 
 <CardGrid>
 <LinkCard title="Errors as data" href="/concepts/errors/" description="Records, your own checks, and warnings." />

@@ -1,124 +1,330 @@
-# Fleet invariants: Datalog rules over the fleet's facts (`kind:K:ID`, `has:ASPECT:ID`, `edge:SINK:FROM:TO`,
-# `error:CODE:FROM`). A true `bad:` atom is a violation, an undefined one an incomplete answer. An agent reads
+# Fleet invariants: Datalog rules, as data, over the fleet's typed facts (`[ "kind" K ID ]`, `[ "instance" ID KIND NAME ]`,
+# `[ "parent" ID PARENT ]`, `[ "has" ASPECT ID ]`, `[ "ref" FIELD ID KIND NAME ]`, `[ "val" FIELD ID VALUE ]`). A variable
+# is { var = "X"; }. A true `[ "bad" … ]` atom is a violation, an undefined one an incomplete answer. An agent reads
 # `check` (nix eval --file query.nix check) before and after a change; `stage` refuses a change that adds a violation.
-{ yen, lib, ... }:
+{ ... }:
 let
-  machines = yen.lib.holds [
-    yen.kinds.host
-    yen.kinds.mac
-    yen.kinds.guest
+  v = x: { var = x; };
+  H = v "H";
+  rule = head: pos: neg: { inherit head pos neg; };
+  # the relations these rules derive
+  machine = [
+    "machine"
+    H
+  ];
+  nested = [
+    "nested"
+    H
+  ];
+  env = id: e: [
+    "ref"
+    "environment"
+    id
+    "environment"
+    e
   ];
 in
 {
+  yen.relations = {
+    machine.arity = 1; # a host, a mac or a guest
+    nested.arity = 1; # a scope under a host (a variant such as lb-minimal, or a guest)
+    hostNamed.arity = 1; # some host scope has this name
+    rank.arity = 2; # an environment's trust: prod 3, lab 2, staging 1
+  };
   yen.invariants = {
-    # every machine has the base aspect (hostname, overlays)
-    base =
-      { scopes, ... }:
-      map (s: {
-        head = "bad:no-base:${s.id}";
-        pos = [ "kind:${s.kind}:${s.id}" ];
-        neg = [ "has:base:${s.id}" ];
-      }) (lib.filter machines scopes);
-    # every machine is reachable for management: it runs sshd through the clan sshd instance
-    ssh =
-      { scopes, ... }:
+    # the vocabulary: machines, nested scopes, host names, trust ranks
+    vocabulary =
       map
-        (s: {
-          head = "bad:no-sshd:${s.id}";
-          pos = [ "kind:${s.kind}:${s.id}" ];
-          neg = [ "has:clan-sshd:${s.id}" ];
-        })
         (
-          lib.filter (
-            s:
-            yen.lib.holds [
-              yen.kinds.host
-              yen.kinds.mac
-            ] s
-            && !(lib.hasInfix "/host:lb/host:" s.id)
-          ) scopes
-        );
-    # a host with a binary cache secret (attic) is never a mac: secrets stay on NixOS servers
-    attic =
-      { scopes, ... }:
-      map (s: {
-        head = "bad:attic-on-mac:${s.id}";
-        pos = [ "has:attic:${s.id}" ];
-      }) (lib.filter (s: yen.lib.holds yen.kinds.mac s) scopes);
-
-    # ── between machines: what must hold across hosts, environments and services before anything deploys ──
-    # a host's database host lives in the same environment (a prod app never writes to a staging database)
-    db-same-env =
-      { scopes, ... }:
-      lib.concatMap
-        (
-          s:
-          let
-            x = lib.findFirst (h: yen.lib.holds yen.kinds.host h && h.name == s.dbOn.name) null scopes;
-          in
-          if x == null then
+          k:
+          rule machine
             [
-              {
-                head = "bad:db-dangling:${s.id}";
-                pos = [ "kind:host:${s.id}" ];
-              }
+              [
+                "kind"
+                k
+                H
+              ]
             ]
-          else
+            [ ]
+        )
+        [
+          "host"
+          "mac"
+          "guest"
+        ]
+      ++ [
+        (rule nested
+          [
             [
-              {
-                head = "bad:db-cross-env:${s.id}";
-                pos = [ "ref:dbOn:${s.id}:host:${x.name}" ];
-                neg = [ "ref:environment:${x.id}:environment:${s.environment.name}" ];
-              }
+              "parent"
+              H
+              (v "P")
+            ]
+            [
+              "kind"
+              "host"
+              (v "P")
+            ]
+          ]
+          [ ]
+        )
+        (rule
+          [
+            "hostNamed"
+            (v "N")
+          ]
+          [
+            [
+              "instance"
+              H
+              "host"
+              (v "N")
+            ]
+          ]
+          [ ]
+        )
+      ]
+      ++
+        map
+          (e: {
+            head = [
+              "rank"
+              e.name
+              e.rank
+            ];
+          })
+          [
+            {
+              name = "prod";
+              rank = 3;
+            }
+            {
+              name = "lab";
+              rank = 2;
+            }
+            {
+              name = "staging";
+              rank = 1;
+            }
+          ];
+    # every machine has the base aspect (hostname, overlays)
+    base = [
+      (rule
+        [
+          "bad"
+          "no-base"
+          H
+        ]
+        [ machine ]
+        [
+          [
+            "has"
+            "base"
+            H
+          ]
+        ]
+      )
+    ];
+    # every host and mac (not a variant) is reachable for management: it runs sshd through the clan sshd instance
+    ssh =
+      map
+        (
+          k:
+          rule
+            [
+              "bad"
+              "no-sshd"
+              H
+            ]
+            [
+              [
+                "kind"
+                k
+                H
+              ]
+            ]
+            [
+              nested
+              [
+                "has"
+                "clan-sshd"
+                H
+              ]
             ]
         )
-        (
-          lib.filter (
-            s:
-            yen.lib.holds yen.kinds.host s && (s.dbOn or null) != null && !(lib.hasInfix "/host:lb/host:" s.id)
-          ) scopes
-        );
-    # no two machines share an address (a variant such as lb-minimal is the same machine, so it is not counted)
-    unique-addr =
-      { scopes, ... }:
+        [
+          "host"
+          "mac"
+        ];
+    # a host with a binary cache secret (attic) is never a mac: secrets stay on NixOS servers
+    attic = [
+      (rule
+        [
+          "bad"
+          "attic-on-mac"
+          H
+        ]
+        [
+          [
+            "kind"
+            "mac"
+            H
+          ]
+          [
+            "has"
+            "attic"
+            H
+          ]
+        ]
+        [ ]
+      )
+    ];
+
+    # ── between machines: what must hold across hosts, environments and services before anything deploys ──
+    # a host's database host exists, and lives in the same environment (a prod app never writes to a staging database)
+    db-same-env =
       let
-        ms = lib.filter (
-          s: machines s && (s.addr or null) != null && s.parent.kind or null != "host"
-        ) scopes;
-        byAddr = lib.groupBy (s: s.addr) ms;
+        dbOn = [
+          "ref"
+          "dbOn"
+          H
+          "host"
+          (v "N")
+        ];
       in
-      lib.concatLists (
-        lib.mapAttrsToList (
-          a: ss:
-          lib.optional (lib.length ss > 1) {
-            head = "bad:addr-clash:${a}";
-            pos = map (s: "val:addr:${s.id}:${a}") ss;
-          }
-        ) byAddr
-      );
-    # trust only flows down: a host never depends on a host in a less trusted environment (prod 3, lab 2, staging 1)
-    trust-order =
-      { scopes, ... }:
-      let
-        rank = {
-          prod = 3;
-          lab = 2;
-          staging = 1;
-        };
-        hostScope = n: lib.findFirst (h: yen.lib.holds yen.kinds.host h && h.name == n) null scopes;
-      in
-      lib.concatMap (
-        s:
-        lib.concatMap (
-          d:
-          let
-            x = hostScope d.name;
-          in
-          lib.optional (x != null && rank.${x.environment.name} < rank.${s.environment.name}) {
-            head = "bad:trust-down:${s.id}:${x.name}";
-            pos = [ "ref:dependsOn:${s.id}:host:${x.name}" ];
-          }
-        ) (s.dependsOn or [ ])
-      ) (lib.filter (s: yen.lib.holds yen.kinds.host s) scopes);
+      [
+        (rule
+          [
+            "bad"
+            "db-dangling"
+            H
+          ]
+          [ dbOn ]
+          [
+            nested
+            [
+              "hostNamed"
+              (v "N")
+            ]
+          ]
+        )
+        (rule
+          [
+            "bad"
+            "db-cross-env"
+            H
+          ]
+          [
+            dbOn
+            [
+              "instance"
+              (v "D")
+              "host"
+              (v "N")
+            ]
+            (env H (v "E"))
+          ]
+          [
+            nested
+            (env (v "D") (v "E"))
+          ]
+        )
+      ];
+    # no two machines share an address (a variant or a guest under a host is not counted)
+    unique-addr = [
+      (rule
+        [
+          "bad"
+          "addr-clash"
+          (v "X")
+        ]
+        [
+          [
+            "machine"
+            (v "A")
+          ]
+          [
+            "machine"
+            (v "B")
+          ]
+          [
+            "val"
+            "addr"
+            (v "A")
+            (v "X")
+          ]
+          [
+            "val"
+            "addr"
+            (v "B")
+            (v "X")
+          ]
+          [
+            "lt"
+            (v "A")
+            (v "B")
+          ]
+        ]
+        [
+          [
+            "nested"
+            (v "A")
+          ]
+          [
+            "nested"
+            (v "B")
+          ]
+        ]
+      )
+    ];
+    # trust only flows down: a host never depends on a host in a less trusted environment
+    trust-order = [
+      (rule
+        [
+          "bad"
+          "trust-down"
+          H
+          (v "N")
+        ]
+        [
+          [
+            "kind"
+            "host"
+            H
+          ]
+          [
+            "ref"
+            "dependsOn"
+            H
+            "host"
+            (v "N")
+          ]
+          [
+            "instance"
+            (v "X")
+            "host"
+            (v "N")
+          ]
+          (env H (v "EH"))
+          (env (v "X") (v "EX"))
+          [
+            "rank"
+            (v "EH")
+            (v "RH")
+          ]
+          [
+            "rank"
+            (v "EX")
+            (v "RX")
+          ]
+          [
+            "lt"
+            (v "RX")
+            (v "RH")
+          ]
+        ]
+        [ ]
+      )
+    ];
   };
 }

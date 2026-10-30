@@ -264,7 +264,7 @@ An agent that manages this fleet works through queries. Every answer is data tha
 | `context id { maxEdges; maxAspects; }` | one scope: parent, children, active aspects, the elements it gives and receives, its errors. Each list says `truncated = { shown; of; }` |
 | `explain aspect id depth` | why an aspect is active, inactive or undefined at a scope: a trace of its `at` (true, false or null at each node), what it gives, its files. Past the depth, `kids = "cut"` |
 | `declaredIn path` | the files that answer a declaration path, in file order |
-| `facts` | the fleet as ground atoms: `kind:K:ID`, `has:ASPECT:ID`, `edge:SINK:FROM:TO`, `error:CODE:FROM` |
+| `facts` | the fleet as typed atoms: `[ "kind" K ID ]`, `[ "instance" ID KIND NAME ]`, `[ "has" ASPECT ID ]`, `[ "edge" SINK FROM TO ]`, `[ "error" CODE FROM ]` |
 | `check` | the invariants: `violations`, `incomplete`, `ok`, `why atom` |
 
 An unknown aspect or scope gives an error record with `near`: the names it was probably meant to be.
@@ -276,17 +276,17 @@ An unknown aspect or scope gives an error record with `near`: the names it was p
 { code = "unknown-field"; path = [ "prot" ]; near = [ "port" ]; … }
 ```
 
-**Invariants.** `yen.invariants.<name>` gives Datalog rules over the facts ([agent/invariants.nix](modules/agent/invariants.nix)). A true `bad:` atom is a violation. An undefined one (a cycle through `not`) is `incomplete`, never a pass.
+**Invariants.** `yen.invariants.<name>` gives Datalog rules over the facts ([agent/invariants.nix](modules/agent/invariants.nix)). An atom is a list `[ rel t… ]`; a variable is `{ var = "X"; }`. A true `[ "bad" … ]` atom is a violation. An undefined one (a cycle through `not`) is `incomplete`, never a pass.
 
 ```nix
-yen.invariants.attic = { scopes, ... }: map (s: { head = "bad:attic-on-mac:${s.id}"; pos = [ "has:attic:${s.id}" ]; }) (lib.filter (s: s.kind == "mac") scopes);
+yen.invariants.attic = [ { head = [ "bad" "attic-on-mac" { var = "M"; } ]; pos = [ [ "kind" "mac" { var = "M"; } ] [ "has" "attic" { var = "M"; } ] ]; } ];
 ```
 
-**Changes go through `stage`.** `yen.lib.stage { base; change; rejected ? [ ]; grant ? null; }` evaluates the fleet without and with the change. Nothing is applied. It returns the new errors, the new violations, a diff (scopes, routed elements, active aspects), the change's `sha` and the `refused` list. `ok` is true only when nothing new is wrong. A change in `rejected`, and an element outside the grant, are refused with `class = "authority"`. `render` is the change as JSON, so it can be read back and staged again.
+**Changes go through `stage`.** `yen.lib.stage { base; change; rejected ? [ ]; grant ? null; }` evaluates the fleet without and with the change. Nothing is applied. It returns the new errors, the new violations, a diff (scopes, routed elements, active aspects), the change's `sha` and the `refused` list. `ok` is true only when nothing new is wrong. A change in `rejected`, and a change that can reach a scope outside the grant, are refused with `class = "authority"`. `render` is the change as JSON, so it can be read back and staged again.
 
 ```nix
 yen.lib.stage { base = fleet; change = { yen.aspects.attic.at = [ { kind = "mac"; name = "studio"; } ]; }; }
-# ok = false; violations = [ "bad:attic-on-mac:…/mac:studio" ]; diff.active.added = [ "attic@…/mac:studio" ]
+# ok = false; violations = [ [ "bad" "attic-on-mac" "…/mac:studio" ] ]; diff.active.added = [ "attic@…/mac:studio" ]
 ```
 
 **Proofs and why-not.** `yen.lib.datalog` adds `proof rules model atom` (a proof tree; a positive cycle shows `cycle = true`), `whyNot rules model atom` (per rule: the `missing` positive atoms, the `blocking` negative ones, the undefined ones) and `judge rules a notA` (`supported`, `refuted`, `both`, `neither` or `unknown`). [query/datalog.nix](modules/query/datalog.nix) gives `out.serving.whyNot.<host>` and judges the database primary: `unknown`, a choice the policy leaves open.
@@ -312,9 +312,9 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Shapes.** `yen.lib.rdf.shacl result` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required, `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields. The pack types every instance, so a ref meets its class. quipu's validator accepts the pack of a fixture fleet and reports one `sh:class` violation for a ref to a missing instance.
 
-**An MCP server.** `templates/fleet/mcp/yen-mcp.sh` answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. `nix run .#yen-mcp` from the fleet directory runs it as a flake app ([agent/mcp.nix](modules/agent/mcp.nix)): it serves the fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
+**An MCP server.** `mcp/` at the top of the yen repository, a small Rust binary, answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. `nix run .#yen-mcp` from the fleet directory runs it as a flake app ([agent/mcp.nix](modules/agent/mcp.nix)): it serves the fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
 
-**Safe between machines, before deploy.** Facts include field values: `val:FIELD:ID:VALUE` and `ref:FIELD:ID:KIND:NAME`. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
+**Safe between machines, before deploy.** Facts include field values: `[ "val" FIELD ID VALUE ]` and `[ "ref" FIELD ID KIND NAME ]`. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
 
 **Change programs.** `yen.lib.program` writes a change as data ops: `set`, `ref`, `place` and `new`. `validate result prog` checks it against the schema (with `near`), `toModule` makes the module, `dryRun { base; prog; }` validates and stages it, and `render` gives JSON. An agent writes a program, not Nix code.
 
@@ -324,10 +324,10 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 ```nix
 result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
-# { safe = [ "stage" ]; refused.studio = [ "bad:attic-on-mac:fleet:main/environment:staging/mac:studio" ]; }
+# { safe = [ "stage" ]; refused.studio = [ [ "bad" "attic-on-mac" "fleet:main/environment:staging/mac:studio" ] ]; }
 ```
 
-**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may give elements. `narrow g h` keeps what both allow. No function makes a grant wider. A staged change that gives an element outside its grant is refused.
+**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may reach. `narrow g h` keeps what both allow. No function makes a grant wider. A module can read the whole fleet through `yen`, so a staged change that declares anything is refused at every scope outside its grant.
 
 ## Patterns in this fleet
 

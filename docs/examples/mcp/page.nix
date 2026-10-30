@@ -7,14 +7,13 @@
   body =
     { docs, inputs, ... }:
     let
-      script = builtins.readFile (inputs.yen + "/templates/fleet/mcp/yen-mcp.sh");
-      lines = builtins.filter builtins.isString (builtins.split "\n" script);
-      tool = l: builtins.match ''.*\{"name":"(yen_[a-z_]+)","description":"([^"]*)".*'' l;
-      tools = builtins.filter (x: x != null) (map tool lines);
+      tools = builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"));
     in
     [
       ''
-        The reference fleet ships an MCP server: `templates/fleet/mcp/yen-mcp.sh`. It answers agents over stdio
+        Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary. The reference fleet builds it as `.#yen-mcp`.
+        `mcp/` is also its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
+        directory, and `packages.<system>.yen-mcp` is the package. It answers agents over stdio
         (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
       ''
       (docs.sh ''
@@ -24,16 +23,19 @@
       ''
         ## Tools
 
-        This table is read from the server script itself (${toString (builtins.length tools)} tools):
+        This table is read from the tool list the server embeds (`mcp/src/tools.json`) (${toString (builtins.length tools)} tools):
       ''
       (docs.table [ "Tool" "What it answers" ] (
         map (t: [
-          "`${builtins.elemAt t 0}`"
-          (builtins.elemAt t 1)
+          "`${t.name}`"
+          t.description
         ]) tools
       ))
       ''
         Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.
+        The repository ships a skill that teaches agents the order of calls, the answer shapes and the refusals:
+        `.claude/skills/yen-mcp/SKILL.md`, at the top of the repository. This page checks that it names every tool,
+        and no other.
         Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation.
 
         ## Register it
@@ -48,7 +50,7 @@
         [
           [
             "`YEN_FLEET`"
-            "the fleet directory (default: the parent of `mcp/`)"
+            "the fleet directory (default: the working directory)"
           ]
           [
             "`YEN_FLAKE`"
@@ -73,14 +75,21 @@
     { inputs, ... }:
     {
       tools =
-        builtins.length (
-          builtins.filter (x: x != null) (
-            map (l: builtins.match ''.*\{"name":"(yen_[a-z_]+)".*'' l) (
-              builtins.filter builtins.isString (
-                builtins.split "\n" (builtins.readFile (inputs.yen + "/templates/fleet/mcp/yen-mcp.sh"))
-              )
-            )
-          )
-        ) == 14;
+        builtins.length (builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"))) == 14;
+      # the agent skill names every tool the server serves, and no tool it does not
+      skill =
+        let
+          skill = builtins.readFile (inputs.yen + "/.claude/skills/yen-mcp/SKILL.md");
+          tools = map (t: t.name) (
+            builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"))
+          );
+          used = builtins.filter (n: builtins.substring 0 4 n == "yen_") (
+            map (x: if builtins.isList x then builtins.head x else "") (builtins.split "(yen_[a-z_]+)" skill)
+          );
+        in
+        builtins.all (
+          t: builtins.match ".*`${t}`.*" (builtins.replaceStrings [ "\n" ] [ " " ] skill) != null
+        ) tools
+        && builtins.all (n: builtins.elem n tools) used;
     };
 }

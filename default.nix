@@ -25,6 +25,7 @@ let
     length
     listToAttrs
     mapAttrs
+    tail
     ;
 
   # ── tiny helpers (no nixpkgs) ──
@@ -54,11 +55,43 @@ let
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
   requestKinds = words "nearest parent children scopesOf holds";
-  factRelations = words "scope kind has edge error ref val"; # the atoms yen extracts: no rule may derive them
+  # the facts yen extracts, with their arity: no rule derives them
+  edbArity = {
+    scope = 1;
+    instance = 3;
+    parent = 2;
+    kind = 2;
+    has = 2;
+    edge = 3;
+    error = 2;
+    ref = 4;
+    val = 3;
+  };
   # the only keys a module, its `yen` and a kind declare; any other key is an error, never ignored
   moduleKeys = words "imports _module yen";
-  yenKeys = words "kinds aspects helpers queries invariants labels flake"; # and the kind names
+  yenKeys = words "kinds aspects helpers queries invariants relations labels flake"; # and the kind names
   kindKeys = words "fields spawns sinks";
+  # s occurs in x, as text (no regex)
+  hasInfix =
+    s: x: any (i: b.substring i (b.stringLength s) x == s) (b.genList (i: i) (b.stringLength x + 1));
+  # the routed elements whose aspect's trust is below t; `labels` gives each aspect its label
+  floorOf =
+    labels: edges: t:
+    concatMap (
+      e:
+      let
+        n = b.substring 7 (b.stringLength e.origin) e.origin;
+        l = labels.${n};
+      in
+      optional (b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t) (
+        {
+          edge = e;
+          aspect = n;
+          inherit (l) trust file prefix;
+        }
+        // intersectAttrs { by = null; } l
+      )
+    ) edges;
   uniqueBy =
     key: xs:
     map (i: i.x) (genericClosure {
@@ -129,7 +162,14 @@ let
       refKind t.__maybe
     else
       null;
-  checkOf = t: if t ? __kind then (v: isAttrs v && (v.kind or null) == t.__kind) else t.check;
+  # a check that gives no bool (a curried gen-types check) fails, never throws; `boolCheck` names it in the error
+  checkOf =
+    t:
+    if t ? __kind then
+      (v: isAttrs v && (v.kind or null) == t.__kind)
+    else
+      (v: b.isBool (t.check v) && t.check v);
+  boolCheck = t: v: t ? __kind || b.isBool (t.check v);
   get =
     path: v:
     foldl' (
@@ -391,6 +431,7 @@ let
           id = "${k}:${n}";
           p = concatStringsSep "." path;
           bad = first (t: !checkOf t r.ok) tys;
+          notBool = first (t: !boolCheck t r.ok) tys;
           kr = first (t: refKind t != null) tys;
           fail = e: {
             value = null;
@@ -404,6 +445,13 @@ let
             code = "missing";
             want = typeName (head tys);
             fix = "set ${id}.${p}";
+          }
+        else if tys != [ ] && notBool != null then
+          fail {
+            error = "the check of ${p} gives a ${b.typeOf (notBool.check r.ok)}, not a bool";
+            code = "check-not-bool";
+            want = typeName notBool;
+            fix = "make the check `v: bool`; a curried check needs its other argument first";
           }
         else if tys != [ ] && bad != null then
           fail {
@@ -450,6 +498,7 @@ let
         helpers = top.helpers or { };
         queries = top.queries or { };
         invariants = top.invariants or { };
+        relations = top.relations or { }; # user relations a rule derives: `<name>.arity`
         inherit labelTable;
       }; # declarations an agent or the docs read
 
@@ -973,77 +1022,406 @@ let
           inherit (e) origin;
         }) routed;
       }; # origin: "aspect x" or "sink y": who gave it
-      # ── facts and invariants: the fleet as ground atoms; `yen.invariants.<name>` gives Datalog rules over them.
-      # A true `bad:` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
+      # ── facts and invariants: the fleet as typed atoms `[ rel t… ]`; `yen.invariants.<name>` gives Datalog rules over them.
+      # A true `bad` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
+      # a field value: `[ "ref" FIELD ID KIND NAME ]` for a ref, `[ "val" FIELD ID VALUE ]` for a string, int or bool, one
+      # per list element (a path by its string). A float, function or derivation has no fact, so it is an error: an absence never passes on it
+      fieldAtoms = concatMap (
+        s:
+        concatMap (
+          f:
+          let
+            one =
+              x:
+              if isRef x && isString x.kind then
+                [
+                  {
+                    atom = [
+                      "ref"
+                      f
+                      s.id
+                      x.kind
+                      x.name
+                    ];
+                  }
+                ]
+              else if isString x || b.isInt x || b.isBool x then
+                [
+                  {
+                    atom = [
+                      "val"
+                      f
+                      s.id
+                      x
+                    ];
+                  }
+                ]
+              else if isPath x then
+                [
+                  {
+                    atom = [
+                      "val"
+                      f
+                      s.id
+                      (toString x)
+                    ];
+                  }
+                ] # a path is stated by its string
+              else if b.isFloat x || isFunction x || isAttrs x && x.type or null == "derivation" then
+                [
+                  {
+                    error = errWith s.id "field `${f}` holds a ${b.typeOf x}: no fact can state it" {
+                      code = "unencodable";
+                      path = [ f ];
+                      got = b.typeOf x;
+                      fix = "give the field a string, an int, a bool or a ref";
+                    };
+                  }
+                ]
+              else if isAttrs x then
+                [
+                  {
+                    opaque = f;
+                    inherit (s) id;
+                  }
+                ] # an attrset is data no fact states: a rule that must see it marks the verdict opaque (.41)
+              else
+                [ ];
+          in
+          if isList s.${f} then concatMap one s.${f} else one s.${f}
+        ) (attrNames (removeAttrs s scopeMeta))
+      ) unsorted;
       facts =
-        map (s: "scope:${s.id}") scopes
-        ++ map (s: "kind:${s.kind}:${s.id}") scopes
-        ++ concatMap (n: map (s: "has:${n}:${s.id}") (filter (s: active.${n}.${s.id}) unsorted)) aspectNames
-        ++ map (e: "edge:${e.sink}:${e.from}:${e.to}") graph.edges
-        ++ map (e: "error:${e.code or "error"}:${e.from}") errorsAll
-        # field values of each scope's instance: `ref:FIELD:ID:KIND:NAME` for a ref, `val:FIELD:ID:VALUE` for a string, int or bool
+        map (s: [
+          "scope"
+          s.id
+        ]) scopes
+        ++ map (s: [
+          "instance"
+          s.id
+          s.kind
+          s.name
+        ]) scopes # a ref names KIND NAME: this finds its scopes
+        ++ map (s: [
+          "parent"
+          s.id
+          s.parent.id
+        ]) (filter (s: s.parent != null) scopes)
+        ++ map (s: [
+          "kind"
+          s.kind
+          s.id
+        ]) scopes
         ++ concatMap (
-          s:
-          concatMap (
-            f:
-            let
-              v = s.${f};
-              atom =
-                x:
-                if isRef x && isString x.kind then
-                  [ "ref:${f}:${s.id}:${x.kind}:${x.name}" ]
-                else if isString x || b.isInt x then
-                  [ "val:${f}:${s.id}:${toString x}" ]
-                else
-                  [ ];
-            in
-            if isList v then
-              concatMap atom v
-            else if b.isBool v then
-              [ "val:${f}:${s.id}:${b.toJSON v}" ]
-            else
-              atom v
-          ) (attrNames (removeAttrs s scopeMeta))
-        ) unsorted;
+          n:
+          map (s: [
+            "has"
+            n
+            s.id
+          ]) (filter (s: active.${n}.${s.id}) unsorted)
+        ) aspectNames
+        ++ map (e: [
+          "edge"
+          e.sink
+          e.from
+          e.to
+        ]) graph.edges
+        ++ map (e: [
+          "error"
+          (e.code or "error")
+          e.from
+        ]) errorsFleet
+        ++ concatMap (x: if x ? atom then [ x.atom ] else [ ]) fieldAtoms;
       check =
         let
           D = static.datalog;
           invs = yen.invariants;
-          rulesOf =
+          # rules are data (D3): a function is an error, so every rule a verdict uses can be read and certified
+          rulesOf = n: if isList invs.${n} then invs.${n} else [ ];
+          shapeErrors = map (
             n:
+            errWith "invariant ${n}" "an invariant is a list of rules, not a ${b.typeOf invs.${n}}" {
+              code = "invariant-function";
+              path = [
+                "invariants"
+                n
+              ];
+              fix = "write the rules as data: [ { head = [ \"bad\" … ]; pos = [ … ]; neg = [ … ]; } ], with { var = \"X\"; }";
+            }
+          ) (filter (n: !isList invs.${n}) (attrNames invs));
+          # externals decide atoms on bound terms: the comparisons, a relation with `holds = terms: bool`, and a
+          # relation with `type` (rung 4: a type is a predicate, true when the term passes its check)
+          externals =
+            D.comparisons
+            // mapAttrs (_: r: if r ? type then (ts: checkOf r.type (head ts)) else r.holds) (
+              intersectAttrs (genAttrs (filter (n: yen.relations.${n} ? holds || yen.relations.${n} ? type) (
+                attrNames yen.relations
+              )) (_: null)) yen.relations
+            );
+          # every relation a rule may name: the extracted ones, the externals, and the user's; `bad` takes any arity
+          arity =
+            edbArity
+            // mapAttrs (_: _: 2) D.comparisons
+            // mapAttrs (_: r: if r ? type then 1 else r.arity) yen.relations;
+          isAtom =
+            a:
+            isList a
+            && a != [ ]
+            && isString (head a)
+            && all (t: isString t || b.isInt t || b.isBool t || D.isVar t) (tail a);
+          isCmp = a: externals ? ${head a};
+          varsOf = concatMap (a: map (t: t.var) (filter D.isVar (tail a)));
+          # the first thing wrong with a rule, as { code; error; got; }, or null
+          problem =
+            r:
             let
-              f = invs.${n};
+              atoms = [ r.head ] ++ r.pos or [ ] ++ r.neg or [ ];
+              bound = varsOf (filter (a: !isCmp a) (r.pos or [ ]));
+              free = filter (x: !elem x bound) (
+                varsOf ([ r.head ] ++ r.neg or [ ] ++ filter isCmp (r.pos or [ ]))
+              );
+              unknownRel = filter (a: !(arity ? ${head a}) && head a != "bad") atoms;
+              wrongArity = filter (a: arity ? ${head a} && length (tail a) != arity.${head a}) atoms;
             in
-            if isFunction f then
-              f {
-                inherit
-                  scopes
-                  graph
-                  active
-                  facts
-                  yen
-                  ;
+            if !(isAttrs r && r ? head) || !all isAtom atoms then
+              {
+                code = "bad-atom";
+                error = "an atom is a list [ rel t… ] of strings, ints, bools and { var = \"X\"; }";
+                got = static.jsonSafe r;
+              }
+            else if edbArity ? ${head r.head} || isCmp r.head then
+              {
+                code = "edb-head";
+                error = "a rule derives `${head r.head}`, a relation yen or a function decides: a rule never states it";
+                got = r.head;
+              }
+            else if unknownRel != [ ] then
+              {
+                code = "unknown-relation";
+                error = "no relation ${head (head unknownRel)}: declare it in yen.relations";
+                got = head (head unknownRel);
+                near = near (head (head unknownRel)) (attrNames arity);
+              }
+            else if wrongArity != [ ] then
+              {
+                code = "arity";
+                error = "${head (head wrongArity)} takes ${toString arity.${head (head wrongArity)}} terms";
+                got = head wrongArity;
+              }
+            else if free != [ ] then
+              {
+                code = "unsafe-rule";
+                error = "variable ${head free} is not bound by a positive atom";
+                got = free;
               }
             else
-              f;
-          # a rule may derive only its own relations: a head that spells an extracted fact would forge it
-          isFact = a: any (p: b.substring 0 (b.stringLength p + 1) a == "${p}:") factRelations;
-          allRules = concatMap rulesOf (attrNames invs);
-          forged = map (r: r.head) (filter (r: isFact r.head) allRules);
-          rules = filter (r: !isFact r.head) allRules;
-          mentioned = keySet (concatMap (r: r.pos or [ ] ++ r.neg or [ ]) rules);
-          m = D.wfs (rules ++ D.facts (filter (a: mentioned ? ${a}) facts));
-          isBad = a: b.substring 0 4 a == "bad:";
+              null;
+          checked = concatMap (
+            n:
+            map (r: {
+              inherit n r;
+              p = problem r;
+            }) (rulesOf n)
+          ) (attrNames invs);
+          errors =
+            shapeErrors
+            ++ map (
+              x:
+              errWith "invariant ${x.n}" x.p.error (
+                removeAttrs x.p [ "error" ]
+                // {
+                  path = [
+                    "invariants"
+                    x.n
+                  ];
+                }
+              )
+            ) (filter (x: x.p != null) checked)
+            # a derived tuple of a user relation that fails the relation's check
+            ++
+              map
+                (
+                  a:
+                  errWith "relation ${head a}" "${head a} derives ${b.toJSON (tail a)}, which fails its check" {
+                    code = "relation-check";
+                    got = a;
+                    path = [
+                      "relations"
+                      (head a)
+                    ];
+                  }
+                )
+                (
+                  filter (
+                    a: yen.relations.${head a}.check or null != null && !checkOf yen.relations.${head a} (tail a)
+                  ) m.true
+                )
+            # an external whose function gave no bool: the verdict cannot rest on it
+            ++ map (
+              a:
+              errWith "relation ${head a}" "${head a} answers ${b.toJSON (tail a)} with no bool" {
+                code = "external-not-bool";
+                got = a;
+                path = [
+                  "relations"
+                  (head a)
+                ];
+              }
+            ) grounded.faults;
+          grounded = D.groundWith externals (map (x: x.r) (filter (x: x.p == null) checked)) facts;
+          ground = grounded.rules;
+          key = b.toJSON;
+          mentioned = keySet (map key (concatMap (r: r.pos ++ r.neg) ground));
+          verdictProgram = ground ++ D.facts (filter (a: mentioned ? ${key a}) facts);
+          m = D.wfs verdictProgram;
+          # the staged certificate of the verdict (rung 3), and the plain checker's answer on it: valid, and it states
+          # the same violations, with every undefined `bad` atom left out (incomplete)
+          certificate = D.certify verdictProgram;
+          certAtoms = es: b.sort b.lessThan (map (x: key x.atom) es);
+          certified =
+            (D.checkCertificate verdictProgram certificate).valid
+            && certAtoms (filter (x: isBad x.atom) certificate.true) == b.sort b.lessThan (map key violations)
+            && !any (a: elem (key a) (certAtoms (certificate.true ++ certificate.false))) incomplete;
+          isBad = a: head a == "bad";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
-          ground = rules ++ D.facts facts;
+          # .41 (E1): a relation reached from `bad` through an even number of `not` must be complete. Yen's facts are,
+          # but for a field value no fact states (an attrset): such a field read there makes the verdict opaque, not ok.
+          # A node is a relation; a `val` atom with a constant field is its own node, `val/*` when the field is a variable
+          node =
+            a:
+            if head a == "val" then "val/${if isString (b.elemAt a 1) then b.elemAt a 1 else "*"}" else head a;
+          valid = map (x: x.r) (filter (x: x.p == null) checked);
+          reached = keySet (
+            map (x: x.key) (genericClosure {
+              startSet = [
+                {
+                  key = "bad@0";
+                  n = "bad";
+                  odd = false;
+                }
+              ];
+              operator =
+                x:
+                concatMap (
+                  r:
+                  let
+                    next = flip: a: {
+                      key = "${node a}@${if x.odd != flip then "1" else "0"}";
+                      n = node a;
+                      odd = x.odd != flip;
+                    };
+                  in
+                  map (next false) (r.pos or [ ]) ++ map (next true) (r.neg or [ ])
+                ) (filter (r: node r.head == x.n) valid);
+            })
+          );
+          opaqueAt = groupBy (x: x.opaque) (filter (x: x ? opaque) fieldAtoms);
+          opaque = map (f: {
+            field = f;
+            scopes = map (x: x.id) opaqueAt.${f};
+          }) (filter (f: reached ? "val/${f}@0" || reached ? "val/*@0") (attrNames opaqueAt));
+          # .42: the seal binds a verdict to the engine, the rules and the facts it was computed from. Anything else that
+          # changes a verdict changes one of them. Checking a seal is evaluating again: `verify` answers { ok; why; }
+          hash = x: b.hashString "sha256" (b.toJSON x);
+          binding = {
+            engine = hash (
+              map (f: b.hashFile "sha256" f) [
+                ./default.nix
+                ./lib/datalog.nix
+              ]
+            );
+            rules = hash (map (x: x.r) checked);
+            facts = hash facts;
+          };
+          refuse = why: {
+            ok = false;
+            inherit why;
+          };
+          verify =
+            s:
+            if s.binding.engine != binding.engine then
+              refuse "engine"
+            else if s.binding.rules != binding.rules then
+              refuse "rules"
+            else if s.binding.facts != binding.facts then
+              refuse "facts"
+            else if !(D.checkCertificate verdictProgram s.certificate).valid then
+              refuse "certificate"
+            else if s.violations != violations || s.incomplete != incomplete then
+              refuse "verdict"
+            else
+              { ok = true; };
+          # .43: where a fact comes from, beside the fact, never in it: an edge's origin, or the files that declare its
+          # instance, its field, or its aspect
+          from =
+            a:
+            let
+              r = head a;
+              # the scope id: [ "kind" K ID ], [ "val" F ID V ] and [ "ref" F ID K N ] hold it second; the others first
+              s = byId.${b.elemAt a (if elem r (words "kind val ref") then 2 else 1)} or null;
+              inst =
+                path:
+                if s == null then
+                  [ ]
+                else
+                  declaredIn (
+                    [
+                      s.kind
+                      s.name
+                    ]
+                    ++ path
+                  );
+            in
+            if r == "edge" then
+              map (e: e.origin) (
+                filter (
+                  e:
+                  [
+                    "edge"
+                    e.sink
+                    e.from
+                    e.to
+                  ] == a
+                ) graph.edges
+              )
+            else if r == "has" then
+              filesOf (b.elemAt a 1)
+            else if r == "val" || r == "ref" then
+              inst [ (b.elemAt a 1) ]
+            else if r == "error" then
+              [ (b.elemAt a 2) ]
+            else
+              inst [ ];
+          program = ground ++ D.facts facts;
+          # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `program`
+          model = m // {
+            true = m.true ++ filter (a: !(mentioned ? ${key a})) facts;
+          };
         in
         {
-          inherit violations incomplete forged;
-          ok = violations == [ ] && incomplete == [ ] && forged == [ ];
-          why = D.why ground m;
-          whyNot = D.whyNot ground m;
-          proof = D.proof ground m;
+          inherit
+            violations
+            incomplete
+            errors
+            certificate
+            certified
+            verify
+            from
+            opaque
+            ;
+          seal = static.jsonSafe {
+            inherit
+              binding
+              certificate
+              violations
+              incomplete
+              ;
+          };
+          ok = violations == [ ] && incomplete == [ ] && opaque == [ ];
+          why = D.why program model;
+          whyNot = D.whyNot program model;
+          proof = D.proof program model;
           invariants = attrNames invs;
         };
       lib =
@@ -1275,8 +1653,15 @@ let
             inherit hops;
           };
       # ── labels by file path prefix (`yen.labels."agent/" = { trust = 1; }`): an aspect's label is the meet (the
-      # lowest trust) over the files that declare it; an element carries its aspect's label; `floor n` lists what is below ──
+      # lowest trust) over the files that declare it; an element carries its aspect's label; `floor n` lists what is below.
+      # A prefix is literal text after a `/`, never a regex. When the fleet has labels, an aspect no prefix covers has
+      # trust 0: unknown provenance is never above a floor ──
       labelTable = top.labels or { };
+      unlabeled = {
+        trust = 0;
+        prefix = null;
+        file = null;
+      };
       labelOf =
         n:
         foldl' (a: x: if a == null || (x.trust or 0) < (a.trust or 0) then x else a) null (
@@ -1289,28 +1674,15 @@ let
                 prefix = p;
                 file = f;
               }
-            ) (filter (p: b.match ".*/${p}.*" f != null) (attrNames labelTable))
+            ) (filter (p: hasInfix "/${p}" f) (attrNames labelTable))
           ) (filesOf n)
         );
       labels =
-        let
-          ls = mapAttrs (n: _: labelOf n) aspects;
-        in
-        removeAttrs ls (filter (n: ls.${n} == null) aspectNames);
-      floor =
-        t:
-        concatMap (
-          e:
-          let
-            n = b.substring 7 (b.stringLength e.origin) e.origin;
-            l = labels.${n};
-          in
-          optional (b.substring 0 7 e.origin == "aspect " && labels ? ${n} && (l.trust or 0) < t) {
-            edge = e;
-            aspect = n;
-            inherit (l) trust file prefix;
-          }
-        ) graph.edges;
+        if labelTable == { } then
+          { }
+        else
+          mapAttrs (n: _: if labelOf n == null then unlabeled else labelOf n) aspects;
+      floor = floorOf labels graph.edges;
       # a key yen does not read is an error, not a silent no-op: yen modules are not NixOS modules.
       # `from` is the module that declares the key
       keyErrors =
@@ -1372,7 +1744,8 @@ let
             }
           ) (filter (n: elem n scopeKeys) (attrNames (kinds.${k}.fields or { })))
         ) kindNames;
-      errorsAll =
+      # every error but the invariants': the `error` facts read these, so a rule never reads its own errors
+      errorsFleet =
         loadErrors
         ++ reservedErrors
         ++ keyErrors
@@ -1383,12 +1756,16 @@ let
         ++ orderErrors
         ++ requestErrors
         ++ reduceErrors
-        ++ emitted;
+        ++ emitted
+        ++ optional (!(flakeFill ? ok)) flakeFill
+        ++ concatMap (x: if x ? error then [ x.error ] else [ ]) fieldAtoms;
+      errorsAll = errorsFleet ++ check.errors;
+      flakeFill = if top ? flake && scopes != [ ] then fill (head scopes) top.flake else { ok = null; };
+      clean = errorsAll == [ ] && check.ok;
       self = {
         inherit
           scopes
           active
-          reduced
           graph
           undefined
           declaredIn
@@ -1414,12 +1791,10 @@ let
           ) instances.${k}
         ) kinds;
         errors = errorsAll;
-        # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs
-        flake =
-          if top ? flake && scopes != [ ] && errorsAll == [ ] && check.ok then
-            (fill (head scopes) top.flake).ok or null
-          else
-            null;
+        # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs, and no
+        # reduced sink values to build them from by hand (D13)
+        reduced = if clean then reduced else null;
+        flake = if clean then flakeFill.ok else null;
         # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.
@@ -1514,6 +1889,7 @@ let
       change,
       rejected ? [ ],
       grant ? null,
+      by ? null, # who submits it: { name; trust; }; the change's aspects carry this label (none: trust 0)
       id ? null, # the change's content hash, when the caller knows it (a program); else from a path or data
       baseResult ? eval base,
     }: # baseResult: the base already evaluated. The invariants always run: the law is not optional
@@ -1556,49 +1932,40 @@ let
         edges = delta keyG (r: r.graph.edges);
         active = delta (x: x) activeList;
       };
-      # what the change itself declares: no value comparison (reduced values can hold functions and cycles).
-      # Instance data it declares changes that instance's scopes; an aspect key it declares changes where it routes.
-      # shortcut: direct changes only; a value that reaches other scopes through a sink read or a kind arg is not
-      # followed (bead "transitive impact of a staged change"), upgrade with an impact closure over edges + children
+      # what the change itself declares: no value comparison (reduced values can hold functions and cycles)
       declared = eval change;
-      changedValues =
-        concatMap (
-          s:
-          optional
-            (
-              declared.declaredIn [
-                s.kind
-                s.name
-              ] != [ ]
-            )
-            {
-              k = "data";
-              to = s.id;
-            }
-        ) changedResult.scopes
-        ++ concatMap (
-          e:
-          optional
-            (
+      # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
+      # scope and every sink. shortcut: sound but coarse; R-yen (yen-704.27) makes reads visible, then grants narrow again
+      # .20 .13: every aspect the change declares carries its submitter's label, whatever file (or inline program op)
+      # holds it, so a floor sees the agent
+      labels =
+        changedResult.labels
+        //
+          genAttrs
+            (filter (
+              n:
               declared.declaredIn [
                 "aspects"
-                (b.substring 7 (b.stringLength e.origin) e.origin)
-                e.sink
+                n
               ] != [ ]
-            )
-            {
-              k = e.sink;
-              inherit (e) to;
-            }
-        ) (filter (e: b.substring 0 7 e.origin == "aspect ") changedResult.graph.edges);
+            ) (attrNames changedResult.active))
+            (_: {
+              trust = by.trust or 0;
+              by = by.name or null;
+              prefix = null;
+              file = null;
+            });
+      reaches = any (k: declared.declaredIn [ k ] != [ ]) (
+        yenKeys ++ attrNames changedResult.schema.kinds
+      );
       outside =
-        what: e:
-        errWith (e.from or "stage") "the change ${what} ${e.sink} at ${e.to}, outside the grant" {
+        id:
+        errWith "stage" "the change can reach ${id}, outside the grant" {
           code = "outside-grant";
           class = "authority";
-          got = e;
+          got = id;
         };
-      lawKeys = words "invariants labels flake";
+      lawKeys = words "invariants relations labels flake";
       law = filter (k: declared.declaredIn [ k ] != [ ]) lawKeys;
       errors = minus keyE changedResult.errors baseResult.errors;
       violations = filter (a: !elem a baseResult.check.violations) changedResult.check.violations;
@@ -1619,32 +1986,17 @@ let
             path = [ k ];
           }
         ) law
-        ++ (
-          if grant == null then
-            [ ]
-          else
-            # one refusal per scope outside the grant: an edge it adds or removes is also a change there
-            map (x: outside x.what x.e) (
-              uniqueBy (x: x.e.to) (
-                filter (x: !grants.allowed grant x.e) (
-                  map (e: {
-                    what = "gives";
-                    inherit e;
-                  }) diff.edges.added
-                  ++ map (e: {
-                    what = "removes";
-                    inherit e;
-                  }) diff.edges.removed
-                  ++ map (x: {
-                    what = "changes";
-                    e = {
-                      sink = x.k;
-                      inherit (x) to;
-                    };
-                  }) changedValues
-                )
-              )
-            )
+        # one refusal per scope, before or after the change, that the grant does not cover for every sink
+        ++ map outside (
+          filter (
+            id:
+            grant != null
+            && reaches
+            && !grants.allowed grant {
+              to = id;
+              sink = null;
+            }
+          ) (attrNames (keySet (ids baseResult ++ ids changedResult)))
         );
     in
     {
@@ -1655,7 +2007,9 @@ let
         violations
         incomplete
         diff
+        labels
         ;
+      floor = floorOf labels changedResult.graph.edges;
       ok = errors == [ ] && violations == [ ] && incomplete == [ ] && refused == [ ];
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
@@ -1789,12 +2143,18 @@ let
         prog,
         grant ? null,
         rejected ? [ ],
+        by ? null,
         result ? eval base,
       }:
       let
         errs = validate result prog;
         s = stage {
-          inherit base grant rejected;
+          inherit
+            base
+            grant
+            rejected
+            by
+            ;
           baseResult = result;
           change = toModule prog;
           id = b.hashString "sha256" (b.toJSON prog); # a program is data: `rejected` matches it

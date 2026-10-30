@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# Drives yen-mcp.sh with JSON-RPC lines. Run from anywhere; each call is capped at 300 s.
+# Drives the yen-mcp server (`mcp/` at the top of the yen repository, a Rust binary) with JSON-RPC lines. Run from anywhere; each call is capped
+# at 300 s. YEN_MCP_SERVER: a server binary to test (then set YEN_TOOL_NIX); default: the fleet flake's package.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-SRV=${YEN_MCP_SERVER:-$HERE/yen-mcp.sh}
+export YEN_FLEET=${YEN_FLEET:-$HERE/..}
+SRV=${YEN_MCP_SERVER:-$(timeout 900 nix build --no-link --print-out-paths "path:$(git -C "$HERE" rev-parse --show-toplevel)?dir=templates/fleet#yen-mcp")/bin/yen-mcp}
 fails=0
 
 rpc() { printf '%s\n' "$1" | timeout -k 5 300 "$SRV"; }
@@ -28,7 +30,7 @@ out=$(call yen_errors '{}' | text)
 check errors-list '.complete == true and (.result | type == "array")' "$out"
 
 out=$(call yen_stage '{"change":{"yen":{"aspects":{"attic":{"at":[{"kind":"mac","name":"studio"}]}}}}}' | text)
-check stage-attic '.result.ok == false and (.result.violations | map(contains("attic-on-mac")) | any)' "$out"
+check stage-attic '.result.ok == false and (.result.violations | map(.[1] == "attic-on-mac") | any)' "$out"
 
 out=$(call yen_queries '{}' | text)
 check queries-freeport '.result.freePort.required == ["host"]' "$out"
@@ -48,11 +50,11 @@ check impact-unknown-sink '.result.code == "unknown-sink"' "$out"
 out=$(call yen_labels '{"floor":3}' | text)
 check labels-floor '(.result.floor | length > 0 and all(.trust == 1)) and (.result.labels | type == "object")' "$out"
 
-out=$(call yen_why_not '{"atom":"bad:attic-on-mac:fleet:main/environment:staging/mac:studio"}' | text)
+out=$(call yen_why_not '{"atom":["bad","attic-on-mac","fleet:main/environment:staging/mac:studio"]}' | text)
 check why-not-holds-false '.result.holds == false' "$out"
 
 out=$(call yen_program '{"program":[{"op":"place","aspect":"attic","kind":"mac","name":"studio"}]}' | text)
-check program-violation '.result.ok == false and (.result.violations | map(contains("attic-on-mac")) | any)' "$out"
+check program-violation '.result.ok == false and (.result.violations | map(.[1] == "attic-on-mac") | any)' "$out"
 
 out=$(call yen_program '{"program":[{"op":"plac"}]}' | text)
 check program-invalid '.result.valid == false and .result.errors[0].near == ["place"]' "$out"

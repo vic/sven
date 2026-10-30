@@ -112,7 +112,7 @@
           ]
           [
             "invariant"
-            "Datalog rules over the facts; a true `bad:` atom is a violation"
+            "Datalog rules over the facts, as data; a true `[ \"bad\" … ]` atom is a violation"
             "[Invariants](/query/invariants/)"
           ]
           [
@@ -127,7 +127,7 @@
           ]
           [
             "grant"
-            "where a change may give elements; grants only narrow"
+            "where a change may reach; grants only narrow"
             "[Stage a change](/agents/stage/#grants-only-narrow)"
           ]
           [
