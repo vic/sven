@@ -1817,10 +1817,6 @@ let
       t4 = eq ((r.ask "hostsIn" { }).code) ("missing-param");
       t5 = eq (r.ask "errorsBy" { }) ([ ]);
     };
-    agent-mcp-app = {
-      t1 = eq (out.apps.x86_64-linux.yen-mcp.type) ("app");
-      t2 = yes (lib.hasSuffix "/bin/yen-mcp" out.apps.x86_64-linux.yen-mcp.program);
-    };
     agent-labels = {
       t1 = eq (r.labels.rdf-pack.trust) (1);
       t2 = eq (r.labels.attic.trust) (3);

@@ -12,7 +12,7 @@ in
   alsoAt = "../README.md"; # the same text is the repository README: plain markdown only
 
   body =
-    { docs, ... }:
+    { docs, variant, ... }:
     [
       ''
 
@@ -113,12 +113,73 @@ in
         the prod database gives `[ "bad" "db-same-region" "fleet:main/region:eu/host:api" ]`, and the fleet builds nothing until
         it is fixed.
 
+        ## Answers come with a reason
+
+        Logic questions about your fleet get answers you can read. `result.check.why` gives the rules that make a violation
+        true. `result.check.whyNot` works the other way. For an atom that is not true, it gives each rule with that head, and
+        the body atoms that stop it. For an atom that is true, it gives nothing.
+      ''
+      (docs.file "variants/invariant.nix")
+      ''
+
+        Here `web` breaks the rule, and `db` does not. The violation for `web`:
+      ''
+      (docs.value (variant "variants/invariant.nix").check.violations)
+      ''
+        `whyNot` for `db` says that no rule has this head. The desktop aspect is only active at `web`, so the rule
+        is not even a candidate at `db`.
+      ''
+      (docs.value (
+        (variant "variants/invariant.nix").check.whyNot [
+          "bad"
+          "no-desktop-on-servers"
+          "fleet:main/host:db"
+        ]
+      ))
+      ''
+
+        ## Values from constraints
+
+        `yen.lib.krn` finds values that fit your constraints, and a relation can run backward.
+      ''
+      (docs.file "variants/ports.nix")
+      (docs.value (variant "variants/ports.nix").reduced.out."fleet:main".ports)
+      ''
+        `first` is one answer, and `count` is every answer.
+
+        ## Checks before a change lands
+
+        Yen checks the whole fleet before a change reaches a file. A rule is a function of its variables, and it names what it
+        breaks. A rule can hold across machines, so a mistake that involves two hosts gets caught too. These are easy to make in a
+        homelab: a desktop on a server, or two hosts with the same address.
+
+        A change is staged before it is written. `yen.lib.stage` evaluates the fleet without the change and with it. `ok` is true
+        only when nothing new is wrong. A grant made with `yen.lib.grant` limits the scopes a change may reach, and a grant can only narrow.
+
+        Each verdict can come with a certificate. `yen.lib.datalog.checkCertificate` is a small checker. After evaluation,
+        `result.check.certified` is true when the checker accepts the certificate and it states the same verdict. `result.check.seal`
+        ties the verdict to hashes of the engine, the rules and the facts, so anyone can run `result.check.verify seal` again and get
+        `{ ok = true; }`.
+
         ## Agents as first-class team members
 
         Everything in Yen is expressed as a query, and every answer is JSON-safe data. Agents can propose changes to your
         infrastructure, and those changes are verified **before** any file is edited. Changes are staged, checked against
         invariants, limited by grants that can only narrow, and written as change programs. An MCP server answers agents and
         lets them write only verified changes. ${doc "/agents/agent-surface"}
+
+        ## How agents check a change
+
+        An agent works on a Yen fleet through the MCP server in `mcp/`. The skill in `.claude/skills/yen-mcp/SKILL.md` gives the
+        order of calls. The agent reads with `yen_schema` and `yen_check`, asks with `yen_why_not` and `yen_explain`, and stages a
+        change with `yen_stage` before any file is written. A fleet passes `yen_check` only when `ok` is true, with no violations,
+        no `incomplete` or `opaque` atoms, and `certified` true.
+
+        From the fleet's working directory, run `nix run github:vic/yen?dir=mcp`. An MCP client starts the same server with
+        the arguments `[ "run" "github:vic/yen?dir=mcp" ]`.
+
+        The agent can show the staged answer to a person, with its violations, its diff and its refusals. A refusal with
+        `class = "authority"` is not for the agent to fix. The agent tells the owner what it wanted to change, and why.
 
         ## Errors are data
 
@@ -170,8 +231,55 @@ in
     ];
 
   checks =
-    { result, eq, ... }:
+    {
+      result,
+      variant,
+      eq,
+      ...
+    }:
+    let
+      inv = (variant "variants/invariant.nix").check;
+      p = (variant "variants/ports.nix").reduced.out."fleet:main".ports;
+    in
     {
       result = eq result.flake (import ./result.nix);
+      invariant = {
+        violations = eq (inv.violations) ([
+          [
+            "bad"
+            "no-desktop-on-servers"
+            "fleet:main/host:web"
+          ]
+        ]);
+        whyNot-holds = eq (inv.whyNot [
+          "bad"
+          "no-desktop-on-servers"
+          "fleet:main/host:web"
+        ]) ([ ]);
+        whyNot-candidate =
+          eq
+            (inv.whyNot [
+              "bad"
+              "no-desktop-on-servers"
+              "fleet:main/host:db"
+            ])
+            ([
+              {
+                rule = null;
+                reason = "no rule has this head";
+              }
+            ]);
+      };
+      ports-errors = eq ((variant "variants/ports.nix").errors) ([ ]);
+      ports = {
+        first = eq (p.first) ([
+          {
+            grafana = 8081;
+            loki = 8082;
+            prometheus = 8080;
+          }
+        ]);
+        count = eq (p.count) (12);
+      };
     };
 }

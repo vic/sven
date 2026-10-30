@@ -13,11 +13,23 @@ in
   yen.aspects.backup-client = {
     at = role "client";
     exports = { host, ... }: host.addr; # published by the member scope: the engine sets `from`
-    config =
-      { host, ... }:
+    cycle =
+      { tree, ... }:
+      let
+        nas.scopesOf = yen.host.nas; # a tree request: nas, with its data
+        me.nearest = yen.kinds.host; # a tree request: the host this member sits on
+      in
       {
-        backup.target = yen.host.nas.addr;
-        backup.name = host.name;
+        tree = [
+          nas
+          me
+        ];
+        config = [
+          {
+            backup.target = (lib.head (lib.head (tree.select nas))).addr;
+            backup.name = (lib.head (tree.select me)).name;
+          }
+        ];
       };
   };
   yen.aspects.backup-server = {

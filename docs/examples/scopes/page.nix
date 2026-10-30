@@ -41,7 +41,7 @@
       ''
         ## Read the tree inside the fleet
 
-        `yen.lib.graph` is readable by any module. This example gives its scope ids as a flake output:
+        An aspect asks the tree for the whole fleet (`graph = true`) to read it. This example gives its scope ids as a flake output:
       ''
       (docs.file "modules/outputs.nix")
     ];

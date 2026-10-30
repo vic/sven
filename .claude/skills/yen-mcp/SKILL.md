@@ -10,10 +10,11 @@ you stage, and only then you write files.
 
 ## Start the server
 
-From the fleet directory: `nix run .#yen-mcp`. In an MCP client config:
+From the fleet directory: `nix run github:vic/yen?dir=mcp`. The server serves the fleet in its working directory, so
+start it there. In an MCP client config:
 
 ```json
-{ "mcpServers": { "yen": { "command": "nix", "args": [ "run", "/path/to/fleet#yen-mcp" ] } } }
+{ "mcpServers": { "yen": { "command": "nix", "args": [ "run", "github:vic/yen?dir=mcp" ] } } }
 ```
 
 `YEN_TIMEOUT` sets the seconds per call (default 120).
