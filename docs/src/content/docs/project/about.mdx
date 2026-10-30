@@ -34,7 +34,8 @@ yen is the latest step of a line of projects, each one a lesson for the next.
 
 ```mermaid
 flowchart LR
-  vix["vic/vix: vic's machines"] --> den["denful/den"]
+  vix["vic/vix: vic's machines"] --> fa["denful/flake-aspects"]
+  fa --> den["denful/den"]
   den --> gen["sini's gen-* libs"]
   den --> exp["vic's experiments: denful/nest, ned, dnzl"]
   gen --> ren["vic/ren"]
@@ -45,6 +46,7 @@ flowchart LR
 | Project | What it gave |
 |---|---|
 | [vic/vix](https://github.com/vic/vix) | a real fleet: vic's machines, homes and dev environments. Today it runs on yen. |
+| [denful/flake-aspects](https://github.com/denful/flake-aspects) | aspects, before Den |
 | [denful/den](https://github.com/denful/den) | aspects: configuration as features that land where they apply |
 | [sini's gen-* libs](https://github.com/sini/gen) | the libraries of Den's next version (den-hoag on Gen): scopes, graphs, laws |
 | [denful/nest](https://github.com/denful/nest), [ned](https://github.com/denful/ned), [dnzl](https://github.com/denful/dnzl) | vic's experiments: Nest, CSS-like rules over a tree; Ned, inspired by Cycle.js |

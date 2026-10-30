@@ -36,7 +36,8 @@
       ''
       (docs.mermaid ''
         flowchart LR
-          vix["vic/vix: vic's machines"] --> den["denful/den"]
+          vix["vic/vix: vic's machines"] --> fa["denful/flake-aspects"]
+          fa --> den["denful/den"]
           den --> gen["sini's gen-* libs"]
           den --> exp["vic's experiments: denful/nest, ned, dnzl"]
           gen --> ren["vic/ren"]
@@ -49,6 +50,10 @@
           [
             "[vic/vix](https://github.com/vic/vix)"
             "a real fleet: vic's machines, homes and dev environments. Today it runs on yen."
+          ]
+          [
+            "[denful/flake-aspects](https://github.com/denful/flake-aspects)"
+            "aspects, before Den"
           ]
           [
             "[denful/den](https://github.com/denful/den)"
