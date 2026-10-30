@@ -7,4 +7,11 @@
   primary-user = import ./primary-user.nix;
   unfree = import ./unfree.nix;
   insecure = import ./insecure.nix;
+  user-shell = import ./user-shell.nix;
+  autologin = import ./autologin.nix;
+  firewall = import ./firewall.nix;
+  persist = import ./persist.nix;
+  hosts = import ./hosts.nix;
+  remote-builders = import ./remote-builders.nix;
+  facter = import ./facter.nix;
 }

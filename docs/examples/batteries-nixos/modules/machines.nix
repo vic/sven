@@ -1,10 +1,24 @@
 { yen, ... }:
 {
-  yen.host.desk = { };
-  yen.user.ana.hosts = [ yen.host.desk ];
+  yen.host.desk = {
+    addr = "10.0.0.2";
+    sshKey = "ssh-ed25519 AAAAdesk";
+    autologin = yen.user.ana;
+  };
+  yen.host.nas = {
+    addr = "10.0.0.1";
+    sshKey = "ssh-ed25519 AAAAnas";
+  };
+  yen.user.ana = {
+    hosts = [ yen.host.desk ];
+    shell = "fish";
+  };
   yen.user.bob.hosts = [ yen.host.desk ];
   yen.aspects.desk = {
-    at = yen.host.desk;
+    at = [
+      yen.host.desk
+      yen.host.nas
+    ];
     nixos = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {

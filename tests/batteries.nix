@@ -769,7 +769,136 @@ let
     )
   ];
 
+  # NixOS batteries called directly: yen args, then NixOS module args
+  sc = name: {
+    inherit name;
+    id = "f/host:${name}";
+  };
+  ent = name: v: {
+    from.id = "f/host:${name}";
+    value = v;
+  };
+  peers = [
+    (ent "a" {
+      name = "a";
+      addr = "10.0.0.1";
+      key = "ka";
+    })
+    (ent "c" {
+      name = "c";
+      addr = "10.0.0.2";
+    })
+  ];
+  builders = [
+    (ent "a" {
+      hostName = "a";
+      system = "x86_64-linux";
+    })
+    (ent "c" {
+      hostName = "c";
+      system = "aarch64-linux";
+    })
+    (ent "d" {
+      hostName = "d";
+      system = "x86_64-linux";
+    })
+  ];
+
   checks = {
+    nixos-user-shell =
+      (nixos.user-shell { shell = u: u.sh; } {
+        scope = sc "ana" // {
+          sh = "fish";
+        };
+      } { pkgs.fish = "F"; }) == {
+        users.users.ana.shell = "F";
+        programs.fish.enable = true;
+      }
+      && !(
+        (nixos.user-shell { shell = _: "bash"; } { scope = sc "bob"; } { pkgs.bash = "B"; }) ? programs
+      );
+    nixos-autologin =
+      nixos.autologin { user = h: h.u; } {
+        scope = sc "h" // {
+          u = {
+            name = "ana";
+          };
+        };
+      } == {
+        services.getty.autologinUser = "ana";
+      }
+      && nixos.autologin { user = _: null; } { scope = sc "h"; } == { };
+    nixos-firewall =
+      nixos.firewall { from.__sink = "p"; } {
+        sinks.p = [
+          22
+          { udp = [ 53 ]; }
+          {
+            tcp = [
+              22
+              80
+            ];
+          }
+        ];
+      } == {
+        networking.firewall = {
+          allowedTCPPorts = [
+            22
+            80
+          ];
+          allowedUDPPorts = [ 53 ];
+        };
+      };
+    nixos-persist =
+      nixos.persist { from.__sink = "p"; } {
+        sinks.p = [
+          "/var/lib/x"
+          { files = [ "/etc/machine-id" ]; }
+          "/var/lib/x"
+        ];
+      } == {
+        environment.persistence."/persist" = {
+          directories = [ "/var/lib/x" ];
+          files = [ "/etc/machine-id" ];
+        };
+      };
+    nixos-hosts =
+      nixos.hosts { from.__sink = "p"; } {
+        scope = sc "d"; # sees both; only a has a key
+        sinks.p = peers;
+      } == {
+        networking.hosts = {
+          "10.0.0.1" = [ "a" ];
+          "10.0.0.2" = [ "c" ];
+        };
+        programs.ssh.knownHosts.a = {
+          hostNames = [
+            "a"
+            "10.0.0.1"
+          ];
+          publicKey = "ka";
+        };
+      };
+    nixos-remote-builders =
+      map (m: m.hostName)
+        (nixos.remote-builders
+          {
+            from.__sink = "b";
+            systemOf = _: "x86_64-linux";
+          }
+          {
+            scope = sc "a";
+            sinks.b = builders;
+          }
+        ).nix.buildMachines == [ "d" ];
+    nixos-facter =
+      nixos.facter {
+        report = h: "/r/${h.name}.json";
+        module = "M";
+      } { scope = sc "h"; } == {
+        hardware.facter.reportPath = "/r/h.json";
+        imports = [ "M" ];
+      };
     files-toml =
       bat.files.toml { } {
         p.name = "a b";

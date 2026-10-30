@@ -1,5 +1,5 @@
 ---
-{"description":"yen.lib.batteries.nixos: system, hostname, define-user, primary-user, unfree, insecure. NixOS options are the domain; yen keys are yours.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-nixos/page.nix","title":"NixOS batteries"}
+{"description":"yen.lib.batteries.nixos: system, accounts, shells, autologin, unfree, firewall, hosts, builders, persist, facter. NixOS options are the domain; yen keys are yours.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-nixos/page.nix","title":"NixOS batteries"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -16,6 +16,13 @@ they set NixOS options. They still name no yen kind, sink or aspect. You write `
 | `primary-user` | a NixOS key of an aspect | `den.batteries.primary-user` |
 | `unfree { from; }` | the NixOS key of a sink of package names | `den.batteries.unfree` |
 | `insecure { from; }` | the NixOS key of a sink of package names | `den.batteries.insecure` |
+| `user-shell { shell; }` | a NixOS key; `shell` reads the scope | `den.batteries.user-shell` |
+| `autologin { user; }` | a NixOS key; `user` reads a ref or a name | `den.batteries.tty-autologin` |
+| `firewall { from; }` | the NixOS key of a sink of ports (`22` or `{ tcp; udp; }`) | quirks `firewall` |
+| `hosts { from; }` | a NixOS key; /etc/hosts and known_hosts of the other machines (`mesh`) | sini hostsfile |
+| `remote-builders { from; systemOf; }` | a NixOS key; `nix.buildMachines` of the other machines (`mesh`) | sini remote-build-client |
+| `persist { from; root; }` | the NixOS key of a sink of paths (impermanence) | quirks `persist` |
+| `facter { report; module; }` | a NixOS key, at hosts that have a report | `den.aspects.facter` |
 
 
 ```nix title="modules/fleet.nix"
@@ -44,7 +51,15 @@ in
     sinks.unfree.nixos = nixos.unfree { from = yen.kinds.host.sinks.unfree; };
     sinks.insecure.nixos = nixos.insecure { from = yen.kinds.host.sinks.insecure; };
   };
-  yen.kinds.user.fields.hosts = yen.lib.is lib.isList;
+  yen.kinds.user.fields = {
+    hosts = yen.lib.is lib.isList;
+    shell = yen.lib.opt (lib.types.enum [
+      "bash"
+      "fish"
+      "zsh"
+    ]) "bash";
+  };
+  yen.kinds.host.fields.autologin = yen.lib.maybe yen.kinds.user;
 
   yen.fleet.main = { };
   yen.flake = { out, ... }: out;
@@ -70,17 +85,40 @@ in
     at = yen.user.ana;
     nixos = nixos.primary-user;
   };
+  # Den's user-shell and tty-autologin: the battery reads the field you name
+  yen.aspects.shells = {
+    at = yen.kinds.user;
+    nixos = nixos.user-shell { shell = u: u.shell; };
+  };
+  yen.aspects.autologin = {
+    at = yen.kinds.host;
+    nixos = nixos.autologin { user = h: h.autologin; };
+  };
 }
 ```
 
 ```nix title="modules/machines.nix"
 { yen, ... }:
 {
-  yen.host.desk = { };
-  yen.user.ana.hosts = [ yen.host.desk ];
+  yen.host.desk = {
+    addr = "10.0.0.2";
+    sshKey = "ssh-ed25519 AAAAdesk";
+    autologin = yen.user.ana;
+  };
+  yen.host.nas = {
+    addr = "10.0.0.1";
+    sshKey = "ssh-ed25519 AAAAnas";
+  };
+  yen.user.ana = {
+    hosts = [ yen.host.desk ];
+    shell = "fish";
+  };
   yen.user.bob.hosts = [ yen.host.desk ];
   yen.aspects.desk = {
-    at = yen.host.desk;
+    at = [
+      yen.host.desk
+      yen.host.nas
+    ];
     nixos = {
       boot.loader.grub.device = "nodev";
       fileSystems."/" = {
@@ -107,6 +145,62 @@ in
 }
 ```
 
+```nix title="modules/network.nix"
+# Ports, peers and builders: sinks you name, NixOS values from batteries.
+{ yen, lib, ... }:
+let
+  nixos = yen.lib.batteries.nixos;
+  str = lib.types.str;
+in
+{
+  yen.kinds.host = {
+    fields = {
+      addr = str;
+      sshKey = str;
+    };
+    sinks.ports.nixos = nixos.firewall { from = yen.kinds.host.sinks.ports; };
+  };
+  # every host gives a peer record and a builder record to the fleet; each host reads the others'
+  yen.kinds.fleet.sinks = {
+    peers.reduce = yen.lib.reduce.entries;
+    builders.reduce = yen.lib.reduce.entries;
+  };
+  yen.aspects.peer = {
+    at = yen.kinds.host;
+    peers =
+      { host, ... }:
+      {
+        inherit (host) name addr;
+        key = host.sshKey;
+      };
+    builders =
+      { host, ... }:
+      {
+        hostName = host.addr;
+        system = "x86_64-linux";
+        maxJobs = 4;
+      };
+    nixos = nixos.hosts { from = yen.kinds.fleet.sinks.peers; };
+  };
+  yen.aspects.builds = {
+    at = yen.kinds.host;
+    nixos = nixos.remote-builders { from = yen.kinds.fleet.sinks.builders; };
+  };
+  yen.aspects.ssh = {
+    at = yen.kinds.host;
+    ports = 22;
+    nixos.services.openssh.enable = true;
+  };
+  yen.aspects.dns = {
+    at = yen.host.nas;
+    ports = {
+      tcp = [ 53 ];
+      udp = [ 53 ];
+    };
+  };
+}
+```
+
 Each battery is a few lines. The pages [Every Den battery](/den/batteries/) and
 [Unfree packages from many files](/nixos/unfree/) write the same rules by hand. When a battery does not fit your
 fleet, copy those lines and change them: see [Write your own](/batteries/generic/#write-your-own).
@@ -126,6 +220,7 @@ nix flake init -t github:vic/yen#batteries-nixos
   - aspects.nix
   - fleet.nix
   - machines.nix
+  - network.nix
 
 </FileTree>
 :::

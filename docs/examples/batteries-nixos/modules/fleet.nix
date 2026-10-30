@@ -23,7 +23,15 @@ in
     sinks.unfree.nixos = nixos.unfree { from = yen.kinds.host.sinks.unfree; };
     sinks.insecure.nixos = nixos.insecure { from = yen.kinds.host.sinks.insecure; };
   };
-  yen.kinds.user.fields.hosts = yen.lib.is lib.isList;
+  yen.kinds.user.fields = {
+    hosts = yen.lib.is lib.isList;
+    shell = yen.lib.opt (lib.types.enum [
+      "bash"
+      "fish"
+      "zsh"
+    ]) "bash";
+  };
+  yen.kinds.host.fields.autologin = yen.lib.maybe yen.kinds.user;
 
   yen.fleet.main = { };
   yen.flake = { out, ... }: out;

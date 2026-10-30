@@ -16,4 +16,13 @@ in
     at = yen.user.ana;
     nixos = nixos.primary-user;
   };
+  # Den's user-shell and tty-autologin: the battery reads the field you name
+  yen.aspects.shells = {
+    at = yen.kinds.user;
+    nixos = nixos.user-shell { shell = u: u.shell; };
+  };
+  yen.aspects.autologin = {
+    at = yen.kinds.host;
+    nixos = nixos.autologin { user = h: h.autologin; };
+  };
 }
