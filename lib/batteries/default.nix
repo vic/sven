@@ -13,4 +13,5 @@
   mermaid = import ./mermaid;
   github = import ./github;
   docs = import ./docs;
+  devshell = import ./devshell;
 }

@@ -453,7 +453,76 @@ let
     person = "a person";
   };
 
+  # devshells with stub builders: they return what they get
+  shellRun =
+    wrap: sys:
+    run [
+      (
+        { yen, ... }:
+        {
+          yen.kinds.box.sinks.cmds.sys = sys yen;
+          yen.aspects.c1 = {
+            at = yen.box.a;
+            cmds = wrap { name = "one"; };
+          };
+          yen.aspects.c2 = {
+            at = yen.person.p;
+            cmds = wrap {
+              name = "two";
+              packages = [ "pk" ];
+              shellHook = "h;";
+            };
+          };
+        }
+      )
+    ];
+  numtideR = shellRun (c: [ c ]) (
+    yen:
+    bat.devshell.numtide {
+      from = yen.kinds.box.sinks.cmds;
+      devshell.legacyPackages.sx.mkShell = a: a;
+      systems = [ "sx" ];
+      pkgsOf = s: { tool = s; };
+      name = "n";
+      packages = pkgs: [ pkgs.tool ];
+    }
+  );
+  mkshellR = shellRun (c: c) (
+    yen:
+    bat.devshell.mkshell {
+      from = yen.kinds.box.sinks.cmds;
+      pkgsOf = s: { mkShell = a: a // { on = s.name; }; };
+    }
+  );
+
   checks = {
+    devshell-numtide =
+      numtideR.flake.sys.a == [
+        {
+          devShells.sx.default = {
+            name = "n";
+            packages = [ "sx" ];
+            commands = [
+              { name = "one"; }
+              {
+                name = "two";
+                packages = [ "pk" ];
+                shellHook = "h;";
+              }
+            ];
+          };
+        }
+      ];
+    devshell-mkshell =
+      mkshellR.flake.sys.a == [
+        {
+          devShells.a.default = {
+            packages = [ "pk" ];
+            shellHook = "h;";
+            on = "a";
+          };
+        }
+      ];
     docs-links = (linkRun "datalog oracles").flake.got == { dl = "[`datalog`](datalog.nix#L1)"; };
     docs-links-gone = codes (linkRun "zz-none-yen") == [ "link-gone" ];
     docs-vocabulary = (vocabRun allKinds).errors == [ ];

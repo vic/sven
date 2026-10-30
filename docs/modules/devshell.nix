@@ -22,32 +22,23 @@ let
   fleet = "path:$PWD?dir=templates/fleet";
 in
 {
-  yen.kinds.site.sinks.commands.out =
-    { commands, ... }:
-    {
-      devShells = lib.genAttrs systems (
-        system:
-        let
-          pkgs = inputs.nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = inputs.devshell.legacyPackages.${system}.mkShell {
-            name = "yen-docs";
-            packages = [
-              pkgs.nodejs
-              pkgs.pnpm
-              pkgs.jq
-              pkgs.git
-              pkgs.nixfmt-rfc-style # the same nixfmt as the fleet's flake-file
-              pkgs.actionlint
-              pkgs.shellcheck
-              pkgs.gh
-            ];
-            commands = lib.concatLists commands; # each aspect gives a list
-          };
-        }
-      );
-    };
+  yen.kinds.site.sinks.commands.out = yen.lib.batteries.devshell.numtide {
+    from = yen.kinds.site.sinks.commands; # each aspect gives a list
+    inherit (inputs) devshell;
+    inherit systems;
+    pkgsOf = system: inputs.nixpkgs.legacyPackages.${system};
+    name = "yen-docs";
+    packages = pkgs: [
+      pkgs.nodejs
+      pkgs.pnpm
+      pkgs.jq
+      pkgs.git
+      pkgs.nixfmt-rfc-style # the same nixfmt as the fleet's flake-file
+      pkgs.actionlint
+      pkgs.shellcheck
+      pkgs.gh
+    ];
+  };
 
   yen.aspects.docs-commands = {
     at = yen.kinds.site;
