@@ -38,7 +38,9 @@ export default defineConfig({
 				Footer: './src/components/Footer.astro',
 				SocialIcons: './src/components/SocialIcons.astro',
 				PageSidebar: './src/components/PageSidebar.astro',
+				Header: './src/components/Header.astro',
 				Hero: './src/components/Hero.astro',
+				TableOfContents: './src/components/TableOfContents.astro',
 			},
 			plugins: [
 				catppuccin({
