@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Drives the yen-mcp server (mcp/server, a Rust binary) with JSON-RPC lines. Run from anywhere; each call is capped
+# Drives the yen-mcp server (`mcp/` at the top of the yen repository, a Rust binary) with JSON-RPC lines. Run from anywhere; each call is capped
 # at 300 s. YEN_MCP_SERVER: a server binary to test (then set YEN_TOOL_NIX); default: the fleet flake's package.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)

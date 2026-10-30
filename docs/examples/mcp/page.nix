@@ -7,13 +7,13 @@
   body =
     { docs, inputs, ... }:
     let
-      tools = builtins.fromJSON (
-        builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json")
-      );
+      tools = builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"));
     in
     [
       ''
-        The reference fleet ships an MCP server: `templates/fleet/mcp/server`, a small Rust binary. It answers agents over stdio
+        Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary. The reference fleet builds it as `.#yen-mcp`.
+        `mcp/` is also its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
+        directory, and `packages.<system>.yen-mcp` is the package. It answers agents over stdio
         (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
       ''
       (docs.sh ''
@@ -23,7 +23,7 @@
       ''
         ## Tools
 
-        This table is read from the tool list the server embeds (`mcp/server/src/tools.json`) (${toString (builtins.length tools)} tools):
+        This table is read from the tool list the server embeds (`mcp/src/tools.json`) (${toString (builtins.length tools)} tools):
       ''
       (docs.table [ "Tool" "What it answers" ] (
         map (t: [
@@ -75,15 +75,13 @@
     { inputs, ... }:
     {
       tools =
-        builtins.length (
-          builtins.fromJSON (builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json"))
-        ) == 14;
+        builtins.length (builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"))) == 14;
       # the agent skill names every tool the server serves, and no tool it does not
       skill =
         let
           skill = builtins.readFile (inputs.yen + "/.claude/skills/yen-mcp/SKILL.md");
           tools = map (t: t.name) (
-            builtins.fromJSON (builtins.readFile (inputs.yen + "/templates/fleet/mcp/server/src/tools.json"))
+            builtins.fromJSON (builtins.readFile (inputs.yen + "/mcp/src/tools.json"))
           );
           used = builtins.filter (n: builtins.substring 0 4 n == "yen_") (
             map (x: if builtins.isList x then builtins.head x else "") (builtins.split "(yen_[a-z_]+)" skill)

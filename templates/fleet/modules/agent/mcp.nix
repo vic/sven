@@ -1,5 +1,5 @@
 # The MCP server as a flake app: `nix run .#yen-mcp` from the fleet directory serves the fleet in $PWD on stdio.
-# A small Rust binary (mcp/server); its tool.nix is copied to the store. The fleet is read from the working tree,
+# A small Rust binary, `mcp/` at the top of the yen repository; its tool.nix is copied to the store. The fleet is read from the working tree,
 # so answers follow edits.
 {
   yen,
@@ -13,20 +13,7 @@ let
     let
       pkgs = inputs.nixpkgs.legacyPackages.${system};
     in
-    pkgs.rustPlatform.buildRustPackage {
-      pname = "yen-mcp";
-      version = "0.1.0";
-      src = ../../mcp/server;
-      cargoLock.lockFile = ../../mcp/server/Cargo.lock;
-      nativeBuildInputs = [ pkgs.makeWrapper ];
-      # nix itself comes from the caller's PATH: its version, its store
-      postInstall = ''
-        wrapProgram $out/bin/yen-mcp \
-          --set-default YEN_TOOL_NIX ${../../mcp/tool.nix} \
-          --suffix PATH : ${lib.makeBinPath [ pkgs.git ]}
-      '';
-      meta.mainProgram = "yen-mcp";
-    };
+    pkgs.callPackage (inputs.yen + "/mcp/package.nix") { }; # the same derivation the mcp flake builds
   systems = [
     "x86_64-linux"
     "aarch64-linux"
