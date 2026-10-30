@@ -187,15 +187,15 @@ The keys above give one element each. For 0 to n elements, or to ask the tree fo
 ```nix
 yen.aspects.kernel = {
   at = yen.kinds.host;
-  cycle = { tree, ... }: {
-    tree = [ { category = "env"; nearest = yen.kinds.environment; } ];   # a request
-    nixos = map (env: { boot.kernelParams = [ "env=${env.name}" ]; }) (tree.select "env");
+  cycle = { tree, ... }: let env.nearest = yen.kinds.environment; in {   # a request
+    tree = [ env ];
+    nixos = map (e: { boot.kernelParams = [ "env=${e.name}" ]; }) (tree.select env);   # selected by itself
     errors = [ ];                                                          # a component can report errors
   };
 };
 ```
 
-Tree requests: `nearest = <kind>`, `parent = true`, `children = <predicate>`, `scopesOf = <instance>`, `holds = <predicate>`.
+Tree requests: `nearest = <kind>`, `parent = true`, `children = <predicate>`, `scopesOf = <instance>`, `holds = <predicate>`, `instances = <kind>`. A request has no name: `tree.select request` selects it.
 
 ## Queries
 
@@ -316,7 +316,7 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Shapes.** `yen.lib.rdf.shacl result` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required, `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields. The pack types every instance, so a ref meets its class. quipu's validator accepts the pack of a fixture fleet and reports one `sh:class` violation for a ref to a missing instance.
 
-**An MCP server.** `mcp/` at the top of the yen repository, a small Rust binary, answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. `nix run .#yen-mcp` from the fleet directory runs it as a flake app ([agent/mcp.nix](modules/agent/mcp.nix)): it serves the fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
+**An MCP server.** `mcp/` at the top of the yen repository, a small Rust binary, answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. Its flake (`mcp/flake.nix`, at the top of the yen repository) is the app: `nix run github:vic/yen?dir=mcp` from a fleet's directory serves that fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
 
 **Safe between machines, before deploy.** Field literals such as `yen.facts.machine.dbOn H D` read field values and refs. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-exists`, `db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
 
@@ -536,7 +536,7 @@ Every suite runs on [fastest](https://github.com/denful/fastest), in parallel; e
 ```sh
 nix run github:denful/fastest#fastest -- --flake ".#tests" fleet   # a check for each pattern above
 nix run github:denful/fastest#fastest -- --flake ".#tests" e2e     # real NixOS, darwin and home-manager evaluations
-bash mcp/test.sh                                # PASS for each MCP case, the flake app included
+(cd ../.. && bash mcp/test.sh)                  # PASS for each MCP case, the flake app included
 ```
 
 From the yen repository root, the engine and library oracles, and the cost oracles. A memo is invisible to an eval, so `tests/cost.sh` bounds Nix's own counters (`NIX_SHOW_STATS`): 30 levels of aspect-ref diamonds and a 150-host fan-in must each stay under 200,000 function calls. Without the memos they take 26 million calls (at 16 levels) and 954,000.
@@ -551,7 +551,7 @@ All of them at once, in parallel: `fastest-tests` in the devshell (`nix develop 
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 29 kinds, 195 aspects, 991 routed elements.
+Generated from the fleet's queries: 87 scopes, 29 kinds, 196 aspects, 1006 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
 | `assembly` | `kit`, `roles` |  |  | 0 |
@@ -563,7 +563,7 @@ Generated from the fleet's queries: 87 scopes, 29 kinds, 195 aspects, 991 routed
 | `domain` | `mail`, `under` | `domain` |  | 3 |
 | `environment` | `base`, `delegates`, `dns`, `edge`, `grants`, `monitoring`, `settings`, `unifi` | `cluster`, `host`, `mac`, `phone` | `backends`, `idm-users`, `k3s-nodes`, `mesh-peers`, `port-forwards`, `terraform`, `terranix`, `unifi` | 3 |
 | `export` |  |  | `os` | 1 |
-| `fleet` | `recipients`, `secretStore` | `database`, `domain`, `environment`, `export`, `hive`, `home`, `replica`, `system` | `certificate-domains`, `ci`, `class-members`, `colmena`, `connect-claims`, `db-claims`, `dns-records`, `dns-zones`, `exports`, `flake-file`, `gateway-upstreams`, `generators`, `globals`, `host-addrs`, `inference-clients`, `infra`, `monitoring-ingest`, `nodes`, `out`, `overlays`, `peer-dev`, `public-reads`, `records`, `replicate-home`, `route-claims`, `scrape`, `secret-claims`, `served-domains`, `syncthing-peers`, `templates`, `token-claims`, `unit-checks`, `user-packages`, `vars`, `xmsg-nodes` | 1 |
+| `fleet` | `recipients`, `secretStore` | `database`, `domain`, `environment`, `export`, `hive`, `home`, `replica`, `system` | `certificate-domains`, `ci`, `class-members`, `colmena`, `connect-claims`, `db-claims`, `dns-records`, `dns-zones`, `exports`, `flake-file`, `gateway-upstreams`, `generators`, `globals`, `host-addrs`, `host-envs`, `inference-clients`, `infra`, `monitoring-ingest`, `nodes`, `out`, `overlays`, `peer-dev`, `public-reads`, `records`, `replicate-home`, `route-claims`, `scrape`, `secret-claims`, `served-domains`, `shared-pkgs`, `syncthing-peers`, `templates`, `token-claims`, `unit-checks`, `user-packages`, `vars`, `xmsg-nodes` | 1 |
 | `group` | `label`, `members` |  |  | 0 |
 | `guest` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `on`, `passthrough`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `user` | `age-secrets`, `nixos`, `os`, `persist`, `unfree` | 1 |
 | `hive` | `environment` |  | `meta` | 2 |
@@ -901,6 +901,7 @@ flowchart LR
   nb4d870f4dd("homeLinux")
   n105bdfb4bb("homeManager")
   na03b519b92("host-addrs")
+  n81d12771a4("host-envs")
   n3e349132c7("idm-users")
   n2673d14998("inference-clients")
   nb1ac840462("infra")
@@ -935,6 +936,7 @@ flowchart LR
   n7bec19a8d7("secrets")
   ndbaf8c5740("served-domains")
   nbc1be661db("service-domains")
+  nf5ef27f7a4("shared-pkgs")
   na57def2dad("syncthing-peers")
   nf4c1a72ce9("tags")
   nee15f964db("templates")
@@ -1043,7 +1045,7 @@ flowchart LR
   n24c3f6fa44 -->|"out"| n91d5d2cc57
   n1d6e8fa2a0 -->|"ci, out"| n91d5d2cc57
   n176652715a -->|"backends, k3s-nodes, mesh-peers, port-forwards"| nd086c25d77
-  n176652715a -->|"ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, inference-clients, infra, nodes, out, public-reads, records, route-claims, served-domains, token-claims, vars"| n91d5d2cc57
+  n176652715a -->|"ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, host-envs, inference-clients, infra, nodes, out, public-reads, records, route-claims, served-domains, shared-pkgs, token-claims, vars"| n91d5d2cc57
   n08d6894135 -->|"ci, generators, globals, out, public-reads, records"| n91d5d2cc57
   nc1c099a844 -->|"exports, generators"| n91d5d2cc57
   nc1c099a844 -->|"nixos, os"| n176652715a
@@ -1095,7 +1097,7 @@ sequenceDiagram
   hive->>fleet: out
   home->>fleet: ci, out
   host->>environment: backends, k3s-nodes, mesh-peers, port-forwards
-  host->>fleet: ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, inference-clients, infra, nodes, out, public-reads, records, route-claims, served-domains, token-claims, vars
+  host->>fleet: ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, host-envs, inference-clients, infra, nodes, out, public-reads, records, route-claims, served-domains, shared-pkgs, token-claims, vars
   mac->>fleet: ci, generators, globals, out, public-reads, records
   member->>fleet: exports, generators
   member->>host: nixos, os
@@ -1224,15 +1226,15 @@ flowchart LR
 
 | Machine | Kind | Aspects giving elements | Some aspects |
 |---|---|---|---|
-| `app-1` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
-| `app-2` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
-| `app-3` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
-| `app-4` | host | 31 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +25 |
-| `lb` | host | 50 | alloy, attic, base, caddy, ci-host, db-lockdown, +44 |
-| `lb-minimal` | host | 31 | alloy, base, deploy-record, dev, env-tuning, facter, +25 |
-| `web-1` | host | 48 | alloy, api-route, base, ci-host, db-claim, db-client, +42 |
-| `web-2` | host | 46 | alloy, autoinclude, base, ci-host, db-claim, db-client, +40 |
-| `stage` | host | 53 | alloy, base, ci-host, db-claim, db-client, db-lockdown, +47 |
+| `app-1` | host | 34 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +28 |
+| `app-2` | host | 34 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +28 |
+| `app-3` | host | 34 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +28 |
+| `app-4` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
+| `lb` | host | 52 | alloy, attic, base, caddy, ci-host, db-lockdown, +46 |
+| `lb-minimal` | host | 33 | alloy, base, deploy-record, dev, env-tuning, facter, +27 |
+| `web-1` | host | 50 | alloy, api-route, base, ci-host, db-claim, db-client, +44 |
+| `web-2` | host | 48 | alloy, autoinclude, base, ci-host, db-claim, db-client, +42 |
+| `stage` | host | 54 | alloy, base, ci-host, db-claim, db-client, db-lockdown, +48 |
 | `ci` | guest | 12 | alloy, base, dev, docker, global-pkgs, globals-addr, +6 |
 | `studio` | mac | 13 | base, ci-mac, darwin-base, darwin-primary-user, dev, dock, +7 |
 
@@ -1272,6 +1274,7 @@ flowchart LR
 | `homeLinux` | user | user | 9 |
 | `homeManager` | user | home, phone, user | 132 |
 | `host-addrs` | host | fleet | 9 |
+| `host-envs` | host | fleet | 9 |
 | `idm-users` | environment | environment | 3 |
 | `inference-clients` | host | fleet | 1 |
 | `infra` | host | fleet | 11 |
@@ -1288,7 +1291,7 @@ flowchart LR
 | `nodes` | host | fleet | 1 |
 | `os` | export, guest, host, mac, member, user | export, guest, home, host, mac | 113 |
 | `osConfig` | host | host | 9 |
-| `out` | cluster, environment, export, fleet, hive, home, +5 | fleet | 57 |
+| `out` | cluster, environment, export, fleet, hive, home, +5 | fleet | 56 |
 | `overlays` | fleet | fleet | 1 |
 | `packages` | system | system | 7 |
 | `pairs` | host, toy | host | 6 |
@@ -1306,6 +1309,7 @@ flowchart LR
 | `secrets` | user | user | 16 |
 | `served-domains` | host | fleet | 2 |
 | `service-domains` | host | host | 2 |
+| `shared-pkgs` | host | fleet | 7 |
 | `syncthing-peers` | user | fleet | 9 |
 | `tags` | host | host | 3 |
 | `templates` | fleet | fleet | 1 |
@@ -1377,7 +1381,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  n254d290cd5[("yen-mcp (nix run .#yen-mcp)")]
+  n254d290cd5[("yen-mcp (nix run github:vic/yen?dir=mcp)")]
   nf3ef81de2f("yen_ask")
   nf54195a4ac("yen_check")
   n6a59d997e4("yen_context")
@@ -1414,10 +1418,8 @@ flowchart LR
 flowchart LR
   n052ebd9803[("agent/ trust 1")]
   nab84cbff4d[("modules/ trust 3")]
-  n6f0da42c91["mcp-app"]
   n41d6a0a05f["rdf-pack"]
   neafe37b099["retire-notice"]
-  n052ebd9803 -->|"1 elements"| n6f0da42c91
   n052ebd9803 -->|"1 elements"| n41d6a0a05f
   n052ebd9803 -->|"1 elements"| neafe37b099
 ```

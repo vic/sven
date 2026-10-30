@@ -26,7 +26,7 @@ in
     upTo = p: s: lib.findFirst (holds p) null (lib.reverseList s.up); # nearest ancestor-or-self where p holds
     # nested groups: every group that contains one of gs, transitively
     closure =
-      gs:
+      groups: gs:
       map (x: x.g) (
         builtins.genericClosure {
           startSet = map (g: {
@@ -38,12 +38,13 @@ in
             map (p: {
               key = p.name;
               g = p;
-            }) (lib.filter (p: lib.any (same x.g) p.members) (lib.attrValues yen.group));
+            }) (lib.filter (p: lib.any (same x.g) p.members) groups);
         }
       );
     # ACL: a posix group of the user meets the environment's or the machine's grants, and the machine's gates when it has any
     meets = xs: ys: lib.any (x: lib.any (same x) ys) xs;
-    posixOf = u: lib.filter (g: g.label == "posix") (yen.helpers.closure u.groups);
+    posixOf =
+      u: lib.filter (g: g.label == "posix") (yen.helpers.closure (lib.attrValues yen.group) u.groups);
     usersOn =
       s:
       lib.filterAttrs (
@@ -65,12 +66,14 @@ in
       );
     mermaid =
       g: yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (yen.lib.batteries.mermaid.routes g);
-    ids = lib.listToAttrs (
-      lib.imap0 (i: n: lib.nameValuePair n i) (
-        lib.sort (a: b: a < b) (
-          map (s: s.name) (lib.filter (s: yen.lib.holds yen.kinds.host s) yen.lib.graph.scopes)
+    ids =
+      fleet:
+      lib.listToAttrs (
+        lib.imap0 (i: n: lib.nameValuePair n i) (
+          lib.sort (a: b: a < b) (
+            map (s: s.name) (lib.filter (s: fleet.lib.holds fleet.kinds.host s) fleet.lib.graph.scopes)
+          )
         )
-      )
-    ); # deterministic: sorted host scope names
+      ); # deterministic: sorted host scope names
   };
 }

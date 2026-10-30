@@ -10,7 +10,9 @@ let
     opt
     ;
   inherit (yen.lib.reduce) entries;
-  hosts = lib.filterAttrs (_: h: h ? addr) yen.host;
+  hosts = lib.filterAttrs (_: h: h ? addr) yen.host; # spawns read data
+  allHosts.instances = yen.kinds.host; # a tree request: every host, with its data
+  addressed = xs: lib.listToAttrs (map (h: lib.nameValuePair h.name h) (lib.filter (h: h ? addr) xs));
 
   # a discipline is a reduce: per key, the first layer that names a strategy decides it ("replace" when none);
   # a value { ref = k; } reads the final value of key k. Provenance lists every layer that set the key.
@@ -46,7 +48,7 @@ let
 
   # the nearest host along `via` that has a motd; equal distance: the first in `order`
   visible =
-    order: start:
+    hosts: order: start:
     let
       reach = builtins.genericClosure {
         startSet = [
@@ -141,19 +143,33 @@ in
       yen.kinds.host
       (s: !s.minimal)
     ];
-    nixos =
-      { host, db-claims, ... }:
+    cycle =
       {
-        environment.etc."db/lockdown".text = toString (
-          map (e: e.from.name) (
-            lib.filter (
-              e:
-              same e.value.on host
-              && !same e.from host
-              && !lib.any (h: lib.any (same e.from) h.dependsOn) (lib.attrValues hosts)
-            ) db-claims
-          )
-        );
+        tree,
+        scope,
+        db-claims,
+        ...
+      }:
+      let
+        host = scope;
+        hosts = addressed (lib.head (tree.select allHosts));
+      in
+      {
+        tree = [ allHosts ];
+        nixos = [
+          {
+            environment.etc."db/lockdown".text = toString (
+              map (e: e.from.name) (
+                lib.filter (
+                  e:
+                  same e.value.on host
+                  && !same e.from host
+                  && !lib.any (h: lib.any (same e.from) h.dependsOn) (lib.attrValues hosts)
+                ) (lib.head db-claims)
+              )
+            );
+          }
+        ];
       };
   };
 
@@ -213,14 +229,22 @@ in
   yen.host.lb.motd = "lb";
   yen.aspects.visible-motd = {
     at = yen.fleet.main;
-    out =
-      { ... }:
+    cycle =
+      { tree, ... }:
+      let
+        v = visible (addressed (lib.head (tree.select allHosts)));
+      in
       {
-        visibleMotd = {
-          a = visible [ "lb" "web-1" "web-2" ] "stage";
-          b = visible [ "web-2" "web-1" ] "stage";
-          w = visible [ ] "web-1";
-        };
+        tree = [ allHosts ];
+        out = [
+          {
+            visibleMotd = {
+              a = v [ "lb" "web-1" "web-2" ] "stage";
+              b = v [ "web-2" "web-1" ] "stage";
+              w = v [ ] "web-1";
+            };
+          }
+        ];
       };
   };
 

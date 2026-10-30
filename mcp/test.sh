@@ -3,8 +3,9 @@
 # at 300 s. YEN_MCP_SERVER: a server binary to test (then set YEN_TOOL_NIX); default: the fleet flake's package.
 set -u
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-export YEN_FLEET=${YEN_FLEET:-$HERE/..}
-SRV=${YEN_MCP_SERVER:-$(timeout 900 nix build --no-link --print-out-paths "path:$(git -C "$HERE" rev-parse --show-toplevel)?dir=templates/fleet#yen-mcp")/bin/yen-mcp}
+ROOT=$(git -C "$HERE" rev-parse --show-toplevel)
+export YEN_FLEET=${YEN_FLEET:-$ROOT/templates/fleet}
+SRV=${YEN_MCP_SERVER:-$(timeout 900 nix build --no-link --print-out-paths "path:$ROOT?dir=mcp#yen-mcp")/bin/yen-mcp}
 fails=0
 
 rpc() { printf '%s\n' "$1" | timeout -k 5 300 "$SRV"; }
@@ -70,10 +71,10 @@ check export-full '.complete == true and (.result.sha256 | length == 64) and (.r
 out=$(call yen_context '{}')
 check eval-error '.result.isError == true and (.result.content[0].text | fromjson | .complete == false and (.error | length > 0))' "$out"
 
-# the flake app: `nix run .#yen-mcp` from the fleet directory (set YEN_MCP_SKIP_APP=1 to skip)
+# the flake app: `nix run github:vic/yen?dir=mcp` from the fleet directory (set YEN_MCP_SKIP_APP=1 to skip)
 if [ -z "${YEN_MCP_SKIP_APP:-}" ]; then
-  out=$(cd "$HERE/.." && printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"yen_context","arguments":{"id":"fleet:main/environment:lab/host:app-1","maxEdges":2}}}' \
-    | timeout -k 5 600 nix run "path:$(git rev-parse --show-toplevel)?dir=templates/fleet#yen-mcp" 2>/dev/null)
+  out=$(cd "$YEN_FLEET" && printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"yen_context","arguments":{"id":"fleet:main/environment:lab/host:app-1","maxEdges":2}}}' \
+    | timeout -k 5 600 nix run "path:$ROOT?dir=mcp" 2>/dev/null)
   check flake-app '.result.content[0].text | fromjson | .complete == true and .result.kind == "host" and .result.given.truncated.shown == 2' "$out"
 fi
 [ "$fails" -eq 0 ]

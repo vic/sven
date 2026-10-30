@@ -20,7 +20,8 @@
       ''
         ## Tree requests
 
-        A request has a `category` and one question. `tree.select category` gives the answers.
+        A request is one question. `tree.select request` gives its answers: the request is its own name, so it has no
+        string to mistype. Bind it in a `let` and use it twice.
       ''
       (docs.table
         [ "Request" "Answer" ]
@@ -44,6 +45,10 @@
           [
             "`holds = predicate`"
             "`true` or `false` at this scope"
+          ]
+          [
+            "`instances = yen.kinds.host`"
+            "every instance of that kind, with its data"
           ]
         ]
       )

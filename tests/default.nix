@@ -113,14 +113,12 @@ let
           at = yen.kinds.host;
           cycle =
             { tree, ... }:
+            let
+              c.nearest = yen.kinds.cluster;
+            in
             {
-              tree = [
-                {
-                  category = "c";
-                  nearest = yen.kinds.cluster;
-                }
-              ];
-              errors = if tree.select "c" == [ ] then [ "no cluster: k3s off" ] else [ ];
+              tree = [ c ];
+              errors = if tree.select c == [ ] then [ "no cluster: k3s off" ] else [ ];
             };
         };
       }
@@ -191,14 +189,12 @@ let
         at = yen.kinds.node;
         cycle =
           { tree, ... }:
+          let
+            c.nearest = yen.kinds.cluster;
+          in
           {
-            tree = [
-              {
-                category = "c";
-                nearest = yen.kinds.cluster;
-              }
-            ];
-            seen = map (c: c.name) (tree.select "c");
+            tree = [ c ];
+            seen = map (c: c.name) (tree.select c);
           };
       };
     }
@@ -224,42 +220,36 @@ let
           at = yen.kinds.node;
           cycle =
             { tree, ... }:
+            let
+              parent.parent = true;
+              none.nearest = yen.kinds.pod; # no pod above a node: no answer
+              kids.children = yen.kinds.pod;
+              same.scopesOf = yen.cluster.c1;
+              holds.holds = yen.kinds.node;
+              all.instances = yen.kinds.cluster;
+              bad = {
+                category = "bad"; # a name: refused, a request is selected by itself
+                holds = yen.kinds.pod;
+              };
+            in
             {
               tree = [
-                {
-                  category = "parent";
-                  parent = true;
-                }
-                {
-                  category = "none";
-                  nearest = yen.kinds.pod;
-                } # no pod above a node: no answer
-                {
-                  category = "kids";
-                  children = yen.kinds.pod;
-                }
-                {
-                  category = "same";
-                  scopesOf = yen.cluster.c1;
-                }
-                {
-                  category = "holds";
-                  holds = yen.kinds.node;
-                }
+                parent
+                none
+                kids
+                same
+                holds
+                all
               ]
-              ++ b.filter (_: bogus) [
-                {
-                  category = "bad";
-                  bogus = true;
-                }
-              ];
+              ++ b.filter (_: bogus) [ bad ];
               seen = {
-                parent = map (s: s.id) (tree.select "parent");
-                none = tree.select "none";
-                kids = map (map (s: s.name)) (tree.select "kids");
-                same = map (map (s: s.id)) (tree.select "same");
-                holds = tree.select "holds";
-                bad = tree.select "bad";
+                parent = map (s: s.id) (tree.select parent);
+                none = tree.select none;
+                kids = map (map (s: s.name)) (tree.select kids);
+                same = map (map (s: s.id)) (tree.select same);
+                holds = tree.select holds;
+                all = map (map (c: c.name)) (tree.select all);
+                bad = tree.select bad; # not asked: no answer
               };
             };
         };
@@ -2451,6 +2441,7 @@ let
           ];
           same = [ [ "top:t/cluster:c1" ] ];
           holds = [ true ];
+          all = [ [ "c1" ] ];
           bad = [ ];
         }
       ]);
@@ -3231,7 +3222,7 @@ let
       t2 = eq (configLike.reduced.motd."fleet:main/host:b") ("forced");
     };
     config-other-node = eq configLike.reduced.peers."fleet:main/host:a" { b = "10.0.0.2"; };
-    # a plain element reads the children of its scope through `yen.lib.children`, as the `children` request does
+    # an element asks the tree for the children of its scope: a `children` request, never `yen.lib.children`
     lib-children =
       eq
         ((yen.eval (
@@ -3248,7 +3239,15 @@ let
             yen.top.t = { };
             yen.aspects.k = {
               at = yen.kinds.top;
-              kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+              cycle =
+                { tree, ... }:
+                let
+                  kids.children = yen.kinds.host;
+                in
+                {
+                  tree = [ kids ];
+                  kids = [ (map (c: c.name) (b.head (tree.select kids))) ];
+                };
             };
           }
         )).reduced.kids."top:t"
@@ -3259,6 +3258,31 @@ let
             "b"
           ]
         ]);
+    lib-children-refused =
+      eq
+        (b.tryEval (
+          b.deepSeq
+            (yen.eval (
+              { yen, ... }:
+              {
+                yen.kinds.top = {
+                  spawns.host = _: {
+                    b = { };
+                    a = { };
+                  };
+                  sinks.kids = { };
+                };
+                yen.kinds.host = { };
+                yen.top.t = { };
+                yen.aspects.k = {
+                  at = yen.kinds.top;
+                  kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+                };
+              }
+            )).reduced.kids
+            true
+        )).success
+        false;
     error-codes = {
       t1 = eq (map (e: e.code) codesFix.errors) ([
         "module"

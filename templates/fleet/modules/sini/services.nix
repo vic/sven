@@ -11,16 +11,28 @@ in
   yen.kinds.environment.sinks.idm-users.reduce = yen.lib.reduce.one;
   yen.aspects.idm = {
     at = yen.kinds.environment;
-    idm-users =
-      { environment, ... }:
-      lib.attrNames (
-        lib.filterAttrs (
-          _: u:
-          yen.helpers.meets (lib.filter (g: g.label == "oauth") (
-            yen.helpers.closure u.groups
-          )) environment.grants
-        ) yen.user
-      );
+    cycle =
+      { tree, scope, ... }:
+      let
+        users.instances = yen.kinds.user; # tree requests: every user and group, with their data
+        groups.instances = yen.kinds.group;
+      in
+      {
+        tree = [
+          users
+          groups
+        ];
+        idm-users = [
+          (map (u: u.name) (
+            lib.filter (
+              u:
+              yen.helpers.meets (lib.filter (g: g.label == "oauth") (
+                yen.helpers.closure (lib.head (tree.select groups)) u.groups
+              )) scope.grants
+            ) (lib.head (tree.select users))
+          ))
+        ];
+      };
   };
 
   # ninfer: the provider admits named hosts (by the fleet address pool) and every host whose aspects include the client.
@@ -73,10 +85,18 @@ in
   # A cluster aspect reads a named host directly: the hub is lb's system owner.
   yen.aspects.guard = {
     at = yen.cluster.axon;
-    k8s-manifests =
-      { cluster, ... }:
-      lib.optionalAttrs cluster.settings.guard.enable {
-        applications.guard.hub = "${yen.host.lb.system-owner.name}@lb";
+    cycle =
+      { tree, scope, ... }:
+      let
+        lb.scopesOf = yen.host.lb; # a tree request: lb, with its data
+      in
+      {
+        tree = [ lb ];
+        k8s-manifests = [
+          (lib.optionalAttrs scope.settings.guard.enable {
+            applications.guard.hub = "${(lib.head (lib.head (tree.select lb))).system-owner.name}@lb";
+          })
+        ];
       };
   };
 }

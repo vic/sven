@@ -61,7 +61,7 @@ let
   aspectMeta = words "at cycle order __aspect";
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
-  requestKinds = words "nearest parent children scopesOf holds";
+  requestKinds = words "nearest parent children scopesOf holds instances graph";
   # the facts yen extracts, with their arity: no rule derives them
   edbArity = {
     scope = 1;
@@ -357,18 +357,22 @@ let
           else
             {
               mod = v;
-              args = args // (v._module.args or { }) // { inherit yen; };
+              args = args // (v._module.args or { }) // { inherit (args) yen; };
             }
         );
-      loaded = genericClosure {
-        startSet = [ (node { inherit yen; } "root" root) ];
+      # two loads: `yen` with instance data answers data and spawns; aspects and kind sinks get instances as refs
+      loadWith =
+        y:
+        genericClosure {
+        startSet = [ (node { yen = y; } "root" root) ];
         operator =
           n:
           b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt n.mod.imports i)) (
             length (n.mod.imports or [ ])
           );
       };
-      defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
+      loaded = loadWith yen;
+      defsOf = l: map (n: n.mod.yen or { }) (filter (n: n ? mod) l);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
       #: result.declaredIn, yen.lib.declaredIn :: [ name ] -> [ file ] -- the modules that answer a declaration path, in file order
       declaredIn =
@@ -396,9 +400,8 @@ let
         vals = vs;
         kids = b.zipAttrsWith (_: zipDefs) (filter (v: isAttrs v && !isLeaf v) vs);
       };
-      index = zipDefs defs;
-      answers =
-        path:
+      answersIn =
+        index: path:
         (foldl' (
           node: n:
           node.kids.${n} or {
@@ -406,19 +409,21 @@ let
             kids = { };
           }
         ) index path).vals;
+      answers = answersIn (zipDefs (defsOf loaded));
+      answersRefs = answersIn (zipDefs (defsOf (loadWith refsYen)));
       atKey = path: path != [ ] && b.elemAt path (length path - 1) == "at";
       sinkKeyOf = path: length path == 3 && head path == "aspects" && elem (b.elemAt path 2) sinkNames; # several files may each give an element
-      decl =
-        path:
+      declIn =
+        ans: path:
         let
-          hs = answers path;
+          hs = ans path;
         in
         if atKey path then
           concatMap toList hs
         else if hs == [ ] then
           null
         else if isAttrs (head hs) && !isLeaf (head hs) then
-          genAttrs (names (attrsIn hs)) (n: decl (path ++ [ n ]))
+          genAttrs (names (attrsIn hs)) (n: declIn ans (path ++ [ n ]))
         else
           head hs;
       declErrors =
@@ -441,7 +446,8 @@ let
               fix = "keep one answer for ${concatStringsSep "." path}: data never overrides data";
             })
           ];
-      top = decl [ ];
+      top = declIn answers [ ];
+      topRefs = declIn answersRefs [ ];
       kinds = mapAttrs (
         k: d:
         d
@@ -449,9 +455,11 @@ let
           __kind = k;
           check = checkOf { __kind = k; };
         }
-        // (if d ? sinks then { sinks = mapAttrs (n: v: v // { __sink = n; }) d.sinks; } else { }) # a sink is a ref: it carries its name
+        // (if d ? sinks then { sinks = mapAttrs (n: v: withAt d.sinks.${n} (v // { __sink = n; })) topRefs.kinds.${k}.sinks; } else { }) # a sink is a ref: it carries its name
       ) (top.kinds or { }); # a kind is a type: its instances pass
-      aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
+      # values come from the refs load; `at` reads data: stage diffs where aspects are active and where sinks receive
+      withAt = d: v: v // (if d ? at then { inherit (d) at; } else { });
+      aspects = mapAttrs (n: a: withAt top.aspects.${n} (a // { __aspect = n; })) (topRefs.aspects or { });
       # a relation is called by reference: `yen.relations.rank e 3` is the atom [ "rank" e 3 ]; one of arity 0 is a literal
       #: yen.relations.<name> :: term… -> literal -- a declared relation called by reference, one term per arity; arity 0 is the literal itself
       relations = mapAttrs (
@@ -695,6 +703,32 @@ let
         facts = factLits; # rule literals by reference
         inherit labelTable;
       }; # declarations an agent or the docs read
+      # the `yen` aspects and kind sinks get: an instance is a ref, its fields are not readable; no structure queries.
+      # A value reads the fleet only through its args and cycle `tree` requests, so every read is an edge.
+      refsYen =
+        yen
+        // mapAttrs (
+          k: _:
+          genAttrs (instNames k) (
+            n:
+            {
+              kind = k;
+              name = n;
+            }
+            // mapAttrs (
+              f: _:
+              throw "yen.${k}.${n}.${f}: an aspect reads instance data only through its args: take `${k}` as an arg, or follow a ref field of an arg"
+            ) (kinds.${k}.fields or { })
+          )
+        ) kinds
+        // {
+          lib =
+            lib
+            // genAttrs (words "graph scopesOf children declaredIn labels floor") (
+              q: throw "yen.lib.${q}: an aspect reads the fleet only through its args: ask the cycle `tree` for it"
+            );
+          helpers = topRefs.helpers or { };
+        };
 
       # ── the scope tree: nested cycles. key = what the parent spawned; identity = keys from the root ──
       mkScope =
@@ -967,7 +1001,7 @@ let
             concatMap (
               k:
               let
-                hs = answers [
+                hs = answersRefs [
                   "aspects"
                   n
                   k
@@ -1042,13 +1076,38 @@ let
           [ (lib.children q.children s) ]
         else if q ? scopesOf then
           [ (lib.scopesOf q.scopesOf) ]
+        else if q ? instances then
+          [ (b.attrValues instances.${q.instances.__kind}) ]
+          # the whole fleet: a reader of it (docs, diagrams) is reached by every change, and only it
+          else if q ? graph then
+          [ yen ] # instances with their data, and every structure query in yen.lib
         else
           [ (holds q.holds s) ];
+      # a request is selected by itself: the same question on the same refs (kind, sink, aspect, instance), never a name
+      refKey =
+        v:
+        if isAttrs v && v ? __kind then
+          { kind = v.__kind; }
+        else if isAttrs v && v ? __sink then
+          { sink = v.__sink; }
+        else if isAttrs v && v ? __aspect then
+          { aspect = v.__aspect; }
+        else if isRef v then
+          { inherit (v) kind name; }
+        else if isList v then
+          map refKey v
+        else if isFunction v then
+          throw "tree request: a function predicate has no identity: use a kind, an aspect, an instance, or yen.lib combinators of them"
+        else if isAttrs v then
+          mapAttrs (_: refKey) (b.removeAttrs v [ "__functor" ])
+        else
+          v;
+      reqKey = q: b.toJSON (mapAttrs (_: refKey) (intersectAttrs (genAttrs requestKinds (_: null)) q));
       sourcesAt =
         s: requests:
         {
           scope = s;
-          tree.select = c: concatMap (answer s) (filter (q: known q && q.category or null == c) requests);
+          tree.select = q: if any (r: known r && reqKey r == reqKey q) requests then answer s q else [ ];
         }
         // genAttrs sinkNames (
           n:
@@ -1057,12 +1116,15 @@ let
           in
           if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ]
         ); # a receiver with no element yet reduces to its empty value
-      known = q: any (k: q ? ${k}) requestKinds;
+      known = q: !(q ? category) && any (k: q ? ${k}) requestKinds; # no category: a request is selected by itself
       requestErrors = concatMap (
         s:
         concatMap (
           n:
-          map (_: errWith s.id "aspect ${n}: unknown tree request" { code = "tree-request"; }) (
+          map (_: errWith s.id "aspect ${n}: unknown tree request" {
+            code = "tree-request";
+            fix = "ask one of ${concatStringsSep ", " requestKinds}, with no category, and select it by itself: tree.select request";
+          }) (
             filter (q: !known q) (toList ((outAt n s).tree or [ ]))
           )
         ) (attrNames cycleOuts)
@@ -1159,10 +1221,12 @@ let
           es = uniqueBy (e: "${idOf e}@${r.id}") (byTo."${k}@${r.id}" or [ ]);
           filled = map (e: fill e.from e.value // { inherit e; }) es;
           okOf = x: x ? ok && (!(d ? of) || checkOf d.of x.ok);
+          # a sink `of` a kind gets refs; it reduces their instances (an element holds a ref, never instance data)
+          resolve = v: if d ? of && isType d.of && d.of ? __kind && isRef v then instances.${v.kind}.${v.name} else v;
           red = (d.reduce or reduce.list) (
             map (x: {
               from = x.e.from;
-              value = x.ok;
+              value = resolve x.ok;
             }) (filter okOf filled)
           );
           bad = map (

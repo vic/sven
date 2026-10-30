@@ -4,8 +4,12 @@
 { yen, lib, ... }:
 let
   G = yen.lib.graphs;
-  hosts = lib.filterAttrs (_: h: h ? addr) yen.host;
-  dependsOn = lib.mapAttrs (_: h: map (d: d.name) (h.dependsOn or [ ])) hosts;
+  all.instances = yen.kinds.host; # a tree request: every host, with its data
+  dependsOn =
+    hs:
+    lib.listToAttrs (
+      map (h: lib.nameValuePair h.name (map (d: d.name) h.dependsOn)) (lib.filter (h: h ? addr) hs)
+    );
 in
 {
   yen.kinds.machine.fields.dependsOn = yen.lib.opt (yen.helpers.listOf yen.kinds.host) [ ];
@@ -14,17 +18,23 @@ in
   yen.host.stage.dependsOn = [ yen.host.web-1 ];
   yen.aspects.deploy-waves = {
     at = yen.fleet.main;
-    out =
-      { ... }:
+    cycle =
+      { tree, ... }:
+      let
+        deps = dependsOn (lib.head (tree.select all));
+      in
       {
-        deployWaves = G.layers dependsOn;
-        dependents = G.transpose dependsOn;
-        impact = lib.genAttrs (lib.attrNames hosts) (G.reachers dependsOn);
+        tree = [ all ];
+        out = {
+          deployWaves = G.layers deps;
+          dependents = G.transpose deps;
+          impact = lib.genAttrs (lib.attrNames deps) (G.reachers deps);
+        };
+        errors = [
+          (map (c: "deploy: hosts depend on each other in a cycle: ${lib.concatStringsSep " -> " c}") (
+            G.sccs deps
+          ))
+        ]; # one element: the list, as before
       };
-    errors =
-      { ... }:
-      map (c: "deploy: hosts depend on each other in a cycle: ${lib.concatStringsSep " -> " c}") (
-        G.sccs dependsOn
-      );
   };
 }

@@ -3,6 +3,12 @@
 { yen, lib, ... }:
 {
   yen.kinds.fleet.spawns.hive = _: yen.hive;
+  # each host gives its environment at the fleet: a hive reads its members there, so the read is an edge
+  yen.kinds.fleet.sinks.host-envs.reduce = yen.lib.reduce.entries;
+  yen.aspects.host-envs = {
+    at = yen.kinds.host;
+    host-envs = { host, ... }: host.environment;
+  };
   yen.kinds.hive = {
     fields.environment = yen.kinds.environment;
     sinks.meta.reduce = yen.lib.reduce.merge;
@@ -11,6 +17,7 @@
         hive,
         meta,
         colmena,
+        host-envs,
         ...
       }:
       {
@@ -18,7 +25,8 @@
           inherit meta;
         }
         // lib.filterAttrs (
-          n: _: yen.host ? ${n} && yen.lib.same yen.host.${n}.environment hive.environment
+          n: _:
+          yen.host ? ${n} && lib.any (e: e.from.name == n && yen.lib.same e.value hive.environment) host-envs
         ) colmena;
       };
   };

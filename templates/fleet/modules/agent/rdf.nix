@@ -3,21 +3,29 @@
 # Inside the fleet only the routing graph is visible; the full pack (active aspects, errors) is `yen.lib.rdf.share r`
 # over the eval result, as query.nix gives it. A store such as quipu can import the triples in a separate, approved step.
 { yen, ... }:
+let
+  whole.graph = true; # a tree request: the whole fleet
+in
 {
   yen.aspects.rdf-pack = {
     at = yen.fleet.main;
-    out =
-      { ... }:
+    cycle =
+      { tree, ... }:
       {
-        rdfPack =
-          removeAttrs (yen.lib.rdf.share {
-            graph = yen.lib.graph;
-            active = { };
-            errors = [ ];
-          }) [ "ntriples" ]
-          // {
-            scope = "routing graph";
-          };
+        tree = [ whole ];
+        out = [
+          {
+            rdfPack =
+              removeAttrs (yen.lib.rdf.share {
+                graph = (builtins.head (tree.select whole)).lib.graph;
+                active = { };
+                errors = [ ];
+              }) [ "ntriples" ]
+              // {
+                scope = "routing graph";
+              };
+          }
+        ];
       };
   };
 }
