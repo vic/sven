@@ -1160,18 +1160,18 @@ let
       && (
         let
           f = with' (
-              { yen, ... }:
-              {
-                yen.aspects.forge = {
-                  at = yen.lib.all [
-                    yen.kinds.member
-                    (s: s.service == "sshd")
-                  ];
-                  exports = {
-                    service = "borg";
-                  };
+            { yen, ... }:
+            {
+              yen.aspects.forge = {
+                at = yen.lib.all [
+                  yen.kinds.member
+                  (s: s.service == "sshd")
+                ];
+                exports = {
+                  service = "borg";
                 };
-              }
+              };
+            }
           );
         in
         hasMsg f ".*service sshd does not export service" && f.reduced == null
@@ -1529,18 +1529,22 @@ let
           };
       in
       # D14-A: a change can reach every scope, so each scope outside the grant is refused, never one inside it
-      lib.all (e: e.code == "outside-grant" && !(lib.hasPrefix "${S}/" e.got) && e.got != S) (st {
-        kind = "host";
-        name = "stage";
-      }).refused
-      && (st {
-        kind = "host";
-        name = "stage";
-      }).refused != [ ]
-      && lib.any (e: lib.hasSuffix "/host:web-1" e.got) (st {
-        kind = "host";
-        name = "web-1";
-      }).refused;
+      lib.all (e: e.code == "outside-grant" && !(lib.hasPrefix "${S}/" e.got) && e.got != S)
+        (st {
+          kind = "host";
+          name = "stage";
+        }).refused
+      &&
+        (st {
+          kind = "host";
+          name = "stage";
+        }).refused != [ ]
+      &&
+        lib.any (e: lib.hasSuffix "/host:web-1" e.got)
+          (st {
+            kind = "host";
+            name = "web-1";
+          }).refused;
     agent-explain =
       let
         e = r.explain "attic" lb 2;

@@ -1497,7 +1497,9 @@ let
       declared = eval change;
       # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
       # scope and every sink. shortcut: sound but coarse; R-yen (yen-704.27) makes reads visible, then grants narrow again
-      reaches = any (k: declared.declaredIn [ k ] != [ ]) (yenKeys ++ attrNames changedResult.schema.kinds);
+      reaches = any (k: declared.declaredIn [ k ] != [ ]) (
+        yenKeys ++ attrNames changedResult.schema.kinds
+      );
       outside =
         id:
         errWith "stage" "the change can reach ${id}, outside the grant" {
@@ -1528,9 +1530,15 @@ let
         ) law
         # one refusal per scope, before or after the change, that the grant does not cover for every sink
         ++ map outside (
-          filter (id: grant != null && reaches && !grants.allowed grant { to = id; sink = null; }) (
-            attrNames (keySet (ids baseResult ++ ids changedResult))
-          )
+          filter (
+            id:
+            grant != null
+            && reaches
+            && !grants.allowed grant {
+              to = id;
+              sink = null;
+            }
+          ) (attrNames (keySet (ids baseResult ++ ids changedResult)))
         );
     in
     {

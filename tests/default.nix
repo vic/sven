@@ -204,63 +204,63 @@ let
   treeAllWith =
     bogus:
     yen.eval (
-    { yen, ... }:
-    {
-      yen.kinds.top.spawns.cluster = _: yen.cluster;
-      yen.kinds.cluster.spawns.node = _: { n1 = { }; };
-      yen.kinds.node.spawns.pod = _: {
-        p1 = { };
-        p2 = { };
-      };
-      yen.kinds.node.sinks.seen = { };
-      yen.kinds.pod = { };
-      yen.top.t = { };
-      yen.cluster.c1 = { };
-      yen.aspects.see = {
-        at = yen.kinds.node;
-        cycle =
-          { tree, ... }:
-          {
-            tree = [
-              {
-                category = "parent";
-                parent = true;
-              }
-              {
-                category = "none";
-                nearest = yen.kinds.pod;
-              } # no pod above a node: no answer
-              {
-                category = "kids";
-                children = yen.kinds.pod;
-              }
-              {
-                category = "same";
-                scopesOf = yen.cluster.c1;
-              }
-              {
-                category = "holds";
-                holds = yen.kinds.node;
-              }
-            ]
-            ++ b.filter (_: bogus) [
-              {
-                category = "bad";
-                bogus = true;
-              }
-            ];
-            seen = {
-              parent = map (s: s.id) (tree.select "parent");
-              none = tree.select "none";
-              kids = map (map (s: s.name)) (tree.select "kids");
-              same = map (map (s: s.id)) (tree.select "same");
-              holds = tree.select "holds";
-              bad = tree.select "bad";
+      { yen, ... }:
+      {
+        yen.kinds.top.spawns.cluster = _: yen.cluster;
+        yen.kinds.cluster.spawns.node = _: { n1 = { }; };
+        yen.kinds.node.spawns.pod = _: {
+          p1 = { };
+          p2 = { };
+        };
+        yen.kinds.node.sinks.seen = { };
+        yen.kinds.pod = { };
+        yen.top.t = { };
+        yen.cluster.c1 = { };
+        yen.aspects.see = {
+          at = yen.kinds.node;
+          cycle =
+            { tree, ... }:
+            {
+              tree = [
+                {
+                  category = "parent";
+                  parent = true;
+                }
+                {
+                  category = "none";
+                  nearest = yen.kinds.pod;
+                } # no pod above a node: no answer
+                {
+                  category = "kids";
+                  children = yen.kinds.pod;
+                }
+                {
+                  category = "same";
+                  scopesOf = yen.cluster.c1;
+                }
+                {
+                  category = "holds";
+                  holds = yen.kinds.node;
+                }
+              ]
+              ++ b.filter (_: bogus) [
+                {
+                  category = "bad";
+                  bogus = true;
+                }
+              ];
+              seen = {
+                parent = map (s: s.id) (tree.select "parent");
+                none = tree.select "none";
+                kids = map (map (s: s.name)) (tree.select "kids");
+                same = map (map (s: s.id)) (tree.select "same");
+                holds = tree.select "holds";
+                bad = tree.select "bad";
+              };
             };
-          };
-      };
-    }
-  );
+        };
+      }
+    );
   # one error per code: a module, spawns, an element, a sink `of`, an order
   codesFix = yen.eval {
     imports = [
@@ -461,7 +461,8 @@ let
       inherit change grant;
     };
   r1grant = yen.grant { scopes = [ "top:t/host:web" ]; };
-  r1outside = s: b.sort b.lessThan (map (e: e.got) (b.filter (e: e.code == "outside-grant") s.refused));
+  r1outside =
+    s: b.sort b.lessThan (map (e: e.got) (b.filter (e: e.code == "outside-grant") s.refused));
   r1others = [
     "top:t"
     "top:t/host:db"
@@ -2226,15 +2227,17 @@ let
     # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
     # scope: each scope outside the grant is refused, once (vic/quorum/r3-impact.md)
     r1-grant-added =
-      r1outside (r1stage {
-        yen.aspects.extra = {
-          at = {
-            kind = "host";
-            name = "webhook";
+      r1outside (
+        r1stage {
+          yen.aspects.extra = {
+            at = {
+              kind = "host";
+              name = "webhook";
+            };
+            fw = "x";
           };
-          fw = "x";
-        };
-      } r1grant) == r1others;
+        } r1grant
+      ) == r1others;
     r1-grant-removed = r1outside (r1stage { yen.host.db.bypass = true; } r1grant) == r1others;
     r1-grant-changed = r1outside (r1stage { yen.host.db.port = 2222; } r1grant) == r1others;
     r1-grant-inside = r1outside (r1stage { yen.host.web.port = 2222; } r1grant) == r1others;
@@ -2260,12 +2263,17 @@ let
         };
       in
       b.elem "top:t/host:db" (r1outside s);
-    r1-grant-whole = (r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; })).refused == [ ];
+    r1-grant-whole =
+      (r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; })).refused == [ ];
     r1-grant-sinks =
-      r1outside (r1stage { yen.host.web.port = 2222; } (yen.grant {
-        scopes = [ "top:t" ];
-        sinks = [ "fw" ];
-      })) == [
+      r1outside (
+        r1stage { yen.host.web.port = 2222; } (
+          yen.grant {
+            scopes = [ "top:t" ];
+            sinks = [ "fw" ];
+          }
+        )
+      ) == [
         "top:t"
         "top:t/host:db"
         "top:t/host:web"
