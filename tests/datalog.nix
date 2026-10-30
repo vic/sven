@@ -52,7 +52,120 @@ let
     }
   ];
 
+  # rung 3 (vic/formally-verified.md section 5): staged certificates, checked by a small plain-Nix checker
+  r = head: pos: neg: { inherit head pos neg; };
+  t = atom: stage: rule: { inherit atom stage rule; };
+  u = atom: stage: { inherit atom stage; };
+  cyc = [
+    (r "a" [ "b" ] [ ])
+    (r "b" [ "a" ] [ ])
+    (r "a" [ "f" ] [ ])
+    (r "f" [ ] [ ])
+  ];
+  choice = [
+    (r "bad" [ ] [ "ok" ])
+    (r "ok" [ ] [ "bad" ])
+  ];
+  fw = [
+    (r "bad" [ "open" ] [ "fw" ])
+    (r "open" [ ] [ ])
+    (r "fw" [ ] [ ])
+  ];
+  self = [ (r "p" [ ] [ "p" ]) ];
+  valid = rules: cert: (D.checkCertificate rules cert).valid;
+  certTable = {
+    # a:-b. b:-a. a:-f. f.: a ranked through f is accepted; through b (a later stage) it is not
+    cycle-through-f = valid cyc {
+      true = [
+        (t "f" 0 (b.elemAt cyc 3))
+        (t "a" 1 (b.elemAt cyc 2))
+        (t "b" 2 (b.elemAt cyc 1))
+      ];
+      false = [ ];
+    };
+    cycle-through-b =
+      !valid cyc {
+        true = [
+          (t "f" 0 (b.elemAt cyc 3))
+          (t "a" 1 (b.elemAt cyc 0))
+          (t "b" 2 (b.elemAt cyc 1))
+        ];
+        false = [ ];
+      };
+    # bad:-not ok. ok:-not bad.: no staging decides it
+    choice-bad-absent =
+      !valid choice {
+        true = [ (t "ok" 1 (b.elemAt choice 1)) ];
+        false = [ (u "bad" 0) ];
+      };
+    choice-bad-true =
+      !valid choice {
+        true = [ (t "bad" 1 (b.elemAt choice 0)) ];
+        false = [ (u "ok" 0) ];
+      };
+    # bad:-open,not fw. open. fw.: absence of bad, at stage 1 and not at stage 0
+    absence-ok = valid fw {
+      true = [
+        (t "open" 0 (b.elemAt fw 1))
+        (t "fw" 0 (b.elemAt fw 2))
+      ];
+      false = [ (u "bad" 1) ];
+    };
+    absence-early =
+      !valid fw {
+        true = [
+          (t "open" 0 (b.elemAt fw 1))
+          (t "fw" 0 (b.elemAt fw 2))
+        ];
+        false = [ (u "bad" 0) ];
+      };
+    # p:-not p.: p cannot be both
+    self-both =
+      !valid self {
+        true = [ (t "p" 1 (b.head self)) ];
+        false = [ (u "p" 0) ];
+      };
+    # a rule the program does not have is no proof
+    foreign-rule =
+      !valid fw {
+        true = [
+          (t "open" 0 (b.elemAt fw 1))
+          (t "fw" 0 (b.elemAt fw 2))
+          (t "bad" 1 (r "bad" [ "open" ] [ ]))
+        ];
+        false = [ ];
+      };
+  };
   checks = {
+    cert-table = b.all (n: certTable.${n}) (b.attrNames certTable);
+    # the prover's certificate passes the checker, and its verdict is the well-founded model's
+    certify-agrees =
+      b.all
+        (
+          p:
+          let
+            c = D.certify p;
+            v = D.checkCertificate p c;
+            m = D.wfs p;
+          in
+          v.valid
+          && b.sort b.lessThan (map (e: e.atom) c.true) == b.sort b.lessThan m.true
+          && b.sort b.lessThan (map (e: e.atom) c.false) == b.sort b.lessThan m.false
+        )
+        [
+          cyc
+          fw
+          self
+          choice
+          chain
+          serves
+        ];
+    # D4: the proof of a true atom follows strictly smaller stages, never a cycle
+    proof-no-cycle =
+      let
+        p = D.proof cyc (D.wfs cyc) "a";
+      in
+      p.rule == b.elemAt cyc 2 && (b.head p.pos).atom == "f" && !(b.head p.pos ? cycle);
     # the grounder: { var = "X"; } binds over the facts and the heads the rules can derive; neq and lt filter
     ground-vars =
       let
@@ -265,7 +378,7 @@ let
     proofFalse = (D.proof serves mserves "serves:x").status or "" == "false";
     proofUndefined = (D.proof even (D.wfs even) "a").status or "" == "undefined";
     proofPosCycleFalse = (D.proof pcycle (D.wfs pcycle) "p").status or "" == "false";
-    proofCycleMarker =
+    proofNoCycle =
       let
         r = [
           {
@@ -279,22 +392,15 @@ let
           { head = "p"; }
         ];
       in
-      (D.proof r (D.wfs r) "p").pos == [
-        {
-          atom = "q";
-          rule = {
-            head = "q";
-            pos = [ "p" ];
-          };
-          pos = [
-            {
-              atom = "p";
-              cycle = true;
-            }
-          ];
-          neg = [ ];
-        }
-      ];
+      # D4: p is a fact (stage 0), so its proof is the fact, never p, q, p again
+      (D.proof r (D.wfs r) "p") == {
+        atom = "p";
+        rule = {
+          head = "p";
+        };
+        pos = [ ];
+        neg = [ ];
+      };
 
     whyNotBlocking = b.map (x: x.blocking) (D.whyNot serves mserves "serves:x") == [ [ "drained:x" ] ];
     whyNotMissingEmpty = b.map (x: x.missing) (D.whyNot serves mserves "serves:x") == [ [ ] ];

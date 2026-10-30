@@ -1487,6 +1487,7 @@ let
         ];
     agent-check =
       r.check.ok
+      && r.check.certified
       &&
         r.check.invariants == [
           "attic"

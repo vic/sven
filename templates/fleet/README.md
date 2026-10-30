@@ -1317,7 +1317,7 @@ Reduce strategies: `entries`, `list`, `merge`, `one`, `set`. Change programs (`y
 | Library | Functions |
 |---|---|
 | `yen.lib.graphs` | `cycles`, `fromEdges`, `layers`, `nodesOf`, `paths`, `reach`, `reachers`, `sccs`, `shortest`, `topo`, `transpose`, `uniq'` |
-| `yen.lib.datalog` | `comparisons`, `facts`, `ground`, `isVar`, `judge`, `proof`, `stable`, `wfs`, `why`, `whyNot` |
+| `yen.lib.datalog` | `certify`, `checkCertificate`, `comparisons`, `facts`, `ground`, `isVar`, `judge`, `proof`, `stable`, `wfs`, `why`, `whyNot` |
 | `yen.lib.krn` | `appendo`, `conde`, `conj`, `cons`, `disj`, `distinctfd`, `dom`, `eq`, `facto`, `fail`, `fdBound`, `fresh`, `freshNamed`, `fromList`, `infd`, `label`, `lefd`, `ltfd`, `maxOf`, `maximize`, `membero`, `minOf`, `neq`, `neqfd`, `nil`, `plusfd`, `project`, `propagator`, `run`, `runAll`, `runAllFuel`, `runC`, `runFuel`, `succeed`, `toList`, `unify`, `var`, `walkStar` |
 | `yen.lib.rdf` | `ntriples`, `shacl`, `share`, `triples` |
 

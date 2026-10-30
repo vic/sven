@@ -1185,7 +1185,16 @@ let
           ground = D.ground (map (x: x.r) (filter (x: x.p == null) checked)) facts;
           key = b.toJSON;
           mentioned = keySet (map key (concatMap (r: r.pos ++ r.neg) ground));
-          m = D.wfs (ground ++ D.facts (filter (a: mentioned ? ${key a}) facts));
+          verdictProgram = ground ++ D.facts (filter (a: mentioned ? ${key a}) facts);
+          m = D.wfs verdictProgram;
+          # the staged certificate of the verdict (rung 3), and the plain checker's answer on it: valid, and it states
+          # the same violations, with every undefined `bad` atom left out (incomplete)
+          certificate = D.certify verdictProgram;
+          certAtoms = es: b.sort b.lessThan (map (x: key x.atom) es);
+          certified =
+            (D.checkCertificate verdictProgram certificate).valid
+            && certAtoms (filter (x: isBad x.atom) certificate.true) == b.sort b.lessThan (map key violations)
+            && !any (a: elem (key a) (certAtoms (certificate.true ++ certificate.false))) incomplete;
           isBad = a: head a == "bad";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
@@ -1196,7 +1205,13 @@ let
           };
         in
         {
-          inherit violations incomplete errors;
+          inherit
+            violations
+            incomplete
+            errors
+            certificate
+            certified
+            ;
           ok = violations == [ ] && incomplete == [ ];
           why = D.why program model;
           whyNot = D.whyNot program model;

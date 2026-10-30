@@ -2381,6 +2381,27 @@ let
     r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
     # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
     # a derived tuple that fails its relation's check is an error (ok takes one string term here)
+    # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
+    r3-certified =
+      let
+        p = (ports { }).check;
+        c =
+          (yen.eval (rung1 [
+            {
+              yen.aspects.cyc.at = [
+                {
+                  kind = "top";
+                  name = "t";
+                }
+              ];
+            }
+          ])).check;
+      in
+      p.certified
+      && b.elem (nofw "top:t/host:b") (map (e: e.atom) p.certificate.true)
+      && c.certified
+      && c.incomplete != [ ]
+      && !(b.elem [ "bad" "cycle" ] (map (e: e.atom) (c.certificate.true ++ c.certificate.false)));
     relation-check =
       let
         r = tagsWith [
@@ -2702,6 +2723,7 @@ in
     logic
     ports
     portsBase
+    rung1
     yen
     ;
   # the lib suites live in their own files; `failed` runs them all

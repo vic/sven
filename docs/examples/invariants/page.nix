@@ -86,6 +86,17 @@
       (docs.caution "Incomplete is not a pass" ''
         A `bad` atom on a cycle through `not` is undefined. It goes to `incomplete`, and `ok` is false.
       '')
+      ''
+        ## A certificate with every verdict
+
+        `result.check.certificate` gives each decided atom its stage in the well-founded model, and each true atom the
+        rule that proves it (Van Gelder, Ross, Schlipf 1991). A small checker in plain Nix,
+        `yen.lib.datalog.checkCertificate`, accepts it only when every true atom has a rule decided before it and every
+        rule of a false atom is blocked by an atom decided no later. `result.check.certified` is true when the checker
+        accepts the certificate and it states the same verdict. No stratification is needed, and an undefined `bad`
+        atom is in neither list.
+      ''
+      (docs.value { inherit (result.check) certified; })
       (docs.tip "Gate changes on it" ''
         [Stage](/agents/stage/) evaluates a change and refuses it when it adds a violation. CI can fail on `check.ok == false`.
       '')
@@ -98,6 +109,7 @@
     in
     {
       ok = result.check.ok;
+      certified = result.check.certified && (variant "variants/mistakes.nix").check.certified;
       violations =
         m.violations == [
           [
