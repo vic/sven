@@ -57,15 +57,19 @@
       result,
       engine,
       only,
+      eq,
+      yes,
+      no,
       ...
     }:
     {
-      stable =
-        (engine.rdf.share result).sha256 == (engine.rdf.share (only [
+      stable = eq ((engine.rdf.share result).sha256) (
+        (engine.rdf.share (only [
           "modules/pack.nix"
           "modules/hosts.nix"
           "modules/fleet.nix"
-        ])).sha256;
-      shapes = builtins.isString (engine.rdf.shacl result);
+        ])).sha256
+      );
+      shapes = yes (builtins.isString (engine.rdf.shacl result));
     };
 }

@@ -32,18 +32,23 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      flake =
-        result.flake == {
-          inventory = [
-            "postgres"
-            "nginx"
-          ];
-          services = {
-            db = [ "postgres" ];
-            web = [ "nginx" ];
-          };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      flake = eq (result.flake) ({
+        inventory = [
+          "postgres"
+          "nginx"
+        ];
+        services = {
+          db = [ "postgres" ];
+          web = [ "nginx" ];
         };
+      });
     };
 }

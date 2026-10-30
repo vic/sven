@@ -59,22 +59,28 @@
     ];
 
   checks =
-    { result, ... }:
+    {
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       s = result.flake.serving;
     in
     {
-      serves = s.serves == [ "web-1" ];
-      choice =
-        s.choices == [
+      serves = eq (s.serves) ([ "web-1" ]);
+      choice = {
+        t1 = eq (s.choices) ([
           [ "primary:db-1" ]
           [ "primary:db-2" ]
-        ]
-        &&
-          s.undefined == [
-            "primary:db-1"
-            "primary:db-2"
-          ];
-      blocking = (builtins.head s.whyNot).blocking == [ "drained:web-2" ];
+        ]);
+        t2 = eq (s.undefined) ([
+          "primary:db-1"
+          "primary:db-2"
+        ]);
+      };
+      blocking = eq ((builtins.head s.whyNot).blocking) ([ "drained:web-2" ]);
     };
 }

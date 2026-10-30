@@ -75,6 +75,9 @@
       engine,
       module,
       dir,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
@@ -91,14 +94,14 @@
       };
     in
     {
-      impact =
-        map (x: x.scope) (result.impact "fleet:main/environment:prod/host:web" { }).reached == [
-          "fleet:main/environment:prod"
-          "fleet:main"
-        ];
-      valid =
-        builtins.filter (s: s.kind == "host") result.scopes != [ ]
-        && map (s: s.name) (builtins.filter (s: s.kind == "host") result.scopes) == [ "web" ];
-      without = map baseNameOf w.dropped == [ "backend.nix" ];
+      impact = eq (map (x: x.scope) (result.impact "fleet:main/environment:prod/host:web" { }).reached) ([
+        "fleet:main/environment:prod"
+        "fleet:main"
+      ]);
+      valid = {
+        t1 = yes (builtins.filter (s: s.kind == "host") result.scopes != [ ]);
+        t2 = eq (map (s: s.name) (builtins.filter (s: s.kind == "host") result.scopes)) ([ "web" ]);
+      };
+      without = eq (map baseNameOf w.dropped) ([ "backend.nix" ]);
     };
 }

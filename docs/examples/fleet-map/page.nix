@@ -48,8 +48,16 @@
     ) dirs;
 
   checks =
-    { inputs, ... }:
     {
-      has-modules = builtins.pathExists (inputs.yen + "/templates/fleet/modules/topology/fleet.nix");
+      inputs,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      has-modules = yes (
+        builtins.pathExists (inputs.yen + "/templates/fleet/modules/topology/fleet.nix")
+      );
     };
 }

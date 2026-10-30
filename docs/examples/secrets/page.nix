@@ -52,17 +52,25 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      web =
-        map (s: s.name) result.flake.secretsPlan.web == [
-          "db-password"
-          "tls"
-        ];
-      orphan =
-        map (e: e.error) (variant "variants/orphan.nix").errors
-        == [ "secret old-token (secrets/old-token.age) has no owner" ]
-        && (variant "variants/orphan.nix").flake == null;
-      by-name = map (e: e.code) (variant "variants/by-name.nix").errors == [ "of" ];
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      web = eq (map (s: s.name) result.flake.secretsPlan.web) ([
+        "db-password"
+        "tls"
+      ]);
+      orphan = {
+        t1 = eq (map (e: e.error) (variant "variants/orphan.nix").errors) ([
+          "secret old-token (secrets/old-token.age) has no owner"
+        ]);
+        t2 = eq ((variant "variants/orphan.nix").flake) (null);
+      };
+      by-name = eq (map (e: e.code) (variant "variants/by-name.nix").errors) ([ "of" ]);
     };
 }

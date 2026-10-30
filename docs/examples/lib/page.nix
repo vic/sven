@@ -79,10 +79,20 @@
     ];
 
   checks =
-    { engine, ... }:
     {
-      has-eval = engine ? eval && engine ? stage && engine.reduce ? entries;
-      inner =
+      engine,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      has-eval = {
+        t1 = yes (engine ? eval);
+        t2 = yes (engine ? stage);
+        t3 = yes (engine.reduce ? entries);
+      };
+      inner = yes (
         builtins.elem "holds"
           (engine.eval (
             { yen, ... }:
@@ -92,6 +102,7 @@
               yen.top.t = { };
               yen.flake = { ... }: builtins.attrNames yen.lib;
             }
-          )).flake;
+          )).flake
+      );
     };
 }

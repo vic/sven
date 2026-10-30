@@ -51,29 +51,41 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      warnings =
-        result.flake.warnings == [ [ "clan: instance daily role client: tag laptops matches no machine" ] ];
-      extra-modules = result.flake.config.web.imports == [ { services.borg.verbose = true; } ];
-      settings-layers =
-        result.flake.config.web.backup.daily.dir == "/srv/backup"
-        && result.flake.config.nas.backup.daily.dir == "/var/backup";
-      exports = result.flake.config.web.backup.daily.to == [ "nas:22" ];
-      vars-plan =
-        map (g: g.name) result.flake.varsPlan.web.order == [
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      warnings = eq (result.flake.warnings) ([
+        [ "clan: instance daily role client: tag laptops matches no machine" ]
+      ]);
+      extra-modules = eq (result.flake.config.web.imports) ([ { services.borg.verbose = true; } ]);
+      settings-layers = {
+        t1 = eq (result.flake.config.web.backup.daily.dir) ("/srv/backup");
+        t2 = eq (result.flake.config.nas.backup.daily.dir) ("/var/backup");
+      };
+      exports = eq (result.flake.config.web.backup.daily.to) ([ "nas:22" ]);
+      vars-plan = {
+        t1 = eq (map (g: g.name) result.flake.varsPlan.web.order) ([
           "ssh"
           "borg-daily"
-        ]
-        && builtins.elem "/run/secrets-for-users/vars/borg-daily/passphrase" (
-          map (f: f.path) result.flake.varsPlan.web.files
+        ]);
+        t2 = yes (
+          builtins.elem "/run/secrets-for-users/vars/borg-daily/passphrase" (
+            map (f: f.path) result.flake.varsPlan.web.files
+          )
         );
-      public-value =
-        result.flake.config.web.sshPub == "ssh-ed25519 AAAAweb"
-        && result.flake.config.nas.sshPub == "absent";
-      contract =
-        map (e: e.error) (variant "variants/two-servers.nix").errors == [
-          "clan: instance daily role server: 2 machines, at most 1"
-        ];
+      };
+      public-value = {
+        t1 = eq (result.flake.config.web.sshPub) ("ssh-ed25519 AAAAweb");
+        t2 = eq (result.flake.config.nas.sshPub) ("absent");
+      };
+      contract = eq (map (e: e.error) (variant "variants/two-servers.nix").errors) ([
+        "clan: instance daily role server: 2 machines, at most 1"
+      ]);
     };
 }

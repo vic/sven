@@ -18,7 +18,8 @@ let
     inherit category name help;
     command = "set -eu; cd \"$(git rev-parse --show-toplevel)\"; ${command}";
   }; # from any directory of the repo
-  empty = what: expr: ''out=$(${expr}); echo "${what} = $out"; test "$out" = "[ ]"'';
+  # every suite runs on github:denful/fastest: tests.<suite>.<test> = { expr; expected; }, in parallel
+  fastest = dir: suite: ''fastest -q --flake "$PWD${dir}#tests" ${suite}'';
   fleet = "path:$PWD?dir=templates/fleet";
 in
 {
@@ -37,6 +38,7 @@ in
       pkgs.actionlint
       pkgs.shellcheck
       pkgs.gh
+      inputs.fastest.packages.${pkgs.stdenv.hostPlatform.system}.fastest # tests run here, no flake fetch per run
     ];
   };
 
@@ -53,13 +55,11 @@ in
           (cd "$dir" && bash -c "$@")
         done
       '')
-      (cmd "docs" "docs-test" "the checks of every example (fast)"
-        "cd docs && ${empty "failed" "nix eval --impure --file tests.nix failed"}"
-      )
-      (cmd "docs" "docs-e2e" "real NixOS, nix-darwin and home-manager evaluations of the examples"
-        "cd docs && ${empty "e2e.failed" "nix eval --impure --file tests.nix e2e.failed"}"
-      )
-      (cmd "docs" "docs-check" "nix flake check of docs/: pages current, examples, e2e"
+      (cmd "docs" "docs-test" "the checks of every example (fast)" (fastest "?dir=docs" "fast"))
+      (cmd "docs" "docs-e2e" "real NixOS, nix-darwin and home-manager evaluations of the examples" (
+        fastest "?dir=docs" "e2e"
+      ))
+      (cmd "docs" "docs-check" "nix flake check of docs/: pages and workflows current"
         "cd docs && nix flake check -L"
       )
       (cmd "docs" "docs-dev" "the site at localhost:4321, live"
@@ -95,21 +95,17 @@ in
   yen.aspects.engine-commands = {
     at = yen.kinds.site;
     commands = [
-      (cmd "engine" "engine-test" "the engine and library oracles" (
-        empty "failed" "nix-instantiate --eval --strict tests -A failed"
-      ))
+      (cmd "engine" "engine-test" "the engine and library suites" (fastest "" ""))
       (cmd "engine" "engine-cost" "the memo cost oracles" "bash tests/cost.sh")
     ];
   };
   yen.aspects.fleet-commands = {
     at = yen.kinds.site;
     commands = [
-      (cmd "fleet" "fleet-test" "the reference fleet's checks"
-        "cd templates/fleet && ${empty "failed" "nix eval --impure --file tests.nix failed"}"
-      )
-      (cmd "fleet" "fleet-e2e" "the reference fleet's real evaluations"
-        "cd templates/fleet && ${empty "e2e.failed" "nix eval --impure --file tests.nix e2e.failed"}"
-      )
+      (cmd "fleet" "fleet-test" "the reference fleet's checks" (fastest "?dir=templates/fleet" "fleet"))
+      (cmd "fleet" "fleet-e2e" "the reference fleet's real evaluations" (
+        fastest "?dir=templates/fleet" "e2e"
+      ))
       (cmd "fleet" "fleet-cost" "the trimmed-module-list cost oracle"
         "cd templates/fleet && bash cost.sh"
       )
@@ -146,6 +142,19 @@ in
       )
       (cmd "ci" "test-all" "every *-test command: engine, docs, fleet (no e2e, no cost)"
         "for c in engine-test docs-test fleet-test; do echo \"== $c\"; $c; done"
+      )
+      (cmd "ci" "fastest-tests"
+        "every fastest suite at once, in parallel: engine, docs fast and e2e, fleet and e2e (FASTEST_WORKERS each, default 4)"
+        ''
+          export FASTEST_WORKERS=''${FASTEST_WORKERS:-4}
+          pids=()
+          for t in "|" "?dir=docs|fast" "?dir=docs|e2e" "?dir=templates/fleet|fleet" "?dir=templates/fleet|e2e"; do
+            ${fastest "\${t%%|*}" "\${t#*|}"} & pids+=("$!")
+          done
+          rc=0
+          for p in "''${pids[@]}"; do wait "$p" || rc=1; done
+          exit "$rc"
+        ''
       )
       (cmd "ci" "check-all" "every *-check command: fmt, docs, fleet"
         "for c in fmt-check docs-check fleet-check; do echo \"== $c\"; $c; done"

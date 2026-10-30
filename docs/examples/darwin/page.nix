@@ -29,19 +29,34 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      forwards =
-        builtins.any (e: e.sink == "darwin" && e.origin == "sink os") result.graph.edges
-        && builtins.any (e: e.sink == "nixos" && e.origin == "sink os") result.graph.edges;
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      forwards = {
+        t1 = yes (builtins.any (e: e.sink == "darwin" && e.origin == "sink os") result.graph.edges);
+        t2 = yes (builtins.any (e: e.sink == "nixos" && e.origin == "sink os") result.graph.edges);
+      };
     };
   e2e =
-    { flake, ... }:
     {
-      mac = flake.darwinConfigurations.studio.config.networking.hostName == "studio";
-      mac-git = builtins.any (
-        p: (p.pname or "") == "git"
-      ) flake.darwinConfigurations.studio.config.environment.systemPackages;
-      host = flake.nixosConfigurations.server.config.networking.hostName == "server";
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      mac = eq (flake.darwinConfigurations.studio.config.networking.hostName) ("studio");
+      mac-git = yes (
+        builtins.any (
+          p: (p.pname or "") == "git"
+        ) flake.darwinConfigurations.studio.config.environment.systemPackages
+      );
+      host = eq (flake.nixosConfigurations.server.config.networking.hostName) ("server");
     };
 }

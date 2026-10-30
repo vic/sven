@@ -124,20 +124,24 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      packages =
-        result.reduced.packages == {
-          "office:main/machine:reception" = [ "git" ];
-          "office:main/machine:studio" = [
-            "git"
-            "gimp"
-          ];
-        };
-      inventory =
-        result.flake.inventory.studio == [
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      packages = eq (result.reduced.packages) ({
+        "office:main/machine:reception" = [ "git" ];
+        "office:main/machine:studio" = [
           "git"
           "gimp"
         ];
+      });
+      inventory = eq (result.flake.inventory.studio) ([
+        "git"
+        "gimp"
+      ]);
     };
 }

@@ -29,22 +29,41 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      both =
-        result.active.editors."fleet:main/host:server/home:alice@server"
-        && result.active.editors."fleet:main/host:server/user:alice";
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      both = {
+        t1 = yes (result.active.editors."fleet:main/host:server/home:alice@server");
+        t2 = yes (result.active.editors."fleet:main/host:server/user:alice");
+      };
     };
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       nano = c: builtins.any (p: (p.pname or "") == "nano") c.home.packages;
       nested = flake.nixosConfigurations.server.config.home-manager.users.alice;
       standalone = flake.homeConfigurations."alice@server".config;
     in
     {
-      nested = nested.home.sessionVariables.EDITOR_HOST == "server" && nano nested;
-      standalone = standalone.home.sessionVariables.EDITOR_HOST == "server" && nano standalone;
-      standalone-builds = flake.homeConfigurations."alice@server".activationPackage ? drvPath;
+      nested = {
+        t1 = eq (nested.home.sessionVariables.EDITOR_HOST) ("server");
+        t2 = yes (nano nested);
+      };
+      standalone = {
+        t1 = eq (standalone.home.sessionVariables.EDITOR_HOST) ("server");
+        t2 = yes (nano standalone);
+      };
+      standalone-builds = yes (flake.homeConfigurations."alice@server".activationPackage ? drvPath);
     };
 }

@@ -47,18 +47,23 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      report =
-        result.flake.report == {
-          db = "10.0.0.2 (16 cores)";
-          web = "10.0.0.1 (4 cores)";
-        };
-      typo-codes =
-        map (e: e.code) (variant "variants/typo.nix").errors == [
-          "missing"
-          "unknown-field"
-          "check"
-        ];
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      report = eq (result.flake.report) ({
+        db = "10.0.0.2 (16 cores)";
+        web = "10.0.0.1 (4 cores)";
+      });
+      typo-codes = eq (map (e: e.code) (variant "variants/typo.nix").errors) ([
+        "missing"
+        "unknown-field"
+        "check"
+      ]);
     };
 }

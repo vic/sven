@@ -47,10 +47,16 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      alice-twice = builtins.length (builtins.filter (s: s.name == "alice") result.scopes) == 2;
-      web-before-db = builtins.elemAt (map (s: s.name) result.scopes) 5 == "web";
-      flake = result.flake.scopes == map (s: s.id) result.scopes;
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      alice-twice = eq (builtins.length (builtins.filter (s: s.name == "alice") result.scopes)) (2);
+      web-before-db = eq (builtins.elemAt (map (s: s.name) result.scopes) 5) ("web");
+      flake = eq (result.flake.scopes) (map (s: s.id) result.scopes);
     };
 }

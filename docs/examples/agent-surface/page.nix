@@ -82,16 +82,24 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      counts =
-        result.agent.counts == {
-          aspects = 3;
-          edges = 4;
-          kinds = 2;
-          scopes = 4;
-        };
-      explain = !(result.explain "postgres" "fleet:main/host:web" 2).active;
-      floor = builtins.length (result.floor 3) == 3 && (builtins.head (result.floor 3)).trust == 1;
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      counts = eq (result.agent.counts) ({
+        aspects = 3;
+        edges = 4;
+        kinds = 2;
+        scopes = 4;
+      });
+      explain = no ((result.explain "postgres" "fleet:main/host:web" 2).active);
+      floor = {
+        t1 = eq (builtins.length (result.floor 3)) (3);
+        t2 = eq ((builtins.head (result.floor 3)).trust) (1);
+      };
     };
 }

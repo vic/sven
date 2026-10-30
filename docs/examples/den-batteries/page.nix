@@ -138,29 +138,47 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      hosts = builtins.attrNames result.flake.nixosConfigurations == [ "box" ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      hosts = eq (builtins.attrNames result.flake.nixosConfigurations) ([ "box" ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = flake.nixosConfigurations.box.config;
     in
     {
-      hostname = c.networking.hostName == "box";
-      shell = c.users.users.ana.shell.pname == "fish" && c.programs.fish.enable;
-      default-shell = c.users.users.bob.shell.pname == "bash-interactive";
-      autologin = c.services.getty.autologinUser == "ana";
-      account =
-        c.users.users.ana.description == "Ana" && builtins.elem "wheel" c.users.users.ana.extraGroups;
-      account-only-ana =
-        !(builtins.elem "wheel" c.users.users.bob.extraGroups) && c.users.users.bob.isNormalUser;
-      insecure =
-        builtins.sort builtins.lessThan c.nixpkgs.config.permittedInsecurePackages == [
-          "olm-3.2.16"
-          "python-2.7.18.8"
-        ];
+      hostname = eq (c.networking.hostName) ("box");
+      shell = {
+        t1 = eq (c.users.users.ana.shell.pname) ("fish");
+        t2 = yes (c.programs.fish.enable);
+      };
+      default-shell = eq (c.users.users.bob.shell.pname) ("bash-interactive");
+      autologin = eq (c.services.getty.autologinUser) ("ana");
+      account = {
+        t1 = eq (c.users.users.ana.description) ("Ana");
+        t2 = yes (builtins.elem "wheel" c.users.users.ana.extraGroups);
+      };
+      account-only-ana = {
+        t1 = no ((builtins.elem "wheel" c.users.users.bob.extraGroups));
+        t2 = yes (c.users.users.bob.isNormalUser);
+      };
+      insecure = eq (builtins.sort builtins.lessThan c.nixpkgs.config.permittedInsecurePackages) ([
+        "olm-3.2.16"
+        "python-2.7.18.8"
+      ]);
     };
 }

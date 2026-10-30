@@ -43,21 +43,26 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      report =
-        result.flake.report.web == {
-          backup = "db";
-          fqdn = "web.example.com";
-          peers = [ "db" ];
-        };
-      data-kind =
-        map (s: s.kind) result.graph.scopes == [
-          "fleet"
-          "host"
-          "host"
-          "host"
-        ];
-      ref-error = map (e: e.code) (variant "variants/string-ref.nix").errors == [ "ref" ];
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      report = eq (result.flake.report.web) ({
+        backup = "db";
+        fqdn = "web.example.com";
+        peers = [ "db" ];
+      });
+      data-kind = eq (map (s: s.kind) result.graph.scopes) ([
+        "fleet"
+        "host"
+        "host"
+        "host"
+      ]);
+      ref-error = eq (map (e: e.code) (variant "variants/string-ref.nix").errors) ([ "ref" ]);
     };
 }

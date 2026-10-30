@@ -34,33 +34,50 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      outputs =
-        builtins.attrNames (builtins.removeAttrs result.flake [ ]) == [
-          "darwinConfigurations"
-          "homeConfigurations"
-          "nixOnDroidConfigurations"
-          "nixosConfigurations"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      outputs = eq (builtins.attrNames (builtins.removeAttrs result.flake [ ])) ([
+        "darwinConfigurations"
+        "homeConfigurations"
+        "nixOnDroidConfigurations"
+        "nixosConfigurations"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       server = flake.nixosConfigurations.server.config;
       studio = flake.darwinConfigurations.studio.config;
       laptop = flake.homeConfigurations.ana-laptop.config;
     in
     {
-      nixos = builtins.isString server.system.build.toplevel.drvPath;
-      home-in-nixos = server.home-manager.users.ana.programs.git.enable;
-      guest = server.microvm.vms.ci.config.config.networking.hostName == "ci";
-      darwin = builtins.isString studio.system.build.toplevel.drvPath;
-      home-in-darwin = studio.home-manager.users.ana.programs.git.enable;
-      homebrew = studio.homebrew.enable && map (c: c.name) studio.homebrew.casks == [ "firefox" ];
-      primary-user = studio.system.primaryUser == "ana";
-      home = laptop.programs.git.enable && builtins.isString laptop.home.activationPackage.drvPath;
-      droid = flake.nixOnDroidConfigurations.pixel.config.home-manager.config.programs.git.enable; # config only: the drv needs an Android build
+      nixos = yes (builtins.isString server.system.build.toplevel.drvPath);
+      home-in-nixos = yes (server.home-manager.users.ana.programs.git.enable);
+      guest = eq (server.microvm.vms.ci.config.config.networking.hostName) ("ci");
+      darwin = yes (builtins.isString studio.system.build.toplevel.drvPath);
+      home-in-darwin = yes (studio.home-manager.users.ana.programs.git.enable);
+      homebrew = {
+        t1 = yes (studio.homebrew.enable);
+        t2 = eq (map (c: c.name) studio.homebrew.casks) ([ "firefox" ]);
+      };
+      primary-user = eq (studio.system.primaryUser) ("ana");
+      home = {
+        t1 = yes (laptop.programs.git.enable);
+        t2 = yes (builtins.isString laptop.home.activationPackage.drvPath);
+      };
+      droid = yes (flake.nixOnDroidConfigurations.pixel.config.home-manager.config.programs.git.enable); # config only: the drv needs an Android build
     };
 }

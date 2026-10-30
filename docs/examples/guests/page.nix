@@ -27,19 +27,33 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      nginx-at-guest =
-        result.active.nginx."fleet:main/host:box/guest:web" && !result.active.nginx."fleet:main/host:box";
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      nginx-at-guest = {
+        t1 = yes (result.active.nginx."fleet:main/host:box/guest:web");
+        t2 = no (result.active.nginx."fleet:main/host:box");
+      };
     };
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = flake.nixosConfigurations.box.config;
     in
     {
-      web = c.containers.web.config.services.nginx.enable;
-      db = c.containers.db.config.services.postgresql.enable;
-      host-clean = !c.services.nginx.enable;
+      web = yes (c.containers.web.config.services.nginx.enable);
+      db = yes (c.containers.db.config.services.postgresql.enable);
+      host-clean = no (c.services.nginx.enable);
     };
 }

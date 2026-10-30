@@ -155,7 +155,8 @@ in
       timeout = 60;
       steps = [
         (dev "docs examples" "docs-test")
-        (dev "docs flake check: pages and workflows current, examples, e2e" "docs-check")
+        (dev "docs examples: real evaluations (e2e)" "docs-e2e")
+        (dev "docs flake check: pages and workflows current" "docs-check")
         (dev "site build" "docs-build")
       ];
     };

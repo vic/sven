@@ -51,7 +51,7 @@
     ];
 
   e2e =
-    { flake, ... }:
+    { flake, eq, ... }:
     let
       t = c: c.config.system.build.toplevel.drvPath;
     in
@@ -59,7 +59,7 @@
       map
         (h: {
           name = "same-${h}";
-          value = t flake.nixosConfigurations.${h} == t flake.ownPkgs.${h};
+          value = eq (t flake.nixosConfigurations.${h}) (t flake.ownPkgs.${h});
         })
         [
           "app-1"

@@ -29,30 +29,35 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      tags =
-        result.flake.tags == {
-          rack-1 = [
-            "server"
-            "ci-runner"
-            "backups"
-          ];
-          rack-2 = [
-            "server"
-            "backups"
-          ];
-          thinkpad = [
-            "workstation"
-            "laptop"
-            "backups"
-          ];
-          tower = [
-            "workstation"
-            "nvidia"
-            "gaming"
-            "backups"
-          ];
-        };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      tags = eq (result.flake.tags) ({
+        rack-1 = [
+          "server"
+          "ci-runner"
+          "backups"
+        ];
+        rack-2 = [
+          "server"
+          "backups"
+        ];
+        thinkpad = [
+          "workstation"
+          "laptop"
+          "backups"
+        ];
+        tower = [
+          "workstation"
+          "nvidia"
+          "gaming"
+          "backups"
+        ];
+      });
     };
 }

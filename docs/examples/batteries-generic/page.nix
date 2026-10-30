@@ -98,45 +98,51 @@
     ];
 
   checks =
-    { result, variant, ... }:
     {
-      mesh =
-        result.flake.known == {
-          desk = [
-            "ssh-ed25519 AAAAlaptop"
-            "ssh-ed25519 AAAAnas"
-          ];
-          laptop = [
-            "ssh-ed25519 AAAAdesk"
-            "ssh-ed25519 AAAAnas"
-          ];
-          nas = [
-            "ssh-ed25519 AAAAdesk"
-            "ssh-ed25519 AAAAlaptop"
-          ];
-        };
-      claim =
-        result.flake.addrs == [
-          "10.0.0.1"
-          "10.0.0.2"
-          "10.0.0.3"
+      result,
+      variant,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      mesh = eq (result.flake.known) ({
+        desk = [
+          "ssh-ed25519 AAAAlaptop"
+          "ssh-ed25519 AAAAnas"
         ];
-      clash =
-        map (e: e.code) (variant "variants/clash.nix").errors == [ "claim" ]
-        && (variant "variants/clash.nix").flake == null;
-      ordered = result.flake.readme == "# My fleet\n## Usage\n## Hosts";
-      eval-modules =
-        result.flake.settings.nas.ssh == {
+        laptop = [
+          "ssh-ed25519 AAAAdesk"
+          "ssh-ed25519 AAAAnas"
+        ];
+        nas = [
+          "ssh-ed25519 AAAAdesk"
+          "ssh-ed25519 AAAAlaptop"
+        ];
+      });
+      claim = eq (result.flake.addrs) ([
+        "10.0.0.1"
+        "10.0.0.2"
+        "10.0.0.3"
+      ]);
+      clash = {
+        t1 = eq (map (e: e.code) (variant "variants/clash.nix").errors) ([ "claim" ]);
+        t2 = eq ((variant "variants/clash.nix").flake) (null);
+      };
+      ordered = eq (result.flake.readme) ("# My fleet\n## Usage\n## Hosts");
+      eval-modules = {
+        t1 = eq (result.flake.settings.nas.ssh) ({
           port = 22;
           ciphers = [ "chacha20" ];
-        }
-        && result.flake.settings.desk.ssh == { port = 22; };
-      report =
-        builtins.sort builtins.lessThan result.flake.report.hosts == [
-          "desk"
-          "laptop"
-          "nas"
-        ];
-      imports = result.flake.notes.imports == [ "note" ];
+        });
+        t2 = eq (result.flake.settings.desk.ssh) ({ port = 22; });
+      };
+      report = eq (builtins.sort builtins.lessThan result.flake.report.hosts) ([
+        "desk"
+        "laptop"
+        "nas"
+      ]);
+      imports = eq (result.flake.notes.imports) ([ "note" ]);
     };
 }

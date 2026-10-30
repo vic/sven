@@ -31,13 +31,18 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      host = result.flake.config.server.firewall.allowedTCPPorts == [ 22 ];
-      guest-up =
-        result.flake.config.server.vms.ci == {
-          firewall.allowedTCPPorts = [ 8080 ];
-          runner.enable = true;
-        };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      host = eq (result.flake.config.server.firewall.allowedTCPPorts) ([ 22 ]);
+      guest-up = eq (result.flake.config.server.vms.ci) ({
+        firewall.allowedTCPPorts = [ 8080 ];
+        runner.enable = true;
+      });
     };
 }

@@ -99,22 +99,33 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      hosts =
-        builtins.attrNames result.flake.nixosConfigurations == [
-          "rpi4"
-          "x280"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      hosts = eq (builtins.attrNames result.flake.nixosConfigurations) ([
+        "rpi4"
+        "x280"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = n: flake.nixosConfigurations.${n}.config;
     in
     {
-      base-many-files =
+      base-many-files = yes (
         builtins.all
           (
             n:
@@ -125,15 +136,24 @@
           [
             "x280"
             "rpi4"
-          ];
-      openssh-union = (c "x280").services.openssh.enable && (c "rpi4").services.openssh.enable;
-      desktop-x280-only =
-        (c "x280").services.xserver.desktopManager.gnome.enable
-        && !(c "rpi4").services.xserver.desktopManager.gnome.enable;
-      shares = (c "x280").fileSystems ? "/mnt/media" && !((c "rpi4").fileSystems ? "/mnt/media");
-      meta = (c "rpi4").users.users.pol.description == "Pol";
-      pol-on-x280 =
-        builtins.elem "dialout" (c "x280").users.users.pol.extraGroups
-        && !(builtins.elem "dialout" (c "rpi4").users.users.pol.extraGroups);
+          ]
+      );
+      openssh-union = {
+        t1 = yes ((c "x280").services.openssh.enable);
+        t2 = yes ((c "rpi4").services.openssh.enable);
+      };
+      desktop-x280-only = {
+        t1 = yes ((c "x280").services.xserver.desktopManager.gnome.enable);
+        t2 = no ((c "rpi4").services.xserver.desktopManager.gnome.enable);
+      };
+      shares = {
+        t1 = yes ((c "x280").fileSystems ? "/mnt/media");
+        t2 = no (((c "rpi4").fileSystems ? "/mnt/media"));
+      };
+      meta = eq ((c "rpi4").users.users.pol.description) ("Pol");
+      pol-on-x280 = {
+        t1 = yes (builtins.elem "dialout" (c "x280").users.users.pol.extraGroups);
+        t2 = no ((builtins.elem "dialout" (c "rpi4").users.users.pol.extraGroups));
+      };
     };
 }

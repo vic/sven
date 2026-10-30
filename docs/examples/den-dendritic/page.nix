@@ -98,41 +98,60 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      hosts =
-        builtins.attrNames result.flake.nixosConfigurations == [
-          "desk"
-          "srv"
-        ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      hosts = eq (builtins.attrNames result.flake.nixosConfigurations) ([
+        "desk"
+        "srv"
+      ]);
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       c = n: flake.nixosConfigurations.${n}.config;
       has = n: p: builtins.any (x: (x.pname or "") == p) (c n).environment.systemPackages;
     in
     {
-      simple = has "desk" "git" && has "srv" "git";
-      inheritance =
-        has "desk" "tmux"
-        && has "srv" "tmux"
-        && (c "desk").services.printing.enable
-        && !(c "srv").services.printing.enable;
-      once =
-        builtins.length (
-          builtins.filter (x: (x.pname or "") == "tmux") (c "desk").environment.systemPackages
-        ) == 1;
-      conditional =
-        (c "desk").services.xserver.videoDrivers == [ "nvidia" ]
-        && (c "srv").services.xserver.videoDrivers != [ "nvidia" ];
-      exclude = !(c "srv").documentation.enable && (c "desk").documentation.enable;
-      constants = (c "srv").security.acme.defaults.email == "admin@example.org";
-      factory =
-        builtins.elem "wheel" (c "desk").users.users.bob.extraGroups
-        && (c "desk").users.users.eve.extraGroups == [ ]
-        && (c "srv").users.users ? eve
-        && !((c "srv").users.users ? bob);
+      simple = {
+        t1 = yes (has "desk" "git");
+        t2 = yes (has "srv" "git");
+      };
+      inheritance = {
+        t1 = yes (has "desk" "tmux");
+        t2 = yes (has "srv" "tmux");
+        t3 = yes ((c "desk").services.printing.enable);
+        t4 = no ((c "srv").services.printing.enable);
+      };
+      once = eq (builtins.length (
+        builtins.filter (x: (x.pname or "") == "tmux") (c "desk").environment.systemPackages
+      )) (1);
+      conditional = {
+        t1 = eq ((c "desk").services.xserver.videoDrivers) ([ "nvidia" ]);
+        t2 = yes ((c "srv").services.xserver.videoDrivers != [ "nvidia" ]);
+      };
+      exclude = {
+        t1 = no ((c "srv").documentation.enable);
+        t2 = yes ((c "desk").documentation.enable);
+      };
+      constants = eq ((c "srv").security.acme.defaults.email) ("admin@example.org");
+      factory = {
+        t1 = yes (builtins.elem "wheel" (c "desk").users.users.bob.extraGroups);
+        t2 = eq ((c "desk").users.users.eve.extraGroups) ([ ]);
+        t3 = yes ((c "srv").users.users ? eve);
+        t4 = no (((c "srv").users.users ? bob));
+      };
     };
 }

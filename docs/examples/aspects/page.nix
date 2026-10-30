@@ -53,15 +53,23 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      union =
-        result.active.nginx."fleet:main/host:web"
-        && result.active.nginx."fleet:main/host:db"
-        && !result.active.nginx."fleet:main/host:web/user:bob";
-      zsh-once = builtins.length (builtins.filter (p: p == "zsh") result.flake.packages.web) == 1;
-      dotfiles =
-        builtins.elem "dotfiles-alice" result.flake.packages.web
-        && builtins.elem "dotfiles-bob" result.flake.packages.db;
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      union = {
+        t1 = yes (result.active.nginx."fleet:main/host:web");
+        t2 = yes (result.active.nginx."fleet:main/host:db");
+        t3 = no (result.active.nginx."fleet:main/host:web/user:bob");
+      };
+      zsh-once = eq (builtins.length (builtins.filter (p: p == "zsh") result.flake.packages.web)) (1);
+      dotfiles = {
+        t1 = yes (builtins.elem "dotfiles-alice" result.flake.packages.web);
+        t2 = yes (builtins.elem "dotfiles-bob" result.flake.packages.db);
+      };
     };
 }

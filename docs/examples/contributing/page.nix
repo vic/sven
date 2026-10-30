@@ -133,7 +133,14 @@
     ];
 
   checks =
-    { inputs, dir, ... }:
+    {
+      inputs,
+      dir,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       reply = import (inputs.yen + "/docs/issue/eval.nix") {
         inherit (inputs) yen nixpkgs;
@@ -141,14 +148,14 @@
       };
     in
     {
-      reply =
-        reply.modules == 2
-        &&
-          map (e: { inherit (e) code from; }) reply.errors == [
-            {
-              code = "one";
-              from = "fleet:main/host:web";
-            }
-          ];
+      reply = {
+        t1 = eq (reply.modules) (2);
+        t2 = eq (map (e: { inherit (e) code from; }) reply.errors) ([
+          {
+            code = "one";
+            from = "fleet:main/host:web";
+          }
+        ]);
+      };
     };
 }

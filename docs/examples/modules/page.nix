@@ -176,36 +176,40 @@
       result,
       variant,
       inputs,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
       t = inputs.nixpkgs.lib.types;
     in
     {
-      nixos-style =
-        map (e: e.code) (variant "variants/nixos-style.nix").errors == [
-          "unknown-key"
-          "unknown-key"
-        ];
-      mkif = result.active.firewall."fleet:main/host:web" && !result.active.firewall."fleet:main/host:db";
-      nixos =
-        result.reduced.nixos == {
-          "fleet:main/host:web".networking.firewall.allowedTCPPorts = [ 443 ];
-        };
-      submodule-as-kind =
-        map (s: s.id) result.scopes == [
-          "fleet:main"
-          "fleet:main/host:db"
-          "fleet:main/host:web"
-          "fleet:main/host:web/user:ana"
-        ];
-      default = (builtins.head (builtins.filter (s: s.kind == "user") result.scopes)).shell == "bash";
+      nixos-style = eq (map (e: e.code) (variant "variants/nixos-style.nix").errors) ([
+        "unknown-key"
+        "unknown-key"
+      ]);
+      mkif = {
+        t1 = yes (result.active.firewall."fleet:main/host:web");
+        t2 = no (result.active.firewall."fleet:main/host:db");
+      };
+      nixos = eq (result.reduced.nixos) ({
+        "fleet:main/host:web".networking.firewall.allowedTCPPorts = [ 443 ];
+      });
+      submodule-as-kind = eq (map (s: s.id) result.scopes) ([
+        "fleet:main"
+        "fleet:main/host:db"
+        "fleet:main/host:web"
+        "fleet:main/host:web/user:ana"
+      ]);
+      default = eq ((builtins.head (builtins.filter (s: s.kind == "user") result.scopes)).shell) ("bash");
       # the warning is true: nixpkgs composite types check only the outer shape
-      nixpkgs-shallow =
-        (t.listOf t.int).check [ "a" ]
-        && (t.attrsOf t.int).check { x = "a"; }
-        && (t.submodule { options = { }; }).check { y = 1; }
-        && (t.functionTo t.int).check (x: "a")
-        && !t.int.check "a";
+      nixpkgs-shallow = {
+        t1 = yes ((t.listOf t.int).check [ "a" ]);
+        t2 = yes ((t.attrsOf t.int).check { x = "a"; });
+        t3 = yes ((t.submodule { options = { }; }).check { y = 1; });
+        t4 = yes ((t.functionTo t.int).check (x: "a"));
+        t5 = no (t.int.check "a");
+      };
     };
 }

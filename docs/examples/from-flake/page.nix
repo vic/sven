@@ -98,6 +98,9 @@
       inputs,
       dir,
       flake,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
@@ -105,7 +108,7 @@
       t = c: c.config.system.build.toplevel.drvPath;
     in
     {
-      same-web = t before.web == t flake.nixosConfigurations.web;
-      same-desk = t before.desk == t flake.nixosConfigurations.desk;
+      same-web = eq (t before.web) (t flake.nixosConfigurations.web);
+      same-desk = eq (t before.desk) (t flake.nixosConfigurations.desk);
     };
 }

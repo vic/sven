@@ -2,6 +2,10 @@
 let
   yen = (import ../default.nix).lib;
   b = builtins;
+  # a fastest test: { expr; expected; }
+  eq = expr: expected: { inherit expr expected; };
+  yes = x: eq x true;
+  no = x: eq x false;
   msgs = r: map (e: e.error) r.errors;
   has = r: m: b.elem m (msgs r);
 
@@ -821,57 +825,67 @@ let
       let
         e = rec1 (ports { yen.host.c.port = 70000; }) "check";
       in
-      e.want == "Port"
-      && e.path == [ "port" ]
-      && e.got == 70000
-      && e.class == "fixable"
-      && e.from == "host:c"
-      && e.error == "port fails its check";
-    errors-v2-near =
-      (rec1 (ports { yen.host.b.prot = 1; }) "unknown-field").near == [ "port" ]
-      && (rec1 (ports { yen.host.b.zzzzzz = 1; }) "unknown-field").near == [ ];
+      {
+        want = eq e.want "Port";
+        path = eq e.path [ "port" ];
+        got = eq e.got 70000;
+        class = eq e.class "fixable";
+        from = eq e.from "host:c";
+        error = eq e.error "port fails its check";
+      };
+    errors-v2-near = {
+      close = eq (rec1 (ports { yen.host.b.prot = 1; }) "unknown-field").near [ "port" ];
+      far = eq (rec1 (ports { yen.host.b.zzzzzz = 1; }) "unknown-field").near [ ];
+    };
     errors-v2-two-answers =
       let
         e = rec1 (ports { yen.host.a.port = 23; }) "two-answers";
       in
-      e.path == [
-        "host"
-        "a"
-        "port"
-      ]
-      && e.got == 2;
+      {
+        path = eq e.path [
+          "host"
+          "a"
+          "port"
+        ];
+        got = eq e.got 2;
+      };
     declared-in =
       let
         r = ports { yen.aspects.firewall.nixos = { }; };
       in
-      b.length (
-        r.declaredIn [
-          "aspects"
-          "firewall"
-        ]
-      ) == 2
-      &&
-        r.declaredIn [
+      {
+        two-files = eq (b.length (
+          r.declaredIn [
+            "aspects"
+            "firewall"
+          ]
+        )) 2;
+        none = eq (r.declaredIn [
           "aspects"
           "nope"
-        ] == [ ];
+        ]) [ ];
+      };
     invariants-check =
       let
         r = ports { };
       in
-      r.check.violations == [ (nofw "top:t/host:b") ]
-      && r.check.incomplete == [ ]
-      && !r.check.ok
-      && (ports (
-        { yen, ... }:
-        {
-          yen.aspects.fw-b = {
-            at = yen.host.b;
-            fw = "on";
-          };
-          yen.aspects.firewall.at = yen.host.b;
-        }
-      )).check.ok;
+      {
+        violations = eq r.check.violations [ (nofw "top:t/host:b") ];
+        incomplete = eq r.check.incomplete [ ];
+        not-ok = no r.check.ok;
+        fixed-ok =
+          yes
+            (ports (
+              { yen, ... }:
+              {
+                yen.aspects.fw-b = {
+                  at = yen.host.b;
+                  fw = "on";
+                };
+                yen.aspects.firewall.at = yen.host.b;
+              }
+            )).check.ok;
+      };
     invariants-incomplete =
       let
         r = ports {
@@ -896,7 +910,11 @@ let
           "loop"
         ];
       in
-      r.check.incomplete == [ loop ] && !b.elem loop r.check.violations && !r.check.ok;
+      {
+        incomplete = eq r.check.incomplete [ loop ];
+        not-violation = no (b.elem loop r.check.violations);
+        not-ok = no r.check.ok;
+      };
     schema-exact =
       let
         s =
@@ -907,36 +925,37 @@ let
             }
           )).schema;
       in
-      s.kinds.host == {
-        fields.port.type = "Port";
-        spawns = [ ];
-        instances = 2;
-        scopes = 2;
-        sinks = {
-          fw = {
-            reduce = "list";
-            of = null;
-            feeds = [ ];
-            conditional = false;
-          };
-          tags = {
-            reduce = "set";
-            of = null;
-            feeds = [ ];
-            conditional = false;
+      {
+        host = eq s.kinds.host {
+          fields.port.type = "Port";
+          spawns = [ ];
+          instances = 2;
+          scopes = 2;
+          sinks = {
+            fw = {
+              reduce = "list";
+              of = null;
+              feeds = [ ];
+              conditional = false;
+            };
+            tags = {
+              reduce = "set";
+              of = null;
+              feeds = [ ];
+              conditional = false;
+            };
           };
         };
-      }
-      && s.kinds.top.spawns == [ "host" ]
-      &&
-        s.aspects.firewall == {
+        top-spawns = eq s.kinds.top.spawns [ "host" ];
+        firewall = eq s.aspects.firewall {
           keys = [ "fw" ];
           cycle = false;
           files = [ "root" ];
           activeAt = 1;
-        }
-      && s.invariants == [ "fw" ]
-      && b.isString (b.toJSON s);
+        };
+        invariants = eq s.invariants [ "fw" ];
+        json = yes (b.isString (b.toJSON s));
+      };
     explain =
       let
         r = ports (
@@ -951,24 +970,24 @@ let
         e = r.explain "both" "top:t/host:b" 3;
         all' = b.head e.at.kids;
       in
-      e.active
-      && all'.op == "all"
-      &&
-        map (k: k.op) all'.kids == [
+      {
+        active = yes e.active;
+        op = eq all'.op "all";
+        kids = eq (map (k: k.op) all'.kids) [
           "kind"
           "not"
-        ]
-      && (b.head (b.elemAt all'.kids 1).kids).value == false
-      && (b.head (r.explain "both" "top:t/host:a" 1).at.kids).kids == "cut"
-      && (r.explain "bth" "top:t/host:a" 1).near == [ "both" ]
-      && (r.explain "both" "top:t/host:z" 1).code == "unknown-scope"
-      &&
-        (r.explain "firewall" "top:t/host:a" 2).gives == [
+        ];
+        not-value = eq (b.head (b.elemAt all'.kids 1).kids).value false;
+        cut = eq (b.head (r.explain "both" "top:t/host:a" 1).at.kids).kids "cut";
+        near = eq (r.explain "bth" "top:t/host:a" 1).near [ "both" ];
+        unknown-scope = eq (r.explain "both" "top:t/host:z" 1).code "unknown-scope";
+        gives = eq (r.explain "firewall" "top:t/host:a" 2).gives [
           {
             sink = "fw";
             to = "top:t/host:a";
           }
         ];
+      };
     stage-ok-and-diff =
       let
         base = {
@@ -989,16 +1008,20 @@ let
           };
         };
       in
-      s.ok
-      && s.diff.scopes.added == [ "top:t/host:c" ]
-      && s.diff.scopes.removed == [ ]
-      && b.isString s.sha
-      && s.diff.active.added == [ "firewall@top:t/host:c" ]
-      &&
-        (yen.stage {
-          inherit base;
-          change = b.fromJSON s.render;
-        }).diff == s.diff;
+      {
+        ok = yes s.ok;
+        added = eq s.diff.scopes.added [ "top:t/host:c" ];
+        removed = eq s.diff.scopes.removed [ ];
+        sha = yes (b.isString s.sha);
+        active = eq s.diff.active.added [ "firewall@top:t/host:c" ];
+        render =
+          eq
+            (yen.stage {
+              inherit base;
+              change = b.fromJSON s.render;
+            }).diff
+            s.diff;
+      };
     stage-refuses =
       let
         base = {
@@ -1009,26 +1032,28 @@ let
           inherit base;
           change = ch;
         };
+        v = yen.stage {
+          inherit base;
+          change = yen.change.set [ "host" "c" "port" ] 1;
+        };
       in
-      !s.ok
-      && b.any (e: e.code == "two-answers") s.errors
-      &&
-        (b.head
-          (yen.stage {
-            inherit base;
-            change = ch;
-            rejected = [ s.sha ];
-          }).refused
-        ).class == "authority"
-      && (
-        let
-          v = yen.stage {
-            inherit base;
-            change = yen.change.set [ "host" "c" "port" ] 1;
-          };
-        in
-        v.violations == [ (nofw "top:t/host:c") ] && v.errors == [ ] && !v.ok
-      );
+      {
+        not-ok = no s.ok;
+        two-answers = yes (b.any (e: e.code == "two-answers") s.errors);
+        rejected =
+          eq
+            (b.head
+              (yen.stage {
+                inherit base;
+                change = ch;
+                rejected = [ s.sha ];
+              }).refused
+            ).class
+            "authority";
+        violation = eq v.violations [ (nofw "top:t/host:c") ];
+        violation-errors = eq v.errors [ ];
+        violation-not-ok = no v.ok;
+      };
     grants-narrow =
       let
         g = yen.grant {
@@ -1038,44 +1063,51 @@ let
         all' = yen.grant { scopes = [ "top:t" ]; };
         e = to: sink: { inherit to sink; };
       in
-      yen.allowed g (e "top:t/host:a" "fw")
-      && !yen.allowed g (e "top:t/host:b" "fw")
-      && !yen.allowed g (e "top:t/host:a" "nixos")
-      && yen.narrow all' g == g
-      && yen.narrow g all' == g
-      && (yen.narrow g (yen.grant { scopes = [ "top:t/host:b" ]; })).scopes == [ ]
-      &&
-        (yen.stage {
-          base = {
-            imports = [ portsBase ];
-          };
-          change = {
-            yen.aspects.firewall.at = [
-              {
-                kind = "host";
-                name = "b";
-              }
-            ];
-          };
-          grant = g;
-        }).refused != [ ];
+      {
+        allowed = yes (yen.allowed g (e "top:t/host:a" "fw"));
+        other-scope = no (yen.allowed g (e "top:t/host:b" "fw"));
+        other-sink = no (yen.allowed g (e "top:t/host:a" "nixos"));
+        narrow-left = eq (yen.narrow all' g) g;
+        narrow-right = eq (yen.narrow g all') g;
+        narrow-disjoint = eq (yen.narrow g (yen.grant { scopes = [ "top:t/host:b" ]; })).scopes [ ];
+        refused = yes (
+          (yen.stage {
+            base = {
+              imports = [ portsBase ];
+            };
+            change = {
+              yen.aspects.firewall.at = [
+                {
+                  kind = "host";
+                  name = "b";
+                }
+              ];
+            };
+            grant = g;
+          }).refused != [ ]
+        );
+      };
     agent-json =
       let
         a = yen.agent (ports {
           yen.host.c.port = 70000;
         });
       in
-      b.fromJSON (b.toJSON a) == a
-      && a.counts.scopes == 4
-      && b.length a.errors == 1
-      &&
-        yen.jsonSafe {
-          f = x: x;
-          p = ./.;
-        } == {
-          f = "<function>";
-          p = toString ./.;
-        };
+      {
+        json = eq (b.fromJSON (b.toJSON a)) a;
+        scopes = eq a.counts.scopes 4;
+        errors = eq (b.length a.errors) 1;
+        safe =
+          eq
+            (yen.jsonSafe {
+              f = x: x;
+              p = ./.;
+            })
+            {
+              f = "<function>";
+              p = toString ./.;
+            };
+      };
     agent-context =
       let
         r = ports (
@@ -1091,20 +1123,21 @@ let
         );
         c = r.context "top:t/host:a" { maxEdges = 1; };
       in
-      c.received.truncated == {
-        shown = 1;
-        of = 3;
-      }
-      && b.length c.received.items == 1
-      &&
-        c.aspects.items == [
+      {
+        truncated = eq c.received.truncated {
+          shown = 1;
+          of = 3;
+        };
+        items = eq (b.length c.received.items) 1;
+        aspects = eq c.aspects.items [
           "firewall"
           "more"
-        ]
-      && c.parent == "top:t"
-      && (r.context "top:t/host:q" { }).code == "unknown-scope"
-      && b.length (r.context "top:t/host:q" { }).near == 2
-      && b.fromJSON (b.toJSON c) == c;
+        ];
+        parent = eq c.parent "top:t";
+        unknown = eq (r.context "top:t/host:q" { }).code "unknown-scope";
+        near = eq (b.length (r.context "top:t/host:q" { }).near) 2;
+        json = eq (b.fromJSON (b.toJSON c)) c;
+      };
     stored-queries =
       let
         r = ports {
@@ -1119,43 +1152,51 @@ let
           };
         };
       in
-      r.queries == {
-        count = {
-          required = [ ];
-          optional = [ "kind" ];
+      {
+        catalog = eq r.queries {
+          count = {
+            required = [ ];
+            optional = [ "kind" ];
+          };
+          portOf = {
+            required = [ "host" ];
+            optional = [ ];
+          };
         };
-        portOf = {
-          required = [ "host" ];
-          optional = [ ];
-        };
-      }
-      && r.ask "portOf" { host = "b"; } == 80
-      && r.ask "count" { } == 2
-      && r.ask "count" { kind = "top"; } == 1
-      && (r.ask "portOf" { }).code == "missing-param"
-      &&
-        (r.ask "portOf" {
-          host = "a";
-          hots = 1;
-        }).code == "unknown-param"
-      && (r.ask "portof" { }).near == [ "portOf" ];
+        port = eq (r.ask "portOf" { host = "b"; }) 80;
+        count = eq (r.ask "count" { }) 2;
+        count-kind = eq (r.ask "count" { kind = "top"; }) 1;
+        missing = eq (r.ask "portOf" { }).code "missing-param";
+        unknown-param =
+          eq
+            (r.ask "portOf" {
+              host = "a";
+              hots = 1;
+            }).code
+            "unknown-param";
+        near = eq (r.ask "portof" { }).near [ "portOf" ];
+      };
     history =
       let
         h = yen.history {
-          url = "file://${toString ./..}";
+          url = "https://github.com/vic/yen"; # the rev is on main; a flake eval has no .git to read
           revs = [
             "df8ee68d5244aeca4e4bf23f1e9ecc927226d620"
           ];
           module = "tests/fixtures/history.nix";
         };
       in
-      (b.elemAt h 0).changes == [ ]
-      &&
-        (yen.asOf {
-          url = "file://${toString ./..}";
-          rev = "df8ee68d5244aeca4e4bf23f1e9ecc927226d620";
-          module = "tests/fixtures/history.nix";
-        }).data.host.a.port == 22;
+      {
+        changes = eq (b.elemAt h 0).changes [ ];
+        as-of =
+          eq
+            (yen.asOf {
+              url = "https://github.com/vic/yen"; # the rev is on main; a flake eval has no .git to read
+              rev = "df8ee68d5244aeca4e4bf23f1e9ecc927226d620";
+              module = "tests/fixtures/history.nix";
+            }).data.host.a.port
+            22;
+      };
     # reduce errors name their receiver and sink: a strategy cannot know them, the engine sets them
     reduce-error-receiver =
       let
@@ -1179,7 +1220,7 @@ let
           }
         );
       in
-      b.map (e: { inherit (e) code from sink; }) r.errors == [
+      eq (b.map (e: { inherit (e) code from sink; }) r.errors) [
         {
           code = "one";
           from = "top:t/h:a";
@@ -1213,42 +1254,54 @@ let
           }
         );
       in
-      b.map (e: {
-        inherit (e)
-          code
-          error
-          from
-          class
-          ;
-      }) r.errors == [
-        {
-          code = "dup-addr";
-          error = "two hosts at 10.0.0.1";
-          from = "top:t/h:a";
-          class = "fixable";
-        }
-        {
-          code = "error";
-          error = "plain message";
-          from = "top:t/h:a";
-          class = "fixable";
-        }
-      ]
-      && (b.head r.errors).fix == "change one";
-    # a declared bound that is null is open
-    valid-at-null =
-      yen.validAt "2026-11-15" {
-        validFrom = null;
-        validTo = null;
-      }
-      && yen.validAt "2026-11-15" {
-        validFrom = "2026-01-01";
-        validTo = null;
-      }
-      && !yen.validAt "2026-11-15" {
-        validFrom = null;
-        validTo = "2026-10-31";
+      {
+        records =
+          eq
+            (b.map (e: {
+              inherit (e)
+                code
+                error
+                from
+                class
+                ;
+            }) r.errors)
+            [
+              {
+                code = "dup-addr";
+                error = "two hosts at 10.0.0.1";
+                from = "top:t/h:a";
+                class = "fixable";
+              }
+              {
+                code = "error";
+                error = "plain message";
+                from = "top:t/h:a";
+                class = "fixable";
+              }
+            ];
+        fix = eq (b.head r.errors).fix "change one";
       };
+    # a declared bound that is null is open
+    valid-at-null = {
+      open = yes (
+        yen.validAt "2026-11-15" {
+          validFrom = null;
+          validTo = null;
+        }
+      );
+      from = yes (
+        yen.validAt "2026-11-15" {
+          validFrom = "2026-01-01";
+          validTo = null;
+        }
+      );
+      to = no (
+        yen.validAt "2026-11-15" {
+          validFrom = null;
+          validTo = "2026-10-31";
+        }
+      );
+    };
     valid-at =
       let
         r = yen.eval (
@@ -1266,10 +1319,12 @@ let
           }
         );
       in
-      r.active.backup."top:t/host:a"
-      && r.active.backup."top:t/host:b"
-      && !r.active.late."top:t/host:a"
-      && r.active.late."top:t/host:b";
+      {
+        backup-a = yes r.active.backup."top:t/host:a";
+        backup-b = yes r.active.backup."top:t/host:b";
+        late-a = no r.active.late."top:t/host:a";
+        late-b = yes r.active.late."top:t/host:b";
+      };
     without =
       let
         w = yen.without {
@@ -1283,20 +1338,24 @@ let
           ];
         };
       in
-      w.dropped == [ ./fixtures/without/db.nix ]
-      && b.all (s: s.name != "db") w.result.scopes
-      && b.any (s: s.name == "web") w.result.scopes
-      &&
-        (yen.without {
-          files = [
-            ./fixtures/without/base.nix
-            ./fixtures/without/db.nix
-          ];
-          path = [
-            "host"
-            "nope"
-          ];
-        }).dropped == [ ];
+      {
+        dropped = eq w.dropped [ ./fixtures/without/db.nix ];
+        no-db = yes (b.all (s: s.name != "db") w.result.scopes);
+        web = yes (b.any (s: s.name == "web") w.result.scopes);
+        nothing =
+          eq
+            (yen.without {
+              files = [
+                ./fixtures/without/base.nix
+                ./fixtures/without/db.nix
+              ];
+              path = [
+                "host"
+                "nope"
+              ];
+            }).dropped
+            [ ];
+      };
     impact =
       let
         r = yen.eval {
@@ -1307,21 +1366,22 @@ let
         };
         i = r.impact "top:t/host:db" { };
       in
-      i.reached == [
-        {
-          scope = "top:t";
-          depth = 1;
-          via = "peers";
-        }
-      ]
-      &&
-        i.truncated == {
+      {
+        reached = eq i.reached [
+          {
+            scope = "top:t";
+            depth = 1;
+            via = "peers";
+          }
+        ];
+        truncated = eq i.truncated {
           shown = 1;
           of = 1;
-        }
-      && (r.impact "top:t/host:db" { sinks = [ "nixos" ]; }).reached == [ ]
-      && (r.impact "top:t/host:db" { sinks = [ "peer" ]; }).code == "unknown-sink"
-      && (r.impact "top:t/host:dd" { }).code == "unknown-scope";
+        };
+        sinks = eq (r.impact "top:t/host:db" { sinks = [ "nixos" ]; }).reached [ ];
+        unknown-sink = eq (r.impact "top:t/host:db" { sinks = [ "peer" ]; }).code "unknown-sink";
+        unknown-scope = eq (r.impact "top:t/host:dd" { }).code "unknown-scope";
+      };
     # .20: when a fleet has labels, an aspect from an unlabeled file has trust 0 (floor sees it); a prefix is literal,
     # never a regex ("agen./" does not label "agent/")
     labels-unlabeled =
@@ -1341,7 +1401,11 @@ let
           ];
         };
       in
-      r.labels.extra.trust == 0 && r.labels.extra.prefix == null && lit.labels.cache.trust == 1;
+      {
+        trust = eq r.labels.extra.trust 0;
+        prefix = eq r.labels.extra.prefix null;
+        literal = eq lit.labels.cache.trust 1;
+      };
     # .20 .13: a staged change or a program carries its submitter's label; floor sees the agent, not a file
     labels-submitter =
       let
@@ -1374,11 +1438,13 @@ let
           ];
         };
       in
-      s.labels.web.by == "bot"
-      && s.labels.web.trust == 1
-      && b.all (x: x.aspect == "web" && x.trust == 1) (s.floor 2)
-      && s.floor 2 != [ ]
-      && p.labels.web.by == "bot";
+      {
+        by = eq s.labels.web.by "bot";
+        trust = eq s.labels.web.trust 1;
+        floor-web = yes (b.all (x: x.aspect == "web" && x.trust == 1) (s.floor 2));
+        floor-some = yes (s.floor 2 != [ ]);
+        program-by = eq p.labels.web.by "bot";
+      };
     labels-floor =
       let
         r = yen.eval {
@@ -1388,13 +1454,15 @@ let
           ];
         };
       in
-      r.labels.web.trust == 1
-      && r.labels.web.prefix == "agent/"
-      && r.labels.cache.trust == 1
-      && b.all (x: x.trust == 1 && b.match ".*agent/web.nix" x.file != null) (r.floor 3)
-      && b.length (r.floor 3) >= 2
-      && r.floor 1 == [ ]
-      && (yen.eval { imports = [ ./fixtures/labels/modules/base.nix ]; }).labels.web.trust == 3;
+      {
+        web = eq r.labels.web.trust 1;
+        prefix = eq r.labels.web.prefix "agent/";
+        cache = eq r.labels.cache.trust 1;
+        floor-agent = yes (b.all (x: x.trust == 1 && b.match ".*agent/web.nix" x.file != null) (r.floor 3));
+        floor-two = yes (b.length (r.floor 3) >= 2);
+        floor-empty = eq (r.floor 1) [ ];
+        base-only = eq (yen.eval { imports = [ ./fixtures/labels/modules/base.nix ]; }).labels.web.trust 3;
+      };
     field-facts =
       let
         r = ports (
@@ -1405,9 +1473,11 @@ let
           }
         );
       in
-      b.elem [ "val" "port" "top:t/host:a" 22 ] r.facts
-      && b.elem [ "ref" "peer" "top:t/host:b" "host" "a" ] r.facts
-      && !(b.elem [ "ref" "peer" "top:t/host:a" "host" "b" ] r.facts);
+      {
+        val = yes (b.elem [ "val" "port" "top:t/host:a" 22 ] r.facts);
+        ref = yes (b.elem [ "ref" "peer" "top:t/host:b" "host" "a" ] r.facts);
+        no-reverse = no (b.elem [ "ref" "peer" "top:t/host:a" "host" "b" ] r.facts);
+      };
     check-whynot =
       let
         r = ports (
@@ -1421,59 +1491,66 @@ let
           }
         );
       in
-      r.check.ok
-      && b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot (nofw "top:t/host:b"))
-      &&
-        (r.check.proof [
-          "kind"
-          "host"
-          "top:t/host:a"
-        ]).atom == [
-          "kind"
-          "host"
-          "top:t/host:a"
-        ]
-      && (ports { }).check.whyNot (nofw "top:t/host:b") == [ ];
+      {
+        ok = yes r.check.ok;
+        blocking = yes (
+          b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot (nofw "top:t/host:b"))
+        );
+        proof =
+          eq
+            (r.check.proof [
+              "kind"
+              "host"
+              "top:t/host:a"
+            ]).atom
+            [
+              "kind"
+              "host"
+              "top:t/host:a"
+            ];
+        holds = eq ((ports { }).check.whyNot (nofw "top:t/host:b")) [ ];
+      };
     # D10: explanations and the verdict read one model; a fact no rule mentions is still true
     explain-same-model =
       let
         c = (ports { }).check;
       in
-      !(
-        (c.proof [
+      {
+        proof = no (
+          (c.proof [
+            "scope"
+            "top:t/host:a"
+          ]) ? status
+        );
+        why-not = eq (c.whyNot [
           "scope"
           "top:t/host:a"
-        ]) ? status
-      )
-      &&
-        c.whyNot [
-          "scope"
-          "top:t/host:a"
-        ] == [ ];
+        ]) [ ];
+      };
     program-validate =
       let
         r = ports { };
         v = yen.program.validate r;
       in
-      v [
-        {
-          op = "set";
-          path = [
-            "host"
-            "c"
-            "port"
-          ];
-          value = 443;
-        }
-        {
-          op = "place";
-          aspect = "firewall";
-          kind = "host";
-          name = "c";
-        }
-      ] == [ ]
-      &&
-        map (e: e.near or null) (v [
+      {
+        valid = eq (v [
+          {
+            op = "set";
+            path = [
+              "host"
+              "c"
+              "port"
+            ];
+            value = 443;
+          }
+          {
+            op = "place";
+            aspect = "firewall";
+            kind = "host";
+            name = "c";
+          }
+        ]) [ ];
+        near-kind = eq (map (e: e.near or null) (v [
           {
             op = "set";
             path = [
@@ -1483,9 +1560,8 @@ let
             ];
             value = 1;
           }
-        ]) == [ [ "host" ] ]
-      &&
-        map (e: e.near or null) (v [
+        ])) [ [ "host" ] ];
+        near-field = eq (map (e: e.near or null) (v [
           {
             op = "set";
             path = [
@@ -1495,18 +1571,18 @@ let
             ];
             value = 1;
           }
-        ]) == [ [ "port" ] ]
-      &&
-        map (e: e.near or null) (v [
+        ])) [ [ "port" ] ];
+        near-aspect = eq (map (e: e.near or null) (v [
           {
             op = "place";
             aspect = "firewal";
             kind = "host";
             name = "c";
           }
-        ]) == [ [ "firewall" ] ]
-      && map (e: e.near or null) (v [ { op = "plac"; } ]) == [ [ "place" ] ]
-      && b.length (v [ { } ]) == 1;
+        ])) [ [ "firewall" ] ];
+        near-op = eq (map (e: e.near or null) (v [ { op = "plac"; } ])) [ [ "place" ] ];
+        empty-op = eq (b.length (v [ { } ])) 1;
+      };
     program-dryrun =
       let
         base = {
@@ -1541,60 +1617,67 @@ let
           }
         ];
       in
-      ok.ok
-      && ok.valid
-      && ok.diff.scopes.added == [ "top:t/host:c" ]
-      && b.isString ok.sha
-      && !bad.ok
-      && bad.violations == [ (nofw "top:t/host:c") ]
-      && !(d [
-        {
-          op = "set";
-          path = [ "hots" ];
-          value = 1;
-        }
-      ]).valid
-      &&
-        b.fromJSON (
-          yen.program.render [
-            {
-              op = "set";
-              path = [
-                "host"
-                "c"
-                "port"
-              ];
-              value = 1;
-            }
-          ]
-        ) == [
-          {
-            op = "set";
-            path = [
-              "host"
-              "c"
-              "port"
+      {
+        ok = yes ok.ok;
+        valid = yes ok.valid;
+        added = eq ok.diff.scopes.added [ "top:t/host:c" ];
+        sha = yes (b.isString ok.sha);
+        bad-not-ok = no bad.ok;
+        bad-violations = eq bad.violations [ (nofw "top:t/host:c") ];
+        invalid =
+          no
+            (d [
+              {
+                op = "set";
+                path = [ "hots" ];
+                value = 1;
+              }
+            ]).valid;
+        render =
+          eq
+            (b.fromJSON (
+              yen.program.render [
+                {
+                  op = "set";
+                  path = [
+                    "host"
+                    "c"
+                    "port"
+                  ];
+                  value = 1;
+                }
+              ]
+            ))
+            [
+              {
+                op = "set";
+                path = [
+                  "host"
+                  "c"
+                  "port"
+                ];
+                value = 1;
+              }
             ];
-            value = 1;
-          }
-        ];
-    invariants-why =
-      (b.head ((ports { }).check.why (nofw "top:t/host:b"))).neg == [ (hasFw "top:t/host:b") ];
-    graphs-reach =
-      G.reach dag "app" == [
+      };
+    invariants-why = eq (b.head ((ports { }).check.why (nofw "top:t/host:b"))).neg [
+      (hasFw "top:t/host:b")
+    ];
+    graphs-reach = {
+      app = eq (G.reach dag "app") [
         "cache"
         "db"
         "net"
-      ]
-      && G.reach dag "net" == [ ]
-      &&
-        G.reachers dag "net" == [
-          "app"
-          "cache"
-          "db"
-        ];
-    graphs-topo =
-      G.topo dag == {
+      ];
+      net = eq (G.reach dag "net") [ ];
+      reachers = eq (G.reachers dag "net") [
+        "app"
+        "cache"
+        "db"
+      ];
+    };
+    graphs-topo = {
+      dag = eq (G.topo dag) {
         ok = true;
         order = [
           "net"
@@ -1603,94 +1686,94 @@ let
           "app"
         ];
         stuck = [ ];
-      }
-      && (G.topo ring).ok == false
-      &&
-        (G.topo ring).stuck == [
-          "a"
-          "b"
-          "c"
-          "d"
-        ];
-    graphs-layers =
-      G.layers dag == [
-        [ "net" ]
-        [
-          "cache"
-          "db"
-        ]
-        [ "app" ]
-      ];
-    graphs-cycles =
-      G.cycles ring == [
+      };
+      ring-ok = eq (G.topo ring).ok false;
+      ring-stuck = eq (G.topo ring).stuck [
         "a"
         "b"
         "c"
+        "d"
+      ];
+    };
+    graphs-layers = eq (G.layers dag) [
+      [ "net" ]
+      [
+        "cache"
+        "db"
       ]
-      && G.cycles dag == [ ]
-      &&
-        G.sccs ring == [
-          [
-            "a"
-            "b"
-            "c"
-          ]
-        ];
-    graphs-paths =
-      G.shortest ring "d" "c" == [
+      [ "app" ]
+    ];
+    graphs-cycles = {
+      ring = eq (G.cycles ring) [
+        "a"
+        "b"
+        "c"
+      ];
+      dag = eq (G.cycles dag) [ ];
+      sccs = eq (G.sccs ring) [
+        [
+          "a"
+          "b"
+          "c"
+        ]
+      ];
+    };
+    graphs-paths = {
+      shortest = eq (G.shortest ring "d" "c") [
         "d"
         "a"
         "b"
         "c"
-      ]
-      && G.shortest dag "net" "app" == null
-      &&
-        G.paths dag "app" "net" == [
-          [
-            "app"
-            "cache"
-            "net"
-          ]
-          [
-            "app"
-            "db"
-            "net"
-          ]
-        ];
+      ];
+      none = eq (G.shortest dag "net" "app") null;
+      paths = eq (G.paths dag "app" "net") [
+        [
+          "app"
+          "cache"
+          "net"
+        ]
+        [
+          "app"
+          "db"
+          "net"
+        ]
+      ];
+    };
     datalog-wfs =
       let
         w = D.wfs choice;
       in
-      w.true == [ "s" ]
-      &&
-        w.undefined == [
+      {
+        true = eq w.true [ "s" ];
+        undefined = eq w.undefined [
           "a"
           "b"
           "c"
-        ]
-      &&
-        w.false == [
+        ];
+        false = eq w.false [
           "t"
           "u"
         ];
+      };
     datalog-stratified =
       let
         w = D.wfs (choice ++ [ { head = "b"; } ]);
       in
-      w.true == [
-        "b"
-        "s"
-      ]
-      && w.undefined == [ ]
-      &&
-        w.false == [
+      {
+        true = eq w.true [
+          "b"
+          "s"
+        ];
+        undefined = eq w.undefined [ ];
+        false = eq w.false [
           "a"
           "c"
           "t"
           "u"
         ];
-    datalog-stable =
-      D.stable choice == [
+      };
+    datalog-stable = {
+      choice = eq (D.stable choice) [
         [
           "b"
           "s"
@@ -1700,130 +1783,145 @@ let
           "c"
           "s"
         ]
-      ]
-      &&
-        D.stable [
-          {
-            head = "p";
-            neg = [ "p" ];
-          }
-        ] == [ ];
-    datalog-why =
-      D.why choice (D.wfs choice) "s" == [ { head = "s"; } ] && D.why choice (D.wfs choice) "t" == [ ];
-    krn-backward =
-      map (map K.toList) (
-        K.runAll (
-          q:
-          K.fresh (
-            { a, b }:
-            [
-              (K.appendo a b (
-                K.fromList [
-                  1
-                  2
+      ];
+      none = eq (D.stable [
+        {
+          head = "p";
+          neg = [ "p" ];
+        }
+      ]) [ ];
+    };
+    datalog-why = {
+      s = eq (D.why choice (D.wfs choice) "s") [ { head = "s"; } ];
+      t = eq (D.why choice (D.wfs choice) "t") [ ];
+    };
+    krn-backward = {
+      t1 =
+        eq
+          (map (map K.toList) (
+            K.runAll (
+              q:
+              K.fresh (
+                { a, b }:
+                [
+                  (K.appendo a b (
+                    K.fromList [
+                      1
+                      2
+                    ]
+                  ))
+                  (K.eq q [
+                    a
+                    b
+                  ])
                 ]
-              ))
-              (K.eq q [
-                a
-                b
-              ])
+              )
+            )
+          ))
+          ([
+            [
+              [ ]
+              [
+                1
+                2
+              ]
             ]
-          )
-        )
-      ) == [
-        [
-          [ ]
-          [
-            1
-            2
-          ]
-        ]
-        [
-          [ 1 ]
-          [ 2 ]
-        ]
-        [
-          [
-            1
-            2
-          ]
-          [ ]
-        ]
-      ]
-      &&
-        map K.toList (
-          K.run 1 (
-            q:
-            K.appendo (K.fromList [ 1 ]) (K.fromList [
+            [
+              [ 1 ]
+              [ 2 ]
+            ]
+            [
+              [
+                1
+                2
+              ]
+              [ ]
+            ]
+          ]);
+      t2 =
+        eq
+          (map K.toList (
+            K.run 1 (
+              q:
+              K.appendo (K.fromList [ 1 ]) (K.fromList [
+                2
+                3
+              ]) q
+            )
+          ))
+          ([
+            [
+              1
               2
               3
-            ]) q
-          )
-        ) == [
-          [
-            1
-            2
-            3
-          ]
-        ];
-    krn-unify-records =
-      K.runAll (
-        q:
-        K.fresh (
-          { x }:
-          [
-            (K.eq q {
-              addr = x;
-              port = 443;
-            })
-            (K.membero x [
-              "10.0.1.1"
-              "10.0.1.2"
-            ])
-          ]
-        )
-      ) == [
-        {
-          addr = "10.0.1.1";
-          port = 443;
-        }
-        {
-          addr = "10.0.1.2";
-          port = 443;
-        }
-      ]
-      && K.runAll (q: K.eq { a = q; } { b = 1; }) == [ ]
-      && K.runAll (q: K.eq [ q 1 ] [ 2 3 ]) == [ ]
-      &&
-        K.runAll (
-          q:
-          K.eq
-            {
-              addr = q;
-              port = 443;
-            }
+            ]
+          ]);
+    };
+    krn-unify-records = {
+      t1 =
+        eq
+          (K.runAll (
+            q:
+            K.fresh (
+              { x }:
+              [
+                (K.eq q {
+                  addr = x;
+                  port = 443;
+                })
+                (K.membero x [
+                  "10.0.1.1"
+                  "10.0.1.2"
+                ])
+              ]
+            )
+          ))
+          ([
             {
               addr = "10.0.1.1";
               port = 443;
             }
-        ) == [ "10.0.1.1" ]; # record against record
-    krn-fresh-occurs =
-      K.run 1 (
+            {
+              addr = "10.0.1.2";
+              port = 443;
+            }
+          ]);
+      t2 = eq (K.runAll (q: K.eq { a = q; } { b = 1; })) ([ ]);
+      t3 = eq (K.runAll (q: K.eq [ q 1 ] [ 2 3 ])) ([ ]);
+      t4 = eq (K.runAll (
         q:
-        K.fresh (
-          { x }:
-          K.eq q [
-            x
-            x
-          ]
-        )
-      ) == [
-        [
-          "_.0"
-          "_.0"
-        ]
-      ]
-      && K.run 1 (q: K.eq q [ q ]) == [ ];
+        K.eq
+          {
+            addr = q;
+            port = 443;
+          }
+          {
+            addr = "10.0.1.1";
+            port = 443;
+          }
+      )) ([ "10.0.1.1" ]); # record against record
+    };
+    krn-fresh-occurs = {
+      t1 =
+        eq
+          (K.run 1 (
+            q:
+            K.fresh (
+              { x }:
+              K.eq q [
+                x
+                x
+              ]
+            )
+          ))
+          ([
+            [
+              "_.0"
+              "_.0"
+            ]
+          ]);
+      t2 = eq (K.run 1 (q: K.eq q [ q ])) ([ ]);
+    };
     krn-interleave =
       let
         fives =
@@ -1839,20 +1937,22 @@ let
             (sixes x)
           ];
       in
-      K.run 4 (
-        q:
-        K.disj [
-          (fives q)
-          (sixes q)
-        ]
-      ) == [
-        5
-        6
-        5
-        6
-      ];
-    krn-cons-unbounded =
-      K.run 3 (q: K.fresh ({ x, y }: [ (K.appendo x y q) ])) == [
+      eq
+        (K.run 4 (
+          q:
+          K.disj [
+            (fives q)
+            (sixes q)
+          ]
+        ))
+        ([
+          5
+          6
+          5
+          6
+        ]);
+    krn-cons-unbounded = {
+      t1 = eq (K.run 3 (q: K.fresh ({ x, y }: [ (K.appendo x y q) ]))) ([
         "_.0"
         {
           head = "_.0";
@@ -1865,330 +1965,363 @@ let
             tail = "_.2";
           };
         }
-      ]
-      &&
-        K.run 2 (
-          q:
-          K.membero q (
-            K.fromList [
-              "x"
-              "y"
-            ]
-          )
-        ) == [
-          "x"
-          "y"
-        ];
-    krn-neq-store =
-      K.runAll (q: [
-        (K.neq q 1)
-        (K.membero q [
-          1
-          2
-          3
-        ])
-      ]) == [
-        2
-        3
-      ] # =/= before the value: stored
-      &&
-        K.runAll (
-          q:
-          K.fresh (
-            { a }:
-            [
-              (K.neq q { p = 1; })
-              (K.eq q { p = a; })
-              (K.membero a [
-                1
-                2
-              ])
-            ]
-          )
-        ) == [ { p = 2; } ]
-      &&
-        K.runC 1 (q: K.fresh ({ x }: [ (K.neq q x) ])) == [
-          {
-            value = "_.0";
-            neq = [
-              [
-                [
-                  "_.0"
-                  "_.1"
-                ]
+      ]);
+      t2 =
+        eq
+          (K.run 2 (
+            q:
+            K.membero q (
+              K.fromList [
+                "x"
+                "y"
               ]
-            ];
-            dom = { };
-          }
-        ]
-      &&
-        K.runAll (q: [
-          (K.neq q 1)
-          (K.eq q 1)
-        ]) == [ ];
-    krn-fd =
-      K.runAll (
+            )
+          ))
+          ([
+            "x"
+            "y"
+          ]);
+    };
+    krn-neq-store = {
+      t1 =
+        eq
+          (K.runAll (q: [
+            (K.neq q 1)
+            (K.membero q [
+              1
+              2
+              3
+            ])
+          ]))
+          ([
+            2
+            3
+          ]); # =/= before the value: stored
+      t2 = eq (K.runAll (
         q:
         K.fresh (
-          { x, y }:
+          { a }:
           [
-            (K.infd [ x y ] 1 4)
-            (K.plusfd x y 5)
-            (K.eq q [
-              x
-              y
-            ])
-            (K.label [
-              x
-              y
+            (K.neq q { p = 1; })
+            (K.eq q { p = a; })
+            (K.membero a [
+              1
+              2
             ])
           ]
         )
-      ) == [
-        [
-          1
-          4
-        ]
-        [
-          2
-          3
-        ]
-        [
-          3
-          2
-        ]
-        [
-          4
-          1
-        ]
-      ]
-      &&
-        K.runAll (
-          q:
-          K.fresh (
-            {
-              a,
-              b,
-              c,
-            }:
+      )) ([ { p = 2; } ]);
+      t3 = eq (K.runC 1 (q: K.fresh ({ x }: [ (K.neq q x) ]))) ([
+        {
+          value = "_.0";
+          neq = [
             [
-              (K.infd [ a b c ] 1 3)
-              (K.distinctfd [
-                a
-                b
-                c
-              ])
-              (K.ltfd a b)
-              (K.eq q [
-                a
-                b
-                c
-              ])
-              (K.label [
-                a
-                b
-                c
-              ])
+              [
+                "_.0"
+                "_.1"
+              ]
             ]
-          )
-        ) == [
-          [
-            2
-            3
-            1
-          ]
-          [
-            1
-            2
-            3
-          ]
-          [
-            1
-            3
-            2
-          ]
-        ]
-      &&
-        K.runC 1 (q: [
-          (K.infd [ q ] 2 5)
-          (K.neqfd q 3)
-        ]) == [
-          {
-            value = "_.0";
-            neq = [ ];
-            dom = {
-              "_.0" = [
-                2
-                4
-                5
-              ];
-            };
-          }
-        ]
-      &&
-        K.runAll (q: [
-          (K.infd [ q ] 1 3)
-          (K.lefd 5 q)
-        ]) == [ ] # propagation alone fails it
-      &&
-        K.runAll (q: [
-          (K.infd [ q ] 1 3)
-          (K.eq q 7)
-        ]) == [ ]
-      &&
-        K.runAll (q: [
-          (K.eq q 2)
-          (K.infd [ q ] 1 3)
-        ]) == [ 2 ] # a bound value meets its domain
-      &&
-        map (a: a.dom) (
-          K.runC 1 (
+          ];
+          dom = { };
+        }
+      ]);
+      t4 = eq (K.runAll (q: [
+        (K.neq q 1)
+        (K.eq q 1)
+      ])) ([ ]);
+    };
+    krn-fd = {
+      t1 =
+        eq
+          (K.runAll (
             q:
             K.fresh (
               { x, y }:
               [
-                (K.infd [ x y ] 1 3)
-                (K.plusfd x y q)
-                (K.infd [ q ] 0 99)
+                (K.infd [ x y ] 1 4)
+                (K.plusfd x y 5)
+                (K.eq q [
+                  x
+                  y
+                ])
+                (K.label [
+                  x
+                  y
+                ])
               ]
             )
-          )
-        ) == [
-          {
-            "_.0" = [
+          ))
+          ([
+            [
+              1
+              4
+            ]
+            [
               2
               3
+            ]
+            [
+              3
+              2
+            ]
+            [
               4
-              5
-              6
-            ];
-          }
-        ]; # the sum is bounded
+              1
+            ]
+          ]);
+      t2 =
+        eq
+          (K.runAll (
+            q:
+            K.fresh (
+              {
+                a,
+                b,
+                c,
+              }:
+              [
+                (K.infd [ a b c ] 1 3)
+                (K.distinctfd [
+                  a
+                  b
+                  c
+                ])
+                (K.ltfd a b)
+                (K.eq q [
+                  a
+                  b
+                  c
+                ])
+                (K.label [
+                  a
+                  b
+                  c
+                ])
+              ]
+            )
+          ))
+          ([
+            [
+              2
+              3
+              1
+            ]
+            [
+              1
+              2
+              3
+            ]
+            [
+              1
+              3
+              2
+            ]
+          ]);
+      t3 =
+        eq
+          (K.runC 1 (q: [
+            (K.infd [ q ] 2 5)
+            (K.neqfd q 3)
+          ]))
+          ([
+            {
+              value = "_.0";
+              neq = [ ];
+              dom = {
+                "_.0" = [
+                  2
+                  4
+                  5
+                ];
+              };
+            }
+          ]);
+      t4 = eq (K.runAll (q: [
+        (K.infd [ q ] 1 3)
+        (K.lefd 5 q)
+      ])) ([ ]); # propagation alone fails it
+      t5 = eq (K.runAll (q: [
+        (K.infd [ q ] 1 3)
+        (K.eq q 7)
+      ])) ([ ]);
+      t6 = eq (K.runAll (q: [
+        (K.eq q 2)
+        (K.infd [ q ] 1 3)
+      ])) ([ 2 ]); # a bound value meets its domain
+      t7 =
+        eq
+          (map (a: a.dom) (
+            K.runC 1 (
+              q:
+              K.fresh (
+                { x, y }:
+                [
+                  (K.infd [ x y ] 1 3)
+                  (K.plusfd x y q)
+                  (K.infd [ q ] 0 99)
+                ]
+              )
+            )
+          ))
+          ([
+            {
+              "_.0" = [
+                2
+                3
+                4
+                5
+                6
+              ];
+            }
+          ]); # the sum is bounded
+    };
     krn-neq =
-      K.runAll (
-        q:
-        K.fresh (
-          { a, b }:
+      eq
+        (K.runAll (
+          q:
+          K.fresh (
+            { a, b }:
+            [
+              (K.membero a [
+                "x"
+                "y"
+              ])
+              (K.membero b [
+                "x"
+                "y"
+              ])
+              (K.neq a b)
+              (K.eq q [
+                a
+                b
+              ])
+            ]
+          )
+        ))
+        ([
           [
-            (K.membero a [
-              "x"
-              "y"
-            ])
-            (K.membero b [
-              "x"
-              "y"
-            ])
-            (K.neq a b)
-            (K.eq q [
-              a
-              b
-            ])
+            "x"
+            "y"
           ]
-        )
-      ) == [
-        [
-          "x"
-          "y"
-        ]
-        [
-          "y"
-          "x"
-        ]
-      ];
+          [
+            "y"
+            "x"
+          ]
+        ]);
     not-cycle-undefined =
       let
         r = logic true;
         h = "top:t/host:h";
       in
-      map (x: "${x.aspect}@${x.scope}") r.undefined == [
-        "a@${h}"
-        "b@${h}"
-        "c@${h}"
-        "v@${h}"
-        "w@${h}/user:u"
-      ] # within and has carry it across scopes
-      && !r.active.a.${h}
-      && !r.active.b.${h}
-      && !r.active.c.${h}
-      && msgs r == [ ];
+      {
+        t1 = eq (map (x: "${x.aspect}@${x.scope}") r.undefined) ([
+          "a@${h}"
+          "b@${h}"
+          "c@${h}"
+          "v@${h}"
+          "w@${h}/user:u"
+        ]); # within and has carry it across scopes
+        t2 = no (r.active.a.${h});
+        t3 = no (r.active.b.${h});
+        t4 = no (r.active.c.${h});
+        t5 = eq (msgs r) ([ ]);
+      };
     not-cycle-control =
       let
         r = logic false;
         h = "top:t/host:h";
       in
-      r.undefined == [ ] && !r.active.a.${h} && r.active.b.${h} && r.active.c.${h};
+      {
+        t1 = eq (r.undefined) ([ ]);
+        t2 = no (r.active.a.${h});
+        t3 = yes (r.active.b.${h});
+        t4 = yes (r.active.c.${h});
+      };
     positive-cycle-false =
       let
         r = logic true;
       in
-      !r.active.p."top:t/host:h" && !b.any (x: x.aspect == "p" || x.aspect == "q") r.undefined;
+      {
+        t1 = no (r.active.p."top:t/host:h");
+        t2 = no (b.any (x: x.aspect == "p" || x.aspect == "q") r.undefined);
+      };
     within-has-no-cycle =
       let
         r = logic false;
       in
-      r.active.w."top:t/host:h/user:u" && r.active.v."top:t/host:h";
-    diamond-memo = (diamond 60).active.x60."top:t/host:h";
-    good-no-errors = msgs good == [ ];
-    good-persist = good.reduced.persist."fleet:main/host:lb" == [ "/var/lib/motd" ];
-    good-flake =
-      good.flake.nixosConfigurations.lb == [ { environment.etc.motd.text = "/var/lib/motd"; } ];
-    neg-missing-addr = has noAddr "missing addr";
+      {
+        t1 = yes (r.active.w."top:t/host:h/user:u");
+        t2 = yes (r.active.v."top:t/host:h");
+      };
+    diamond-memo = yes (diamond 60).active.x60."top:t/host:h";
+    good-no-errors = eq (msgs good) ([ ]);
+    good-persist = eq (good.reduced.persist."fleet:main/host:lb") ([ "/var/lib/motd" ]);
+    good-flake = eq (good.flake.nixosConfigurations.lb) ([
+      { environment.etc.motd.text = "/var/lib/motd"; }
+    ]);
+    neg-missing-addr = yes (has noAddr "missing addr");
     # D13: an error withholds the outputs and the reduced values (good-persist reads them on the clean fleet)
-    neg-missing-addr-withholds = noAddr.reduced == null && noAddr.flake == null;
-    neg-unknown-field = has (yen.eval (fleet {
-      addr = "a";
-      adr = "b";
-    })) "unknown field adr";
-    neg-bad-check = has (yen.eval (fleet {
-      addr = 1;
-    })) "addr fails its check";
-    bad-check-reads-null =
-      (hostOf (
-        yen.eval (fleet {
-          addr = 1;
-        })
-      )).addr == null;
-    two-answers = has (yen.eval {
-      imports = [
-        (fleet { addr = "a"; })
-        { yen.host.lb.addr = "b"; }
-      ];
-    }) "two answers for host.lb.addr";
-    same-answer-twice-ok =
-      msgs (
-        yen.eval {
-          imports = [
-            (fleet { addr = "a"; })
-            { yen.host.lb.addr = "a"; }
-          ];
-        }
-      ) == [ ];
-    settings-value =
-      (hostOf (feat {
-        settings.zfs.arcMax = 8;
-      })).settings.zfs.arcMax == 8;
-    settings-default = (hostOf (feat { })).settings.k3s.role == "agent";
-    settings-maybe-null = (hostOf (feat { })).settings.zfs.arcMax == null;
-    settings-lazy = (hostOf featLazy).settings.k3s.role == "agent"; # reading zfs never forces settings.lazy's default
-    settings-unknown = has (feat { settings.zfz = 1; }) "unknown field settings.zfz";
-    order-default =
-      ids (ordered 0) == [
-        "fleet:main"
-        "fleet:main/host:a"
-        "fleet:main/host:b"
-        "fleet:main/host:c"
-      ];
-    order-first =
-      ids (ordered (-1)) == [
-        "fleet:main"
-        "fleet:main/host:c"
-        "fleet:main/host:a"
-        "fleet:main/host:b"
-      ];
-    order-bad = has (ordered "x") "order is not a number";
-    q5-required = has (q5 ({ cluster, ... }: { })) "aspect k3s: arg `cluster` has no answer";
-    q5-optional =
-      !(b.any (m: b.match ".*arg `cluster`.*" m != null) (
+    neg-missing-addr-withholds = {
+      reduced = eq noAddr.reduced null;
+      flake = eq noAddr.flake null;
+    };
+    neg-unknown-field = yes (
+      has (yen.eval (fleet {
+        addr = "a";
+        adr = "b";
+      })) "unknown field adr"
+    );
+    neg-bad-check = yes (
+      has (yen.eval (fleet {
+        addr = 1;
+      })) "addr fails its check"
+    );
+    bad-check-reads-null = eq ((hostOf (
+      yen.eval (fleet {
+        addr = 1;
+      })
+    )).addr
+    ) (null);
+    two-answers = yes (
+      has (yen.eval {
+        imports = [
+          (fleet { addr = "a"; })
+          { yen.host.lb.addr = "b"; }
+        ];
+      }) "two answers for host.lb.addr"
+    );
+    same-answer-twice-ok = eq (msgs (
+      yen.eval {
+        imports = [
+          (fleet { addr = "a"; })
+          { yen.host.lb.addr = "a"; }
+        ];
+      }
+    )) ([ ]);
+    settings-value = eq ((hostOf (feat {
+      settings.zfs.arcMax = 8;
+    })).settings.zfs.arcMax
+    ) (8);
+    settings-default = eq ((hostOf (feat { })).settings.k3s.role) ("agent");
+    settings-maybe-null = eq ((hostOf (feat { })).settings.zfs.arcMax) (null);
+    settings-lazy = eq ((hostOf featLazy).settings.k3s.role) ("agent"); # reading zfs never forces settings.lazy's default
+    settings-unknown = yes (has (feat { settings.zfz = 1; }) "unknown field settings.zfz");
+    order-default = eq (ids (ordered 0)) ([
+      "fleet:main"
+      "fleet:main/host:a"
+      "fleet:main/host:b"
+      "fleet:main/host:c"
+    ]);
+    order-first = eq (ids (ordered (-1))) ([
+      "fleet:main"
+      "fleet:main/host:c"
+      "fleet:main/host:a"
+      "fleet:main/host:b"
+    ]);
+    order-bad = yes (has (ordered "x") "order is not a number");
+    q5-required = yes (has (q5 ({ cluster, ... }: { })) "aspect k3s: arg `cluster` has no answer");
+    q5-optional = no (
+      (b.any (m: b.match ".*arg `cluster`.*" m != null) (
         msgs (
           q5 (
             {
@@ -2198,44 +2331,51 @@ let
             { }
           )
         )
-      ));
-    q5-emitted = has (q5 (
-      {
-        cluster ? null,
-        ...
-      }:
-      { }
-    )) "no cluster: k3s off";
-    cycle-many-elements =
-      (yen.eval (
-        { yen, ... }:
+      ))
+    );
+    q5-emitted = yes (
+      has (q5 (
         {
-          yen.kinds.top = {
-            spawns = { };
-            sinks.many.reduce = yen.lib.reduce.list;
-          };
-          yen.top.t = { };
-          yen.aspects.m = {
-            at = yen.kinds.top;
-            cycle = _: {
-              many = [
-                "a"
-                "b"
-                "c"
-              ];
+          cluster ? null,
+          ...
+        }:
+        { }
+      )) "no cluster: k3s off"
+    );
+    cycle-many-elements =
+      eq
+        ((yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top = {
+              spawns = { };
+              sinks.many.reduce = yen.lib.reduce.list;
             };
-          };
-        }
-      )).reduced.many."top:t" == [
-        "a"
-        "b"
-        "c"
-      ];
-    tree-nearest =
-      treeHit.reduced.seen."top:t/cluster:c1/node:n1" or null == [ "c1" ]
-      && map (e: e.error) treeHit.errors == [ ];
-    tree-requests =
-      treeAll.reduced.seen."top:t/cluster:c1/node:n1" == [
+            yen.top.t = { };
+            yen.aspects.m = {
+              at = yen.kinds.top;
+              cycle = _: {
+                many = [
+                  "a"
+                  "b"
+                  "c"
+                ];
+              };
+            };
+          }
+        )).reduced.many."top:t"
+        )
+        ([
+          "a"
+          "b"
+          "c"
+        ]);
+    tree-nearest = {
+      t1 = eq (treeHit.reduced.seen."top:t/cluster:c1/node:n1" or null) ([ "c1" ]);
+      t2 = eq (map (e: e.error) treeHit.errors) ([ ]);
+    };
+    tree-requests = {
+      t1 = eq (treeAll.reduced.seen."top:t/cluster:c1/node:n1") ([
         {
           parent = [ "top:t/cluster:c1" ];
           none = [ ];
@@ -2249,76 +2389,80 @@ let
           holds = [ true ];
           bad = [ ];
         }
-      ]
-      && treeAll.errors == [ ]
-      && map (e: e.code) (treeAllWith true).errors == [ "tree-request" ]
-      && (treeAllWith true).reduced == null;
+      ]);
+      t2 = eq (treeAll.errors) ([ ]);
+      t3 = eq (map (e: e.code) (treeAllWith true).errors) ([ "tree-request" ]);
+      t4 = eq ((treeAllWith true).reduced) (null);
+    };
     # yen modules are not NixOS modules: a key yen does not read is an error, at every level
     unknown-keys =
-      map (e: { inherit (e) code from path; })
-        (yen.eval {
-          imports = [
-            {
-              options.x = 1;
-              yen.kinds.host.feilds = { };
-            }
-            { yen.aspect.a = { }; }
-          ];
-        }).errors == [
-        {
-          code = "unknown-key";
-          from = "root/0";
-          path = [ "options" ];
-        }
-        {
-          code = "unknown-key";
-          from = "root/1";
-          path = [
-            "yen"
-            "aspect"
-          ];
-        }
-        {
-          code = "unknown-key";
-          from = "root/0";
-          path = [
-            "yen"
-            "kinds"
-            "host"
-            "feilds"
-          ];
-        }
-      ];
+      eq
+        (map (e: { inherit (e) code from path; })
+          (yen.eval {
+            imports = [
+              {
+                options.x = 1;
+                yen.kinds.host.feilds = { };
+              }
+              { yen.aspect.a = { }; }
+            ];
+          }).errors
+        )
+        ([
+          {
+            code = "unknown-key";
+            from = "root/0";
+            path = [ "options" ];
+          }
+          {
+            code = "unknown-key";
+            from = "root/1";
+            path = [
+              "yen"
+              "aspect"
+            ];
+          }
+          {
+            code = "unknown-key";
+            from = "root/0";
+            path = [
+              "yen"
+              "kinds"
+              "host"
+              "feilds"
+            ];
+          }
+        ]);
     # rung 1: outputs only from a clean fleet (D0)
-    r1-clean-flake = (yen.eval (rung1 [ ])).flake == { ok = true; };
-    r1-violation-no-flake =
-      (yen.eval (rung1 [
-        {
-          yen.invariants.no = [
-            {
-              head = [
-                "bad"
-                "sshd-web"
-              ];
-              pos = [
-                [
-                  "has"
-                  "sshd"
-                  "top:t/host:web"
-                ]
-              ];
-            }
-          ];
-        }
-      ])).flake == null;
-    r1-error-no-flake =
-      (yen.eval (rung1 [
-        { yen.host.web.port = 1; }
-        { yen.host.web.port = 2; }
-      ])).flake == null;
+    r1-clean-flake = eq (yen.eval (rung1 [ ])).flake { ok = true; };
+    r1-violation-no-flake = eq ((yen.eval (rung1 [
+      {
+        yen.invariants.no = [
+          {
+            head = [
+              "bad"
+              "sshd-web"
+            ];
+            pos = [
+              [
+                "has"
+                "sshd"
+                "top:t/host:web"
+              ]
+            ];
+          }
+        ];
+      }
+    ])).flake
+    ) (null);
+    r1-error-no-flake = eq ((yen.eval (rung1 [
+      { yen.host.web.port = 1; }
+      { yen.host.web.port = 2; }
+    ])).flake
+    ) (null);
     # D13: a fleet that is not clean gives no reduced values to build outputs from by hand
-    r1-violation-no-reduced =
-      (yen.eval (rung1 [
+    r1-violation-no-reduced = {
+      t1 = eq ((yen.eval (rung1 [
         {
           yen.invariants.no = [
             {
@@ -2336,8 +2480,10 @@ let
             }
           ];
         }
-      ])).reduced == null
-      && (yen.eval (rung1 [ ])).reduced.nixos ? "top:t/host:web";
+      ])).reduced
+      ) (null);
+      t2 = yes ((yen.eval (rung1 [ ])).reduced.nixos ? "top:t/host:web");
+    };
     # a flake that cannot be filled is an error record, never a silent null
     flake-fill-error =
       let
@@ -2348,7 +2494,10 @@ let
           yen.flake = { host, ... }: host; # no host under top: the arg has no answer
         };
       in
-      r.flake == null && b.any (e: e.code == "arg" && e.want == "host") r.errors;
+      {
+        t1 = eq (r.flake) (null);
+        t2 = yes (b.any (e: e.code == "arg" && e.want == "host") r.errors);
+      };
     # D9: a rule never derives a fact yen extracts; it is an error, and the fleet gives no outputs
     r1-edb-head =
       let
@@ -2366,7 +2515,10 @@ let
           }
         ]);
       in
-      codes r == [ "edb-head" ] && r.flake == null;
+      {
+        t1 = eq (codes r) ([ "edb-head" ]);
+        t2 = eq (r.flake) (null);
+      };
     # rung 2 (vic/formally-verified.md section 3): typed facts, relations, rules as data
     # two hosts whose colon strings collide (D1): two facts, and a rule on one never fires on the other
     r2-no-collision =
@@ -2388,54 +2540,62 @@ let
           }
         ];
       in
-      r.check.ok
-      && b.elem [ "val" "tag" "top:t/host:a" "b:1" ] r.facts
-      && b.elem [ "val" "tag" "top:t/host:a:b" "2" ] r.facts;
+      {
+        t1 = yes (r.check.ok);
+        t2 = yes (b.elem [ "val" "tag" "top:t/host:a" "b:1" ] r.facts);
+        t3 = yes (b.elem [ "val" "tag" "top:t/host:a:b" "2" ] r.facts);
+      };
     # the same rule with a variable binds over both hosts, and lt keeps one pair
     r2-vars =
-      (tags [
-        {
-          head = [
+      eq
+        ((tags [
+          {
+            head = [
+              "bad"
+              "pair"
+              (v "A")
+              (v "B")
+            ];
+            pos = [
+              [
+                "val"
+                "tag"
+                (v "A")
+                (v "X")
+              ]
+              [
+                "val"
+                "tag"
+                (v "B")
+                (v "Y")
+              ]
+              [
+                "lt"
+                (v "A")
+                (v "B")
+              ]
+            ];
+          }
+        ]).check.violations
+        )
+        ([
+          [
             "bad"
             "pair"
-            (v "A")
-            (v "B")
-          ];
-          pos = [
-            [
-              "val"
-              "tag"
-              (v "A")
-              (v "X")
-            ]
-            [
-              "val"
-              "tag"
-              (v "B")
-              (v "Y")
-            ]
-            [
-              "lt"
-              (v "A")
-              (v "B")
-            ]
-          ];
-        }
-      ]).check.violations == [
-        [
-          "bad"
-          "pair"
-          "top:t/host:a"
-          "top:t/host:a:b"
-        ]
-      ];
+            "top:t/host:a"
+            "top:t/host:a:b"
+          ]
+        ]);
     # D3: an invariant is data; a function is an error and gives no rules
     r2-invariant-function =
       let
         r = yen.eval (rung1 [ { yen.invariants.f = _: [ ]; } ]);
       in
-      codes r == [ "invariant-function" ] && r.flake == null;
-    r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
+      {
+        t1 = eq (codes r) ([ "invariant-function" ]);
+        t2 = eq (r.flake) (null);
+      };
+    r2-parent-fact = yes (b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts);
     # .21: a secret field never leaves the engine in an answer: facts, data, scopes, errors, the RDF export and the
     # seal state it by its hash, so a rule can still compare two secrets; an aspect still reads the value
     secrets-hidden =
@@ -2514,17 +2674,19 @@ let
           };
         leaks = r: b.match ".*(hunter2|424242).*" (seen r) != null;
       in
-      shared.check.violations == [
-        [
-          "bad"
-          "shared-token"
-          "top:t/host:a"
-          "top:t/host:b"
-        ]
-      ]
-      && !leaks shared
-      && !leaks clean
-      && clean.reduced.os."top:t/host:a" == [ { pw = "hunter2"; } ];
+      {
+        t1 = eq (shared.check.violations) ([
+          [
+            "bad"
+            "shared-token"
+            "top:t/host:a"
+            "top:t/host:b"
+          ]
+        ]);
+        t2 = no (leaks shared);
+        t3 = no (leaks clean);
+        t4 = eq (clean.reduced.os."top:t/host:a") ([ { pw = "hunter2"; } ]);
+      };
     r4-types =
       let
         rule = {
@@ -2582,11 +2744,13 @@ let
           ]
         ];
       in
-      byType.check.violations == bad
-      && byFn.check.violations == bad
-      && codes broken != [ ]
-      && b.all (c: c == "external-not-bool") (codes broken)
-      && broken.flake == null;
+      {
+        t1 = eq (byType.check.violations) (bad);
+        t2 = eq (byFn.check.violations) (bad);
+        t3 = yes (codes broken != [ ]);
+        t4 = yes (b.all (c: c == "external-not-bool") (codes broken));
+        t5 = eq (broken.flake) (null);
+      };
     # .41 (E1): a field a rule reads through an even number of `not` from `bad` gives a fact for every value, or the
     # verdict is not ok. Host a.tag is an attrset: no fact, so `bad` could be missed. Read under `not`, a missing fact
     # can only add a violation, so it is safe.
@@ -2648,15 +2812,16 @@ let
               };
             };
       in
-      !meta.check.ok
-      &&
-        meta.check.opaque == [
+      {
+        t1 = no (meta.check.ok);
+        t2 = eq (meta.check.opaque) ([
           {
             field = "tag";
             scopes = [ "top:t/host:a" ];
           }
-        ]
-      && safe.check.opaque == [ ];
+        ]);
+        t3 = eq (safe.check.opaque) ([ ]);
+      };
     # .43: where a fact comes from is its own answer, never part of the fact: one fact, two files
     r3-provenance =
       let
@@ -2673,16 +2838,17 @@ let
           "a"
         ];
       in
-      b.length (b.filter (x: x == a) r.facts) == 1
-      && b.length (r.check.from a) == 2
-      && b.length (r.check.from (hasFw "top:t/host:a")) == 1
-      &&
-        r.check.from [
+      {
+        t1 = eq (b.length (b.filter (x: x == a) r.facts)) (1);
+        t2 = eq (b.length (r.check.from a)) (2);
+        t3 = eq (b.length (r.check.from (hasFw "top:t/host:a"))) (1);
+        t4 = eq (r.check.from [
           "edge"
           "fw"
           "top:t/host:a"
           "top:t/host:a"
-        ] == [ "aspect firewall" ];
+        ]) ([ "aspect firewall" ]);
+      };
     # .42: a seal binds the verdict to its rules, facts and engine; checking it means evaluating again
     r3-seal =
       let
@@ -2699,20 +2865,20 @@ let
           };
         };
       in
-      p.check.verify seal == {
-        ok = true;
-      }
-      &&
-        (ports { yen.host.c.port = 1; }).check.verify seal == {
+      {
+        t1 = eq (p.check.verify seal) ({
+          ok = true;
+        });
+        t2 = eq ((ports { yen.host.c.port = 1; }).check.verify seal) ({
           ok = false;
           why = "facts";
-        }
-      && (p.check.verify tamper).why == "certificate"
-      &&
-        (ports { yen.invariants.more = fwRules; }).check.verify seal == {
+        });
+        t3 = eq ((p.check.verify tamper).why) ("certificate");
+        t4 = eq ((ports { yen.invariants.more = fwRules; }).check.verify seal) ({
           ok = false;
           why = "rules";
-        };
+        });
+      };
     # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
     r3-certified =
       let
@@ -2729,11 +2895,13 @@ let
             }
           ])).check;
       in
-      p.certified
-      && b.elem (nofw "top:t/host:b") (map (e: e.atom) p.certificate.true)
-      && c.certified
-      && c.incomplete != [ ]
-      && !(b.elem [ "bad" "cycle" ] (map (e: e.atom) (c.certificate.true ++ c.certificate.false)));
+      {
+        t1 = yes (p.certified);
+        t2 = yes (b.elem (nofw "top:t/host:b") (map (e: e.atom) p.certificate.true));
+        t3 = yes (c.certified);
+        t4 = yes (c.incomplete != [ ]);
+        t5 = no ((b.elem [ "bad" "cycle" ] (map (e: e.atom) (c.certificate.true ++ c.certificate.false))));
+      };
     # a derived tuple that fails its relation's check is an error (ok takes one string term here)
     relation-check =
       let
@@ -2754,7 +2922,7 @@ let
           }
         ] { };
       in
-      codes r == [ "relation-check" ];
+      eq (codes r) ([ "relation-check" ]);
     # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
     check-not-bool =
       let
@@ -2768,11 +2936,10 @@ let
           }
         );
       in
-      codes r == [ "check-not-bool" ];
-    r2-string-atom =
-      codes (rule2 {
-        head = "bad:x";
-      }) == [ "bad-atom" ];
+      eq (codes r) ([ "check-not-bool" ]);
+    r2-string-atom = eq (codes (rule2 {
+      head = "bad:x";
+    })) ([ "bad-atom" ]);
     r2-unknown-relation =
       let
         e =
@@ -2784,30 +2951,34 @@ let
               ];
             }).errors;
       in
-      e.code == "unknown-relation" && e.near == [ "ok" ];
-    r2-arity =
-      codes (rule2 {
-        head = [ "ok" ];
-      }) == [ "arity" ];
-    r2-unsafe =
-      codes (rule2 {
-        head = [
-          "bad"
+      {
+        t1 = eq (e.code) ("unknown-relation");
+        t2 = eq (e.near) ([ "ok" ]);
+      };
+    r2-arity = eq (codes (rule2 {
+      head = [ "ok" ];
+    })) ([ "arity" ]);
+    r2-unsafe = eq (codes (rule2 {
+      head = [
+        "bad"
+        (v "X")
+      ];
+      neg = [
+        [
+          "has"
+          "fw"
           (v "X")
-        ];
-        neg = [
-          [
-            "has"
-            "fw"
-            (v "X")
-          ]
-        ];
-      }) == [ "unsafe-rule" ];
+        ]
+      ];
+    })) ([ "unsafe-rule" ]);
     r2-unencodable =
       let
         r = tagsWith [ ] { "a:b".tag = 1.5; };
       in
-      codes r == [ "unencodable" ] && (b.head r.errors).path == [ "tag" ];
+      {
+        t1 = eq (codes r) ([ "unencodable" ]);
+        t2 = eq ((b.head r.errors).path) ([ "tag" ]);
+      };
     # D6: an undefined invariant is not ok
     r1-stage-incomplete =
       let
@@ -2820,47 +2991,54 @@ let
           ];
         } null;
       in
-      !s.ok
-      &&
-        s.incomplete == [
+      {
+        t1 = no (s.ok);
+        t2 = eq (s.incomplete) ([
           [
             "bad"
             "cycle"
           ]
-        ];
-    # D7: the law cannot be switched off
-    r1-no-invariants-arg = !((b.functionArgs yen.stage) ? invariants);
-    # D8: grants by path segment; added, removed and changed values all checked
-    r1-grant-segment =
-      yen.allowed r1grant {
-        to = "top:t/host:web";
-        sink = "fw";
-      }
-      && !yen.allowed r1grant {
-        to = "top:t/host:webhook";
-        sink = "fw";
-      }
-      && yen.allowed r1grant {
-        to = "top:t/host:web/user:a";
-        sink = "fw";
+        ]);
       };
+    # D7: the law cannot be switched off
+    r1-no-invariants-arg = no ((b.functionArgs yen.stage) ? invariants);
+    # D8: grants by path segment; added, removed and changed values all checked
+    r1-grant-segment = {
+      t1 = yes (
+        yen.allowed r1grant {
+          to = "top:t/host:web";
+          sink = "fw";
+        }
+      );
+      t2 = no (
+        yen.allowed r1grant {
+          to = "top:t/host:webhook";
+          sink = "fw";
+        }
+      );
+      t3 = yes (
+        yen.allowed r1grant {
+          to = "top:t/host:web/user:a";
+          sink = "fw";
+        }
+      );
+    };
     # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
     # scope: each scope outside the grant is refused, once (vic/quorum/r3-impact.md)
-    r1-grant-added =
-      r1outside (
-        r1stage {
-          yen.aspects.extra = {
-            at = {
-              kind = "host";
-              name = "webhook";
-            };
-            fw = "x";
+    r1-grant-added = eq (r1outside (
+      r1stage {
+        yen.aspects.extra = {
+          at = {
+            kind = "host";
+            name = "webhook";
           };
-        } r1grant
-      ) == r1others;
-    r1-grant-removed = r1outside (r1stage { yen.host.db.bypass = true; } r1grant) == r1others;
-    r1-grant-changed = r1outside (r1stage { yen.host.db.port = 2222; } r1grant) == r1others;
-    r1-grant-inside = r1outside (r1stage { yen.host.web.port = 2222; } r1grant) == r1others;
+          fw = "x";
+        };
+      } r1grant
+    )) (r1others);
+    r1-grant-removed = eq (r1outside (r1stage { yen.host.db.bypass = true; } r1grant)) (r1others);
+    r1-grant-changed = eq (r1outside (r1stage { yen.host.db.port = 2222; } r1grant)) (r1others);
+    r1-grant-inside = eq (r1outside (r1stage { yen.host.web.port = 2222; } r1grant)) (r1others);
     # the closure channel: db reads web's port through `yen`; a change at web reaches db
     r1-grant-closure =
       let
@@ -2882,39 +3060,45 @@ let
           grant = r1grant;
         };
       in
-      b.elem "top:t/host:db" (r1outside s);
-    r1-grant-whole =
-      (r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; })).refused == [ ];
+      yes (b.elem "top:t/host:db" (r1outside s));
+    r1-grant-whole = eq ((r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; }))
+      .refused
+    ) ([ ]);
     r1-grant-sinks =
-      r1outside (
-        r1stage { yen.host.web.port = 2222; } (
-          yen.grant {
-            scopes = [ "top:t" ];
-            sinks = [ "fw" ];
-          }
-        )
-      ) == [
-        "top:t"
-        "top:t/host:db"
-        "top:t/host:web"
-        "top:t/host:webhook"
-      ];
-    r1-grant-noop = (r1stage { } r1grant).refused == [ ];
+      eq
+        (r1outside (
+          r1stage { yen.host.web.port = 2222; } (
+            yen.grant {
+              scopes = [ "top:t" ];
+              sinks = [ "fw" ];
+            }
+          )
+        ))
+        ([
+          "top:t"
+          "top:t/host:db"
+          "top:t/host:web"
+          "top:t/host:webhook"
+        ]);
+    r1-grant-noop = eq ((r1stage { } r1grant).refused) ([ ]);
     # D9: a change never declares the law
     r1-law-change =
-      map (e: e.code)
-        (r1stage {
-          yen.invariants.w = [
-            {
-              head = [
-                "bad"
-                "web"
-              ];
-            }
-          ];
-        } null).refused == [
-        "law-change"
-      ];
+      eq
+        (map (e: e.code)
+          (r1stage {
+            yen.invariants.w = [
+              {
+                head = [
+                  "bad"
+                  "web"
+                ];
+              }
+            ];
+          } null).refused
+        )
+        ([
+          "law-change"
+        ]);
     # D11: a program refused before is refused again
     r1-rejected-program =
       let
@@ -2930,65 +3114,67 @@ let
           }
         ];
       in
-      map (e: e.code)
+      eq (map (e: e.code)
         (yen.program.dryRun {
           base = rung1 [ ];
           inherit prog;
           rejected = [ (b.hashString "sha256" (b.toJSON prog)) ];
-        }).refused == [ "rejected" ];
+        }).refused
+      ) ([ "rejected" ]);
     # NixOS `config` parity (configLike): each test is one pattern a fixpoint `config` expresses
-    config-no-errors = msgs configLike == [ ];
-    config-aggregate = configLike.reduced.ports."fleet:main/host:b" == [ 22 ];
-    config-mkif =
-      b.sort b.lessThan configLike.reduced.ports."fleet:main/host:a" == [
-        22
-        80
-        443
-      ];
-    config-read-option =
-      configLike.reduced.firewall."fleet:main/host:a" == [
-        22
-        80
-        443
-      ];
-    config-default-from-config = (hostOf configLike).fqdn == "a.lan";
-    config-lazy-chain = configLike.reduced.chain."fleet:main/host:a" == 20;
-    config-deep-merge =
-      configLike.reduced.settings."fleet:main/host:b" == {
-        a = 1;
-        b.c = 2;
-      };
-    config-priority =
-      configLike.reduced.motd."fleet:main/host:a" == "default"
-      && configLike.reduced.motd."fleet:main/host:b" == "forced";
-    config-other-node = configLike.reduced.peers."fleet:main/host:a" == { b = "10.0.0.2"; };
+    config-no-errors = eq (msgs configLike) ([ ]);
+    config-aggregate = eq (configLike.reduced.ports."fleet:main/host:b") ([ 22 ]);
+    config-mkif = eq (b.sort b.lessThan configLike.reduced.ports."fleet:main/host:a") ([
+      22
+      80
+      443
+    ]);
+    config-read-option = eq (configLike.reduced.firewall."fleet:main/host:a") ([
+      22
+      80
+      443
+    ]);
+    config-default-from-config = eq ((hostOf configLike).fqdn) ("a.lan");
+    config-lazy-chain = eq (configLike.reduced.chain."fleet:main/host:a") (20);
+    config-deep-merge = eq (configLike.reduced.settings."fleet:main/host:b") ({
+      a = 1;
+      b.c = 2;
+    });
+    config-priority = {
+      t1 = eq (configLike.reduced.motd."fleet:main/host:a") ("default");
+      t2 = eq (configLike.reduced.motd."fleet:main/host:b") ("forced");
+    };
+    config-other-node = eq configLike.reduced.peers."fleet:main/host:a" { b = "10.0.0.2"; };
     # a plain element reads the children of its scope through `yen.lib.children`, as the `children` request does
     lib-children =
-      (yen.eval (
-        { yen, ... }:
-        {
-          yen.kinds.top = {
-            spawns.host = _: {
-              b = { };
-              a = { };
+      eq
+        ((yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top = {
+              spawns.host = _: {
+                b = { };
+                a = { };
+              };
+              sinks.kids = { };
             };
-            sinks.kids = { };
-          };
-          yen.kinds.host = { };
-          yen.top.t = { };
-          yen.aspects.k = {
-            at = yen.kinds.top;
-            kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
-          };
-        }
-      )).reduced.kids."top:t" == [
-        [
-          "a"
-          "b"
-        ]
-      ];
-    error-codes =
-      map (e: e.code) codesFix.errors == [
+            yen.kinds.host = { };
+            yen.top.t = { };
+            yen.aspects.k = {
+              at = yen.kinds.top;
+              kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+            };
+          }
+        )).reduced.kids."top:t"
+        )
+        ([
+          [
+            "a"
+            "b"
+          ]
+        ]);
+    error-codes = {
+      t1 = eq (map (e: e.code) codesFix.errors) ([
         "module"
         "spawns"
         "spawns"
@@ -2997,58 +3183,71 @@ let
         "bare-function"
         "arg"
         "arg"
-      ]
-      && (b.elemAt codesFix.errors 6).want == "host"
-      && (b.elemAt codesFix.errors 7).error == "aspect treeArg: arg `tree` is a cycle source"
-      && (b.elemAt codesFix.errors 5).error == "aspect bare: bare function: wrap it as `{ ... }:`";
-    unread-sink-no-error =
-      msgs (
-        yen.eval {
-          imports = [
-            (fleet { addr = "a"; })
-            { yen.aspects.motd.nixso = { }; }
-          ];
-        }
-      ) == [ ];
-    args-flow-down = (hostOf argsDown).addr == "hi" && msgs argsDown == [ ];
-    args-missing = has argsMissing "module root/0: arg `nope` has no answer";
-    presence-spawns =
-      ids presence == [
+      ]);
+      t2 = eq ((b.elemAt codesFix.errors 6).want) ("host");
+      t3 = eq ((b.elemAt codesFix.errors 7).error) ("aspect treeArg: arg `tree` is a cycle source");
+      t4 = eq ((b.elemAt codesFix.errors 5).error) ("aspect bare: bare function: wrap it as `{ ... }:`");
+    };
+    unread-sink-no-error = eq (msgs (
+      yen.eval {
+        imports = [
+          (fleet { addr = "a"; })
+          { yen.aspects.motd.nixso = { }; }
+        ];
+      }
+    )) ([ ]);
+    args-flow-down = {
+      addr = eq (hostOf argsDown).addr "hi";
+      errors = eq (msgs argsDown) [ ];
+    };
+    args-missing = yes (has argsMissing "module root/0: arg `nope` has no answer");
+    presence-spawns = {
+      t1 = eq (ids presence) ([
         "top:t"
         "top:t/host:a"
         "top:t/host:a/svc:web"
         "top:t/host:b"
-      ]
-      && msgs presence == [ ];
-    gap-derived-default =
-      (b.head (b.filter (s: s.name == "h1") gaps.scopes)).vpn == "vpn-h1"
-      && (b.head (b.filter (s: s.name == "h2") gaps.scopes)).vpn == "custom";
-    gap-multi-file-functions =
-      gaps.reduced.nixos."fleet:main/host:h1" == [
+      ]);
+      t2 = eq (msgs presence) ([ ]);
+    };
+    gap-derived-default = {
+      t1 = eq ((b.head (b.filter (s: s.name == "h1") gaps.scopes)).vpn) ("vpn-h1");
+      t2 = eq ((b.head (b.filter (s: s.name == "h2") gaps.scopes)).vpn) ("custom");
+    };
+    gap-multi-file-functions = {
+      t1 = eq (gaps.reduced.nixos."fleet:main/host:h1") ([
         [ "a-h1" ]
         [ "b-h1" ]
         "marker"
-      ]
-      && !(has gaps "two answers for aspects.multi.nixos");
-    sink-arg-element-per-receiver =
-      sinkArgs.reduced.seen."fleet:main" == [
+      ]);
+      t2 = no ((has gaps "two answers for aspects.multi.nixos"));
+    };
+    sink-arg-element-per-receiver = {
+      t1 = eq (sinkArgs.reduced.seen."fleet:main") ([
         "prod"
         "staging"
-      ]
-      && msgs sinkArgs == [ ]; # a and c read one tag: once
-    gap-static-once-per-receiver =
-      b.length (b.filter (v: v == "marker") gaps.reduced.nixos."fleet:main/host:h1") == 1;
-    gap-bad-at = has gapsBadAt "`at` holds a string, not a predicate";
-    graph-edges = b.elem {
-      sink = "persist";
-      from = "fleet:main/host:lb";
-      to = "fleet:main/host:lb";
-      origin = "aspect motd";
-    } good.graph.edges;
-    deep-1000 = b.length (deep 1000).scopes == 1002;
-    empty-fleet =
-      msgs (yen.eval { }) == [ ] && (yen.eval { }).scopes == [ ] && (yen.eval { }).flake == null; # den-hoag empty-aspects
-    wide-3000 = b.length (wide 3000).scopes == 3001;
+      ]);
+      t2 = eq (msgs sinkArgs) ([ ]); # a and c read one tag: once
+    };
+    gap-static-once-per-receiver = eq (b.length (
+      b.filter (v: v == "marker") gaps.reduced.nixos."fleet:main/host:h1"
+    )) (1);
+    gap-bad-at = yes (has gapsBadAt "`at` holds a string, not a predicate");
+    graph-edges = yes (
+      b.elem {
+        sink = "persist";
+        from = "fleet:main/host:lb";
+        to = "fleet:main/host:lb";
+        origin = "aspect motd";
+      } good.graph.edges
+    );
+    deep-1000 = eq (b.length (deep 1000).scopes) (1002);
+    empty-fleet = {
+      t1 = eq (msgs (yen.eval { })) ([ ]);
+      t2 = eq ((yen.eval { }).scopes) ([ ]);
+      t3 = eq ((yen.eval { }).flake) (null); # den-hoag empty-aspects
+    };
+    wide-3000 = eq (b.length (wide 3000).scopes) (3001);
   };
 in
 {
@@ -3060,12 +3259,13 @@ in
     rung1
     yen
     ;
-  # the lib suites live in their own files; `failed` runs them all
-  failed =
-    b.filter (n: !checks.${n}) (b.attrNames checks)
-    ++ map (n: "datalog/${n}") (import ./datalog.nix).failed
-    ++ map (n: "rdf/${n}") (import ./rdf.nix).failed
-    ++ map (n: "krn/${n}") (import ./krn.nix).failed
-    ++ map (n: "shacl/${n}") (import ./shacl.nix).failed
-    ++ map (n: "batteries/${n}") (import ./batteries.nix).failed;
+  # the suites, for github:denful/fastest: tests.<suite>.<test> = { expr; expected; }, run in parallel
+  tests = {
+    engine = checks;
+    datalog = (import ./datalog.nix).tests;
+    rdf = (import ./rdf.nix).tests;
+    krn = (import ./krn.nix).tests;
+    shacl = (import ./shacl.nix).tests;
+    batteries = (import ./batteries.nix).tests;
+  };
 }

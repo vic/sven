@@ -75,21 +75,33 @@ let
   escLines = rdf.triples rEsc;
 in
 rec {
+  # a fastest test: { expr; expected; }
+  eq = expr: expected: { inherit expr expected; };
+  yes = x: eq x true;
   checks = {
-    stable-under-reorder = (rdf.share r).sha256 == (rdf.share rRev).sha256;
-    changed-field-changes-hash =
-      (rdf.share r).sha256 != (rdf.share (fleet [ (base "web2" "plain") ])).sha256;
-    extra-aspect-changes-hash = (rdf.share r).sha256 != (rdf.share rMore).sha256;
-    count-is-unique-lines =
-      (rdf.share r).count == uniqueCount lines && lines == b.sort b.lessThan lines;
-    line-shape = b.all (l: b.substring 0 1 l == "<" && b.match ".* \\.$" l != null) lines;
-    edge-per-graph-edge = r.graph.edges != [ ] && count "yen/sink>" lines == b.length r.graph.edges;
-    ntriples-ends-newline = b.match ".*\n" (rdf.ntriples r) != null;
-    escaped-no-raw-newline =
-      escLines != [ ]
-      && b.all (l: b.match ".*\n.*" l == null) escLines
-      && b.any (l: b.match ".*bad \\\\\"msg\\\\\"\\\\nline2.*" l != null) escLines;
-    scope-and-parent = b.elem "<https://yen.dev/fleet/scope/fleet:main/host:db> <https://yen.dev/fleet/yen/parent> <https://yen.dev/fleet/scope/fleet:main> ." lines;
+    stable-under-reorder = eq (rdf.share r).sha256 (rdf.share rRev).sha256;
+    changed-field-changes-hash = yes (
+      (rdf.share r).sha256 != (rdf.share (fleet [ (base "web2" "plain") ])).sha256
+    );
+    extra-aspect-changes-hash = yes ((rdf.share r).sha256 != (rdf.share rMore).sha256);
+    count-is-unique-lines = {
+      count = eq (rdf.share r).count (uniqueCount lines);
+      sorted = eq lines (b.sort b.lessThan lines);
+    };
+    line-shape = yes (b.all (l: b.substring 0 1 l == "<" && b.match ".* \\.$" l != null) lines);
+    edge-per-graph-edge = {
+      some = yes (r.graph.edges != [ ]);
+      count = eq (count "yen/sink>" lines) (b.length r.graph.edges);
+    };
+    ntriples-ends-newline = yes (b.match ".*\n" (rdf.ntriples r) != null);
+    escaped-no-raw-newline = {
+      some = yes (escLines != [ ]);
+      no-raw-newline = yes (b.all (l: b.match ".*\n.*" l == null) escLines);
+      escaped = yes (b.any (l: b.match ".*bad \\\\\"msg\\\\\"\\\\nline2.*" l != null) escLines);
+    };
+    scope-and-parent = yes (
+      b.elem "<https://yen.dev/fleet/scope/fleet:main/host:db> <https://yen.dev/fleet/yen/parent> <https://yen.dev/fleet/scope/fleet:main> ." lines
+    );
   };
-  failed = b.filter (n: !checks.${n}) (b.attrNames checks);
+  tests = checks;
 }

@@ -27,43 +27,52 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      outputs =
-        builtins.attrNames result.flake == [
-          "colmenaHive"
-          "deploy"
-          "k8sManifests"
-          "nixosConfigurations"
-          "nixosModules"
-          "terraformConfigurations"
-        ];
-      k8s =
-        result.flake.k8sManifests.axon.ingress.web == {
-          host = "web.example.org";
-          port = 80;
-          tls = true;
-        };
-      exports = builtins.length result.flake.nixosModules.base.imports == 1;
-      deploy-rs =
-        builtins.mapAttrs (_: n: n.hostname) result.flake.deploy.nodes == {
-          lb = "10.0.0.1";
-          web = "10.0.0.2";
-        };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      outputs = eq (builtins.attrNames result.flake) ([
+        "colmenaHive"
+        "deploy"
+        "k8sManifests"
+        "nixosConfigurations"
+        "nixosModules"
+        "terraformConfigurations"
+      ]);
+      k8s = eq (result.flake.k8sManifests.axon.ingress.web) ({
+        host = "web.example.org";
+        port = 80;
+        tls = true;
+      });
+      exports = eq (builtins.length result.flake.nixosModules.base.imports) (1);
+      deploy-rs = eq (builtins.mapAttrs (_: n: n.hostname) result.flake.deploy.nodes) ({
+        lb = "10.0.0.1";
+        web = "10.0.0.2";
+      });
     };
 
   e2e =
-    { flake, ... }:
     {
-      colmena =
-        builtins.attrNames flake.colmenaHive.nodes == [
-          "lb"
-          "web"
-        ];
-      deploy-rs = builtins.isString flake.deploy.nodes.web.profiles.system.path.drvPath;
-      terranix = builtins.isString flake.terraformConfigurations.dns.drvPath;
-      nodes =
-        flake.nixosConfigurations.web.config.networking.extraHosts == "10.0.0.1 lb.internal\n"
-        && flake.nixosConfigurations.lb.config.networking.extraHosts == "";
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      colmena = eq (builtins.attrNames flake.colmenaHive.nodes) ([
+        "lb"
+        "web"
+      ]);
+      deploy-rs = yes (builtins.isString flake.deploy.nodes.web.profiles.system.path.drvPath);
+      terranix = yes (builtins.isString flake.terraformConfigurations.dns.drvPath);
+      nodes = {
+        t1 = eq (flake.nixosConfigurations.web.config.networking.extraHosts) ("10.0.0.1 lb.internal\n");
+        t2 = eq (flake.nixosConfigurations.lb.config.networking.extraHosts) ("");
+      };
     };
 }

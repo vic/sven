@@ -65,15 +65,28 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      outputs =
-        builtins.attrNames result.flake.nixosConfigurations == [ "desk" ]
-        && builtins.attrNames result.flake.homeConfigurations == [ "ana@work" ];
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      outputs = {
+        t1 = eq (builtins.attrNames result.flake.nixosConfigurations) ([ "desk" ]);
+        t2 = eq (builtins.attrNames result.flake.homeConfigurations) ([ "ana@work" ]);
+      };
     };
 
   e2e =
-    { flake, ... }:
+    {
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
     let
       desk = flake.nixosConfigurations.desk.config;
       onDesk = desk.home-manager.users.ana;
@@ -82,12 +95,17 @@
       iface = c: c.dconf.settings ? "org/gnome/desktop/interface";
     in
     {
-      gnome = desk.services.xserver.desktopManager.gnome.enable;
-      gnome-home = iface onDesk && !(iface work);
-      fonts-system = builtins.elem "inter" (names desk.fonts.packages);
-      fonts-home = builtins.elem "inter" (names work.home.packages);
-      fonts-once = !(builtins.elem "inter" (names onDesk.home.packages));
-      prompt =
-        onDesk.home.sessionVariables.PROMPT_TAG == "ana@desk" && !(work.home.sessionVariables ? PROMPT_TAG);
+      gnome = yes (desk.services.xserver.desktopManager.gnome.enable);
+      gnome-home = {
+        t1 = yes (iface onDesk);
+        t2 = no ((iface work));
+      };
+      fonts-system = yes (builtins.elem "inter" (names desk.fonts.packages));
+      fonts-home = yes (builtins.elem "inter" (names work.home.packages));
+      fonts-once = no ((builtins.elem "inter" (names onDesk.home.packages)));
+      prompt = {
+        t1 = eq (onDesk.home.sessionVariables.PROMPT_TAG) ("ana@desk");
+        t2 = no ((work.home.sessionVariables ? PROMPT_TAG));
+      };
     };
 }

@@ -191,9 +191,15 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      quirk-up = result.flake.userPorts == { igloo = [ 3000 ]; };
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      quirk-up = eq (result.flake.userPorts) ({ igloo = [ 3000 ]; });
     };
 
   e2e =
@@ -201,6 +207,9 @@
       inputs,
       dir,
       flake,
+      eq,
+      yes,
+      no,
       ...
     }:
     let
@@ -228,11 +237,10 @@
       den = ((import (dir + "/before/flake.nix")).outputs inputs).nixosConfigurations.igloo.config;
     in
     {
-      same-facts = fp den == fp flake.nixosConfigurations.igloo.config;
-      ports =
-        flake.nixosConfigurations.igloo.config.networking.firewall.allowedTCPPorts == [
-          22
-          3000
-        ];
+      same-facts = eq (fp den) (fp flake.nixosConfigurations.igloo.config);
+      ports = eq (flake.nixosConfigurations.igloo.config.networking.firewall.allowedTCPPorts) ([
+        22
+        3000
+      ]);
     };
 }

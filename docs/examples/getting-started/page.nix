@@ -78,20 +78,31 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      scopes =
-        map (s: s.id) result.graph.scopes == [
-          "fleet:main"
-          "fleet:main/host:laptop"
-        ];
-      motd-at-laptop = result.active.motd."fleet:main/host:laptop";
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      scopes = eq (map (s: s.id) result.graph.scopes) ([
+        "fleet:main"
+        "fleet:main/host:laptop"
+      ]);
+      motd-at-laptop = yes (result.active.motd."fleet:main/host:laptop");
     };
 
   e2e =
-    { flake, ... }:
     {
-      hostname = flake.nixosConfigurations.laptop.config.networking.hostName == "laptop";
-      motd = flake.nixosConfigurations.laptop.config.environment.etc.motd.text == "managed by yen";
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      hostname = eq (flake.nixosConfigurations.laptop.config.networking.hostName) ("laptop");
+      motd = eq (flake.nixosConfigurations.laptop.config.environment.etc.motd.text) ("managed by yen");
     };
 }

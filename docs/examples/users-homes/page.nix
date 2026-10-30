@@ -35,18 +35,32 @@
     ];
 
   checks =
-    { result, ... }:
     {
-      both =
-        result.active.alice-home."fleet:main/home:alice@laptop"
-        && result.active.alice-home."fleet:main/host:server/user:alice";
+      result,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      both = {
+        t1 = yes (result.active.alice-home."fleet:main/home:alice@laptop");
+        t2 = yes (result.active.alice-home."fleet:main/host:server/user:alice");
+      };
     };
   e2e =
-    { flake, ... }:
     {
-      nixos-home =
-        flake.nixosConfigurations.server.config.home-manager.users.alice.programs.git.userName == "Alice";
-      standalone = flake.homeConfigurations."alice@laptop".config.programs.git.userName == "Alice";
-      standalone-builds = flake.homeConfigurations."alice@laptop".activationPackage ? drvPath;
+      flake,
+      eq,
+      yes,
+      no,
+      ...
+    }:
+    {
+      nixos-home = eq (flake.nixosConfigurations.server.config.home-manager.users.alice.programs.git.userName) (
+        "Alice"
+      );
+      standalone = eq (flake.homeConfigurations."alice@laptop".config.programs.git.userName) ("Alice");
+      standalone-builds = yes (flake.homeConfigurations."alice@laptop".activationPackage ? drvPath);
     };
 }
