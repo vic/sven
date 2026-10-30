@@ -22,7 +22,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.allowed` | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
 | `lib.asOf` | `{ url; rev; module; } -> result` | the fleet at a git revision |
 | `lib.derive` | `type -> (instance -> value) -> type` | the type, with a default computed from the instance itself |
-| `lib.diffData` | `data -> data -> [ { path; old; new; } ]` | the field changes between two `data` answers, sorted by path |
+| `lib.diffData` | `data -> data -> [ { path; old; new; } ]` | the field changes between two data answers, sorted by path |
 | `lib.eval` | `module -> result` | evaluate a fleet module; the result answers every query |
 | `lib.grant` | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
 | `lib.history` | `{ url; revs; module; } -> [ { rev; errors; scopes; changes; } ]` | the fleet at each revision, with the field changes from the one before |
@@ -30,7 +30,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.jsonSafe` | `value -> value` | the value with functions and derivations as strings, so toJSON never fails |
 | `lib.listOf` | `type -> type` | a list whose elements pass the type; a list of refs is still a ref field |
 | `lib.maybe` | `type -> type` | the type, or null (a maybe-ref is still a ref field) |
-| `lib.mkFlake` | `module -> flake` | the flake outputs of the fleet, or { invalid-flake-errors } when it has an error or a violation |
+| `lib.mkFlake` | `module -> flake` | the flake outputs of the fleet, or &#123; invalid-flake-errors &#125; when it has an error or a violation |
 | `lib.narrow` | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
 | `lib.opt` | `type -> default -> type` | the type, with a default when the field has no answer |
 | `lib.secret` | `type -> type` | the type, but every answer states the value only by its sha256 |
@@ -51,10 +51,10 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.configurations` | `{ from; output; build; } -> out value` | one flake output per scope, built from the modules of sink from |
 | `lib.batteries.darwin.homebrew` | `{ from; } -> key value` | one darwin module with the casks, brews and mas apps of sink from |
 | `lib.batteries.darwin.primary-user` | `{ user; } -> key value` | system.primaryUser from the user that user reads (null: root) |
-| `lib.batteries.darwin.system` | `{ from; darwinSystem; system; } -> out value` | darwinConfigurations.<scope name> |
+| `lib.batteries.darwin.system` | `{ from; darwinSystem; system; } -> out value` | darwinConfigurations.&lt;scope name&gt; |
 | `lib.batteries.deploy.colmena` | `{ from; makeHive; meta ? ; } -> out value` | colmenaHive from the host modules of sink from |
 | `lib.batteries.deploy.deploy-rs` | `{ configurations; hostname; activate; sshUser ? ; } -> { deploy.nodes; }` | deploy-rs nodes from built configurations |
-| `lib.batteries.devshell.mkshell` | `{ from; pkgsOf; } -> out value` | a nixpkgs mkShell at devShells.<scope name>.default |
+| `lib.batteries.devshell.mkshell` | `{ from; pkgsOf; } -> out value` | a nixpkgs mkShell at devShells.&lt;scope name&gt;.default |
 | `lib.batteries.devshell.numtide` | `{ from; devshell; systems; pkgsOf; name; packages ? ; shell ? ; } -> out value` | a numtide/devshell per system, its commands from sink from |
 | `lib.batteries.distributed.nodes` | `{ from; } -> key value` | each machine imports the modules other scopes wrote for it |
 | `lib.batteries.docs.kinds` | `kinds -> graph -> string` | a markdown table of the kinds: fields, spawns, sinks and scope counts |
@@ -63,22 +63,22 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.docs.templates` | `{ root; description; } -> templates` | flake templates from the directories of root that have a flake.nix |
 | `lib.batteries.docs.vocabulary` | `{ what; names; lines; } -> [ error ]` | a doc line for every live name; a missing or stale line is an error record |
 | `lib.batteries.droid.home` | `{ from; } -> key value` | the home-manager modules of sink from into nix-on-droid |
-| `lib.batteries.droid.system` | `{ from; nixOnDroidConfiguration; pkgs; } -> out value` | nixOnDroidConfigurations.<scope name> |
+| `lib.batteries.droid.system` | `{ from; nixOnDroidConfiguration; pkgs; } -> out value` | nixOnDroidConfigurations.&lt;scope name&gt; |
 | `lib.batteries.editors.vscode` | `{ from; profile ? ; } -> key value` | one home module for VS Code from the extensions and settings of sink from |
 | `lib.batteries.editors.zed` | `{ from; } -> key value` | one home module for Zed from the extensions and settings of sink from |
 | `lib.batteries.eval-modules` | `{ from; lib; modules ? ; specialArgs ? ; result ? ; } -> out value` | the modules of sink from evaluated with lib.evalModules |
-| `lib.batteries.exports.modules` | `{ from; output; } -> out value` | the modules of sink from as <output>.<scope name> for other flakes |
+| `lib.batteries.exports.modules` | `{ from; output; } -> out value` | the modules of sink from as &lt;output&gt;.&lt;scope name&gt; for other flakes |
 | `lib.batteries.files.comment` | `path -> text -> string` | a one-line comment in the syntax of the file format |
 | `lib.batteries.files.document` | `{ from; path; separator ? ; } -> key value` | one repo file from the texts of sink from, in order |
 | `lib.batteries.files.json` | `{ from; path; value ? ; } -> key value` | a repo file with the JSON of sink from |
 | `lib.batteries.files.toml` | `{ inline ? ; } -> value -> string` | TOML text from a Nix value |
-| `lib.batteries.files.writer` | `{ from; files; lib; pkgs; root; relativeRoot ? ; } -> out value` | packages.<system>.write-files and one check per repo file |
+| `lib.batteries.files.writer` | `{ from; files; lib; pkgs; root; relativeRoot ? ; } -> out value` | packages.&lt;system&gt;.write-files and one check per repo file |
 | `lib.batteries.flake-file.write` | `{ from; inputs; lib; pkgs; modules ? ; } -> out value` | flake.nix from the inputs each aspect declares, with its write package and check |
 | `lib.batteries.github.workflow` | `{ from; path; doc; header ? ; } -> key value` | a workflow file from the jobs of sink from |
 | `lib.batteries.github.yaml` | `value -> string` | YAML for GitHub Actions: block style, JSON-quoted scalars |
 | `lib.batteries.home-manager.into-host` | `{ from; } -> key value` | a user home-manager modules into its machine |
 | `lib.batteries.home-manager.module` | `module -> module` | home-manager as a NixOS or nix-darwin module, with the machine pkgs |
-| `lib.batteries.home-manager.system` | `{ from; homeManagerConfiguration; pkgs; } -> out value` | homeConfigurations.<scope name>, a standalone home |
+| `lib.batteries.home-manager.system` | `{ from; homeManagerConfiguration; pkgs; } -> out value` | homeConfigurations.&lt;scope name&gt;, a standalone home |
 | `lib.batteries.imports` | `{ from; } -> key value` | the modules of sink from as one module that imports them |
 | `lib.batteries.k8s.manifests` | `{ from; lib; output ? ; } -> out value` | Kubernetes manifests from the modules of sink from |
 | `lib.batteries.kits.contract` | `{ assemblies; machines; holds; } -> [ error ]` | the assembly contract: roles, machine counts, assemblies per kit |
@@ -100,7 +100,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.mermaid.shapes.subroutine` | `label -> string` | a node shape for flowchart |
 | `lib.batteries.mermaid.sinks` | `{ schema; graph; } -> view` | sink keys that give to other sinks, and out to the flake outputs |
 | `lib.batteries.mesh` | `{ from; build; } -> key value` | every record of sink from except this scope own, made into content by build |
-| `lib.batteries.microvm.guest` | `{ from; pkgs; } -> key value` | a guest NixOS modules as microvm.vms.<scope name> of its host |
+| `lib.batteries.microvm.guest` | `{ from; pkgs; } -> key value` | a guest NixOS modules as microvm.vms.&lt;scope name&gt; of its host |
 | `lib.batteries.nixos.autologin` | `{ user; } -> key value` | tty autologin of the user that user reads |
 | `lib.batteries.nixos.define-user` | `{ scope; } -> module` | an account named after the scope |
 | `lib.batteries.nixos.facter` | `{ report; module ? ; option ? ; } -> key value` | nixos-facter with the report that report reads |
@@ -111,13 +111,13 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.nixos.persist` | `{ from; root ? ; } -> key value` | impermanence paths from sink from |
 | `lib.batteries.nixos.primary-user` | `{ scope; } -> module` | the scope account administers the machine |
 | `lib.batteries.nixos.remote-builders` | `{ from; keep ? ; systemOf ? ; } -> key value` | nix.buildMachines on the other machines |
-| `lib.batteries.nixos.system` | `{ from; nixpkgs; } -> out value` | nixosConfigurations.<scope name> |
+| `lib.batteries.nixos.system` | `{ from; nixpkgs; } -> out value` | nixosConfigurations.&lt;scope name&gt; |
 | `lib.batteries.nixos.unfree` | `{ from; } -> key value` | one allowUnfreePredicate from the names of sink from |
 | `lib.batteries.nixos.user-shell` | `{ shell; } -> key value` | the scope account gets the login shell that shell reads |
 | `lib.batteries.ordered` | `reduce` | elements in an order that meets every before and after; a cycle is an error |
 | `lib.batteries.secrets.sops-config` | `{ from; path ? ; } -> key value` | .sops.yaml from the creation rules of sink from |
 | `lib.batteries.secretspec.toml` | `{ from; project; path ? ; profiles ? ; defaults ? ; providers ? ; } -> key value` | secretspec.toml from the secrets of sink from |
-| `lib.batteries.terranix.configuration` | `{ from; system; terranixConfiguration; name ? ; } -> out value` | terraformConfigurations.<name> from the modules of sink from |
+| `lib.batteries.terranix.configuration` | `{ from; system; terranixConfiguration; name ? ; } -> out value` | terraformConfigurations.&lt;name&gt; from the modules of sink from |
 | `lib.batteries.vars.generators` | `{ machineOf; } -> reduce` | clan vars generators, shared or per machine, with dependency checks |
 | `lib.batteries.vars.public-value` | `{ root; } -> machine -> generator -> file -> default -> string` | a public var read at eval time |
 | `lib.batteries.vars.secret-reads` | `{ from; reads; } -> [ error ]` | a public read of a file that is secret on that machine |
@@ -135,14 +135,14 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 |---|---|---|
 | `lib.datalog.certify` | `[ rule ] -> { true = [ { atom; stage; rule; } ]; false = [ { atom; stage; } ]; }` | the stages of the well-founded model, a certificate of each decided atom |
 | `lib.datalog.checkCertificate` | `[ rule ] -> certificate -> { valid; }` | the small trusted checker of a certificate |
-| `lib.datalog.comparisons.lt` | `[ a b ] -> bool` | a < b, for two ints or two strings; false on terms of two types |
+| `lib.datalog.comparisons.lt` | `[ a b ] -> bool` | a &lt; b, for two ints or two strings; false on terms of two types |
 | `lib.datalog.comparisons.neq` | `[ a b ] -> bool` | the two bound terms differ |
 | `lib.datalog.facts` | `[ atom ] -> [ rule ]` | each atom as a rule with no body |
 | `lib.datalog.ground` | `[ rule ] -> [ atom ] -> [ rule ]` | groundWith the comparisons |
 | `lib.datalog.groundWith` | `{ name = terms -> bool; } -> [ rule ] -> [ atom ] -> { rules; faults; }` | the ground instances whose positive atoms may hold; external atoms decided, then dropped |
-| `lib.datalog.isVar` | `term -> bool` | the term is a variable { var = "X"; } |
+| `lib.datalog.isVar` | `term -> bool` | the term is a variable &#123; var = "X"; &#125; |
 | `lib.datalog.judge` | `[ rule ] -> atomFor -> atomAgainst -> string` | "supported", "refuted", "both", "neither" or "unknown" in the well-founded model |
-| `lib.datalog.proof` | `[ rule ] -> model -> atom -> tree` | the proof tree of a true atom; { status; } for a false or undefined one |
+| `lib.datalog.proof` | `[ rule ] -> model -> atom -> tree` | the proof tree of a true atom; &#123; status; &#125; for a false or undefined one |
 | `lib.datalog.stable` | `[ rule ] -> [ [ atom ] ]` | the stable models, each a sorted list of true atoms |
 | `lib.datalog.wfs` | `[ rule ] -> { true; undefined; false; holds; }` | the well-founded model of ground rules (three values) |
 | `lib.datalog.why` | `[ rule ] -> model -> atom -> [ rule ]` | the rules that make the atom true in the model |
@@ -192,8 +192,8 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.krn.fromList` | `[ x ] -> list` | a Nix list as a relational list |
 | `lib.krn.infd` | `[ lvar ] -> lo -> hi -> goal` | each variable takes an integer in lo..hi |
 | `lib.krn.label` | `[ lvar ] -> goal` | enumerate the values left in the domains, the smallest domain first |
-| `lib.krn.lefd` | `x -> y -> goal` | x <= y, by bounds propagation |
-| `lib.krn.ltfd` | `x -> y -> goal` | x < y, by bounds propagation |
+| `lib.krn.lefd` | `x -> y -> goal` | x &lt;= y, by bounds propagation |
+| `lib.krn.ltfd` | `x -> y -> goal` | x &lt; y, by bounds propagation |
 | `lib.krn.maxOf` | `domain -> int` | the largest value of a domain |
 | `lib.krn.maximize` | `fuel -> (answer -> int) -> (q -> goal) -> { best; value; complete; count; }` | the first answer with the largest measure (best found when not complete) |
 | `lib.krn.membero` | `x -> l -> goal` | x is in the list l (a Nix list or a relational list) |
@@ -241,7 +241,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.reduce.entries` | `[ element ] -> { value = [ element ]; errors; }` | the elements themselves, each with its value and where it came from |
 | `lib.reduce.list` | `[ element ] -> { value = [ v ]; errors; }` | every element value, in the order the elements arrive |
 | `lib.reduce.merge` | `[ element ] -> { value = attrs; errors; }` | the element values merged as attrsets; two different answers at one path are an error |
-| `lib.reduce.one` | `[ element ] -> { value; errors; }` | the one element value; zero or two or more elements is the error `one` |
+| `lib.reduce.one` | `[ element ] -> { value; errors; }` | the one element value; zero or two or more elements is the error one |
 | `lib.reduce.set` | `[ element ] -> { value = [ v ]; errors; }` | the element values without duplicates |
 
 ## Inside a fleet: `yen.lib`
@@ -276,9 +276,9 @@ from these references, never from strings. See [Invariants](/query/invariants/).
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| `yen.facts.has` | `aspect -> scope -> literal` | the aspect is active at the scope (yen.aspects.<name>) |
-| `yen.facts.instance` | `scope -> instance -> literal` | the scope holds that instance (yen.<kind>.<name>) |
-| `yen.facts.kind` | `kind -> scope -> literal` | the scope is of that kind (yen.kinds.<kind>) |
+| `yen.facts.has` | `aspect -> scope -> literal` | the aspect is active at the scope (yen.aspects.&lt;name&gt;) |
+| `yen.facts.instance` | `scope -> instance -> literal` | the scope holds that instance (yen.&lt;kind&gt;.&lt;name&gt;) |
+| `yen.facts.kind` | `kind -> scope -> literal` | the scope is of that kind (yen.kinds.&lt;kind&gt;) |
 | `yen.facts.lt` | `term -> term -> literal` | a comparison of two bound terms |
 | `yen.facts.neq` | `term -> term -> literal` | a comparison of two bound terms |
 | `yen.facts.parent` | `scope -> scope -> literal` | the second scope is the parent of the first |

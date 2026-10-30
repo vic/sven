@@ -239,7 +239,7 @@ let
     list = es: pure (map (e: e.value) es);
     #: lib.reduce.set :: [ element ] -> { value = [ v ]; errors; } -- the element values without duplicates
     set = es: pure (uniq (map (e: e.value) es));
-    #: lib.reduce.one :: [ element ] -> { value; errors; } -- the one element value; zero or two or more elements is the error `one`
+    #: lib.reduce.one :: [ element ] -> { value; errors; } -- the one element value; zero or two or more elements is the error one
     one = es: {
       value = if es == [ ] then null else (head es).value;
       errors = optional (length es != 1) (
@@ -2312,7 +2312,7 @@ let
       render = if isData change then b.toJSON change else null; # read back with builtins.fromJSON
     };
   # field changes between two `data` answers: [ { path; old; new; } ], sorted by path
-  #: lib.diffData :: data -> data -> [ { path; old; new; } ] -- the field changes between two `data` answers, sorted by path
+  #: lib.diffData :: data -> data -> [ { path; old; new; } ] -- the field changes between two data answers, sorted by path
   diffData =
     d0: d1:
     let

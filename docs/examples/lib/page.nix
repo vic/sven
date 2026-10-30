@@ -106,13 +106,15 @@ in
       d = docsOf inputs.yen.outPath;
       apis = apisOf engine;
       cell = s: b.replaceStrings [ "|" ] [ "\\|" ] s;
+      # plain MDX text: a brace or an angle bracket would read as JSX
+      prose = s: b.replaceStrings [ "|" "<" ">" "{" "}" ] [ "\\|" "&lt;" "&gt;" "&#123;" "&#125;" ] s;
       table =
         names:
         docs.table [ "API" "Takes and returns" "Purpose" ] (
           map (n: [
             "`${n}`"
             "`${cell d.${n}.sig}`"
-            (cell d.${n}.does)
+            (prose d.${n}.does)
           ]) (b.filter (n: d ? ${n}) names)
         );
       under = p: b.filter (n: b.substring 0 (b.stringLength p) n == p);
