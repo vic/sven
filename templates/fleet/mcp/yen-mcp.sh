@@ -27,7 +27,7 @@ TOOLS='[
  {"name":"yen_ask","description":"Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result.","inputSchema":{"type":"object","properties":{"name":{"type":"string"},"args":{"type":"object"}},"required":["name"]}},
  {"name":"yen_impact","description":"The scopes an element of a scope reaches over routed elements, by depth.","inputSchema":{"type":"object","properties":{"id":{"type":"string"},"hops":{"type":"integer"},"sinks":{"type":"array","items":{"type":"string"}},"max":{"type":"integer"}},"required":["id"]}},
  {"name":"yen_labels","description":"Trust labels per aspect; with floor n, the edges whose aspect has trust below n.","inputSchema":{"type":"object","properties":{"floor":{"type":"integer"}}}},
- {"name":"yen_why_not","description":"Whether an invariant atom is violated, and the why/whyNot rules for it.","inputSchema":{"type":"object","properties":{"atom":{"type":"string"}},"required":["atom"]}},
+ {"name":"yen_why_not","description":"Whether an invariant atom (a tuple, [\"bad\", …]) is violated, and the why/whyNot rules for it.","inputSchema":{"type":"object","properties":{"atom":{"type":"array"}},"required":["atom"]}},
  {"name":"yen_program","description":"Dry-run a change program (list of op objects): valid, errors, ok, violations, diff.","inputSchema":{"type":"object","properties":{"program":{"type":"array","items":{"type":"object"}}},"required":["program"]}}
 ]'
 

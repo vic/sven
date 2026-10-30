@@ -32,7 +32,7 @@ This table is read from the server script itself (14 tools):
 | `yen_ask` | Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result. |
 | `yen_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
 | `yen_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
-| `yen_why_not` | Whether an invariant atom is violated, and the why/whyNot rules for it. |
+| `yen_why_not` | Whether an invariant atom (a tuple, [\ |
 | `yen_program` | Dry-run a change program (list of op objects): valid, errors, ok, violations, diff. |
 
 Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.

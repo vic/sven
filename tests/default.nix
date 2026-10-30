@@ -1383,8 +1383,7 @@ let
         (c.proof [
           "scope"
           "top:t/host:a"
-        ])
-          ? status
+        ]) ? status
       )
       &&
         c.whyNot [
