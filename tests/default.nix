@@ -2436,8 +2436,95 @@ let
       in
       codes r == [ "invariant-function" ] && r.flake == null;
     r2-parent-fact = b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts;
-    # rung 4: a type is a predicate in a rule (`type`), and so is any total function (`holds`); a non-bool answer is an
-    # error. Tag "b:1" is not digits, tag "2" is.
+    # .21: a secret field never leaves the engine in an answer: facts, data, scopes, errors, the RDF export and the
+    # seal state it by its hash, so a rule can still compare two secrets; an aspect still reads the value
+    secrets-hidden =
+      let
+        fleet =
+          extra:
+          yen.eval (
+            { yen, ... }:
+            {
+              imports = [ extra ];
+              yen.kinds.top.spawns.host = _: yen.host;
+              yen.kinds.host.fields.token = yen.lib.secret (yen.lib.is b.isString);
+              yen.kinds.host.sinks.os = { };
+              yen.top.t = { };
+              yen.host.a.token = "hunter2";
+              yen.aspects.login = {
+                at = yen.kinds.host;
+                os =
+                  { host, ... }:
+                  {
+                    pw = host.token;
+                  };
+              };
+            }
+          );
+        clean = fleet { };
+        shared = fleet {
+          yen.host.b.token = "hunter2";
+          yen.host.c.token = 424242;
+          yen.invariants.shared = [
+            {
+              head = [
+                "bad"
+                "shared-token"
+                (v "A")
+                (v "B")
+              ];
+              pos = [
+                [
+                  "val"
+                  "token"
+                  (v "A")
+                  (v "X")
+                ]
+                [
+                  "val"
+                  "token"
+                  (v "B")
+                  (v "X")
+                ]
+                [
+                  "lt"
+                  (v "A")
+                  (v "B")
+                ]
+              ];
+            }
+          ];
+        };
+        seen =
+          r:
+          b.toJSON {
+            inherit (r) facts data errors;
+            scopes = map (
+              s:
+              removeAttrs s [
+                "parent"
+                "up"
+                "rup"
+                "__here"
+              ]
+            ) r.scopes;
+            agent = r.agent;
+            export = (yen.rdf.share r).ntriples;
+            seal = r.check.seal;
+          };
+        leaks = r: b.match ".*(hunter2|424242).*" (seen r) != null;
+      in
+      shared.check.violations == [
+        [
+          "bad"
+          "shared-token"
+          "top:t/host:a"
+          "top:t/host:b"
+        ]
+      ]
+      && !leaks shared
+      && !leaks clean
+      && clean.reduced.os."top:t/host:a" == [ { pw = "hunter2"; } ];
     r4-types =
       let
         rule = {

@@ -162,6 +162,21 @@ let
       refKind t.__maybe
     else
       null;
+  # a secret value is stated by its hash; a type is secret itself or through `maybe`
+  hide =
+    v:
+    "sha256:"
+    + b.hashString "sha256" (
+      b.toJSON (
+        if isRef v then
+          "${v.kind}:${v.name}"
+        else if isFunction v then
+          "<function>"
+        else
+          v
+      )
+    );
+  isSecret = t: isAttrs t && (t ? __secret || t ? __maybe && isSecret t.__maybe);
   # a check that gives no bool (a curried gen-types check) fails, never throws; `boolCheck` names it in the error
   checkOf =
     t:
@@ -247,6 +262,9 @@ let
       default = null;
       __maybe = t; # the type it wraps: a maybe-ref is still a ref (refKind)
     };
+    # a secret: checked like t, but no answer (facts, data, scopes, errors, exports) ever states its value, only its
+    # sha256; an aspect still reads it
+    secret = t: t // { __secret = true; };
     graphs = import ./lib/graphs.nix; # reach, transpose, topo, layers, sccs, cycles, paths, shortest over succ attrsets
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
     datalog = import ./lib/datalog.nix; # ground rules with negation: wfs (three values), stable, why
@@ -407,6 +425,16 @@ let
           ]
           ++ path
         );
+      # the fields of a kind whose type is secret, and a field value as an answer may state it
+      secretFields = k: filter (f: any isSecret (typesAt k [ f ])) (attrNames (kinds.${k}.fields or { }));
+      shown =
+        k: f: v:
+        if !(elem f (secretFields k)) || v == null then
+          v
+        else if isList v then
+          map hide v
+        else
+          hide v;
       # one walk per instance path gives its value and its errors
       inst =
         k: n: path:
@@ -457,7 +485,13 @@ let
           fail {
             error = if kr != null then "${p} wants a ${refKind kr} ref" else "${p} fails its check";
             code = if kr != null then "ref" else "check";
-            got = if isFunction r.ok then "<function>" else r.ok;
+            got =
+              if any isSecret tys then
+                hide r.ok
+              else if isFunction r.ok then
+                "<function>"
+              else
+                r.ok;
             want = typeName bad;
             fix =
               if kr != null then
@@ -1088,7 +1122,10 @@ let
               else
                 [ ];
           in
-          if isList s.${f} then concatMap one s.${f} else one s.${f}
+          if isList (shown s.kind f s.${f}) then
+            concatMap one (shown s.kind f s.${f})
+          else
+            one (shown s.kind f s.${f})
         ) (attrNames (removeAttrs s scopeMeta))
       ) unsorted;
       facts =
@@ -1763,8 +1800,12 @@ let
       flakeFill = if top ? flake && scopes != [ ] then fill (head scopes) top.flake else { ok = null; };
       clean = errorsAll == [ ] && check.ok;
       self = {
+        # the scope records as answers state a secret field by its hash; the elements read the values
+        scopes = map (
+          s:
+          s // mapAttrs (f: v: shown s.kind f v) (intersectAttrs (genAttrs (secretFields s.kind) (_: null)) s)
+        ) scopes;
         inherit
-          scopes
           active
           graph
           undefined
@@ -1786,7 +1827,9 @@ let
           mapAttrs (
             n: i:
             static.jsonSafe (
-              mapAttrs (_: v: if isRef v then "${v.kind}:${v.name}" else v) (removeAttrs i (words "kind name"))
+              mapAttrs (f: v: if isRef v then "${v.kind}:${v.name}" else shown k f v) (
+                removeAttrs i (words "kind name")
+              )
             )
           ) instances.${k}
         ) kinds;
