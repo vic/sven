@@ -1198,6 +1198,78 @@ let
           isBad = a: head a == "bad";
           violations = filter isBad m.true;
           incomplete = filter isBad m.undefined;
+          # .42: the seal binds a verdict to the engine, the rules and the facts it was computed from. Anything else that
+          # changes a verdict changes one of them. Checking a seal is evaluating again: `verify` answers { ok; why; }
+          hash = x: b.hashString "sha256" (b.toJSON x);
+          binding = {
+            engine = hash (
+              map (f: b.hashFile "sha256" f) [
+                ./default.nix
+                ./lib/datalog.nix
+              ]
+            );
+            rules = hash (map (x: x.r) checked);
+            facts = hash facts;
+          };
+          refuse = why: {
+            ok = false;
+            inherit why;
+          };
+          verify =
+            s:
+            if s.binding.engine != binding.engine then
+              refuse "engine"
+            else if s.binding.rules != binding.rules then
+              refuse "rules"
+            else if s.binding.facts != binding.facts then
+              refuse "facts"
+            else if !(D.checkCertificate verdictProgram s.certificate).valid then
+              refuse "certificate"
+            else if s.violations != violations || s.incomplete != incomplete then
+              refuse "verdict"
+            else
+              { ok = true; };
+          # .43: where a fact comes from, beside the fact, never in it: an edge's origin, or the files that declare its
+          # instance, its field, or its aspect
+          from =
+            a:
+            let
+              r = head a;
+              # the scope id: [ "kind" K ID ], [ "val" F ID V ] and [ "ref" F ID K N ] hold it second; the others first
+              s = byId.${b.elemAt a (if elem r (words "kind val ref") then 2 else 1)} or null;
+              inst =
+                path:
+                if s == null then
+                  [ ]
+                else
+                  declaredIn (
+                    [
+                      s.kind
+                      s.name
+                    ]
+                    ++ path
+                  );
+            in
+            if r == "edge" then
+              map (e: e.origin) (
+                filter (
+                  e:
+                  [
+                    "edge"
+                    e.sink
+                    e.from
+                    e.to
+                  ] == a
+                ) graph.edges
+              )
+            else if r == "has" then
+              filesOf (b.elemAt a 1)
+            else if r == "val" || r == "ref" then
+              inst [ (b.elemAt a 1) ]
+            else if r == "error" then
+              [ (b.elemAt a 2) ]
+            else
+              inst [ ];
           program = ground ++ D.facts facts;
           # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `program`
           model = m // {
@@ -1211,7 +1283,17 @@ let
             errors
             certificate
             certified
+            verify
+            from
             ;
+          seal = static.jsonSafe {
+            inherit
+              binding
+              certificate
+              violations
+              incomplete
+              ;
+          };
           ok = violations == [ ] && incomplete == [ ];
           why = D.why program model;
           whyNot = D.whyNot program model;

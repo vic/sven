@@ -97,6 +97,13 @@
         atom is in neither list.
       ''
       (docs.value { inherit (result.check) certified; })
+      ''
+        `result.check.seal` binds the verdict and its certificate to hashes of the engine, the rules and the facts.
+        Anyone can check it by evaluating the fleet again: `result.check.verify seal` gives `{ ok = true; }`, or
+        `{ ok = false; why; }` with `why` one of `engine`, `rules`, `facts`, `certificate` or `verdict`.
+        `result.check.from atom` tells where a fact comes from: the files that declare it, or an edge's origin.
+        Where a fact comes from is never part of the fact.
+      ''
       (docs.tip "Gate changes on it" ''
         [Stage](/agents/stage/) evaluates a change and refuses it when it adds a violation. CI can fail on `check.ok == false`.
       '')
@@ -110,6 +117,15 @@
     {
       ok = result.check.ok;
       certified = result.check.certified && (variant "variants/mistakes.nix").check.certified;
+      sealed =
+        result.check.verify result.check.seal == {
+          ok = true;
+        }
+        &&
+          (variant "variants/mistakes.nix").check.verify result.check.seal == {
+            ok = false;
+            why = "facts";
+          };
       violations =
         m.violations == [
           [

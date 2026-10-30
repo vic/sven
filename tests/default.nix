@@ -2382,6 +2382,62 @@ let
     # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
     # a derived tuple that fails its relation's check is an error (ok takes one string term here)
     # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
+    # .43: where a fact comes from is its own answer, never part of the fact: one fact, two files
+    r3-provenance =
+      let
+        r = yen.eval {
+          imports = [
+            portsBase
+            { yen.host.a.port = 22; }
+          ];
+        };
+        a = [
+          "instance"
+          "top:t/host:a"
+          "host"
+          "a"
+        ];
+      in
+      b.length (b.filter (x: x == a) r.facts) == 1
+      && b.length (r.check.from a) == 2
+      && b.length (r.check.from (hasFw "top:t/host:a")) == 1
+      &&
+        r.check.from [
+          "edge"
+          "fw"
+          "top:t/host:a"
+          "top:t/host:a"
+        ] == [ "aspect firewall" ];
+    # .42: a seal binds the verdict to its rules, facts and engine; checking it means evaluating again
+    r3-seal =
+      let
+        p = ports { };
+        seal = p.check.seal;
+        tamper = seal // {
+          certificate = seal.certificate // {
+            false = seal.certificate.false ++ [
+              {
+                atom = nofw "top:t/host:b";
+                stage = 0;
+              }
+            ];
+          };
+        };
+      in
+      p.check.verify seal == {
+        ok = true;
+      }
+      &&
+        (ports { yen.host.c.port = 1; }).check.verify seal == {
+          ok = false;
+          why = "facts";
+        }
+      && (p.check.verify tamper).why == "certificate"
+      &&
+        (ports { yen.invariants.more = fwRules; }).check.verify seal == {
+          ok = false;
+          why = "rules";
+        };
     r3-certified =
       let
         p = (ports { }).check;

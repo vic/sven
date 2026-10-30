@@ -1488,6 +1488,7 @@ let
     agent-check =
       r.check.ok
       && r.check.certified
+      && r.check.verify r.check.seal == { ok = true; }
       &&
         r.check.invariants == [
           "attic"
