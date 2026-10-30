@@ -1,0 +1,265 @@
+---
+{"description":"Disk layouts as data, the disko and facter kits, install apps with nixos-anywhere, rebuild apps with nixos-rebuild.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/kits-install/page.nix","title":"Install and deploy kits"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+The install lane has three batteries and two kits. The flake sink carries `apps` like any other output: an
+`out` value that gives `apps.<system>.<name>` merges with the rest.
+
+| Battery | Value of | Gives |
+|---|---|---|
+| `disko { from; }` | a NixOS key | `disko.devices`: the merge of what the machine gave to sink `from` |
+| `install.apps { from; pkgs; report; target; flake; }` | `out` of the machine's disks sink | `apps.<system>.install-<machine>`: nixos-anywhere with the disko layout, writing the facter report to `report` |
+| `deploy.rebuild { from; pkgs; flake; }` | `out` of the machine's deploy sink | `apps.<system>.rebuild-<machine>`: `nixos-rebuild switch --target-host user@address`, with `--build-host` when the deploy target has a `buildHost` |
+
+App names come from the scope name. No disks element, no install app; no deploy target, no rebuild app.
+
+| Kit | Role | Interface | Does |
+|---|---|---|---|
+| `lib.kits.disko` | `default` | `device` (str), `layout` (ref to a layout) | gives the layout's disko devices to sink `disks`; owns the kind `layout` |
+| `lib.kits.facter` | `default` | `dir` (path) | imports `<dir>/<machine>.json` with `nixos.facter` |
+
+A kit is a module: put `inputs.yen.lib.kits.disko` in `imports` of the top module (here, imported by path).
+
+## Layouts
+
+`layout` is a data kind owned by the kit `disko`. Each layout is `yen.layout.<name>` with a `devices` function
+of the device string: `single-ext4`, `btrfs-luks` and `zfs-mirror` (two devices, separated by a space).
+
+
+```nix title="modules/fleet.nix"
+# Machines, the sinks that install and deploy read, and the kits of the install lane.
+# The kits are modules: in your flake they go in `imports` of the top module (`inputs.yen.lib.kits.disko`).
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  b = yen.lib.batteries;
+  inherit (yen.lib) maybe;
+  pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+in
+{
+  imports = [
+    (import ../../../../lib/kits/disko.nix)
+    (import ../../../../lib/kits/facter.nix)
+  ];
+
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = {
+    fields = {
+      addr = lib.types.str;
+      buildHost = maybe lib.types.str;
+    };
+    spawns.member = yen.lib.batteries.kits.members {
+      assemblies = lib.attrValues yen.assembly;
+      inherit (yen.lib) holds;
+    };
+    sinks = {
+      # what the machine's own modules say; the facter and disko batteries write here
+      nixos = {
+        reduce = yen.lib.reduce.merge;
+        out =
+          { scope, sinks, ... }:
+          {
+            config.${scope.name} = sinks.nixos;
+          };
+      };
+      # the disk layout: disko reads it; install makes the app `install-<machine>` of it
+      disks = {
+        reduce = yen.lib.reduce.merge;
+        out = b.install.apps {
+          from = yen.kinds.host.sinks.disks;
+          inherit pkgs;
+          report = h: "./hardware/${h.name}.json";
+          target = h: "root@${h.addr}";
+        };
+      };
+      # the deploy target (one per machine); rebuild makes the app `rebuild-<machine>` of it
+      deploy = {
+        reduce = yen.lib.reduce.one;
+        out = b.deploy.rebuild {
+          from = yen.kinds.host.sinks.deploy;
+          inherit pkgs;
+        };
+      };
+    };
+  };
+
+  yen.fleet.main = { };
+  yen.host = {
+    lb = {
+      addr = "10.0.0.1";
+    };
+    web = {
+      addr = "10.0.0.2";
+      buildHost = "10.0.0.1";
+    };
+    nas.addr = "10.0.0.3";
+  };
+  yen.flake = { out, ... }: out;
+
+  yen.aspects = {
+    nixos-disko = {
+      at = yen.kinds.host;
+      nixos = b.disko { from = yen.kinds.host.sinks.disks; };
+    };
+    deploy-target = {
+      at = yen.host.web;
+      deploy =
+        { host, ... }:
+        {
+          inherit (host) buildHost;
+          address = host.addr;
+          user = "deploy";
+        };
+    };
+  };
+}
+```
+
+```nix title="modules/assemblies.nix"
+# Assemblies of the library kits. `layout` is a ref to a layout, never a string; `dir` holds one facter report per machine.
+{ yen, lib, ... }:
+{
+  yen.kinds.member = { };
+  yen.kinds.kit.fields = {
+    roles = yen.lib.opt (yen.lib.is lib.isAttrs) { };
+    constraints = yen.lib.opt (yen.lib.is lib.isAttrs) { };
+  };
+  yen.kinds.assembly.fields = {
+    kit = yen.kinds.kit;
+    roles = yen.lib.opt (yen.lib.is lib.isAttrs) { };
+  };
+  yen.aspects.settings-typed = {
+    at = yen.kinds.member;
+    errors = yen.lib.batteries.kits.settings-typed;
+  };
+
+  yen.assembly = {
+    disk-lb = {
+      kit = yen.kit.disko;
+      roles.default = {
+        at = yen.host.lb;
+        settings = {
+          device = "/dev/sda";
+          layout = yen.layout.single-ext4;
+        };
+      };
+    };
+    disk-web = {
+      kit = yen.kit.disko;
+      roles.default = {
+        at = yen.host.web;
+        settings = {
+          device = "/dev/nvme0n1";
+          layout = yen.layout.btrfs-luks;
+        };
+      };
+    };
+    disk-nas = {
+      kit = yen.kit.disko;
+      roles.default = {
+        at = yen.host.nas;
+        settings = {
+          device = "/dev/sda /dev/sdb";
+          layout = yen.layout.zfs-mirror;
+        };
+      };
+    };
+    hardware = {
+      kit = yen.kit.facter;
+      roles.default = {
+        at = yen.host.lb;
+        settings.dir = ../hardware;
+      };
+    };
+  };
+}
+```
+
+## The result
+
+The disk layouts reach each machine's `disko.devices`, and the facter report its `hardware.facter.reportPath`:
+
+
+```nix title="result"
+{
+  lb = [
+    "main"
+  ];
+  nas = [
+    "d0"
+    "d1"
+  ];
+  web = [
+    "main"
+  ];
+}
+```
+
+The apps, one per machine that has the input:
+
+
+```nix title="result"
+[
+  "install-lb"
+  "install-nas"
+  "install-web"
+  "rebuild-web"
+]
+```
+
+## A layout is a ref
+
+A string where the layout goes is an error record, not a silent default:
+
+
+```nix title="variants/layout-string.nix"
+# a name where a ref goes: the layout is a string
+{ yen, ... }:
+{
+  yen.assembly.disk-bad = {
+    kit = yen.kit.disko;
+    roles.default = {
+      at = yen.host.web;
+      settings = {
+        device = "/dev/sda";
+        layout = "single-ext4";
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "kits: disk-bad.default: setting layout is not a layout ref"
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `kits-install`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#kits-install
+```
+
+<FileTree>
+
+- checks.nix
+- flake.nix
+- modules/
+  - assemblies.nix
+  - fleet.nix
+- variants/
+  - layout-string.nix
+
+</FileTree>
+:::

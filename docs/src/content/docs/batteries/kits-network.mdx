@@ -1,0 +1,421 @@
+---
+{"description":"Ready-made kits from yen.lib.kits: wireguard, zerotier and dns, with battery addresses.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/kits-network/page.nix","title":"Network kits"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+`yen.lib.kits` holds kits written as modules, so a fleet writes only assemblies. A kit that reads public values
+takes `{ root; }`, the directory of the vars. Battery `addresses` gives each member an address of a prefix, in
+member order; a repeated address, a prefix that is no IPv4 /16 to /24 and a prefix too small are error records.
+
+| Kit | Roles | Interface | Does |
+|---|---|---|---|
+| `wireguard { root; }` | `controller` (exactly 1), `peer` | `prefix`, `port` (51820) | an address per member; keys by generators; the private key is a path, never in the store; a peer talks to the controller |
+| `zerotier { root; }` | `controller` (1), `moon` (0 to 4), `peer` | none | the controller's network id and the moons' ids are public generator files; peers join and list the moons |
+| `dns` | `default` | none | a record for every `endpoints` any kit exports |
+
+This is the fleet's own words, and the assemblies:
+
+
+```nix title="modules/network.nix"
+# Network kits shipped with yen: write only assemblies. `root` is where public keys and ids are read from.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (yen) kit machine;
+  inherit (yen.lib) same;
+  root = ../vars/per-machine;
+in
+{
+  imports = [
+    (inputs.yen.lib.kits.wireguard { inherit root; })
+    (inputs.yen.lib.kits.zerotier { inherit root; })
+    inputs.yen.lib.kits.dns
+  ];
+  yen.machine = {
+    lb.addr = "10.0.1.1";
+    web.addr = "10.0.1.10";
+    db.addr = "10.0.1.20";
+  };
+
+  # wireguard: lb is the hub, web and db are peers; addresses come from the prefix, in member order
+  yen.assembly.vpn = {
+    kit = kit.wireguard;
+    roles = {
+      controller = {
+        at = machine.lb;
+        settings.prefix = "10.8.0.0/24";
+      };
+      peer = {
+        at = m: same m machine.web || same m machine.db;
+        settings = {
+          prefix = "10.8.0.0/24";
+          port = 51821;
+        };
+      };
+    };
+  };
+  # zerotier: one controller, up to four moons, any machine as a peer
+  yen.assembly.lan = {
+    kit = kit.zerotier;
+    roles = {
+      controller.at = machine.lb;
+      moon.at = machine.web;
+      peer.at = machine.db;
+    };
+  };
+
+  # a kit that gives endpoints; dns reads them
+  yen.kit.site = {
+    roles.default = { };
+    exports = [ "endpoints" ];
+  };
+  yen.assembly.site = {
+    kit = kit.site;
+    roles.default.at = machine.web;
+  };
+  yen.aspects.site = {
+    at = yen.lib.all [
+      yen.kinds.member
+      (s: same (s.kit or null) kit.site)
+    ];
+    exports = {
+      endpoints = [ "www.example.org" ];
+    };
+  };
+}
+```
+
+Each wireguard member has an address in member order, and a peer sees only the controller:
+
+
+```nix title="result"
+{
+  db = {
+    environment = {
+      etc = {
+        "zerotier/moons" = {
+          text = "ztmoon1";
+        };
+      };
+    };
+    networking = {
+      wireguard = {
+        interfaces = {
+          vpn = {
+            ips = [
+              "10.8.0.1/32"
+            ];
+            peers = [
+              {
+                allowedIPs = [
+                  "10.8.0.0/24"
+                ];
+                endpoint = "10.0.1.1:51821";
+                publicKey = "wgLB";
+              }
+            ];
+            privateKeyFile = "/run/secrets/vars/from-exports/wg-vpn.key";
+          };
+        };
+      };
+    };
+    services = {
+      zerotierone = {
+        enable = true;
+        joinNetworks = [
+          "ztnet"
+        ];
+      };
+    };
+  };
+  lb = {
+    environment = {
+      etc = {
+        "zerotier/moons" = {
+          text = "ztmoon1";
+        };
+      };
+    };
+    networking = {
+      wireguard = {
+        interfaces = {
+          vpn = {
+            ips = [
+              "10.8.0.2/32"
+            ];
+            listenPort = 51820;
+            peers = [
+              {
+                allowedIPs = [
+                  "10.8.0.1/32"
+                ];
+                publicKey = "wgDB";
+              }
+              {
+                allowedIPs = [
+                  "10.8.0.3/32"
+                ];
+                publicKey = "wgWEB";
+              }
+            ];
+            privateKeyFile = "/run/secrets/vars/from-exports/wg-vpn.key";
+          };
+        };
+      };
+    };
+    services = {
+      zerotierone = {
+        enable = true;
+        joinNetworks = [
+          "ztnet"
+        ];
+      };
+    };
+    systemd = {
+      tmpfiles = {
+        rules = [
+          "L+ /var/lib/zerotier-one/identity.secret - - - - /run/secrets/vars/from-exports/zt-lan.identity"
+        ];
+      };
+    };
+  };
+  web = {
+    environment = {
+      etc = {
+        "zerotier/moons" = {
+          text = "ztmoon1";
+        };
+      };
+    };
+    networking = {
+      wireguard = {
+        interfaces = {
+          vpn = {
+            ips = [
+              "10.8.0.3/32"
+            ];
+            peers = [
+              {
+                allowedIPs = [
+                  "10.8.0.0/24"
+                ];
+                endpoint = "10.0.1.1:51821";
+                publicKey = "wgLB";
+              }
+            ];
+            privateKeyFile = "/run/secrets/vars/from-exports/wg-vpn.key";
+          };
+        };
+      };
+    };
+    services = {
+      zerotierone = {
+        enable = true;
+        joinNetworks = [
+          "ztnet"
+        ];
+      };
+    };
+    systemd = {
+      tmpfiles = {
+        rules = [
+          "L+ /var/lib/zerotier-one/identity.secret - - - - /run/secrets/vars/from-exports/zt-lan-web.identity"
+        ];
+      };
+    };
+  };
+}
+```
+
+dns reads the endpoints that `site` exports:
+
+
+```nix title="result"
+[
+  {
+    name = "www.example.org";
+    target = "web";
+  }
+]
+```
+
+## The contract
+
+A wireguard or zerotier network needs exactly one controller, zerotier allows four moons at most, and a prefix
+must hold its members.
+
+
+```nix title="variants/five-moons.nix"
+# zerotier allows four moons: five machines make five
+{ yen, ... }:
+{
+  yen.machine = {
+    m1.addr = "10.0.2.1";
+    m2.addr = "10.0.2.2";
+    m3.addr = "10.0.2.3";
+    m4.addr = "10.0.2.4";
+    m5.addr = "10.0.2.5";
+  };
+  yen.assembly.crowd = {
+    kit = yen.kit.zerotier;
+    roles = {
+      controller.at = yen.machine.lb;
+      moon.at = yen.kinds.machine;
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "merge conflict at environment.etc.zerotier/moons.text"
+  "merge conflict at services.zerotierone.joinNetworks"
+  "merge conflict at systemd.tmpfiles.rules"
+  "merge conflict at environment.etc.zerotier/moons.text"
+  "merge conflict at services.zerotierone.joinNetworks"
+  "merge conflict at systemd.tmpfiles.rules"
+  "merge conflict at environment.etc.zerotier/moons.text"
+  "merge conflict at services.zerotierone.joinNetworks"
+  "merge conflict at systemd.tmpfiles.rules"
+  "kits: assembly crowd role moon: 8 machines, at most 4"
+  "zerotier: db has no zt-crowd-db.moon public file"
+  "zerotier: lb has no zt-crowd.nwid public file"
+  "zerotier: lb has no zt-crowd-lb.moon public file"
+  "zerotier: m1 has no zt-crowd-m1.moon public file"
+  "zerotier: m2 has no zt-crowd-m2.moon public file"
+  "zerotier: m3 has no zt-crowd-m3.moon public file"
+  "zerotier: m4 has no zt-crowd-m4.moon public file"
+  "zerotier: m5 has no zt-crowd-m5.moon public file"
+  "zerotier: web has no zt-crowd-web.moon public file"
+]
+```
+
+```nix title="result"
+[
+  "kits: assembly headless role controller: 0 machines, at least 1"
+]
+```
+
+```nix title="result"
+[
+  "merge conflict at environment.etc.zerotier/moons.text"
+  "merge conflict at services.zerotierone.joinNetworks"
+  "merge conflict at environment.etc.zerotier/moons.text"
+  "merge conflict at services.zerotierone.joinNetworks"
+  "merge conflict at systemd.tmpfiles.rules"
+  "merge conflict at environment.etc.zerotier/moons.text"
+  "merge conflict at services.zerotierone.joinNetworks"
+  "merge conflict at systemd.tmpfiles.rules"
+  "kits: assembly twin role controller: 3 machines, at most 1"
+  "zerotier: db has no zt-twin.nwid public file"
+  "zerotier: lb has no zt-twin.nwid public file"
+  "zerotier: web has no zt-twin.nwid public file"
+]
+```
+
+```nix title="result"
+[
+  "addresses: 10.8.0.0/30 is not an IPv4 prefix /16 to /24"
+  "wireguard: lb has no wg-tiny.pub public key"
+]
+```
+
+The members of one wireguard assembly must name the same prefix, and every member needs its public file in
+`vars`. A missing file is an error record, never a text in the configuration:
+
+
+```nix title="variants/prefix-differs.nix"
+# the members of one assembly name different prefixes
+{ yen, ... }:
+{
+  yen.assembly.split = {
+    kit = yen.kit.wireguard;
+    roles = {
+      controller = {
+        at = yen.machine.lb;
+        settings.prefix = "10.9.0.0/24";
+      };
+      peer = {
+        at = yen.machine.web;
+        settings.prefix = "10.9.1.0/24";
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "wireguard: assembly split members disagree on prefix"
+  "wireguard: lb has no wg-split.pub public key"
+  "wireguard: web has no wg-split.pub public key"
+]
+```
+
+```nix title="variants/missing-public.nix"
+# a public key file that is not in vars is an error record, never the text "absent"
+{ yen, ... }:
+{
+  yen.assembly.lost = {
+    kit = yen.kit.wireguard;
+    roles.controller = {
+      at = yen.machine.lb;
+      settings.prefix = "10.9.0.0/24";
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "wireguard: lb has no wg-lost.pub public key"
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `kits-network`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#kits-network
+```
+
+<FileTree>
+
+- checks.nix
+- flake.nix
+- modules/
+  - fleet.nix
+  - network.nix
+- variants/
+  - five-moons.nix
+  - missing-public.nix
+  - no-controller.nix
+  - prefix-differs.nix
+  - small-prefix.nix
+  - two-controllers.nix
+- vars/
+  - per-machine/
+    - db/
+      - from-exports/
+        - wg-vpn.pub/
+          - value
+    - lb/
+      - from-exports/
+        - wg-vpn.pub/
+          - value
+        - zt-lan.nwid/
+          - value
+    - web/
+      - from-exports/
+        - wg-vpn.pub/
+          - value
+        - zt-lan-web.moon/
+          - value
+
+</FileTree>
+:::

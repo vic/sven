@@ -16,6 +16,7 @@ let
     isMachine
     nested
     dbFound
+    runsSshd
     rank
     ;
 in
@@ -24,6 +25,7 @@ in
     isMachine.arity = 1; # a host, a mac or a guest
     nested.arity = 1; # a scope under a host (a variant such as lb-minimal, or a guest)
     dbFound.arity = 1; # the host a machine uses as its database has a scope
+    runsSshd.arity = 1; # a machine with a member of the sshd kit's server role
     rank.arity = 2; # an environment's trust: prod 3, lab 2, staging 1
   };
   yen.invariants = {
@@ -51,6 +53,16 @@ in
             pos = [
               (parent H P)
               (kind yen.kinds.host P)
+            ];
+          }
+        )
+        (
+          { H, M }:
+          {
+            head = runsSshd H;
+            pos = [
+              (parent M H)
+              (has yen.aspects.kit-sshd-server M)
             ];
           }
         )
@@ -105,7 +117,7 @@ in
             pos = [ (kind k H) ];
             neg = [
               (nested H)
-              (has yen.aspects.kit-sshd H)
+              (runsSshd H)
             ];
           }
         )

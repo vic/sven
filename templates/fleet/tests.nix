@@ -1212,9 +1212,17 @@ let
             "backup-sshd.server"
             "backup.client"
             "backup.server"
+            "builders.builder"
+            "cache.server"
+            "emergency.default"
+            "metrics.server"
+            "overlay.controller"
+            "pg.server"
+            "ssh-trust.server"
             "sshd.server"
             "svc-a.default"
             "svc-b.default"
+            "vpn.controller"
           ]);
       t2 =
         eq
@@ -1258,6 +1266,7 @@ let
           )
         ))
         ([
+          "root" # the emergency-access kit
           "svc-a"
           "svc-b"
         ]);
@@ -1268,18 +1277,22 @@ let
           "openssh"
           "enable"
         ]
-      )) (1);
+      )) (1); # equal elements of the three server members are one
+      # one run per member scope, delivered to the machine that holds the member (`e.from == e.to` held before kits
+      # ran at member scopes; the exports and generators edges go to the fleet, so only the os edges are checked)
       t2 = yes (
         (
           let
-            es = lib.filter (e: e.origin == "aspect kit-sshd") r.graph.edges;
+            es = lib.filter (e: e.origin == "aspect kit-sshd-server" && e.sink == "os") r.graph.edges;
           in
-          es != [ ] && lib.all (e: e.from == e.to) es
+          es != [ ]
+          && lib.all (e: (scope e.from).parent.id == e.to) es
+          && lib.length es == lib.length (lib.unique (map (e: e.from) es))
         )
       );
       t3 = eq (lib.length (
         lib.filter (s: s.kind == "member" && s.parent.id == lb && s.kit.name == "sshd") r.scopes
-      )) (2);
+      )) (3);
     };
     kits-exports = {
       t1 = eq (nixosAt web1 [
@@ -1289,20 +1302,79 @@ let
         "backup"
         "repo"
       ]) ([ "borg@10.0.1.1:/srv/web-1" ]);
+      # the whole list, in machine then assembly order: one entry per exporting member (servers, controllers, exporters,
+      # not the borg/sshd clients) of every assembly in modules/kits and the sshd assembly on every machine
       t2 =
         eq
           (map (e: "${e.kit.name}:${e.assembly.name}:${e.role}:${e.machine.name}") (
             red "exports" "fleet:main"
           ))
           ([
+            "sshd:sshd:server:app-1"
+            "sshd:sshd:server:app-2"
+            "sshd:sshd:server:app-3"
+            "sshd:sshd:server:app-4"
+            "sshd:sshd:server:lb-minimal"
+            "sshd:backup-sshd:server:lb"
             "borg:backup:server:lb"
+            "remote-builders:builders:builder:lb"
+            "nix-cache:cache:server:lb"
+            "zerotier:overlay:controller:lb"
+            "postgres:pg:server:lb"
+            "sshd:ssh-trust:server:lb"
+            "sshd:sshd:server:lb"
+            "users:svc-a:default:lb"
+            "users:svc-b:default:lb"
+            "wireguard:vpn:controller:lb"
             "site:docs:default:web-1"
+            "monitoring:metrics:exporter:web-1"
+            "users:ops:default:web-1"
+            "zerotier:overlay:moon:web-1"
+            "postgres:pg:client:web-1"
+            "sshd:sshd:server:web-1"
+            "wireguard:vpn:peer:web-1"
+            "monitoring:metrics:exporter:web-2"
+            "zerotier:overlay:peer:web-2"
+            "sshd:sshd:server:web-2"
+            "wireguard:vpn:peer:web-2"
+            "zerotier:overlay:peer:stage"
+            "sshd:sshd:server:stage"
+            "sshd:sshd:server:studio"
           ]);
     };
     kits-exports-owned = {
-      t1 = eq (map (e: e.kit.name) (red "exports" "fleet:main" ++ [ ])) ([
+      # the kit of each export entry, no unique: one entry per exporting member, same order as kits-exports t2
+      t1 = eq (map (e: e.kit.name) (red "exports" "fleet:main")) ([
+        "sshd"
+        "sshd"
+        "sshd"
+        "sshd"
+        "sshd"
+        "sshd"
         "borg"
+        "remote-builders"
+        "nix-cache"
+        "zerotier"
+        "postgres"
+        "sshd"
+        "sshd"
+        "users"
+        "users"
+        "wireguard"
         "site"
+        "monitoring"
+        "users"
+        "zerotier"
+        "postgres"
+        "sshd"
+        "wireguard"
+        "monitoring"
+        "zerotier"
+        "sshd"
+        "wireguard"
+        "zerotier"
+        "sshd"
+        "sshd"
       ]); # a forged export is an error, and an erroring fleet gives no reduced values (D13)
       t2 = yes (
         (
@@ -1410,6 +1482,327 @@ let
           map (v: v.services.borgbackup.jobs.backup.repo or null) (list (x.reduced.nixos.${web1} or null))
         )
       );
+    # services-like kits of the library (modules/kits/services.nix): what each client reads from its own assembly
+    svc-builders =
+      let
+        x = with' (
+          { yen, ... }:
+          {
+            yen.assembly.builders2 = {
+              kit = yen.kit.remote-builders;
+              roles = {
+                builder.at = [
+                  yen.host.web-2
+                  yen.host.stage
+                ];
+                client.at = yen.host.stage;
+              };
+            };
+          }
+        );
+        bm =
+          id:
+          lib.filter (v: v != [ ]) (
+            lib.filter (v: v != null) (
+              map (at [
+                "nix"
+                "buildMachines"
+              ]) (list (x.reduced.nixos.${id} or null))
+            )
+          );
+      in
+      {
+        t1 = eq (bm web1) ([
+          [
+            {
+              hostName = "10.0.1.1";
+              speedFactor = 4;
+              systems = [ "x86_64-linux" ];
+            }
+          ]
+        ]);
+        t2 = no (lib.any (m: lib.any (b: b.hostName == "10.0.1.1") m) (bm lb)); # a machine never builds on itself
+        t3 = eq (map (m: map (b: b.hostName) m) (bm stage)) ([ [ "10.0.1.11" ] ]); # an assembly never reads another's builders
+        t4 = eq (map (m: map (b: b.hostName) m) (bm web1)) ([ [ "10.0.1.1" ] ]);
+      };
+    svc-cache =
+      let
+        x = with' (
+          { yen, ... }:
+          {
+            yen.assembly.cache-b = {
+              kit = yen.kit.nix-cache;
+              roles = {
+                server.at = yen.host.web-2;
+                client.at = yen.host.stage;
+              };
+            };
+          }
+        );
+        subs =
+          id:
+          lib.concatMap (at [
+            "nix"
+            "settings"
+            "substituters"
+          ]) (list (x.reduced.nixos.${id} or null));
+      in
+      {
+        t1 = eq (nixosAt web1 [
+          "nix"
+          "settings"
+          "substituters"
+        ]) ([ [ "http://10.0.1.1:5000" ] ]);
+        t2 = eq (nixosAt web1 [
+          "nix"
+          "settings"
+          "trusted-public-keys"
+        ]) ([ [ "lb-cache-1:AAAA" ] ]);
+        t3 =
+          eq
+            (lib.filter (v: v != null) (
+              map (at [
+                "nix"
+                "settings"
+                "substituters"
+              ]) (list (x.reduced.nixos.${stage} or null))
+            ))
+            ([
+              [ "http://10.0.1.11:5000" ]
+            ]); # per assembly: stage reads cache-b only
+        t4 = eq (red "generators" "fleet:main")."nix-cache-cache@lb".files ({
+          "cache-key.pem".secret = true;
+          "cache-key.pub".secret = false;
+        });
+        t5 = yes (lib.any (f: f.file == "cache-key.pem") out.varsPlan.lb.files);
+        t6 = no (lib.any (f: f.file == "cache-key.pub") out.varsPlan.lb.files);
+        # the public key is read from the generated file, per assembly
+        t7 = eq (lib.filter (v: v != null) (
+          map (at [
+            "nix"
+            "settings"
+            "trusted-public-keys"
+          ]) (list (x.reduced.nixos.${stage} or null))
+        )) [ [ "web-2-cache-1:BBBB" ] ];
+        # the server serves with the secret key as a path only
+        t8 = eq (nixosAt lb [
+          "services"
+          "harmonia"
+          "signKeyPaths"
+        ]) ([ [ "/run/secrets/vars/nix-cache-cache/cache-key.pem" ] ]);
+        # a server with no generated public file is an error record
+        t9 = yes (
+          hasMsg (with' (
+            { yen, ... }:
+            {
+              yen.assembly.nokey = {
+                kit = yen.kit.nix-cache;
+                roles.server.at = yen.host.web-2;
+              };
+            }
+          )) ".*nix-cache: web-2 has no nix-cache-nokey/cache-key.pub public key.*"
+        );
+        t10 = no (hasMsg r ".*nix-cache: .*");
+      };
+    svc-metrics =
+      let
+        jobs = lib.concatMap (js: js) (
+          nixosAt lb [
+            "services"
+            "prometheus"
+            "scrapeConfigs"
+          ]
+        );
+        job = n: lib.findFirst (j: j.job_name == n) null jobs;
+        x = with' (
+          { yen, ... }:
+          {
+            yen.assembly.metrics2 = {
+              kit = yen.kit.monitoring;
+              roles = {
+                server.at = yen.host.stage;
+                exporter.at = yen.host.web-1;
+              };
+            };
+          }
+        );
+      in
+      {
+        t4 = eq (map (j: j.job_name) (
+          lib.concatMap (lib.attrByPath
+            [
+              "services"
+              "prometheus"
+              "scrapeConfigs"
+            ]
+            [ ]
+          ) (list (x.reduced.nixos.${stage} or null))
+        )) [ "web-1" ]; # a server reads the exporters of its own assembly only
+        t1 = eq ((job "web-2").static_configs) ([ { targets = [ "10.0.1.11:9100" ]; } ]);
+        t2 = yes (job "web-1" != null);
+        t3 = eq (nixosAt web2 [
+          "services"
+          "prometheus"
+          "exporters"
+          "node"
+          "port"
+        ]) ([ 9100 ]);
+      };
+    svc-postgres = {
+      t1 = yes (
+        lib.elem [ "shop" ] (
+          nixosAt lb [
+            "services"
+            "postgresql"
+            "ensureDatabases"
+          ]
+        )
+      );
+      t2 = yes (
+        lib.elem [ { name = "shop"; } ] (
+          nixosAt lb [
+            "services"
+            "postgresql"
+            "ensureUsers"
+          ]
+        )
+      );
+      t3 = eq (nixosAt web1 [
+        "environment"
+        "etc"
+        "postgres/shop.dsn"
+        "text"
+      ]) ([ "postgresql://shop@10.0.1.1:5432/shop" ]);
+      # the server lets in the address of its own assembly's client (web-1), and of no other
+      t4 = eq (nixosAt lb [
+        "services"
+        "postgresql"
+        "authentication"
+      ]) ([ "host shop shop 10.0.1.10/32 trust\n" ]);
+      t5 = eq (nixosAt lb [
+        "services"
+        "postgresql"
+        "enableTCPIP"
+      ]) ([ true ]);
+      # a client of another assembly gets no access line on this server
+      t6 =
+        let
+          x = with' (
+            { yen, ... }:
+            {
+              yen.assembly.pg2 = {
+                kit = yen.kit.postgres;
+                roles = {
+                  server.at = yen.host.stage;
+                  client = {
+                    at = yen.host.web-2;
+                    settings = {
+                      database = "other";
+                      user = "other";
+                    };
+                  };
+                };
+              };
+            }
+          );
+          auth =
+            id:
+            lib.filter (v: v != null) (
+              map (at [
+                "services"
+                "postgresql"
+                "authentication"
+              ]) (list (x.reduced.nixos.${id} or null))
+            );
+        in
+        {
+          t1 = eq (auth lb) ([ "host shop shop 10.0.1.10/32 trust\n" ]);
+          t2 = eq (auth stage) ([ "host other other 10.0.1.11/32 trust\n" ]);
+        };
+    };
+    svc-wifi-psk = {
+      t1 = eq ((red "generators" "fleet:main")."wifi.wifi".files) ({
+        "psk.home".secret = true;
+        "psk.office".secret = true;
+      });
+      # another assembly's networks get their own files and none of wifi's
+      t2 =
+        let
+          x = with' (
+            { yen, ... }:
+            {
+              yen.assembly.wifi2 = {
+                kit = yen.kit.wifi;
+                roles.default = {
+                  at = yen.host.web-2;
+                  settings.networks.lab = { };
+                };
+              };
+            }
+          );
+        in
+        eq ((x.reduced.generators."fleet:main")."wifi.wifi2".files) ({
+          "psk.lab".secret = true;
+        });
+    };
+    svc-contract =
+      let
+        e = with' (
+          { yen, ... }:
+          {
+            yen.assembly = {
+              cache2 = {
+                kit = yen.kit.nix-cache;
+                roles.server = {
+                  at = [
+                    yen.host.web-1
+                    yen.host.web-2
+                  ];
+                };
+              };
+              lonely = {
+                kit = yen.kit.postgres;
+                roles = {
+                  server.at = _: false;
+                  client = {
+                    at = yen.host.web-1;
+                    settings = {
+                      database = "d";
+                      user = "u";
+                    };
+                  };
+                };
+              };
+              pg3 = {
+                kit = yen.kit.postgres;
+                roles = {
+                  server.at = yen.host.lb;
+                  client = {
+                    at = yen.host.web-2;
+                    settings = {
+                      database = 42;
+                      user = "u";
+                    };
+                  };
+                };
+              };
+              cache4 = {
+                kit = yen.kit.nix-cache;
+                roles.server = {
+                  at = yen.host.web-2;
+                  settings.port = 70000;
+                };
+              };
+            };
+          }
+        );
+      in
+      {
+        t1 = yes (hasMsg e ".*cache2 role server: 2 machines, at most 1.*");
+        t2 = yes (hasMsg e ".*lonely role server: 0 machines, at least 1.*");
+        t3 = yes (hasMsg e ".*pg3.client: setting database is not a string.*");
+        t4 = yes (hasMsg e ".*cache4.server: setting port is not.*");
+      };
     vars-plan =
       let
         p = out.varsPlan.web-1;
@@ -1439,9 +1832,15 @@ let
       };
     vars-export-generators = {
       t1 = eq ((red "generators" "fleet:main")."from-exports@web-1".files) ({
-        "borg.known_hosts".secret = false;
+        "borg.known_hosts".secret = false; # the borg server's, deployed to its clients
+        "wg-vpn.key".secret = true;
+        "wg-vpn.pub".secret = false;
+        "zt-overlay-web-1.identity".secret = true;
+        "zt-overlay-web-1.moon".secret = false;
       });
-      t2 = no (((red "generators" "fleet:main") ? "from-exports@web-2"));
+      # web-2 is a borg client: `deploy` of the server's known-hosts generator is the clients' `at` (lib/kits/borg.nix:48)
+      t2 = yes ((red "generators" "fleet:main")."from-exports@web-2".files ? "borg.known_hosts");
+      t3 = no (((red "generators" "fleet:main") ? "from-exports@studio")); # a mac is no borg client
     };
     vars-secret-read = yes (
       hasMsg (with' (
@@ -1490,6 +1889,200 @@ let
         target = "web-1";
       }
     ]);
+    kits-dns =
+      let
+        x = with' (
+          { yen, ... }:
+          {
+            yen.assembly.blog = {
+              kit = yen.kit.site;
+              roles.default.at = yen.host.web-2;
+            };
+          }
+        );
+      in
+      {
+        # a kit that exports endpoints gets a record
+        t1 = eq (x.flake.cnames) ([
+          {
+            name = "docs.example.org";
+            target = "web-1";
+          }
+          {
+            name = "blog.example.org";
+            target = "web-2";
+          }
+        ]);
+        # kits that export no endpoints (borg, wireguard, ...) give none: one cname per site assembly
+        t2 = eq (lib.length out.cnames) (1);
+      };
+    network-wireguard =
+      let
+        wg =
+          id:
+          nixosAt id [
+            "networking"
+            "wireguard"
+            "interfaces"
+            "vpn"
+          ];
+        one = id: first (wg id);
+      in
+      {
+        t1 = eq (map (i: i.ips) (wg lb)) ([ [ "10.8.0.1/32" ] ]);
+        t2 = eq (map (p: p.allowedIPs) (one lb).peers) ([
+          [ "10.8.0.2/32" ]
+          [ "10.8.0.3/32" ]
+        ]);
+        t3 = eq (one web1).peers ([
+          {
+            publicKey = "wgLB";
+            allowedIPs = [ "10.8.0.0/24" ];
+            endpoint = "10.0.1.1:51820";
+          }
+        ]);
+        t4 = eq (map (i: i.privateKeyFile) (wg web1)) ([ "/run/secrets/vars/from-exports/wg-vpn.key" ]);
+        t5 = yes (lib.any (f: f.file == "wg-vpn.key") out.varsPlan.web-1.files);
+        t6 = no (lib.any (f: f.file == "wg-vpn.pub") out.varsPlan.web-1.files);
+      };
+    network-zerotier =
+      let
+        zt =
+          id:
+          first (
+            nixosAt id [
+              "services"
+              "zerotierone"
+            ]
+          );
+      in
+      {
+        t1 = eq (zt web2) ({
+          enable = true;
+          joinNetworks = [ "ztnet" ];
+        });
+        t2 = eq (nixosAt web2 [
+          "environment"
+          "etc"
+          "zerotier/moons"
+          "text"
+        ]) ([ "ztmoon1" ]);
+        t3 = eq (nixosAt stage [
+          "systemd"
+          "tmpfiles"
+          "rules"
+        ]) ([ ]);
+        t4 =
+          eq
+            (nixosAt web1 [
+              "systemd"
+              "tmpfiles"
+              "rules"
+            ])
+            ([
+              [
+                "L+ /var/lib/zerotier-one/identity.secret - - - - /run/secrets/vars/from-exports/zt-overlay-web-1.identity"
+              ]
+            ]);
+      };
+    network-contract =
+      let
+        w =
+          name: roles:
+          with' (
+            { yen, ... }:
+            {
+              yen.assembly.${name} = {
+                kit = yen.kit.wireguard;
+                roles = lib.mapAttrs (_: at: {
+                  inherit at;
+                  settings.prefix = "10.9.0.0/24";
+                }) roles;
+              };
+            }
+          );
+        z =
+          name: moon:
+          with' (
+            { yen, ... }:
+            {
+              yen.assembly.${name} = {
+                kit = yen.kit.zerotier;
+                roles.controller.at = yen.host.lb;
+                roles.moon.at = moon yen;
+              };
+            }
+          );
+      in
+      {
+        t1 = yes (
+          hasMsg (w "wg0" {
+            controller = _: false;
+          }) ".*assembly wg0 role controller: 0 machines, at least 1.*"
+        );
+        t2 = yes (
+          hasMsg (w "wg2" {
+            controller = lib.const true;
+          }) ".*assembly wg2 role controller: [0-9]+ machines, at most 1.*"
+        );
+        t3 = yes (
+          hasMsg (z "zt5" (yen: yen.kinds.host)) ".*assembly zt5 role moon: [0-9]+ machines, at most 4.*"
+        );
+        t4 = no (hasMsg (z "zt1" (yen: yen.host.web-1)) ".*assembly zt1 role.*");
+        # a public file that is not in vars is an error record, never the text "absent"
+        t6 = yes (hasMsg (z "zt1" (yen: yen.host.web-1)) "zerotier: lb has no zt-zt1.nwid public file");
+        t7 = yes (
+          hasMsg (with' (
+            { yen, ... }:
+            {
+              yen.assembly.wgkey = {
+                kit = yen.kit.wireguard;
+                roles.controller = {
+                  at = yen.host.lb;
+                  settings.prefix = "10.9.0.0/24";
+                };
+                roles.peer = {
+                  at = yen.host.web-1;
+                  settings.prefix = "10.9.0.0/24";
+                };
+              };
+            }
+          )) "wireguard: web-1 has no wg-wgkey.pub public key"
+        );
+        # members of one assembly that name different prefixes
+        t8 = yes (
+          hasMsg (with' (
+            { yen, ... }:
+            {
+              yen.assembly.wgdiff = {
+                kit = yen.kit.wireguard;
+                roles.controller = {
+                  at = yen.host.lb;
+                  settings.prefix = "10.9.0.0/24";
+                };
+                roles.peer = {
+                  at = yen.host.web-1;
+                  settings.prefix = "10.9.1.0/24";
+                };
+              };
+            }
+          )) "wireguard: assembly wgdiff members disagree on prefix"
+        );
+        t5 = yes (
+          hasMsg (with' (
+            { yen, ... }:
+            {
+              yen.assembly.wgsmall = {
+                kit = yen.kit.wireguard;
+                roles.controller = {
+                  at = yen.host.lb;
+                  settings.prefix = "10.9.0.0/30";
+                };
+              };
+            }
+          )) ".*addresses: 10.9.0.0/30 is not an IPv4 prefix.*"
+        );
+      };
     vars-deploy-false = {
       t1 = no (lib.any (f: f.file == "ca-key") out.varsPlan.stage.files);
       t2 = yes (lib.any (f: f.file == "password") out.varsPlan.stage.files);
@@ -1756,7 +2349,7 @@ let
       t1 = eq (r.schema.kinds.host.sinks.deploy.reduce) ("one");
       t2 = eq (r.schema.kinds.environment.sinks.k3s-nodes.reduce) ("entries");
       t3 = eq (b.elem "sshd" (lib.attrNames r.schema.aspects)) (false);
-      t4 = yes (r.schema.aspects.kit-sshd.activeAt > 0);
+      t4 = yes (r.schema.aspects.kit-sshd-server.activeAt > 0);
       t5 = eq (b.fromJSON (b.toJSON r.agent)) (r.agent);
     };
     agent-whynot =
@@ -2023,6 +2616,103 @@ let
             ]
           ];
         });
+    # install and deploy kits (modules/kits/install.nix): disko layouts, install-<machine> and rebuild-<machine> apps
+    disko-install-apps = {
+      t1 = eq (lib.filter (lib.hasPrefix "install-") (lib.attrNames out.apps.x86_64-linux)) ([
+        "install-stage"
+        "install-web-1"
+        "install-web-2"
+      ]);
+      t2 = yes (out.apps.x86_64-linux ? rebuild-web-2);
+      t3 = eq (out.apps.x86_64-linux.install-stage.type) ("app");
+    };
+    disko-layouts = {
+      t1 = eq (nixosAt stage [
+        "disko"
+        "devices"
+        "disk"
+        "main"
+        "device"
+      ]) ([ "/dev/sda" ]);
+      t2 =
+        eq
+          (nixosAt web1 [
+            "disko"
+            "devices"
+            "disk"
+            "main"
+            "content"
+            "partitions"
+            "luks"
+            "content"
+            "type"
+          ])
+          ([
+            "luks"
+          ]);
+      t3 = eq (nixosAt web2 [
+        "disko"
+        "devices"
+        "disk"
+        "d1"
+        "device"
+      ]) ([ "/dev/sdb" ]);
+      t4 = eq (nixosAt web2 [
+        "disko"
+        "devices"
+        "zpool"
+        "tank"
+        "mode"
+      ]) ([ "mirror" ]);
+    };
+    disko-layout-string-refused = yes (
+      hasMsg (with' (
+        { yen, ... }:
+        {
+          yen.assembly.disk-bad = {
+            kit = yen.kit.disko;
+            roles.default = {
+              at = yen.host.lb;
+              settings = {
+                device = "/dev/sda";
+                layout = "single-ext4";
+              };
+            };
+          };
+        }
+      )) "kits: disk-bad.default: setting layout is not a .*"
+    );
+    facter-kit =
+      let
+        e = with' (
+          { yen, ... }:
+          {
+            imports = [ inputs.yen.lib.kits.facter ];
+            yen.assembly.facts-lb = {
+              kit = yen.kit.facter;
+              roles.default = {
+                at = yen.host.lb;
+                settings.dir = ./hardware;
+              };
+            };
+          }
+        );
+        paths =
+          id:
+          lib.filter (v: v != null) (
+            map (at [
+              "hardware"
+              "facter"
+              "reportPath"
+            ]) (list (e.reduced.nixos.${id} or null))
+          );
+      in
+      {
+        t1 = eq (map (x: lib.removePrefix (toString ./.) (toString x)) (paths lb)) ([
+          "/hardware/lb.json"
+        ]);
+        t2 = eq (paths web1) ([ ]); # a machine outside the assembly gets no report
+      };
     kits-install-order =
       let
         w = r.ask "installOrder" { assembly = "backup"; };
@@ -2094,6 +2784,135 @@ let
           ".*badtype.default: setting user is not a string.*"
         ]
       );
+    kits-access-known-hosts = {
+      t1 = eq (nixosAt web1 [
+        "programs"
+        "ssh"
+        "knownHosts"
+        "lb"
+        "hostNames"
+      ]) ([ [ "lb" ] ]);
+      # a server whose public key file is missing: an error record, no throw
+      t2 =
+        let
+          e = with' (
+            { yen, ... }:
+            {
+              yen.assembly.no-key = {
+                kit = yen.kit.sshd;
+                roles = {
+                  server.at = yen.host.web-2;
+                  client = {
+                    at = yen.host.web-1;
+                    settings.root = ./vars/per-machine;
+                  };
+                };
+              };
+            }
+          );
+        in
+        eq (lib.filter (m: lib.hasPrefix "known-hosts" m) (msgs e)) ([
+          "known-hosts: web-2 has no openssh/ssh.id_ed25519.pub public key"
+        ]);
+      # sshd with no server: the machine count, and a client alone
+      t3 =
+        let
+          e = with' (
+            { yen, ... }:
+            {
+              yen.assembly = {
+                none = {
+                  kit = yen.kit.sshd;
+                  roles.server.at = _: false;
+                };
+                alone = {
+                  kit = yen.kit.sshd;
+                  roles.client = {
+                    at = yen.host.web-2;
+                    settings.root = ./vars/per-machine;
+                  };
+                };
+              };
+            }
+          );
+        in
+        eq (lib.filter (m: lib.hasPrefix "sshd" m || lib.hasInfix "role server" m) (msgs e)) ([
+          "kits: assembly none role server: 0 machines, at least 1"
+          "sshd: alone.client has no server in its assembly"
+        ]);
+      t4 = yes (
+        hasMsg (with' (
+          { yen, ... }:
+          {
+            yen.assembly.no-root = {
+              kit = yen.kit.sshd;
+              roles = {
+                server.at = yen.host.lb;
+                client.at = yen.host.web-1;
+              };
+            };
+          }
+        )) ".*no-root.client: setting root is not a absolute path.*"
+      );
+    };
+    kits-access-users = {
+      t1 = eq (nixosAt web1 [
+        "users"
+        "users"
+        "ops"
+        "extraGroups"
+      ]) ([ [ "wheel" ] ]);
+      t2 = eq (nixosAt lb [
+        "users"
+        "users"
+        "ops"
+      ]) ([ ]);
+      # the hash is a secret of the machine of its member and no other
+      t3 = yes (
+        lib.elem "/run/secrets-for-users/vars/user-ops/hash" (map (f: f.path) out.varsPlan.web-1.files)
+      );
+      t4 = no (
+        lib.elem "/run/secrets-for-users/vars/user-ops/hash" (map (f: f.path) out.varsPlan.lb.files)
+      );
+      # the same user in two assemblies on one machine
+      t5 =
+        let
+          e = with' (
+            { yen, ... }:
+            {
+              yen.assembly.dup = {
+                kit = yen.kit.users;
+                roles.default = {
+                  at = yen.host.lb;
+                  settings.user = "svc-a";
+                };
+              };
+            }
+          );
+        in
+        eq (lib.filter (m: lib.hasPrefix "users:" m) (msgs e)) ([
+          "users: svc-a is set by assemblies dup and svc-a on lb"
+        ]);
+    };
+    kits-access-emergency = {
+      t1 = eq (nixosAt lb [
+        "users"
+        "users"
+        "root"
+        "openssh"
+        "authorizedKeys"
+        "keys"
+      ]) ([ [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBreakGlassKeyNotReal admin" ] ]);
+      # only a machine that holds a member
+      t2 = eq (nixosAt web1 [
+        "users"
+        "users"
+        "root"
+      ]) ([ ]);
+      t3 = eq (lib.concatMap (g: g.machines) (
+        lib.filter (g: g.name == "emergency-root") (lib.attrValues (red "generators" "fleet:main"))
+      )) ([ "lb" ]);
+    };
     vars-generators = {
       t1 = eq (noApps (lib.sort (a: b: a < b) (lib.attrNames (red "generators" "fleet:main")))) ([
         "borg-backup@lb"
@@ -2101,14 +2920,24 @@ let
         "borg-backup@stage"
         "borg-backup@web-1"
         "borg-backup@web-2"
+        "emergency-root@lb"
+        "from-exports@lb"
+        "from-exports@lb-minimal"
+        "from-exports@stage"
         "from-exports@web-1"
+        "from-exports@web-2"
+        "nix-cache-cache@lb"
         "openssh@lb"
         "openssh@lb-minimal"
         "openssh@stage"
         "openssh@studio"
         "openssh@web-1"
         "openssh@web-2"
+        "user-ops@web-1"
+        "user-svc-a@lb"
+        "user-svc-b@lb"
         "wifi.home"
+        "wifi.wifi"
       ]);
       t2 = yes (
         hasMsg (with' (
@@ -2128,18 +2957,19 @@ let
       );
     };
     vars-public-value = {
-      t1 = eq (osAt lb [
-        "environment"
-        "etc"
-        "ssh/host-key.pub"
-        "text"
+      # the public key of lb is read from vars/per-machine by the sshd client of web-1 (kits-access-known-hosts)
+      t1 = eq (nixosAt web1 [
+        "programs"
+        "ssh"
+        "knownHosts"
+        "lb"
+        "publicKey"
       ]) ([ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFleetTestKeyNotReal lb" ]);
-      t2 = eq (osAt web1 [
-        "environment"
-        "etc"
-        "ssh/host-key.pub"
-        "text"
-      ]) ([ "absent" ]);
+      t2 = eq (nixosAt lb [
+        "programs"
+        "ssh"
+        "knownHosts"
+      ]) ([ ]);
     };
     vars-autoinclude = {
       t1 = yes (

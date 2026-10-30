@@ -371,9 +371,9 @@ result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 | aspect factories; an aspect checked alone with stand-in args; one DNS edge at most | sini | [sini/joins.nix](modules/sini/joins.nix) |
 | merge strategy per key with provenance and refs; claim dedup; negation; demand cascade; shadowing query; suppression chain | den-hoag CI | [hoag/ci.nix](modules/hoag/ci.nix) |
 | assemblies of kits × roles, once per assembly and once per machine, layered typed settings, contract errors | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [kits/kits.nix](modules/kits/kits.nix) |
-| exports: scoped by the engine, allow-listed per kit, read across kits, overridden by the owner | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [services/borg.nix](services/borg.nix) |
+| exports: scoped by the engine, allow-listed per kit, read across kits, overridden by the owner | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [lib/kits/borg.nix](../../lib/kits/borg.nix) |
 | vars: generator graph, shared or per machine, a deploy plan as data, secret-read guard | clan | [kits/vars.nix](modules/kits/vars.nix) |
-| machines from directories, a kit from outside `modules/` | clan | [kits/vars.nix](modules/kits/vars.nix), [services/borg.nix](services/borg.nix) |
+| machines from directories, a kit from outside `modules/` | clan | [kits/vars.nix](modules/kits/vars.nix), [lib/kits/borg.nix](../../lib/kits/borg.nix) |
 | deploy waves, impact of losing a host, a dependency cycle as an error (`yen.lib.graphs`) | den-hoag | [hoag/relations.nix](modules/hoag/relations.nix) |
 | a serving policy with maintenance, drain by dependency, a primary chosen by stable models (`yen.lib.datalog`) | Gen | [query/datalog.nix](modules/query/datalog.nix) |
 | port allocation, guest memory, database placement, a query run backward (`yen.lib.krn` with finite domains) | µKanren, CLP(FD) | [query/krn.nix](modules/query/krn.nix) |
@@ -464,7 +464,7 @@ Three families of Den bugs cannot happen in yen:
 | `perMachine` | an aspect at a machine that `has` a member | [kits/kits.nix](modules/kits/kits.nix) |
 | role settings, then machine settings, typed by the role interface | interface defaults, then the role's settings (attrs, or a function of the machine); a wrong type is an error record | [kits/assemblies.nix](modules/kits/assemblies.nix) |
 | exports, `selectExports`, scope rules | a fleet sink; the engine sets the writer; a kit lists its keys; a reader filters by refs (`yen.lib.same`); the owner overrides from the fleet scope | [kits/assemblies.nix](modules/kits/assemblies.nix) |
-| a service from another flake (`module.input`) | a module file that declares a kit, imported | [services/borg.nix](services/borg.nix) |
+| a service from another flake (`module.input`) | a module file that declares a kit, imported | [lib/kits/borg.nix](../../lib/kits/borg.nix) |
 | vars generators, `share`, dependencies, `neededFor`, `deploy = false`, recipients | the `generators` sink and `out.varsPlan` | [kits/vars.nix](modules/kits/vars.nix) |
 | autoincludes from `machines/<name>/` | a host per directory (field `fromDir`), its `configuration.nix` imported | [kits/vars.nix](modules/kits/vars.nix) |
 
@@ -551,7 +551,7 @@ All of them at once, in parallel: `fastest-tests` in the devshell (`nix develop 
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 29 kinds, 195 aspects, 991 routed elements.
+Generated from the fleet's queries: 112 scopes, 30 kinds, 215 aspects, 1066 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
 | `assembly` | `kit`, `roles` |  |  | 0 |
@@ -563,16 +563,17 @@ Generated from the fleet's queries: 87 scopes, 29 kinds, 195 aspects, 991 routed
 | `domain` | `mail`, `under` | `domain` |  | 3 |
 | `environment` | `base`, `delegates`, `dns`, `edge`, `grants`, `monitoring`, `settings`, `unifi` | `cluster`, `host`, `mac`, `phone` | `backends`, `idm-users`, `k3s-nodes`, `mesh-peers`, `port-forwards`, `terraform`, `terranix`, `unifi` | 3 |
 | `export` |  |  | `os` | 1 |
-| `fleet` | `recipients`, `secretStore` | `database`, `domain`, `environment`, `export`, `hive`, `home`, `replica`, `system` | `certificate-domains`, `ci`, `class-members`, `colmena`, `connect-claims`, `db-claims`, `dns-records`, `dns-zones`, `exports`, `flake-file`, `gateway-upstreams`, `generators`, `globals`, `host-addrs`, `inference-clients`, `infra`, `monitoring-ingest`, `nodes`, `out`, `overlays`, `peer-dev`, `public-reads`, `records`, `replicate-home`, `route-claims`, `scrape`, `secret-claims`, `served-domains`, `syncthing-peers`, `templates`, `token-claims`, `unit-checks`, `user-packages`, `vars`, `xmsg-nodes` | 1 |
+| `fleet` | `recipients`, `secretStore` | `database`, `domain`, `environment`, `export`, `hive`, `home`, `replica`, `system` | `builders`, `certificate-domains`, `ci`, `class-members`, `colmena`, `connect-claims`, `db-claims`, `dns-records`, `dns-zones`, `exports`, `flake-file`, `gateway-upstreams`, `generators`, `globals`, `host-addrs`, `inference-clients`, `infra`, `monitoring-ingest`, `nodes`, `out`, `overlays`, `peer-dev`, `public-reads`, `records`, `replicate-home`, `route-claims`, `scrape`, `secret-claims`, `served-domains`, `syncthing-peers`, `templates`, `token-claims`, `unit-checks`, `user-packages`, `vars`, `xmsg-nodes` | 1 |
 | `group` | `label`, `members` |  |  | 0 |
 | `guest` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `on`, `passthrough`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `user` | `age-secrets`, `nixos`, `os`, `persist`, `unfree` | 1 |
 | `hive` | `environment` |  | `meta` | 2 |
 | `home` | `channel`, `on`, `system`, `user` | `user` | `homeManager`, `os` | 2 |
-| `host` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `backup`, `guest`, `home`, `host`, `member`, `pet`, `user`, `variant` | `age-secrets`, `aspect-settings`, `deploy`, `dev`, `fw`, `fw-tcp`, `isNixos`, `monitor`, `nixos`, `os`, `osConfig`, `pairs`, `persist`, `platform`, `service-domains`, `tags`, `tuning`, `unfree` | 9 |
+| `host` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `backup`, `guest`, `home`, `host`, `member`, `pet`, `user`, `variant` | `age-secrets`, `aspect-settings`, `deploy`, `dev`, `disks`, `fw`, `fw-tcp`, `isNixos`, `monitor`, `nixos`, `os`, `osConfig`, `pairs`, `persist`, `platform`, `service-domains`, `tags`, `tuning`, `unfree` | 9 |
 | `kit` | `adds`, `constraints`, `exports`, `roles` |  |  | 0 |
+| `layout` | `devices` |  |  | 0 |
 | `mac` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` | `member`, `user` | `darwin`, `os` | 1 |
 | `machine` | `addr`, `apps`, `buildHost`, `builder`, `channel`, `dbOn`, `dbRole`, `demands`, `dependsOn`, `environment`, `fromDir`, `gates`, `grants`, `maintenance`, `minimal`, `motd`, `portBefore`, `portRange`, `ram`, `ramFuel`, `ramRange`, `ramReserve`, `secretStore`, `settings`, `sharedPkgs`, `system`, `system-owner`, `tokens`, `trimmedModules`, `unpersist`, `validTo`, `via` |  |  | 0 |
-| `member` |  |  |  | 26 |
+| `member` |  |  |  | 51 |
 | `pet` | `of` | `toy` |  | 2 |
 | `phone` | `channel`, `environment`, `system` | `user` | `droid`, `homeManager` | 1 |
 | `region` | `zone` |  |  | 0 |
@@ -631,19 +632,42 @@ flowchart LR
   ncfc94105eb{{"backup-sshd.server"}}
   n0970bac0a6{{"backup.client"}}
   n098e9b5bd6{{"backup.server"}}
+  n735c020ff7{{"builders.builder"}}
+  nc1f2fd4d23{{"cache.server"}}
+  n3e58d17e47{{"emergency.default"}}
+  n0d00a8a17d{{"metrics.server"}}
+  n154bc4ae6c{{"overlay.controller"}}
+  n48157ee828{{"pg.server"}}
+  n64e5f10e3a{{"ssh-trust.server"}}
   n0f9a4fe1ad{{"sshd.server"}}
   n72a161654c{{"svc-a.default"}}
   n70b6ad1c8a{{"svc-b.default"}}
+  nec06f17edd{{"vpn.controller"}}
   na830f4b8b8(("alice"))
   n3459c6cb2f["debug"]
   n4fa72356c7["nightly"]
   n12224d54f1{{"backup.client"}}
+  ned4a91aed7{{"builders.client"}}
+  n3bf073ce41{{"cache.client"}}
+  na8ee28ece1{{"disk-web-1.default"}}
   nb080ec254e{{"docs.default"}}
+  n8261615521{{"metrics.exporter"}}
+  n18715795e0{{"ops.default"}}
+  n268a16a4d2{{"overlay.moon"}}
+  n64a25319a7{{"pg.client"}}
+  n9504206cca{{"ssh-trust.client"}}
   n0a71d13528{{"sshd.server"}}
+  ne3d4d0843b{{"vpn.peer"}}
   nc7ac250ac5(("alice"))
   nb74b34b11d["nightly"]
   n32c7676c59{{"backup.client"}}
+  nb7180e2175{{"builders.client"}}
+  nef79895f26{{"cache.client"}}
+  n75254f2951{{"disk-web-2.default"}}
+  nd9b6ae7da0{{"metrics.exporter"}}
+  n1fdcad414a{{"overlay.peer"}}
   nc3a2134b9b{{"sshd.server"}}
+  nd1714acee5{{"vpn.peer"}}
   nc13f188ca9(("alice"))
   subgraph n6a42316005 ["environment staging"]
     n6d0ac6bdcf["stage"]
@@ -656,6 +680,8 @@ flowchart LR
   nc323d02327[/"alice@stage"/]
   ndcbb655952(("alice"))
   n30ba2a2e3b{{"backup.client"}}
+  n5a3b85798f{{"disk-stage.default"}}
+  n528d6328fc{{"overlay.peer"}}
   n6eb5b2084b{{"sshd.server"}}
   nf2e1c7f95c{{"wifi.default"}}
   n9dc8501632["fido"]
@@ -710,19 +736,42 @@ flowchart LR
   nc1312ce7ae --> ncfc94105eb
   nc1312ce7ae --> n0970bac0a6
   nc1312ce7ae --> n098e9b5bd6
+  nc1312ce7ae --> n735c020ff7
+  nc1312ce7ae --> nc1f2fd4d23
+  nc1312ce7ae --> n3e58d17e47
+  nc1312ce7ae --> n0d00a8a17d
+  nc1312ce7ae --> n154bc4ae6c
+  nc1312ce7ae --> n48157ee828
+  nc1312ce7ae --> n64e5f10e3a
   nc1312ce7ae --> n0f9a4fe1ad
   nc1312ce7ae --> n72a161654c
   nc1312ce7ae --> n70b6ad1c8a
+  nc1312ce7ae --> nec06f17edd
   nc1312ce7ae --> na830f4b8b8
   nc1312ce7ae --> n3459c6cb2f
   n348d430633 --> n4fa72356c7
   n348d430633 --> n12224d54f1
+  n348d430633 --> ned4a91aed7
+  n348d430633 --> n3bf073ce41
+  n348d430633 --> na8ee28ece1
   n348d430633 --> nb080ec254e
+  n348d430633 --> n8261615521
+  n348d430633 --> n18715795e0
+  n348d430633 --> n268a16a4d2
+  n348d430633 --> n64a25319a7
+  n348d430633 --> n9504206cca
   n348d430633 --> n0a71d13528
+  n348d430633 --> ne3d4d0843b
   n348d430633 --> nc7ac250ac5
   n83e8ed4efa --> nb74b34b11d
   n83e8ed4efa --> n32c7676c59
+  n83e8ed4efa --> nb7180e2175
+  n83e8ed4efa --> nef79895f26
+  n83e8ed4efa --> n75254f2951
+  n83e8ed4efa --> nd9b6ae7da0
+  n83e8ed4efa --> n1fdcad414a
   n83e8ed4efa --> nc3a2134b9b
+  n83e8ed4efa --> nd1714acee5
   n83e8ed4efa --> nc13f188ca9
   n6c4c773b6d --> n6a42316005
   n6d0ac6bdcf --> n6c18924696
@@ -731,6 +780,8 @@ flowchart LR
   n6d0ac6bdcf --> nc323d02327
   nc323d02327 --> ndcbb655952
   n6d0ac6bdcf --> n30ba2a2e3b
+  n6d0ac6bdcf --> n5a3b85798f
+  n6d0ac6bdcf --> n528d6328fc
   n6d0ac6bdcf --> n6eb5b2084b
   n6d0ac6bdcf --> nf2e1c7f95c
   n6d0ac6bdcf --> n9dc8501632
@@ -777,6 +828,7 @@ flowchart LR
   nd265c5f895["home"]
   n91a43a88c2["host"]
   n969fdcbc29["kit"]
+  n227773463f["layout"]
   n25061baf77["mac"]
   n5e4f590e9f["machine"]
   nf384c24853["member"]
@@ -872,6 +924,7 @@ flowchart LR
   n48d844d4c9("aspect-settings")
   ne6757dbb0b("backends")
   n964bca5c67("both")
+  nc8ce5e828b("builders")
   nfa20f4b2b6("certificate-domains")
   n427fbcd67e("checks")
   n51433b8bd8("ci")
@@ -883,6 +936,7 @@ flowchart LR
   nf9ed027d00("deploy")
   nfaaefe0c2a("dev")
   n9e9018bb09("devshell")
+  n2801626321("disks")
   n2a8ec11140("dns-records")
   nc960dda0a1("dns-zones")
   nc319909949("droid")
@@ -977,6 +1031,8 @@ flowchart LR
   n3bdc2ab4f7 -->|"prod, staging"| n4218c12206
   n105bdfb4bb -->|"alice, alice-laptop, alice@stage, bob, pixel"| n4218c12206
   ne19ee6b5c8 -.->|"host"| na788f0f454
+  nf9ed027d00 -->|"app-1, app-2, app-3, app-4, lb, lb-minimal, +3"| n4218c12206
+  n2801626321 -->|"stage, web-1, web-2"| n4218c12206
   n2e96af1184 -.->|"host"| neb8b81b71c
   na788f0f454 -.->|"host"| n2aba2b8d3f
   na788f0f454 -.->|"host"| nd71746440e
@@ -1043,10 +1099,10 @@ flowchart LR
   n24c3f6fa44 -->|"out"| n91d5d2cc57
   n1d6e8fa2a0 -->|"ci, out"| n91d5d2cc57
   n176652715a -->|"backends, k3s-nodes, mesh-peers, port-forwards"| nd086c25d77
-  n176652715a -->|"ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, inference-clients, infra, nodes, out, public-reads, records, route-claims, served-domains, token-claims, vars"| n91d5d2cc57
-  n08d6894135 -->|"ci, generators, globals, out, public-reads, records"| n91d5d2cc57
-  nc1c099a844 -->|"exports, generators"| n91d5d2cc57
-  nc1c099a844 -->|"nixos, os"| n176652715a
+  n176652715a -->|"ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, inference-clients, infra, nodes, out, records, route-claims, served-domains, token-claims, vars"| n91d5d2cc57
+  n08d6894135 -->|"ci, generators, globals, out, records"| n91d5d2cc57
+  nc1c099a844 -->|"builders, exports, generators"| n91d5d2cc57
+  nc1c099a844 -->|"disks, nixos, os"| n176652715a
   nc1c099a844 -->|"os"| n08d6894135
   nae6071da07 -->|"out"| n91d5d2cc57
   n9e45cb601f -->|"scrape"| n91d5d2cc57
@@ -1095,10 +1151,10 @@ sequenceDiagram
   hive->>fleet: out
   home->>fleet: ci, out
   host->>environment: backends, k3s-nodes, mesh-peers, port-forwards
-  host->>fleet: ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, inference-clients, infra, nodes, out, public-reads, records, route-claims, served-domains, token-claims, vars
-  mac->>fleet: ci, generators, globals, out, public-reads, records
-  member->>fleet: exports, generators
-  member->>host: nixos, os
+  host->>fleet: ci, class-members, colmena, db-claims, flake-file, gateway-upstreams, generators, globals, host-addrs, inference-clients, infra, nodes, out, records, route-claims, served-domains, token-claims, vars
+  mac->>fleet: ci, generators, globals, out, records
+  member->>fleet: builders, exports, generators
+  member->>host: disks, nixos, os
   member->>mac: os
   phone->>fleet: out
   replica->>fleet: scrape
@@ -1120,10 +1176,22 @@ sequenceDiagram
 flowchart LR
   nf0331b9733{{"backup (borg)"}}
   n91dab8a035{{"banner (banner)"}}
+  n620cb8b2de{{"builders (remote-builders)"}}
+  n3513c5af5d{{"cache (nix-cache)"}}
+  n0104dbcd43{{"disk-stage (disko)"}}
+  n8458630dab{{"disk-web-1 (disko)"}}
+  n287eda1541{{"disk-web-2 (disko)"}}
   n978357e468{{"docs (site)"}}
+  ne42cc7d401{{"emergency (emergency-access)"}}
+  n5f25f39301{{"metrics (monitoring)"}}
+  n88b91e7901{{"ops (users)"}}
+  nc86a802a24{{"overlay (zerotier)"}}
+  n7bbf26e7a2{{"pg (postgres)"}}
+  n2c6b3a4085{{"ssh-trust (sshd)"}}
   nc28872f0f3{{"sshd (sshd)"}}
   n1e618804c1{{"svc-a (users)"}}
   nb45a9ed3ff{{"svc-b (users)"}}
+  n203ffbe069{{"vpn (wireguard)"}}
   nf8c77851a0{{"wifi (wifi)"}}
   nb360d61bee{{"backup-sshd (sshd)"}}
   n6f22ef9133["app-1"]
@@ -1147,7 +1215,29 @@ flowchart LR
   nf0331b9733 -->|"client"| n6d0ac6bdcf
   nf0331b9733 -->|"server"| nc1312ce7ae
   n91dab8a035 -->|"default"| n2ed910d1a2
+  n620cb8b2de -->|"builder"| nc1312ce7ae
+  n620cb8b2de -->|"client"| n348d430633
+  n620cb8b2de -->|"client"| n83e8ed4efa
+  n3513c5af5d -->|"client"| n348d430633
+  n3513c5af5d -->|"client"| n83e8ed4efa
+  n3513c5af5d -->|"server"| nc1312ce7ae
+  n0104dbcd43 -->|"default"| n6d0ac6bdcf
+  n8458630dab -->|"default"| n348d430633
+  n287eda1541 -->|"default"| n83e8ed4efa
   n978357e468 -->|"default"| n348d430633
+  ne42cc7d401 -->|"default"| nc1312ce7ae
+  n5f25f39301 -->|"exporter"| n348d430633
+  n5f25f39301 -->|"exporter"| n83e8ed4efa
+  n5f25f39301 -->|"server"| nc1312ce7ae
+  n88b91e7901 -->|"default"| n348d430633
+  nc86a802a24 -->|"controller"| nc1312ce7ae
+  nc86a802a24 -->|"moon"| n348d430633
+  nc86a802a24 -->|"peer"| n83e8ed4efa
+  nc86a802a24 -->|"peer"| n6d0ac6bdcf
+  n7bbf26e7a2 -->|"client"| n348d430633
+  n7bbf26e7a2 -->|"server"| nc1312ce7ae
+  n2c6b3a4085 -->|"client"| n348d430633
+  n2c6b3a4085 -->|"server"| nc1312ce7ae
   nc28872f0f3 -->|"server"| n6f22ef9133
   nc28872f0f3 -->|"server"| n0300c386fd
   nc28872f0f3 -->|"server"| n5358012523
@@ -1160,6 +1250,9 @@ flowchart LR
   nc28872f0f3 -->|"server"| n2ed910d1a2
   n1e618804c1 -->|"default"| nc1312ce7ae
   nb45a9ed3ff -->|"default"| nc1312ce7ae
+  n203ffbe069 -->|"controller"| nc1312ce7ae
+  n203ffbe069 -->|"peer"| n348d430633
+  n203ffbe069 -->|"peer"| n83e8ed4efa
   nf8c77851a0 -->|"default"| n6d0ac6bdcf
   nb360d61bee -->|"server"| nc1312ce7ae
 ```
@@ -1177,7 +1270,17 @@ flowchart LR
   nb7d1d194e5["borg-backup@stage · stage"]
   nb998136565["borg-backup@web-1 · web-1"]
   nd0e0d1b2da["borg-backup@web-2 · web-2"]
+  nff8f88d8e5["emergency-root@lb · lb"]
+  n5f79aef85b["from-exports@app-1 · app-1"]
+  nb90207c74c["from-exports@app-2 · app-2"]
+  ne4c1b9a8e6["from-exports@app-3 · app-3"]
+  ncd62284531["from-exports@app-4 · app-4"]
+  n0dc1ba5f5c["from-exports@lb · lb"]
+  ndaecd2efa1["from-exports@lb-minimal · lb-minimal"]
+  nfaf6ce696f["from-exports@stage · stage"]
   ne351d50168["from-exports@web-1 · web-1"]
+  n8f8b285928["from-exports@web-2 · web-2"]
+  n92a2d506cf["nix-cache-cache@lb · lb"]
   n100bbb9e62["openssh@app-1 · app-1"]
   nc571bbff1f["openssh@app-2 · app-2"]
   n4d8486d320["openssh@app-3 · app-3"]
@@ -1188,7 +1291,11 @@ flowchart LR
   n5ead2d910f["openssh@studio · studio"]
   n914f0bf04d["openssh@web-1 · web-1"]
   nb4ef6d445f["openssh@web-2 · web-2"]
+  n1e6348f50a["user-ops@web-1 · web-1"]
+  n5bf3ea6cc8["user-svc-a@lb · lb"]
+  n6e0ffb2ea1["user-svc-b@lb · lb"]
   n232f52aea6{{"wifi.home · stage"}}
+  neca8350936{{"wifi.wifi · stage"}}
   n100bbb9e62 --> n74bd4a0a3c
   nc571bbff1f --> n77b243f0ea
   n4d8486d320 --> ne06c6af0c5
@@ -1229,12 +1336,12 @@ flowchart LR
 | `app-3` | host | 32 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +26 |
 | `app-4` | host | 31 | alloy, base, ci-host, db-lockdown, db-provide, deploy-record, +25 |
 | `lb` | host | 50 | alloy, attic, base, caddy, ci-host, db-lockdown, +44 |
-| `lb-minimal` | host | 31 | alloy, base, deploy-record, dev, env-tuning, facter, +25 |
+| `lb-minimal` | host | 31 | alloy, base, deploy-record, dev, disko-devices, disko-option, +25 |
 | `web-1` | host | 48 | alloy, api-route, base, ci-host, db-claim, db-client, +42 |
 | `web-2` | host | 46 | alloy, autoinclude, base, ci-host, db-claim, db-client, +40 |
 | `stage` | host | 53 | alloy, base, ci-host, db-claim, db-client, db-lockdown, +47 |
 | `ci` | guest | 12 | alloy, base, dev, docker, global-pkgs, globals-addr, +6 |
-| `studio` | mac | 13 | base, ci-mac, darwin-base, darwin-primary-user, dev, dock, +7 |
+| `studio` | mac | 11 | base, ci-mac, darwin-base, darwin-primary-user, dev, dock, +5 |
 
 | Sink | Given at | Received at | Elements |
 |---|---|---|---|
@@ -1243,6 +1350,7 @@ flowchart LR
 | `aspect-settings` | host | host | 9 |
 | `backends` | host | environment | 3 |
 | `both` | user | user | 2 |
+| `builders` | member | fleet | 1 |
 | `certificate-domains` | domain | fleet | 3 |
 | `checks` | system | system | 1 |
 | `ci` | home, host, mac, system | fleet | 14 |
@@ -1254,16 +1362,17 @@ flowchart LR
 | `deploy` | host | host | 9 |
 | `dev` | host | host | 1 |
 | `devshell` | system | system | 6 |
+| `disks` | member | host | 3 |
 | `dns-records` | domain | fleet | 1 |
 | `dns-zones` | domain | fleet | 2 |
 | `droid` | phone | phone | 1 |
-| `exports` | member | fleet | 2 |
+| `exports` | member | fleet | 30 |
 | `files` | system | system | 2 |
 | `flake-file` | fleet, guest, host | fleet | 14 |
 | `fw` | host | host | 2 |
 | `fw-tcp` | host | host | 1 |
 | `gateway-upstreams` | host | fleet | 1 |
-| `generators` | guest, host, mac, member | fleet | 31 |
+| `generators` | guest, host, mac, member | fleet | 39 |
 | `git` | user | user | 26 |
 | `git-hooks` | system | system | 3 |
 | `globals` | guest, host, mac | fleet | 10 |
@@ -1283,12 +1392,12 @@ flowchart LR
 | `meta` | hive | hive | 2 |
 | `monitor` | host | host | 1 |
 | `monitoring-ingest` | cluster | fleet | 1 |
-| `nixos` | backup, guest, host, member, user, variant | backup, guest, host, variant | 230 |
+| `nixos` | backup, guest, host, member, user, variant | backup, guest, host, variant | 271 |
 | `no-gui` | system | system | 1 |
 | `nodes` | host | fleet | 1 |
-| `os` | export, guest, host, mac, member, user | export, guest, home, host, mac | 113 |
+| `os` | export, guest, host, mac, member, user | export, guest, home, host, mac | 105 |
 | `osConfig` | host | host | 9 |
-| `out` | cluster, environment, export, fleet, hive, home, +5 | fleet | 57 |
+| `out` | cluster, environment, export, fleet, hive, home, +5 | fleet | 69 |
 | `overlays` | fleet | fleet | 1 |
 | `packages` | system | system | 7 |
 | `pairs` | host, toy | host | 6 |
@@ -1296,7 +1405,6 @@ flowchart LR
 | `persist` | guest, host, user | guest, host | 14 |
 | `platform` | host | host | 9 |
 | `port-forwards` | host | environment | 1 |
-| `public-reads` | host, mac | fleet | 10 |
 | `readme` | system | system | 7 |
 | `records` | guest, host, mac | fleet | 11 |
 | `replicate-home` | user | fleet | 9 |
@@ -1328,7 +1436,7 @@ Every list below is computed from the engine and this fleet when the README is w
 
 **Queries on an eval result** (`result = yen.lib.eval module`): `active`, `ask`, `check`, `context`, `data`, `declaredIn`, `errors`, `explain`, `facts`, `flake`, `floor`, `graph`, `impact`, `labels`, `queries`, `reduced`, `root`, `schema`, `scopes`, `undefined`.
 
-**Engine library** (`yen.lib`): `agent`, `allowed`, `asOf`, `batteries`, `derive`, `diffData`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `listOf`, `maybe`, `mkFlake`, `narrow`, `opt`, `secret`, `stage`, `validAt`, `without`.
+**Engine library** (`yen.lib`): `agent`, `allowed`, `asOf`, `batteries`, `derive`, `diffData`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `kits`, `listOf`, `maybe`, `mkFlake`, `narrow`, `opt`, `secret`, `stage`, `validAt`, `without`.
 Reduce strategies: `entries`, `flat`, `list`, `merge`, `one`, `set`. Change programs (`yen.lib.program`): `dryRun`, `opErrors`, `render`, `toModule`, `validate`. Grants: `allowed`, `grant`, `narrow`.
 
 | Library | Functions |

@@ -42,6 +42,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
+| `lib.batteries.addresses` | `{ prefix; members; } -> { value; errors; }` | one IPv4 address per member from a prefix, in member order; a repeated address or a full prefix is an error |
 | `lib.batteries.ai.extensions` | `{ from; types; build; } -> key value` | the records of the given types from a shared pool, as build wants them |
 | `lib.batteries.ai.skills` | `dir -> [ { type; name; path; } ]` | one skill record per subdirectory with a SKILL.md |
 | `lib.batteries.cachix.action` | `{ name; authToken ? ; version ? ; } -> step` | the GitHub Actions step of cachix-action for one cache |
@@ -54,8 +55,10 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.darwin.system` | `{ from; darwinSystem; system; } -> out value` | darwinConfigurations.&lt;scope name&gt; |
 | `lib.batteries.deploy.colmena` | `{ from; makeHive; meta ? ; } -> out value` | colmenaHive from the host modules of sink from |
 | `lib.batteries.deploy.deploy-rs` | `{ configurations; hostname; activate; sshUser ? ; } -> { deploy.nodes; }` | deploy-rs nodes from built configurations |
+| `lib.batteries.deploy.rebuild` | `{ from; pkgs; flake ? ; } -> out value` | apps.&lt;system&gt;.rebuild-&lt;machine&gt;: nixos-rebuild --target-host |
 | `lib.batteries.devshell.mkshell` | `{ from; pkgsOf; } -> out value` | a nixpkgs mkShell at devShells.&lt;scope name&gt;.default |
 | `lib.batteries.devshell.numtide` | `{ from; devshell; systems; pkgsOf; name; packages ? ; shell ? ; } -> out value` | a numtide/devshell per system, its commands from sink from |
+| `lib.batteries.disko` | `{ from; } -> key value` | disko.devices from the disk layouts given to sink from |
 | `lib.batteries.distributed.nodes` | `{ from; } -> key value` | each machine imports the modules other scopes wrote for it |
 | `lib.batteries.docs.kinds` | `kinds -> graph -> string` | a markdown table of the kinds: fields, spawns, sinks and scope counts |
 | `lib.batteries.docs.links` | `{ root; base ? ; } -> reduce` | source links that find their line by a needle at eval time |
@@ -80,6 +83,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.home-manager.module` | `module -> module` | home-manager as a NixOS or nix-darwin module, with the machine pkgs |
 | `lib.batteries.home-manager.system` | `{ from; homeManagerConfiguration; pkgs; } -> out value` | homeConfigurations.&lt;scope name&gt;, a standalone home |
 | `lib.batteries.imports` | `{ from; } -> key value` | the modules of sink from as one module that imports them |
+| `lib.batteries.install.apps` | `{ from; pkgs; report; target; flake ? ; } -> out value` | apps.&lt;system&gt;.install-&lt;machine&gt;: nixos-anywhere with the disko layout and the facter report |
 | `lib.batteries.k8s.manifests` | `{ from; lib; output ? ; } -> out value` | Kubernetes manifests from the modules of sink from |
 | `lib.batteries.kits.contract` | `{ assemblies; machines; holds; } -> [ error ]` | the assembly contract: roles, machine counts, assemblies per kit |
 | `lib.batteries.kits.exports` | `{ isMember; machineOf ? ; } -> reduce` | each member writes only its own exports; other scopes override one entry |
@@ -119,6 +123,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.batteries.secretspec.toml` | `{ from; project; path ? ; profiles ? ; defaults ? ; providers ? ; } -> key value` | secretspec.toml from the secrets of sink from |
 | `lib.batteries.terranix.configuration` | `{ from; system; terranixConfiguration; name ? ; } -> out value` | terraformConfigurations.&lt;name&gt; from the modules of sink from |
 | `lib.batteries.vars.generators` | `{ machineOf; } -> reduce` | clan vars generators, shared or per machine, with dependency checks |
+| `lib.batteries.vars.known-hosts` | `{ from; rootOf; entry; keep ? ; } -> { nixos; errors }` | programs.ssh.knownHosts from public host keys in vars |
 | `lib.batteries.vars.public-value` | `{ root; } -> machine -> generator -> file -> default -> string` | a public var read at eval time |
 | `lib.batteries.vars.secret-reads` | `{ from; reads; } -> [ error ]` | a public read of a file that is secret on that machine |
 | `lib.batteries.vars.vars-plan` | `{ from; machines; recipientsOf; } -> out value` | the clan vars plan per machine: files, recipients, order |
@@ -171,6 +176,27 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | `lib.graphs.shortest` | `succ -> from -> to -> [ node ] or null` | the shortest path by edges (breadth first), from first, to last |
 | `lib.graphs.topo` | `succ -> { ok; order; stuck; }` | each node after all its successors (Kahn); the nodes on a cycle stay in stuck |
 | `lib.graphs.transpose` | `succ -> succ` | the graph with every edge reversed |
+
+## `lib.kits`
+
+| API | Takes and returns | Purpose |
+|---|---|---|
+| `lib.kits.base` | `module` | bundle base: what a new machine needs (disk, hardware report, ssh, break-glass login) in one assembly |
+| `lib.kits.borg` | `module` | backup kit: roles client (startAt) and server (1); the server exports its repo address |
+| `lib.kits.disko` | `module` | kit disko and its data kind layout: a machine's disks from a named layout |
+| `lib.kits.dns` | `module` | records for every endpoint that kits export: the `exports` sink read into one cname per endpoint |
+| `lib.kits.emergency-access` | `{ yen, lib, ... } -> module` | kit emergency-access: root logs in with a key or a password, only where a member is |
+| `lib.kits.facter` | `module` | kit facter: the machine's nixos-facter report, read from the directory the assembly sets |
+| `lib.kits.homelab` | `module` | bundle homelab: one server and nodes, with base, a wireguard network, backups, monitoring and dns |
+| `lib.kits.monitoring` | `module` | one prometheus server reads the scrape target of every exporter of its assembly |
+| `lib.kits.nix-cache` | `{ root; } -> module` | binary cache: a harmonia server and clients that trust the generated public key |
+| `lib.kits.postgres` | `module` | one postgres server serves the clients of its own assembly and exports a DSN record |
+| `lib.kits.remote-builders` | `module` | builders and clients: a client builds on the builders of its own assembly |
+| `lib.kits.sshd` | `{ yen, lib, ... } -> module` | kit sshd: servers run openssh and export a host key, clients trust the servers of their own assembly |
+| `lib.kits.users` | `{ yen, lib, ... } -> module` | kit users: one login user per assembly, its password hash a secret on that machine only |
+| `lib.kits.wifi` | `module` | wifi kit: one role with `networks`; every network gets a PSK secret file in the assembly's generator |
+| `lib.kits.wireguard` | `{ root; } -> module` | a wireguard network: one controller, peers; addresses from battery `addresses`, keys from generators |
+| `lib.kits.zerotier` | `{ root; } -> module` | a zerotier network: one controller, up to four moons, peers; identities from generators |
 
 ## `lib.krn`
 
