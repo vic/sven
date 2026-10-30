@@ -51,8 +51,10 @@ the fleet builds nothing until it is fixed.
 
 ## Why Yen
 
-- **Four words.** Kinds, scopes, aspects, sinks: your own nouns, typed; a tree built from your data; features that
-  apply where a condition holds; and a place for each piece of configuration to go. <sub>[docs](https://yen.oeiuwq.com/start/overview/)</sub>
+- **Minimal language.** A handful of ideas: the things in your world, a tree built from your data, features that
+  apply where a condition holds, and a place for each piece of configuration to go. <sub>[docs](https://yen.oeiuwq.com/start/overview/)</sub>
+- **Domain agnostic.** Anything Nix can configure: NixOS, nix-darwin, home-manager, clusters and more. Name the
+  things in your world: hosts, users, services, or your own.
 - **Everything Den does, and more.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
   generated files. Migration guides build the same systems before and after, from `configuration.nix`, a flake or
   Den. <sub>[docs](https://yen.oeiuwq.com/migrate/from-den/)</sub>

@@ -6,7 +6,7 @@ in
 {
   title = "Why Yen";
   plainTitle = "Yen: your whole Nix fleet, in plain data";
-  description = "Every Den capability and more, with four words and less evaluation; rules across machines checked before you deploy.";
+  description = "Every Den capability and more, with a minimal language and less evaluation; rules across machines checked before you deploy.";
   section = "start";
   order = 0;
   alsoAt = "../README.md"; # the same text is the repository README: plain markdown only
@@ -64,8 +64,10 @@ in
 
         ## Why Yen
 
-        - **Four words.** Kinds, scopes, aspects, sinks: your own nouns, typed; a tree built from your data; features that
-          apply where a condition holds; and a place for each piece of configuration to go. ${doc "/start/overview/"}
+        - **Minimal language.** A handful of ideas: the things in your world, a tree built from your data, features that
+          apply where a condition holds, and a place for each piece of configuration to go. ${doc "/start/overview/"}
+        - **Domain agnostic.** Anything Nix can configure: NixOS, nix-darwin, home-manager, clusters and more. Name the
+          things in your world: hosts, users, services, or your own.
         - **Everything Den does, and more.** Hosts, users, homes, includes, defaults, batteries, guests, roles, secrets,
           generated files. Migration guides build the same systems before and after, from `configuration.nix`, a flake or
           Den. ${doc "/migrate/from-den/"}
