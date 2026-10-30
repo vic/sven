@@ -85,8 +85,7 @@ let
   # the bindings of r's positive atoms (externals aside) over idx (relation -> tuples), left to right
   joins =
     ext: idx: r:
-    b.foldl'
-      (ss: a: b.concatMap (s: b.filter (x: x != null) (map (unify s a) (idx.${b.head a} or [ ]))) ss)
+    b.foldl' (ss: a: b.concatMap (s: b.filter (x: x != null) (map (unify s a) (candidates idx s a))) ss)
       [
         { }
       ]
@@ -99,7 +98,31 @@ let
       b.all (a: call ext s a == true) (b.filter (a: ext ? ${b.head a}) (r.pos or [ ]))
       && !b.any (a: call ext s a == true) (b.filter (a: ext ? ${b.head a}) (r.neg or [ ]))
     ) (joins ext idx r);
-  byRel = b.groupBy (x: b.head x);
+  # tuples by relation, and by the value at each position: a join reads only the tuples that can match a bound term
+  byRel =
+    tuples:
+    b.mapAttrs (
+      _: ts:
+      {
+        all = ts;
+      }
+      // b.listToAttrs (
+        b.genList (i: {
+          name = toString i;
+          value = b.groupBy (t: k (b.elemAt t i)) (b.filter (t: b.length t > i) ts);
+        }) (b.foldl' (m: t: if b.length t > m then b.length t else m) 0 ts)
+      )
+    ) (b.groupBy (x: b.head x) tuples);
+  # the tuples an atom can match under s: the smallest bucket of a bound position, or all of its relation
+  candidates =
+    idx: s: a:
+    let
+      rel = idx.${b.head a} or { all = [ ]; };
+      ground = t: !(isVar t) || s ? ${t.var};
+      bucket = i: rel.${toString i}.${k (b.elemAt (sub s [ (b.elemAt a i) ]) 0)} or [ ];
+      buckets = map bucket (b.filter (i: ground (b.elemAt a i)) (b.genList (i: i + 1) (b.length a - 1)));
+    in
+    b.foldl' (m: x: if b.length x < b.length m then x else m) rel.all buckets;
   # what may hold: the least model of the rules without their negative atoms, over the facts (an upper bound of the WFM)
   possible =
     ext: rules: known:
@@ -147,7 +170,14 @@ rec {
     let
       atoms = atomsOf rules;
       kr = keyed rules;
-      t = b.foldl' (a: _: gamma kr (gamma kr a)) { } (b.genList (i: i) (b.length atoms + 1)); # lfp of gamma²
+      # lfp of gamma²: it grows from the empty set, so it stops when a round adds nothing
+      lfp =
+        a:
+        let
+          a2 = gamma kr (gamma kr a);
+        in
+        if b.length (b.attrNames a2) == b.length (b.attrNames a) then a else lfp a2;
+      t = lfp { };
       g = gamma kr t; # what may hold
     in
     {
@@ -256,7 +286,8 @@ rec {
         f = { };
         k = 0;
       };
-      # the first rule of an atom whose body was decided before it
+      # the rules of each head, by index; the first rule of an atom whose body was decided before it
+      byHead = b.groupBy (i: (b.elemAt kr i).head) (b.genList (i: i) (b.length kr));
       ruleFor =
         x:
         let
@@ -268,8 +299,8 @@ rec {
             let
               r = b.elemAt kr i;
             in
-            r.head == x && b.all (p: (final.t.${p} or s) < s) r.pos && b.all (n: (final.f.${n} or s) < s) r.neg
-          ) (b.genList (i: i) (b.length kr))
+            b.all (p: (final.t.${p} or s) < s) r.pos && b.all (n: (final.f.${n} or s) < s) r.neg
+          ) byHead.${x}
         );
     in
     {

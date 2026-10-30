@@ -4,6 +4,7 @@
 {
   n ? 100,
   hostCount ? null,
+  perHost ? 4,
 }:
 let
   b = builtins;
@@ -75,9 +76,168 @@ let
       };
     };
   r = yen.eval { imports = [ base ] ++ b.genList aspect n; };
+  # services: `perHost` per host, each on a port, each using the next service of its host as its database. Three
+  # rules across machines (data, with variables): no port clash on a host, a database in the same environment, every
+  # service monitored. The fleet is clean: the check must prove every absence.
+  v = x: { var = x; };
+  services =
+    { yen, ... }:
+    {
+      yen.kinds.host.spawns.svc =
+        s:
+        b.listToAttrs (
+          b.filter (x: x.value.host == s.name) (
+            b.attrValues (
+              b.mapAttrs (k: v: {
+                name = k;
+                value = v;
+              }) yen.svc
+            )
+          )
+        );
+      yen.kinds.svc.fields = {
+        host = yen.lib.is b.isString;
+        port = yen.lib.is b.isInt;
+        db = yen.lib.maybe yen.kinds.svc;
+      };
+      yen.svc = b.listToAttrs (
+        b.concatLists (
+          b.genList (
+            h:
+            b.genList (j: {
+              name = "s${toString h}-${toString j}";
+              value = {
+                host = "h${toString h}";
+                port = 8000 + j;
+                db = if j + 1 < perHost then yen.svc."s${toString h}-${toString (j + 1)}" else null;
+              };
+            }) perHost
+          ) hosts
+        )
+      );
+      yen.aspects.monitor.at = yen.kinds.svc;
+      yen.invariants.services = rules;
+    };
+  rules = [
+    {
+      head = [
+        "bad"
+        "port-clash"
+        (v "A")
+        (v "B")
+      ];
+      pos = [
+        [
+          "parent"
+          (v "A")
+          (v "H")
+        ]
+        [
+          "parent"
+          (v "B")
+          (v "H")
+        ]
+        [
+          "val"
+          "port"
+          (v "A")
+          (v "P")
+        ]
+        [
+          "val"
+          "port"
+          (v "B")
+          (v "P")
+        ]
+        [
+          "lt"
+          (v "A")
+          (v "B")
+        ]
+      ];
+    }
+    {
+      head = [
+        "bad"
+        "db-cross-env"
+        (v "S")
+      ];
+      pos = [
+        [
+          "ref"
+          "db"
+          (v "S")
+          "svc"
+          (v "N")
+        ]
+        [
+          "instance"
+          (v "D")
+          "svc"
+          (v "N")
+        ]
+        [
+          "parent"
+          (v "S")
+          (v "H")
+        ]
+        [
+          "parent"
+          (v "H")
+          (v "E")
+        ]
+        [
+          "parent"
+          (v "D")
+          (v "H2")
+        ]
+      ];
+      neg = [
+        [
+          "parent"
+          (v "H2")
+          (v "E")
+        ]
+      ];
+    }
+    {
+      head = [
+        "bad"
+        "unmonitored"
+        (v "S")
+      ];
+      pos = [
+        [
+          "kind"
+          "svc"
+          (v "S")
+        ]
+      ];
+      neg = [
+        [
+          "has"
+          "monitor"
+          (v "S")
+        ]
+      ];
+    }
+  ];
+  fleet = yen.eval {
+    imports = [
+      base
+      services
+    ]
+    ++ b.genList aspect n;
+  };
 in
 {
-  inherit r;
+  inherit r fleet rules;
+  # the scale oracle (.35): every rule proved over hundreds of services, with its certificate
+  check = {
+    services = b.length (b.filter (s: s.kind == "svc") fleet.scopes);
+    inherit (fleet.check) ok certified;
+    errors = b.length fleet.errors;
+  };
   probe = {
     scopes = b.length r.scopes;
     errors = b.length r.errors;
