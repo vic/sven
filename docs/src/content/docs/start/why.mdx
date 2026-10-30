@@ -1,56 +1,73 @@
 ---
-{"description":"Formal methods, made for agents, on reproducible infrastructure: fleets of hundreds of services, checked before build and deploy.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/why/page.nix","title":"Why Yen"}
+{"description":"Rules across machines, proved before build and deploy: fleets of hundreds of services, safe for people and agents.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/why/page.nix","title":"Why Yen"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-**Your infrastructure builds. Is it correct?**
+**Nix makes every build reproducible. Yen makes the whole fleet provable.**
 
-Nix made builds reproducible. It did not make fleets correct. Every machine can evaluate, build and boot,
-and the fleet is still wrong: a lab service that talks to the prod database, a client with no server,
-two services that claim the same thing. No single machine sees it. You find it in production.
+A fleet can evaluate, build and boot on every machine and still be wrong: a lab service that writes to the prod
+database, a client with no server, two services on one port. No single machine sees these mistakes, because they
+live between machines. Yen checks them before anything is built or deployed, with rules you write about your
+own fleet, and it proves each answer.
 
-Now agents write your infrastructure changes, faster than anyone can review them.
-Reading diffs does not scale to hundreds of services. Rules do.
-
-**Yen brings formal methods, made for agents, to reproducible infrastructure at scale.**
-Our mission: fleets of hundreds of services, reproducible and verified, where a broken rule stops a change
-before you build it and before you deploy it.
+Agents now write infrastructure changes faster than anyone can review them. Yen lets them work safely: a change
+is staged, checked against your rules, and refused with the reason, before it reaches a machine.
 
 [Documentation](https://yen.oeiuwq.com/) · [A fleet on one page](https://yen.oeiuwq.com/start/one-page-fleet/) · [Reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) · [Sponsor vic](https://dendritic.oeiuwq.com/sponsor)
 
-## What you get today
+## A rule across machines
 
-- **Rules across machines.** Write your invariants once, as logic over your fleet. Yen checks them on every
-  evaluation. A rule that cannot be decided is a failure, never a pass.
-- **Nothing to build from a broken fleet.** An error or a broken rule and Yen gives no outputs, and no values
-  to build them from by hand.
-- **Agents that cannot break the law.** An agent's change is staged: Yen evaluates the fleet with and without it,
-  applies nothing, and refuses it with the rule it breaks. A change can never touch your rules, and a grant
-  keeps it in its lane: anything it could reach outside the grant is refused.
-- **Answers, not stack traces.** Every answer is plain data an agent can read: errors with fixes, why a rule fires,
-  why it does not. Agents ask through queries or an MCP server.
-- **Your words, not ours.** Yen does not know what a host or a service is. You name your own nouns and facts.
-  NixOS, nix-darwin, home-manager, clusters: if you can write it as Nix values, Yen can check it.
-- **Just Nix.** A few files of Nix builtins. No dependencies.
+Your fleet becomes facts: `[ "ref" "db" HOST "host" NAME ]`, `[ "has" ASPECT SCOPE ]`, `[ "val" FIELD SCOPE VALUE ]`.
+A rule is data. This one says a host's database lives in its own environment:
 
-## Where we are going
+```nix
+yen.invariants.db-same-env = [{
+  head = [ "bad" "db-other-env" (v "H") ];
+  pos = [
+    [ "ref" "db" (v "H") "host" (v "N") ]       # H uses the host named N as its database
+    [ "instance" (v "D") "host" (v "N") ]      # D is that host
+    [ "ref" "env" (v "H") "env" (v "E") ]      # H lives in environment E
+  ];
+  neg = [ [ "ref" "env" (v "D") "env" (v "E") ] ];  # and D does not
+}];
+```
 
-Yen is young, and we say plainly what is not done yet. Each step lands with its own tests:
+A lab host that points at the prod database gives `[ "bad" "db-other-env" "fleet:main/env:lab/host:api" ]`,
+and the fleet gives no outputs at all.
 
-- **Precise grants.** Today a grant is coarse: a change that declares anything is refused everywhere outside it.
-  Next, Yen sees every read, so a grant refuses only what the change really reaches.
-- **Typed facts and rules as data.** Facts that cannot collide, and rules Yen can inspect.
-- **Certificates.** Each verdict ships with evidence that a small, trusted checker re-verifies.
-- **Types as proofs.** A typed value carries the proof of its own check.
-- **Proven at scale.** Measured checks on fleets of hundreds of services.
+## What Yen gives you
+
+- **Rules as data, over typed facts.** Datalog with variables and negation, under the well-founded semantics.
+  A rule that cannot be decided is a failure, never a pass. Relations are declared, and a rule can never forge a fact.
+- **Proofs with every verdict.** Each verdict carries a staged certificate (Van Gelder, Ross and Schlipf, 1991)
+  that a small checker in plain Nix verifies. A seal binds the verdict to the hashes of the engine, the rules and
+  the facts, so anyone can check it again.
+- **Nothing to build from a broken fleet.** An error, a violation or an undecided rule and Yen gives no outputs,
+  and no values to build them from.
+- **Safe changes from agents.** A change is evaluated with and without it, and nothing is applied. It is refused
+  with the rule it breaks, it can never change the rules, and a grant limits where it may reach. Each change
+  carries its author's trust label.
+- **Types in rules.** Any type, or any total function, is a predicate a rule can use.
+- **Secrets stay secret.** A secret field is stated only by its hash in every answer; rules still compare secrets.
+- **Answers for agents.** Errors with fixes, why a rule holds or does not, where each fact comes from: all plain
+  data. A Rust MCP server serves them, and a skill teaches agents to use it.
+- **Built for hundreds of services.** 1600 services under rules across machines, checked and certified in seconds.
+- **Your words, not ours.** Yen has no vocabulary: you name your own kinds and facts. NixOS, nix-darwin,
+  home-manager, clusters: anything you write as Nix values.
+- **Just Nix.** A few files of Nix builtins, no dependencies. Every page of the docs is a tested example.
+
+## Sponsor this work
+
+Formal methods for reproducible infrastructure is new ground, and Yen is built in the open, with every
+capability tested. If your fleet, your team or your agents would gain from it, please
+[sponsor vic](https://dendritic.oeiuwq.com/sponsor). Sponsorship keeps this work going.
 
 ## Try it
 
-Read [A fleet on one page](https://yen.oeiuwq.com/start/one-page-fleet/): three hosts, a rule across machines,
-and an agent's change that Yen refuses. Then the [documentation](https://yen.oeiuwq.com/): every page is a tested example.
+Read [A fleet on one page](https://yen.oeiuwq.com/start/one-page-fleet/): three hosts, a rule across machines, and an agent's
+change that Yen refuses. Then the [documentation](https://yen.oeiuwq.com/).
 
 Yen is made by [vic](https://github.com/vic), with love, as part of the [Dendritic ecosystem](https://dendritic.oeiuwq.com).
-If Yen helps you, please [sponsor vic](https://dendritic.oeiuwq.com/sponsor). Issues and pull requests are welcome:
-see [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
