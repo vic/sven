@@ -1,0 +1,298 @@
+---
+{"description":"files, github, devshell, flake-file: README, CI workflow, ci.json, dev shell and flake.nix, written from fleet data.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-repo/page.nix","title":"Repo batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+A repo has files that should follow the code: the README, the CI workflow, a matrix of CI targets, the dev shell,
+`flake.nix`. These batteries write them from sinks, so any aspect can add a section, a job, a target or an input.
+[github:sini/files](https://github.com/sini/files) writes them (`nix run .#write-files`) and gives a check per
+file: CI fails when a committed file is stale.
+
+| Battery | Value of | Writes |
+|---|---|---|
+| `files.writer { from; files; lib; pkgs; root; relativeRoot; }` | `out` of the files sink | `packages.<system>.write-files` and a check per file |
+| `files.document { from; path; separator; }` | a key that gives to the files sink | one file from the texts of a sink (with `ordered`: sections in order) |
+| `files.json { from; path; value; }` | the same | the JSON of a sink |
+| `files.toml { inline; }` | a function | TOML text from a Nix value |
+| `files.comment path text` | a function | a notice in the comment syntax of the file's format |
+| `github.workflow { from; path; doc; header; }` | a key that gives to the files sink | a workflow from a sink of jobs |
+| `github.yaml` | a function | YAML text from a Nix value |
+| `devshell.mkshell { from; pkgsOf; }` | `out` of a sink of `{ packages; shellHook; }` | `devShells.<scope name>.default` |
+| `devshell.numtide { from; devshell; systems; pkgsOf; name; packages; }` | `out` of a sink of command lists | a numtide/devshell per system |
+| `flake-file.write { from; lib; inputs; pkgs; modules; }` | `out` of a merge sink | `packages.<system>.write-flake` and its check |
+
+
+```nix title="modules/repo.nix"
+# A repo: one root scope that writes repo files, and one scope per system for its dev shell.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  inherit (yen.lib.batteries) files devshell;
+  pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+in
+{
+  yen.kinds.repo = {
+    spawns.system = _: yen.system;
+    sinks = {
+      out.reduce = yen.lib.reduce.merge;
+      # every key below that gives to `files` becomes a repo file, written by `nix run .#write-files`
+      files.out = files.writer {
+        from = yen.kinds.repo.sinks.files;
+        inherit (inputs) files;
+        inherit lib pkgs;
+        root = inputs.self;
+      };
+    };
+  };
+  yen.kinds.system.sinks.shell.out = devshell.mkshell {
+    from = yen.kinds.system.sinks.shell;
+    pkgsOf = s: inputs.nixpkgs.legacyPackages.${s.name};
+  };
+  yen.repo.main = { };
+  yen.system.x86_64-linux = { };
+  yen.flake = { out, ... }: out;
+
+  yen.aspects.shell-tools = {
+    at = yen.kinds.system;
+    shell.packages = [ ];
+    shell.shellHook = "echo hello\n";
+  };
+}
+```
+
+```nix title="modules/readme.nix"
+# README.md from sections in any file (ordered), with a notice in the file's comment syntax.
+{ yen, ... }:
+let
+  inherit (yen.lib.batteries) files ordered;
+in
+{
+  yen.kinds.repo.sinks.readme.reduce = ordered;
+  yen.aspects.readme = {
+    at = yen.kinds.repo;
+    files = files.document {
+      from = yen.kinds.repo.sinks.readme;
+      path = "README.md";
+    };
+    readme = {
+      name = "title";
+      value = "# my repo\n${files.comment "README.md" "Generated. Run nix run .#write-files."}";
+    };
+  };
+  yen.aspects.readme-usage = {
+    at = yen.kinds.repo;
+    readme = {
+      name = "usage";
+      after = [ "title" ];
+      value = "## Usage";
+    };
+  };
+}
+```
+
+```nix title="modules/ci.nix"
+# CI: jobs from any aspect become .github/workflows/ci.yml; a matrix of targets becomes ci.json.
+{ yen, ... }:
+let
+  inherit (yen.lib.batteries) files github;
+in
+{
+  yen.kinds.repo.sinks = {
+    jobs = {
+      reduce = yen.lib.reduce.merge;
+      files = github.workflow {
+        from = yen.kinds.repo.sinks.jobs;
+        path = ".github/workflows/ci.yml";
+        doc = {
+          name = "ci";
+          on.push = { };
+        };
+        header = jobs: files.comment "ci.yml" "Generated. Jobs: ${toString jobs}";
+      };
+    };
+    targets = {
+      reduce = yen.lib.reduce.merge;
+      files = files.json {
+        from = yen.kinds.repo.sinks.targets;
+        path = "ci.json";
+        value = builtins.attrValues;
+      };
+    };
+  };
+  yen.aspects.check-job = {
+    at = yen.kinds.repo;
+    jobs.check = {
+      runs-on = "ubuntu-latest";
+      steps = [
+        { uses = "actions/checkout@v4"; }
+        { run = "nix flake check"; }
+      ];
+    };
+  };
+  yen.aspects.shell-target = {
+    at = yen.kinds.system;
+    targets =
+      { scope, ... }:
+      {
+        ${scope.name} = "devShells.${scope.name}.default";
+      };
+  };
+}
+```
+
+```nix title="modules/flake-file.nix"
+# flake.nix written by github:vic/flake-file: each aspect declares the inputs it uses.
+{
+  yen,
+  inputs,
+  ...
+}:
+{
+  yen.kinds.repo.sinks.flake-file = {
+    reduce = yen.lib.reduce.merge;
+    out = yen.lib.batteries.flake-file.write {
+      from = yen.kinds.repo.sinks.flake-file;
+      inherit (inputs.nixpkgs-unstable) lib; # flake-file needs the unstable lib
+      inherit inputs;
+      pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+    };
+  };
+  yen.aspects.flake = {
+    at = yen.kinds.repo;
+    flake-file = {
+      description = "my repo";
+      outputs = "inputs: import ./outputs.nix inputs";
+      inputs.nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
+    };
+  };
+  yen.aspects.files-input = {
+    at = yen.kinds.repo;
+    flake-file.inputs.files.url = "github:sini/files";
+  };
+}
+```
+
+```nix title="modules/more.nix"
+# More repo files and a numtide/devshell whose commands come from any aspect.
+{ yen, inputs, ... }:
+let
+  inherit (yen.lib.batteries) files github devshell;
+in
+{
+  # TOML and YAML from Nix values, as repo files
+  yen.aspects.config-files = {
+    at = yen.kinds.repo;
+    files.files.file = {
+      "taplo.toml".text = files.toml { } {
+        formatting.align_entries = true;
+      };
+      ".github/dependabot.yml".text = github.yaml {
+        version = 2;
+        updates = [
+          {
+            package-ecosystem = "github-actions";
+            directory = "/";
+            schedule.interval = "weekly";
+          }
+        ];
+      };
+    };
+  };
+  # each aspect gives a list of commands; the shell shows them in its menu
+  yen.kinds.repo.sinks.commands.out = devshell.numtide {
+    from = yen.kinds.repo.sinks.commands;
+    inherit (inputs) devshell;
+    systems = [ "x86_64-linux" ];
+    pkgsOf = s: inputs.nixpkgs.legacyPackages.${s};
+    name = "repo";
+    packages = pkgs: [ pkgs.jq ];
+    shell = "repo"; # the system scope gives `default`
+  };
+  yen.aspects.write-command = {
+    at = yen.kinds.repo;
+    commands = [
+      {
+        name = "write";
+        help = "write the generated files";
+        command = "nix run .#write-files";
+      }
+    ];
+  };
+}
+```
+
+The files the aspects give, as the files sink holds them:
+
+
+```nix title="result"
+[
+  {
+    ".github/dependabot.yml" = ''
+      "updates":
+        -
+          "directory": "/"
+          "package-ecosystem": "github-actions"
+          "schedule":
+            "interval": "weekly"
+      "version": 2
+    '';
+    "taplo.toml" = ''
+      [formatting]
+      align_entries = true
+    '';
+  }
+  {
+    "README.md" = ''
+      # my repo
+      <!-- Generated. Run nix run .#write-files. -->
+      
+      ## Usage'';
+  }
+  {
+    ".github/workflows/ci.yml" = ''
+      # Generated. Jobs: check
+      "jobs":
+        "check":
+          "runs-on": "ubuntu-latest"
+          "steps":
+            -
+              "uses": "actions/checkout@v4"
+            -
+              "run": "nix flake check"
+      "name": "ci"
+      "on":
+        "push": {}
+    '';
+  }
+  {
+    "ci.json" = ''
+      ["devShells.x86_64-linux.default"]
+    '';
+  }
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-repo`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-repo
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - ci.nix
+  - flake-file.nix
+  - more.nix
+  - readme.nix
+  - repo.nix
+
+</FileTree>
+:::

@@ -31,6 +31,7 @@
       (docs.file "modules/readme.nix")
       (docs.file "modules/ci.nix")
       (docs.file "modules/flake-file.nix")
+      (docs.file "modules/more.nix")
       ''
         The files the aspects give, as the files sink holds them:
       ''
@@ -53,6 +54,8 @@
         texts.".github/workflows/ci.yml"
         == "# Generated. Jobs: check\n\"jobs\":\n  \"check\":\n    \"runs-on\": \"ubuntu-latest\"\n    \"steps\":\n      -\n        \"uses\": \"actions/checkout@v4\"\n      -\n        \"run\": \"nix flake check\"\n\"name\": \"ci\"\n\"on\":\n  \"push\": {}\n";
       json = texts."ci.json" == "[\"devShells.x86_64-linux.default\"]\n";
+      toml = texts."taplo.toml" == "[formatting]\nalign_entries = true\n";
+      yaml = builtins.substring 0 14 texts.".github/dependabot.yml" == "\"updates\":\n  -";
       outputs =
         builtins.attrNames result.flake.packages.x86_64-linux == [
           "write-files"
@@ -65,7 +68,8 @@
     {
       write-files = builtins.isString flake.packages.x86_64-linux.write-files.drvPath;
       write-flake = builtins.isString flake.packages.x86_64-linux.write-flake.drvPath;
-      file-checks = builtins.length (builtins.attrNames flake.checks.x86_64-linux) == 4;
+      file-checks = builtins.length (builtins.attrNames flake.checks.x86_64-linux) == 6;
+      numtide = builtins.isString flake.devShells.x86_64-linux.repo.drvPath;
       shell = builtins.isString flake.devShells.x86_64-linux.default.drvPath;
     };
 }

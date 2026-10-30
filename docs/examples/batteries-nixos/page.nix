@@ -33,6 +33,7 @@
       (docs.file "modules/aspects.nix")
       (docs.file "modules/machines.nix")
       (docs.file "modules/network.nix")
+      (docs.file "modules/storage.nix")
       ''
         Each battery is a few lines. The pages [Every Den battery](/den/batteries/) and
         [Unfree packages from many files](/nixos/unfree/) write the same rules by hand. When a battery does not fit your
@@ -78,6 +79,18 @@
         c.networking.hosts."10.0.0.1" == [ "nas" ]
         && !(c.networking.hosts ? "10.0.0.2")
         && builtins.attrNames c.programs.ssh.knownHosts == [ "nas" ];
+      persist =
+        c.environment.persistence."/persist".directories != [ ]
+        && builtins.elem "/etc/ssh/ssh_host_ed25519_key" (
+          map (f: f.file) c.environment.persistence."/persist".files
+        )
+        && builtins.elem "/home/ana/.local/share" (
+          map (d: d.directory) c.environment.persistence."/persist".directories
+        )
+        && !(builtins.elem "/home/ana/.local/share" (
+          map (d: d.directory) nas.environment.persistence."/persist".directories
+        ));
+      facter = nas.facter.reportPath != null && !(c ? facter);
       builders = c.nix.distributedBuilds && map (m: m.hostName) c.nix.buildMachines == [ "10.0.0.1" ];
     };
 }

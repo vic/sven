@@ -37,6 +37,7 @@
     impermanence.url = "github:nix-community/impermanence";
     microvm.url = "github:microvm-nix/microvm.nix";
     nix-on-droid.url = "github:nix-community/nix-on-droid";
+    nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
     terranix.url = "github:terranix/terranix";
     devshell = {
       url = "github:numtide/devshell";

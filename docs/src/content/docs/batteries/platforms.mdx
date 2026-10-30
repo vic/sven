@@ -1,0 +1,242 @@
+---
+{"description":"NixOS, nix-darwin, home-manager, nix-on-droid and microvm.nix: each kind builds its output with a battery; homes go into machines.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-platforms/page.nix","title":"Platform batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Each platform is a kind you declare, with a sink that collects its modules. One battery turns the sink into the
+flake output. The builders and `pkgs` are roles that read the scope, so each machine can use its own channel.
+
+| Battery | Value of | Gives |
+|---|---|---|
+| `configurations { from; output; build; }` | `out` of any module sink | `<output>.<scope name> = build scope modules` |
+| `nixos.system { from; nixpkgs; }` | `out` of the NixOS sink | `nixosConfigurations.<name>` |
+| `darwin.system { from; darwinSystem; system; }` | `out` of the darwin sink | `darwinConfigurations.<name>` |
+| `darwin.primary-user { user; }`, `darwin.homebrew { from; }` | darwin keys | `system.primaryUser`; homebrew from a sink of casks, brews, masApps |
+| `home-manager.system { from; homeManagerConfiguration; pkgs; }` | `out` of a home's sink | `homeConfigurations.<name>` |
+| `home-manager.into-host { from; }` | a user sink's key that gives to the machine | `home-manager.users.<user>.imports` |
+| `home-manager.module module` | a machine key | home-manager with the machine's pkgs |
+| `droid.system { from; nixOnDroidConfiguration; pkgs; }`, `droid.home { from; }` | phone sinks | `nixOnDroidConfigurations.<name>`, its home-manager config |
+| `microvm.guest { from; pkgs; }` | a guest sink's key that gives to the host | `microvm.vms.<guest>` of the host |
+| `imports { from; }` | a sink's key | the sink's modules as one module |
+
+
+```nix title="modules/fleet.nix"
+# Four kinds of machine and standalone homes. Each kind's sink builds its output with a battery.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  b = yen.lib.batteries;
+  pkgsOf = s: inputs.nixpkgs.legacyPackages.${s.system};
+  machine = {
+    spawns.user = s: lib.filterAttrs (_: u: lib.any (yen.lib.same s) u.on) yen.user;
+  };
+in
+{
+  yen.kinds.fleet = {
+    spawns = {
+      host = _: yen.host;
+      mac = _: yen.mac;
+      phone = _: yen.phone;
+      home = _: yen.home;
+    };
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.host = machine // {
+    fields.system = lib.types.str;
+    spawns = machine.spawns // {
+      guest = s: lib.filterAttrs (_: g: yen.lib.same g.on s) yen.guest;
+    };
+    sinks.nixos.out = b.nixos.system {
+      from = yen.kinds.host.sinks.nixos;
+      inherit (inputs) nixpkgs;
+    };
+    sinks.os.nixos = b.imports { from = yen.kinds.host.sinks.os; }; # a user's home (os) into NixOS
+  };
+  yen.kinds.guest = {
+    fields = {
+      on = yen.kinds.host;
+      system = lib.types.str;
+    };
+    # a guest's NixOS goes into its host as microvm.vms.<guest>
+    sinks.nixos.nixos = b.microvm.guest {
+      from = yen.kinds.guest.sinks.nixos;
+      pkgs = pkgsOf;
+    };
+  };
+  yen.kinds.mac = machine // {
+    fields.system = lib.types.str;
+    sinks.darwin.out = b.darwin.system {
+      from = yen.kinds.mac.sinks.darwin;
+      darwinSystem = _: inputs.nix-darwin.lib.darwinSystem;
+      system = m: m.system;
+    };
+    sinks.os.darwin = b.imports { from = yen.kinds.mac.sinks.os; };
+  };
+  yen.kinds.phone = {
+    fields.system = lib.types.str;
+    sinks.droid.out = b.droid.system {
+      from = yen.kinds.phone.sinks.droid;
+      inherit (inputs.nix-on-droid.lib) nixOnDroidConfiguration;
+      # nix-on-droid pins its own nixpkgs: newer nixpkgs dropped lib.mdDoc, which it still uses
+      pkgs = s: import inputs.nix-on-droid.inputs.nixpkgs { inherit (s) system; };
+    };
+    sinks.homeManager.droid = b.droid.home { from = yen.kinds.phone.sinks.homeManager; };
+  };
+  yen.kinds.home = {
+    fields = {
+      user = yen.kinds.user;
+      system = lib.types.str;
+    };
+    sinks.homeManager.out = b.home-manager.system {
+      from = yen.kinds.home.sinks.homeManager;
+      homeManagerConfiguration = _: inputs.home-manager.lib.homeManagerConfiguration;
+      pkgs = pkgsOf;
+    };
+  };
+  yen.kinds.user = {
+    fields.on = yen.lib.is lib.isList;
+    # a user's home goes into the machine it is on
+    sinks.homeManager.os = b.home-manager.into-host { from = yen.kinds.user.sinks.homeManager; };
+  };
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+```nix title="modules/machines.nix"
+# One of each: a NixOS host with a guest, a mac, a phone, and a standalone home. ana is on the host and the mac.
+{ yen, inputs, ... }:
+let
+  nixos = yen.lib.batteries.nixos;
+  darwin = yen.lib.batteries.darwin;
+in
+{
+  yen.host.server.system = "x86_64-linux";
+  yen.guest.ci = {
+    on = yen.host.server;
+    system = "x86_64-linux";
+  };
+  yen.mac.studio.system = "aarch64-darwin";
+  yen.phone.pixel.system = "aarch64-linux";
+  yen.user.ana.on = [
+    yen.host.server
+    yen.mac.studio
+  ];
+  yen.home.ana-laptop = {
+    user = yen.user.ana;
+    system = "x86_64-linux";
+  };
+
+  yen.aspects.server = {
+    at = yen.host.server;
+    nixos = {
+      imports = [
+        (yen.lib.batteries.home-manager.module inputs.home-manager.nixosModules.home-manager) # useGlobalPkgs too
+        inputs.microvm.nixosModules.host
+      ];
+      boot.loader.grub.device = "nodev";
+      fileSystems."/" = {
+        device = "/dev/sda1";
+        fsType = "ext4";
+      };
+      nixpkgs.hostPlatform = "x86_64-linux";
+      system.stateVersion = "25.05";
+    };
+  };
+  yen.aspects.hostname = {
+    at = [
+      yen.kinds.host
+      yen.kinds.guest
+    ];
+    nixos = nixos.hostname;
+  };
+  yen.aspects.guest = {
+    at = yen.kinds.guest;
+    nixos = {
+      imports = [ inputs.microvm.nixosModules.microvm ];
+      system.stateVersion = "25.05";
+    };
+  };
+  yen.aspects.studio = {
+    at = yen.mac.studio;
+    darwin = {
+      imports = [ inputs.home-manager.darwinModules.home-manager ];
+      system.stateVersion = 6;
+    };
+  };
+  yen.aspects.mac-owner = {
+    at = yen.mac.studio;
+    darwin = darwin.primary-user { user = _: "ana"; };
+  };
+  yen.aspects.brew = {
+    at = yen.mac.studio;
+    brew.casks = [ "firefox" ];
+  };
+  yen.kinds.mac.sinks.brew.darwin = darwin.homebrew { from = yen.kinds.mac.sinks.brew; };
+  yen.aspects.pixel = {
+    at = yen.phone.pixel;
+    droid.system.stateVersion = "24.05";
+    homeManager = {
+      home.stateVersion = "24.05";
+      programs.git.enable = true;
+    };
+  };
+  # ana's accounts: a user has no nixos or darwin sink, so these go up to each machine she is on
+  yen.aspects.accounts = {
+    at = yen.kinds.user;
+    nixos = nixos.define-user;
+    darwin =
+      { scope, ... }:
+      {
+        users.users.${scope.name}.home = "/Users/${scope.name}";
+      };
+  };
+  # ana's home: inside the host and the mac, and standalone on her laptop
+  yen.aspects.ana-home = {
+    at = [
+      yen.user.ana
+      yen.home.ana-laptop
+    ];
+    homeManager = {
+      home.stateVersion = "25.05";
+      programs.git.enable = true;
+    };
+  };
+  yen.aspects.standalone = {
+    at = yen.kinds.home;
+    homeManager =
+      { home, ... }:
+      {
+        home.username = home.user.name;
+        home.homeDirectory = "/home/${home.user.name}";
+      };
+  };
+}
+```
+
+:::note[What the checks prove]
+Each output evaluates for real. ana's git is on in her home inside the NixOS host, inside the mac and on her
+laptop. The guest is a microvm of the host. The mac installs firefox with homebrew and its primary user is ana.
+:::
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-platforms`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-platforms
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - fleet.nix
+  - machines.nix
+
+</FileTree>
+:::

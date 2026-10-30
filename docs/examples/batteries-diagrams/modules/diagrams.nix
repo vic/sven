@@ -19,6 +19,18 @@ in
       kinds = draw "LR" (mermaid.kinds yen.kinds);
       gates = draw "LR" (mermaid.gates yen.aspects);
       routes = draw "BT" (mermaid.routes yen.lib.graph);
+      # kind level: kind -> sink -> kind, counted; sinks as rounded nodes, outputs as cylinders
+      routing = mermaid.flowchart {
+        shapes = with mermaid.shapes; {
+          sink = round;
+        };
+      } (mermaid.routing yen.lib.graph);
+      sinks = mermaid.flowchart {
+        shapes = with mermaid.shapes; {
+          sink = round;
+          output = cylinder;
+        };
+      } (mermaid.sinks yen.lib);
     };
   };
 }

@@ -38,6 +38,10 @@ in
   };
   yen.aspects.shell-target = {
     at = yen.kinds.system;
-    targets = { scope, ... }: { ${scope.name} = "devShells.${scope.name}.default"; };
+    targets =
+      { scope, ... }:
+      {
+        ${scope.name} = "devShells.${scope.name}.default";
+      };
   };
 }

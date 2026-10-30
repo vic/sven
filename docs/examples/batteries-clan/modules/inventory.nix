@@ -105,7 +105,11 @@ in
         yen.kinds.member
         (s: s.service == "borg" && s.role == "server")
       ];
-      exports = { scope, ... }: { endpoint = "${scope.parent.name}:22"; };
+      exports =
+        { scope, ... }:
+        {
+          endpoint = "${scope.parent.name}:22";
+        };
     };
     borg-client = {
       at = yen.lib.all [

@@ -31,7 +31,11 @@ in
   yen.aspects.ssh-settings = {
     at = yen.kinds.host;
     settings.ssh.port = 22;
-    report = { host, ... }: { hosts = [ host.name ]; };
+    report =
+      { host, ... }:
+      {
+        hosts = [ host.name ];
+      };
     notes = "note";
   };
   yen.aspects.nas-settings = {

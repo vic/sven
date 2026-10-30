@@ -1,0 +1,190 @@
+---
+{"description":"colmena and deploy-rs, terranix, Kubernetes manifests, machines writing config into each other, modules exported for other flakes.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-deploy/page.nix","title":"Deploy and infrastructure batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+| Battery | Value of | Gives |
+|---|---|---|
+| `deploy.colmena { from; makeHive; meta; }` | `out` of a merge sink of `{ <host> = module; }` | `colmenaHive` |
+| `deploy.deploy-rs { configurations; hostname; activate; sshUser; }` | a function, in `yen.flake` | `deploy.nodes` from built configs |
+| `terranix.configuration { from; terranixConfiguration; system; name; }` | `out` of a terraform module sink | `terraformConfigurations.<name>` |
+| `k8s.manifests { from; lib; output; }` | `out` of a sink of manifest modules | `k8sManifests.<scope name>`, merged with the module system |
+| `distributed.nodes { from; }` | a NixOS key | the modules other machines wrote for this one |
+| `exports.modules { from; output; }` | `out` of a module sink at an export scope | `<output>.<scope name>` for other flakes |
+
+
+```nix title="modules/fleet.nix"
+# Hosts and a cluster in one environment. Hosts build NixOS and join a colmena hive; deploy-rs reads the built configs.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  b = yen.lib.batteries;
+in
+{
+  yen.kinds.fleet = {
+    spawns = {
+      host = _: yen.host;
+      cluster = _: yen.cluster;
+      export = _: yen.export;
+    };
+    sinks = {
+      out.reduce = yen.lib.reduce.merge;
+      # each host gives its own NixOS modules to the hive
+      colmena = {
+        reduce = yen.lib.reduce.merge;
+        out = b.deploy.colmena {
+          from = yen.kinds.fleet.sinks.colmena;
+          inherit (inputs.colmena.lib) makeHive;
+          meta.nixpkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+        };
+      };
+      # dns records as terraform, built with terranix
+      terraform.out = b.terranix.configuration {
+        from = yen.kinds.fleet.sinks.terraform;
+        inherit (inputs.terranix.lib) terranixConfiguration;
+        system = "x86_64-linux";
+        name = _: "dns";
+      };
+      # machines write NixOS config into each other (oddlama's nodes.<name>)
+      nodes.reduce = yen.lib.reduce.entries;
+    };
+  };
+  yen.kinds.host = {
+    fields.addr = lib.types.str;
+    sinks.nixos.out = b.nixos.system {
+      from = yen.kinds.host.sinks.nixos;
+      inherit (inputs) nixpkgs;
+    };
+  };
+  yen.kinds.cluster.sinks.k8s.out = b.k8s.manifests {
+    from = yen.kinds.cluster.sinks.k8s;
+    inherit lib;
+  };
+  # an export never builds a machine: what lands on it is nixosModules.<name> for other flakes
+  yen.kinds.export.sinks.nixos.out = b.exports.modules {
+    from = yen.kinds.export.sinks.nixos;
+    output = "nixosModules";
+  };
+
+  yen.fleet.main = { };
+  yen.host = {
+    lb.addr = "10.0.0.1";
+    web.addr = "10.0.0.2";
+  };
+  yen.cluster.axon = { };
+  yen.export.base = { };
+  # deploy-rs: one node per built NixOS config
+  yen.flake =
+    { out, ... }:
+    out
+    // b.deploy.deploy-rs {
+      configurations = out.nixosConfigurations;
+      hostname = n: _: yen.host.${n}.addr;
+      activate = _: c: inputs.deploy-rs.lib.x86_64-linux.activate.nixos c;
+    };
+}
+```
+
+```nix title="modules/machines.nix"
+{ yen, ... }:
+let
+  b = yen.lib.batteries;
+in
+{
+  yen.aspects.machine = {
+    at = [
+      yen.kinds.host
+      yen.export.base # the same base, exported for other flakes
+    ];
+    nixos = {
+      boot.loader.grub.device = "nodev";
+      fileSystems."/" = {
+        device = "/dev/sda1";
+        fsType = "ext4";
+      };
+      nixpkgs.hostPlatform = "x86_64-linux";
+      system.stateVersion = "25.05";
+    };
+  };
+  yen.aspects.hive = {
+    at = yen.kinds.host;
+    colmena =
+      { host, ... }:
+      {
+        ${host.name} = {
+          deployment.targetHost = host.addr;
+          imports = [ { networking.hostName = host.name; } ];
+        };
+      };
+    terraform =
+      { host, ... }:
+      {
+        resource.cloudflare_record.${host.name} = {
+          name = host.name;
+          content = host.addr;
+          type = "A";
+        };
+      };
+    nixos = b.distributed.nodes { from = yen.kinds.fleet.sinks.nodes; };
+  };
+  # lb writes into web: its backends know the load balancer
+  yen.aspects.lb-writes-web = {
+    at = yen.host.lb;
+    nodes =
+      { host, ... }:
+      {
+        web.networking.extraHosts = "${host.addr} lb.internal";
+      };
+  };
+  yen.aspects.ingress = {
+    at = yen.cluster.axon;
+    k8s.ingress.web = {
+      host = "web.example.org";
+      port = 80;
+    };
+  };
+  yen.aspects.ingress-tls = {
+    at = yen.cluster.axon;
+    k8s.ingress.web.tls = true;
+  };
+}
+```
+
+Two aspects wrote the ingress of `axon`; the module system merged them:
+
+
+```nix title="result"
+{
+  axon = {
+    ingress = {
+      web = {
+        host = "web.example.org";
+        port = 80;
+        tls = true;
+      };
+    };
+  };
+}
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-deploy`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-deploy
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - fleet.nix
+  - machines.nix
+
+</FileTree>
+:::

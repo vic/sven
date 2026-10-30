@@ -57,10 +57,20 @@
       ''
       (docs.mermaid d.routes)
       ''
+        ## Routing by kind, and sinks
+      ''
+      (docs.mermaid d.routing)
+      (docs.mermaid d.sinks)
+      ''
         ## Tables, links and a vocabulary
       ''
       (docs.file "modules/docs.nix")
       result.flake.kinds
+      ''
+
+      ''
+      result.flake.hosts
+      (docs.value result.flake.templates)
       ''
 
         The link follows the line: `${result.flake.links.db-field}`. A new kind with no doc line fails:
@@ -88,6 +98,10 @@
           ];
         };
       table = has "| `host` | `db`, `environment` |  | `nixos` | 3 |" result.flake.kinds;
+      routing = has "|\"1\"|" d.routing && has "(\"inventory\")" d.routing;
+      sinks = has "[(\"flake outputs\")]" d.sinks;
+      hosts-table = has "| lab | dev |" result.flake.hosts;
+      templates = result.flake.templates == { hello = "hello: the smallest flake"; };
       links = result.flake.links.db-field == "[`db`](fleet.nix#L23)";
       vocabulary = map (e: e.code) (variant "variants/new-kind.nix").errors == [ "doc-missing" ];
     };

@@ -25,7 +25,7 @@ in
     at = yen.host.server;
     nixos = {
       imports = [
-        inputs.home-manager.nixosModules.home-manager
+        (yen.lib.batteries.home-manager.module inputs.home-manager.nixosModules.home-manager) # useGlobalPkgs too
         inputs.microvm.nixosModules.host
       ];
       boot.loader.grub.device = "nodev";
@@ -79,7 +79,11 @@ in
   yen.aspects.accounts = {
     at = yen.kinds.user;
     nixos = nixos.define-user;
-    darwin = { scope, ... }: { users.users.${scope.name}.home = "/Users/${scope.name}"; };
+    darwin =
+      { scope, ... }:
+      {
+        users.users.${scope.name}.home = "/Users/${scope.name}";
+      };
   };
   # ana's home: inside the host and the mac, and standalone on her laptop
   yen.aspects.ana-home = {

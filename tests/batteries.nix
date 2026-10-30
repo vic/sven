@@ -904,8 +904,17 @@ let
               type = "skill";
               name = "s";
             }
+            [
+              {
+                type = "mcp";
+                name = "list"; # an element that is a list of records
+              }
+            ]
           ];
-        } == [ "gh" ];
+        } == [
+        "gh"
+        "list"
+      ];
     ai-skills = map (s: s.name) (bat.ai.skills ./fixtures/skills) == [ "review" ];
     distributed-nodes =
       bat.distributed.nodes { from.__sink = "n"; } {
@@ -1170,9 +1179,13 @@ let
         report = h: "/r/${h.name}.json";
         module = "M";
       } { scope = sc "h"; } == {
-        hardware.facter.reportPath = "/r/h.json";
+        facter.reportPath = "/r/h.json";
         imports = [ "M" ];
-      };
+      }
+      &&
+        nixos.facter { report = h: "/r/${h.name}.json"; } { scope = sc "h"; } == {
+          hardware.facter.reportPath = "/r/h.json";
+        };
     files-toml =
       bat.files.toml { } {
         p.name = "a b";
