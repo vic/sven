@@ -15,12 +15,13 @@ in
       ingestUrl = maybe lib.types.str;
     };
     sinks.k8s-manifests.out =
-      { cluster, k8s-manifests, ... }:
+      { cluster, sinks, ... }:
       {
-        k8sManifests.${cluster.name} =
-          (lib.evalModules {
-            modules = [ { freeformType = lib.types.attrsOf lib.types.anything; } ] ++ k8s-manifests;
-          }).config;
+        k8sManifests.${cluster.name} = yen.lib.batteries.eval-modules {
+          from = yen.kinds.cluster.sinks.k8s-manifests;
+          inherit lib;
+          modules = [ { freeformType = lib.types.attrsOf lib.types.anything; } ];
+        } { inherit sinks; };
       };
   };
   yen.cluster.axon = {
