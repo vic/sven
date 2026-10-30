@@ -1073,8 +1073,7 @@ let
       && !(bat.docs.templates {
         root = ../docs/examples;
         description = _: "";
-      })
-        ? about; # docs/examples/about has no flake.nix
+      }) ? about; # docs/examples/about has no flake.nix
     files-comment =
       bat.files.comment "README.md" "x" == "<!-- x -->\n"
       && bat.files.comment "a/ci.yml" "x" == "# x\n"
@@ -1195,7 +1194,8 @@ let
     secretspec-twice =
       codes (
         specRun (
-          { yen, ... }: {
+          { yen, ... }:
+          {
             yen.aspects.s3 = {
               at = yen.person.p; # another scope than s1: two owners
               secrets.name = "DB_URL";
