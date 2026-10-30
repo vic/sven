@@ -9,20 +9,18 @@ import sidebar from './src/sidebar.json' with { type: 'json' };
 
 // https://astro.build/config
 export default defineConfig({
-	experimental: {
-		fonts: [
-			{
-				provider: fontProviders.google(),
-				name: "Victor Mono",
-				cssVariable: "--font-victor-mono",
-			},
-			{
-				provider: fontProviders.google(),
-				name: "JetBrains Mono",
-				cssVariable: "--font-jetbrains-mono",
-			},
-		],
-	},
+	fonts: [
+		{
+			provider: fontProviders.google(),
+			name: "Victor Mono",
+			cssVariable: "--font-victor-mono",
+		},
+		{
+			provider: fontProviders.google(),
+			name: "JetBrains Mono",
+			cssVariable: "--font-jetbrains-mono",
+		},
+	],
 	integrations: [
 		mermaid({
 			theme: 'forest',
@@ -52,6 +50,7 @@ export default defineConfig({
 				baseUrl: 'https://github.com/vic/yen/edit/main/docs/',
 			},
 			customCss: [
+				'./src/styles/layout.css',
 				'./src/styles/custom.css'
 			],
 		}),
