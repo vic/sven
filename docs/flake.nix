@@ -31,7 +31,14 @@
     }; # literal names: `self` is readable while the outputs evaluate
 
   inputs = {
+    colmena.url = "github:zhaofengli/colmena";
     den.url = "github:denful/den";
+    deploy-rs.url = "github:serokell/deploy-rs";
+    impermanence.url = "github:nix-community/impermanence";
+    microvm.url = "github:microvm-nix/microvm.nix";
+    nix-on-droid.url = "github:nix-community/nix-on-droid";
+    nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
+    terranix.url = "github:terranix/terranix";
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs";

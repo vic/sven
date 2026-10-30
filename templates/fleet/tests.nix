@@ -64,7 +64,7 @@ let
   checks = {
     # ── Ren expected-results ──
     no-errors = msgs r == [ ];
-    docs-mermaid = lib.hasInfix "-->|nixos|" out.docs.mermaid && edge "nixos" ci stage;
+    docs-mermaid = lib.hasInfix "-->|\"nixos\"|" out.docs.mermaid && edge "nixos" ci stage;
     fold-one = out.deploy.nodes.lb.hostname == "10.0.1.1";
     fold-one-two-emitters = hasMsg (with' (
       { yen, ... }:

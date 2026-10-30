@@ -48,7 +48,8 @@ let
   isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
   combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
   # keys the engine reads; the other keys of a sink, an aspect, a cycle output or a scope are data
-  sinkMeta = words "at reduce of";
+  sinkMeta = words "at reduce of __sink";
+  scopeKeys = words "kind name key parent path id up rup"; # the scope record sets these over the instance fields
   aspectMeta = words "at cycle order __aspect";
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
@@ -119,6 +120,15 @@ let
   isLeaf =
     v: !isAttrs v || v ? check || v ? __kind || v ? __functor || (v.type or null) == "derivation";
   isType = t: isAttrs t && (t ? check || t ? __kind);
+  # the kind a type refers to, through `maybe`; null when it is no ref
+  refKind =
+    t:
+    if t ? __kind then
+      t.__kind
+    else if t ? __maybe then
+      refKind t.__maybe
+    else
+      null;
   checkOf = t: if t ? __kind then (v: isAttrs v && (v.kind or null) == t.__kind) else t.check;
   get =
     path: v:
@@ -195,10 +205,12 @@ let
     maybe = t: {
       check = v: v == null || checkOf t v;
       default = null;
+      __maybe = t; # the type it wraps: a maybe-ref is still a ref (refKind)
     };
     graphs = import ./lib/graphs.nix; # reach, transpose, topo, layers, sccs, cycles, paths, shortest over succ attrsets
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
     datalog = import ./lib/datalog.nix; # ground rules with negation: wfs (three values), stable, why
+    batteries = import ./lib/batteries; # roles in, a yen module out: pool, gated, system; nixos.*
     # JSON-safe: functions and derivations become strings; toJSON then never fails
     jsonSafe =
       v:
@@ -338,6 +350,7 @@ let
           __kind = k;
           check = checkOf { __kind = k; };
         }
+        // (if d ? sinks then { sinks = mapAttrs (n: v: v // { __sink = n; }) d.sinks; } else { }) # a sink is a ref: it carries its name
       ) (top.kinds or { }); # a kind is a type: its instances pass
       aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
       kindNames = attrNames kinds;
@@ -378,7 +391,7 @@ let
           id = "${k}:${n}";
           p = concatStringsSep "." path;
           bad = first (t: !checkOf t r.ok) tys;
-          kr = first (t: t ? __kind) tys;
+          kr = first (t: refKind t != null) tys;
           fail = e: {
             value = null;
             errors = [ (errWith id e.error (removeAttrs e [ "error" ] // { inherit path; })) ];
@@ -394,13 +407,13 @@ let
           }
         else if tys != [ ] && bad != null then
           fail {
-            error = if kr != null then "${p} wants a ${kr.__kind} ref" else "${p} fails its check";
+            error = if kr != null then "${p} wants a ${refKind kr} ref" else "${p} fails its check";
             code = if kr != null then "ref" else "check";
             got = if isFunction r.ok then "<function>" else r.ok;
             want = typeName bad;
             fix =
               if kr != null then
-                "use yen.${kr.__kind}.<name>, not a string"
+                "use yen.${refKind kr}.<name>, not a string"
               else
                 "give ${p} a value of type ${typeName bad}";
           }
@@ -770,7 +783,7 @@ let
       byTo = groupBy (e: "${e.key}@${e.to.id}") routed;
 
       # ── sources at a scope (Cycle isolateSource): the tree driver and one source per sink ──
-      isRen = n: n == "scope" || kinds ? ${n} || elem n sinkNames; # `tree` is a cycle source, never an element arg
+      isRen = n: n == "scope" || n == "sinks" || kinds ? ${n} || elem n sinkNames; # `tree` is a cycle source, never an element arg
       nearest = k: s: first (x: x.kind == k) s.rup;
       # what a tree request answers at a scope: a list, empty when nothing answers (Cycle: no source, no emission)
       answer =
@@ -813,7 +826,7 @@ let
       # the scope an arg reads: the scope itself, the nearest instance of a kind, or a sink's receiver
       argScope =
         s: n:
-        if n == "scope" then
+        if n == "scope" || n == "sinks" then
           s
         else if kinds ? ${n} then
           nearest n s
@@ -822,12 +835,33 @@ let
         else
           null;
       argAt =
-        s: n: if n == "scope" || kinds ? ${n} then orNull (argScope s n) else (sourcesAt s [ ]).${n} or [ ];
-      isAttrsFn = f: functionArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
+        s: n:
+        if n == "sinks" then
+          [ (sinksAt s) ]
+        else if n == "scope" || kinds ? ${n} then
+          orNull (argScope s n)
+        else
+          (sourcesAt s [ ]).${n} or [ ];
+      # the fixed arg `sinks`: each sink that has a receiver up the tree, read at the nearest one (as a named sink arg)
+      sinksAt =
+        s:
+        mapAttrs (_: head) (
+          b.removeAttrs (sourcesAt s [ ]) (
+            filter (n: receiverIn n s.rup == null) sinkNames
+            ++ [
+              "scope"
+              "tree"
+            ]
+          )
+        );
+      # nixpkgs lib.functionArgs rule: a functor with `__functionArgs` is a function. yen writes these (below) and reads them.
+      isFn = f: isFunction f || f ? __functionArgs;
+      fnArgs = f: f.__functionArgs or (functionArgs f);
+      isAttrsFn = f: fnArgs f != { } || b.match ".*<attrspat.*" (b.toXML f) != null; # toXML only for `{ ... }:` vs `x:`
       fill =
         s: v:
         let
-          fa = functionArgs v;
+          fa = fnArgs v;
           mine = filter isRen (attrNames fa);
           asked = genAttrs mine (argAt s);
           none = filter (n: asked.${n} == [ ]) mine;
@@ -835,7 +869,7 @@ let
           got = mapAttrs (_: head) (removeAttrs asked none);
           rest = removeAttrs fa mine;
         in
-        if !isFunction v then
+        if !isFn v then
           { ok = v; }
         else if !isAttrsFn v then
           errWith s.id "bare function: wrap it as `{ ... }:`" {
@@ -867,11 +901,11 @@ let
       # ── the drivers ──
       idOf =
         e:
-        if !isFunction e.value then
+        if !isFn e.value then
           (if e ? raw then "${e.origin}|raw${toString e.raw}|${e.from.id}" else e.origin) # static content: once per receiver (Ren r13 rule 9)
         else
           "${e.origin}|"
-          + concatStringsSep "," (map (n: (argScope e.from n).id or "") (attrNames (functionArgs e.value)));
+          + concatStringsSep "," (map (n: (argScope e.from n).id or "") (attrNames (fnArgs e.value)));
       reduceAt =
         k: r:
         let
@@ -1042,7 +1076,7 @@ let
           {
             type = typeName t;
           }
-          // (if t ? __kind then { ref = t.__kind; } else { })
+          // (if refKind t != null then { ref = refKind t; } else { })
           // (
             if t ? default && elem (b.typeOf t.default) (words "string int bool null list") then
               { default = t.default; }
@@ -1306,8 +1340,41 @@ let
             k
           ]) [ "yen" "kinds" k ] kindKeys (attrNames top.kinds.${k})
         ) kindNames;
+      # `scope` and `sinks` are fixed args: a sink of that name could never be read
+      reservedErrors =
+        map
+          (
+            n:
+            errWith "declarations" "sink `${n}`: the name is a fixed arg" {
+              code = "reserved";
+              fix = "rename the sink; `scope` and `sinks` are args of every element";
+            }
+          )
+          (
+            filter (n: elem n sinkNames) [
+              "scope"
+              "sinks"
+            ]
+          )
+        # a field named like a key of the scope record would read as that key, never as the field
+        ++ concatMap (
+          k:
+          map (
+            n:
+            errWith "declarations" "field `${n}` of kind ${k}: the name is a key of every scope" {
+              code = "reserved";
+              path = [
+                k
+                n
+              ];
+              want = scopeKeys;
+              fix = "rename the field; a scope already has ${concatStringsSep ", " scopeKeys}";
+            }
+          ) (filter (n: elem n scopeKeys) (attrNames (kinds.${k}.fields or { })))
+        ) kindNames;
       errorsAll =
         loadErrors
+        ++ reservedErrors
         ++ keyErrors
         ++ declErrors [ ]
         ++ concatMap (k: concatMap (n: (inst k n [ ]).errors) (instNames k)) kindNames

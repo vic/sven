@@ -30,8 +30,10 @@ in
   # a rule across machines, checked before deploy: a host's db lives in its environment
   yen.invariants.db-same-env =
     { scopes, ... }:
-    map (s: {
-      head = "bad:db-other-env:${s.name}";
-      pos = [ "ref:db:${s.id}:host:${s.db.name}" ];
-    }) (lib.filter (s: s.kind == "host" && s.db != null && !(same s.db.env s.env)) scopes);
+    map
+      (s: {
+        head = "bad:db-other-env:${s.name}";
+        pos = [ "ref:db:${s.id}:host:${s.db.name}" ];
+      })
+      (lib.filter (s: yen.lib.holds yen.kinds.host s && s.db != null && !(same s.db.env s.env)) scopes);
 }

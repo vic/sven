@@ -11,75 +11,24 @@ let
     opt
     maybe
     ;
-  machineOf = s: if s.kind == "member" then s.parent else s;
-  keyOf = g: if g.share or false then g.name else "${g.name}@${g.machine}";
-  publicValue =
-    m: gen: file: default:
-    let
-      p = ../../vars/per-machine + "/${m}/${gen}/${file}/value";
-    in
-    if builtins.pathExists p then lib.removeSuffix "\n" (builtins.readFile p) else default;
-  pathOf =
-    gen: file: f:
-    "/run/${
-      if f.neededFor or "services" == "users" then "secrets-for-users" else "secrets"
-    }/vars/${gen}/${file}";
+  machineOf = s: if yen.lib.holds yen.kinds.member s then s.parent else s;
+  publicValue = yen.lib.batteries.clan.public-value { root = ../../vars/per-machine; };
   machineNames = lib.attrNames yen.host ++ lib.attrNames yen.mac;
 in
 {
   yen.kinds.fleet.sinks.generators = {
-    reduce =
-      es:
-      let
-        gs = map (e: e.value // { machine = (machineOf e.from).name; }) (
-          lib.filter (e: e.value != null) es
-        );
-        byKey = lib.mapAttrs (
-          _: xs: removeAttrs (lib.head xs) [ "machine" ] // { machines = lib.unique (map (g: g.machine) xs); }
-        ) (lib.groupBy keyOf gs);
-        missing = lib.concatMap (
-          g:
-          map (d: {
-            error = "vars: generator ${keyOf g} depends on ${d}, which ${g.machine} has not";
-            from = "fleet:main";
-          }) (lib.filter (d: !(byKey ? ${d} || byKey ? "${d}@${g.machine}")) (g.dependencies or [ ]))
-        ) gs;
-      in
-      {
-        value = byKey;
-        errors = missing;
-      };
+    reduce = yen.lib.batteries.clan.generators { inherit machineOf; };
     # the plan per machine: secret files with their path, and the order to generate in (dependencies first)
-    out =
-      { generators, ... }:
-      {
-        varsPlan = lib.genAttrs machineNames (
-          m:
-          let
-            mine = lib.filterAttrs (_: g: lib.elem m g.machines) generators;
-          in
-          {
-            files = lib.concatLists (
-              lib.mapAttrsToList (
-                _: g:
-                lib.mapAttrsToList (f: d: {
-                  generator = g.name;
-                  file = f;
-                  path = pathOf g.name f d;
-                  neededForUsers = d.neededFor or null == "users";
-                }) (lib.filterAttrs (_: d: (d.secret or true) && (d.deploy or true)) (g.files or { }))
-              ) mine
-            ); # deploy = false: never on the machine (a root CA key)
-            recipients =
-              let
-                r = yen.fleet.main.recipients;
-              in
-              r.hosts.${m} or r.default; # a host list replaces the default, never adds to it
-            order =
-              (lib.toposort (a: b: lib.elem a.name (b.dependencies or [ ])) (lib.attrValues mine)).result or [ ];
-          }
-        );
-      };
+    out = yen.lib.batteries.clan.vars-plan {
+      from = yen.kinds.fleet.sinks.generators;
+      machines = machineNames;
+      recipientsOf =
+        m:
+        let
+          r = yen.fleet.main.recipients;
+        in
+        r.hosts.${m} or r.default; # a host list replaces the default, never adds to it
+    };
   };
   yen.kinds.fleet.sinks.public-reads.reduce = yen.lib.reduce.entries;
   yen.kinds.fleet.fields.secretStore = opt (yen.helpers.enum [
@@ -105,33 +54,22 @@ in
       "password-store"
     ]
   );
+  yen.aspects.vars-secret-reads = {
+    at = yen.kinds.fleet;
+    errors = yen.lib.batteries.clan.secret-reads {
+      from = yen.kinds.fleet.sinks.generators;
+      reads = yen.kinds.fleet.sinks.public-reads;
+    };
+  };
   yen.aspects.vars-guard = {
     at = yen.kinds.fleet;
     errors =
-      {
-        fleet,
-        generators,
-        public-reads,
-        ...
-      }:
-      map (r: "vars: ${r.value.machine} reads ${r.value.generator}/${r.value.file}, a secret file") (
-        lib.filter (
-          r:
-          lib.any (
-            g:
-            lib.elem r.value.machine g.machines
-            && g.name == r.value.generator
-            && (g.files.${r.value.file}.secret or true)
-          ) (lib.attrValues generators)
-        ) public-reads
+      { fleet, generators, ... }:
+      map (m: "vars: ${m.name} uses secret store ${m.secretStore}, the fleet uses ${fleet.secretStore}") (
+        lib.filter (m: m.secretStore != null && m.secretStore != fleet.secretStore) (
+          lib.attrValues yen.host ++ lib.attrValues yen.mac
+        )
       )
-      ++
-        map (m: "vars: ${m.name} uses secret store ${m.secretStore}, the fleet uses ${fleet.secretStore}")
-          (
-            lib.filter (m: m.secretStore != null && m.secretStore != fleet.secretStore) (
-              lib.attrValues yen.host ++ lib.attrValues yen.mac
-            )
-          )
       ++ lib.concatMap (
         g:
         lib.optional (

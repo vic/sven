@@ -39,10 +39,10 @@ in
   };
   yen.aspects.ci-file = {
     at = yen.system.x86_64-linux;
-    files =
-      { ci, ... }:
-      {
-        files.file."ci.json".text = builtins.toJSON (lib.attrValues ci) + "\n";
-      };
+    files = yen.lib.batteries.files.json {
+      from = yen.kinds.fleet.sinks.ci;
+      path = "ci.json";
+      value = lib.attrValues;
+    };
   };
 }

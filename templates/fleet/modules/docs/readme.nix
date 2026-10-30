@@ -6,63 +6,30 @@ let
   code = xs: lib.concatMapStringsSep ", " (x: "`${x}`") xs;
   names = v: if lib.isAttrs v then lib.attrNames v else [ ];
   sorted = xs: lib.sort (a: b: a < b) (lib.unique xs);
-  kindRow =
-    k:
-    let
-      d = yen.kinds.${k};
-    in
-    "| `${k}` | ${code (names (d.fields or { }))} | ${code (names (d.spawns or { }))} | ${code (names (d.sinks or { }))} | ${
-      toString (lib.length (lib.filter (s: s.kind == k) g.scopes))
-    } |";
   kinds = ''
     ## This fleet, live
     Generated from the fleet's queries: ${toString (lib.length g.scopes)} scopes, ${toString (lib.length (lib.attrNames yen.kinds))} kinds, ${toString (lib.length (lib.attrNames yen.aspects))} aspects, ${toString (lib.length g.edges)} routed elements.
-    | Kind | Fields | Spawns | Sinks | Scopes |
-    |---|---|---|---|---|
-    ${lib.concatMapStringsSep "\n" kindRow (lib.attrNames yen.kinds)}
+    ${yen.lib.batteries.docs.kinds yen.kinds g}
     A kind with 0 scopes is data: nothing spawns it.
   '';
 
-  # ── one thin mermaid emitter for every view: nodes { id; label; kind; group }, edges { from; to; label; live } ──
-  node = id: "n${builtins.substring 0 10 (builtins.hashString "md5" id)}";
-  q = l: ''"${lib.replaceStrings [ "\"" ] [ "'" ] l}"'';
-  shape = {
-    mac = l: "(${q l})";
-    guest = l: "[[${q l}]]";
-    home = l: "[/${q l}/]";
-    user = l: "((${q l}))";
-    member = l: "{{${q l}}}";
-    instance = l: "{{${q l}}}";
-    sink = l: "(${q l})";
-    output = l: "[(${q l})]";
-  };
-  box = n: node n.id + (shape.${n.kind} or (l: "[${q l}]")) n.label;
+  # ── every view goes through the mermaid battery: nodes { id; label; kind; group }, edges { from; to; label; live } ──
   mermaid =
     view:
-    let
-      inside = p: lib.filter (n: (n.group or null) == p.id) view.nodes;
-      isGroup = n: lib.any (m: (m.group or null) == n.id) view.nodes;
-      draw =
-        n:
-        if isGroup n then
-          [ "  subgraph ${node n.id} [${q n.label}]" ] ++ map (m: "    ${box m}") (inside n) ++ [ "  end" ]
-        else
-          [ "  ${box n}" ];
-      edge =
-        e:
-        "  ${node e.from} ${if e.live or true then "-->" else "-.->"}${
-            if (e.label or "") == "" then "" else "|${q e.label}|"
-          } ${node e.to}";
-    in
-    lib.concatStringsSep "\n" (
-      [
-        "```mermaid"
-        "flowchart LR"
-      ]
-      ++ lib.concatMap draw (lib.filter (n: (n.group or null) == null) view.nodes)
-      ++ map edge view.edges
-      ++ [ "```" ]
-    );
+    "```mermaid\n"
+    + yen.lib.batteries.mermaid.flowchart {
+      shapes = with yen.lib.batteries.mermaid.shapes; {
+        mac = round;
+        guest = subroutine;
+        home = parallelogram;
+        user = circle;
+        member = hexagon;
+        instance = hexagon;
+        sink = round;
+        output = cylinder;
+      };
+    } view
+    + "\n```";
   short =
     xs:
     let
@@ -78,15 +45,17 @@ let
   envOf =
     s:
     lib.findFirst (e: lib.hasPrefix "${e.id}/" s.id) null (
-      lib.filter (e: e.kind == "environment") g.scopes
+      lib.filter (e: yen.lib.holds yen.kinds.environment e) g.scopes
     );
   fleetMap = {
     nodes = map (s: {
       inherit (s) id kind;
-      label = if s.kind == "environment" then "environment ${s.name}" else s.name;
+      label = if yen.lib.holds yen.kinds.environment s then "environment ${s.name}" else s.name;
       group =
         if
-          s.kind != "environment" && envOf s != null && kindOf.${parentOf s.id} or null == "environment"
+          !(yen.lib.holds yen.kinds.environment s)
+          && envOf s != null
+          && kindOf.${parentOf s.id} or null == "environment"
         then
           (envOf s).id
         else
@@ -103,61 +72,8 @@ let
         );
   };
 
-  # sink forwarding: a sink's key that names another sink feeds it (dashed); `out` reaches flake outputs with live receivers
-  meta = [
-    "reduce"
-    "of"
-    "at"
-    "out"
-  ];
-  sinkDecls = lib.concatLists (
-    lib.mapAttrsToList (
-      k: d:
-      lib.mapAttrsToList (n: v: {
-        kind = k;
-        name = n;
-        decl = if lib.isAttrs v then v else { };
-      }) (d.sinks or { })
-    ) yen.kinds
-  );
-  receiversOf = sink: sorted (map (e: nameOf.${e.to}) (lib.filter (e: e.sink == sink) g.edges));
-  forwards = {
-    nodes =
-      map
-        (n: {
-          id = "sink:${n}";
-          label = n;
-          kind = "sink";
-        })
-        (
-          sorted (
-            map (d: d.name) sinkDecls ++ lib.concatMap (d: lib.subtractLists meta (names d.decl)) sinkDecls
-          )
-        )
-      ++ [
-        {
-          id = "flake";
-          label = "flake outputs";
-          kind = "output";
-        }
-      ];
-    edges = lib.unique (
-      lib.concatMap (
-        d:
-        map (t: {
-          from = "sink:${d.name}";
-          to = "sink:${t}";
-          label = d.kind;
-          live = false;
-        }) (lib.subtractLists meta (names d.decl))
-        ++ lib.optional (d.decl ? out) {
-          from = "sink:${d.name}";
-          to = "flake";
-          label = short (receiversOf d.name);
-        }
-      ) sinkDecls
-    );
-  };
+  # sink forwarding: a sink key that gives to another sink (dashed); `out` reaches flake outputs with live receivers
+  forwards = yen.lib.batteries.mermaid.sinks yen.lib;
 
   # pools: an element routed from one kind up to another, one edge per (sink, from kind, to kind)
   routed = lib.filter (e: kindOf.${e.from} != kindOf.${e.to}) g.edges;
@@ -193,7 +109,7 @@ let
   };
 
   # clan instances: instance (service) to the machines of each role
-  members = lib.filter (s: s.kind == "member") g.scopes;
+  members = lib.filter (s: yen.lib.holds yen.kinds.member s) g.scopes;
   instanceOf = s: lib.head (lib.splitString "." s.name);
   clan = {
     nodes =
@@ -267,33 +183,7 @@ let
   };
 
   # kind tree: solid = `spawns` (parent kind to child kind), dotted = a field that is a ref to another kind
-  kindTree = {
-    nodes = map (k: {
-      id = "k:${k}";
-      label = k;
-      kind = "kind";
-    }) (lib.attrNames yen.kinds);
-    edges = lib.concatLists (
-      lib.mapAttrsToList (
-        k: d:
-        map (c: {
-          from = "k:${k}";
-          to = "k:${c}";
-        }) (names (d.spawns or { }))
-        ++ lib.concatLists (
-          lib.mapAttrsToList (
-            f: t:
-            lib.optional (lib.isAttrs t && t ? __kind) {
-              from = "k:${k}";
-              to = "k:${t.__kind}";
-              label = f;
-              live = false;
-            }
-          ) (d.fields or { })
-        )
-      ) yen.kinds
-    );
-  };
+  kindTree = yen.lib.batteries.mermaid.kinds yen.kinds;
   # pools as a sequence: who sends what to whom
   sequence = lib.concatStringsSep "\n" (
     [
@@ -308,14 +198,11 @@ let
   );
 
   # summary tables
-  machineScopes = lib.filter (
-    s:
-    lib.elem s.kind [
-      "host"
-      "mac"
-      "guest"
-    ]
-  ) g.scopes;
+  machineScopes = lib.filter (yen.lib.holds [
+    yen.kinds.host
+    yen.kinds.mac
+    yen.kinds.guest
+  ]) g.scopes;
   aspectsAt =
     s:
     sorted (
@@ -323,7 +210,7 @@ let
         lib.filter (e: e.from == s.id && lib.hasPrefix "aspect " e.origin) g.edges
       )
     ); # aspects that gave elements here (projected hasAspect)
-  under = p: k: lib.filter (s: s.kind == k && lib.hasPrefix "${p.id}/" s.id) g.scopes;
+  under = p: k: lib.filter (s: yen.lib.holds k s && lib.hasPrefix "${p.id}/" s.id) g.scopes;
   summary = ''
     ### Summary
     | Environment | Machines | Users | Clusters |
@@ -334,16 +221,16 @@ let
         short (
           map (s: s.name) (
             lib.concatMap (under e) [
-              "host"
-              "mac"
-              "guest"
+              yen.kinds.host
+              yen.kinds.mac
+              yen.kinds.guest
             ]
           )
         )
-      } | ${toString (lib.length (sorted (map (s: s.name) (under e "user"))))} | ${
-        short (map (s: s.name) (under e "cluster"))
+      } | ${toString (lib.length (sorted (map (s: s.name) (under e yen.kinds.user))))} | ${
+        short (map (s: s.name) (under e yen.kinds.cluster))
       } |"
-    ) (lib.filter (s: s.kind == "environment") g.scopes)}
+    ) (lib.filter (s: yen.lib.holds yen.kinds.environment s) g.scopes)}
 
     | Machine | Kind | Aspects giving elements | Some aspects |
     |---|---|---|---|
@@ -651,25 +538,41 @@ let
       lib.attrValues ci
     )}
   '';
+  # a README section after `prev`; a section that reads args stays a function of the same args
+  section =
+    name: prev: v:
+    let
+      record = value: {
+        inherit name value;
+        after = [ prev ];
+      };
+    in
+    {
+      at = yen.system.x86_64-linux;
+      readme =
+        if lib.isFunction v then lib.setFunctionArgs (a: record (v a)) (lib.functionArgs v) else record v;
+    };
 in
 {
-  yen.aspects.readme = {
-    at = yen.system.x86_64-linux;
-    files =
-      { ci, generators, ... }:
-      {
-        files.file."README.md".text = lib.concatStringsSep "\n" [
-          "# yen fleet"
-          ""
-          "<!-- Generated by github:sini/files from modules/docs. Edit there, then run `nix run .#write-files`. -->"
-          ""
-          (builtins.readFile ./_guide.md)
-          kinds
-          (diagrams generators)
-          summary
-          capabilities
-          (jobs ci)
-        ];
+  # README.md: one section per aspect, from any file, in the order their `after` says (the `ordered` battery)
+  yen.kinds.system.sinks.readme.reduce = yen.lib.batteries.ordered;
+  yen.aspects = {
+    readme = {
+      at = yen.system.x86_64-linux;
+      files = yen.lib.batteries.files.document {
+        from = yen.kinds.system.sinks.readme;
+        path = "README.md";
       };
+      readme = {
+        name = "header";
+        value = "# yen fleet\n\n${yen.lib.batteries.files.comment "README.md" "Generated by github:sini/files from modules/docs. Edit there, then run `nix run .#write-files`."}";
+      };
+    };
+    readme-guide = section "guide" "header" (builtins.readFile ./_guide.md);
+    readme-kinds = section "kinds" "guide" kinds;
+    readme-diagrams = section "diagrams" "kinds" ({ generators, ... }: diagrams generators);
+    readme-summary = section "summary" "diagrams" summary;
+    readme-capabilities = section "capabilities" "summary" capabilities;
+    readme-jobs = section "jobs" "capabilities" ({ ci, ... }: jobs ci);
   };
 }

@@ -4,7 +4,7 @@ let
   alice = yen.user.alice;
   hers = [
     alice
-    (s: s.kind == "home" && yen.lib.same s.user alice)
+    (s: yen.lib.holds yen.kinds.home s && yen.lib.same s.user alice)
   ];
 in
 {

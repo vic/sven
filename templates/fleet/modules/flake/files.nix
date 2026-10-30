@@ -5,31 +5,17 @@
   inputs,
   ...
 }:
-let
-  pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
-in
 {
   yen.kinds.system.sinks.files = {
     at = s: s.name == "x86_64-linux"; # one writer for the repo
-    out =
-      { files, ... }:
-      let
-        e = lib.evalModules {
-          modules = [
-            inputs.files.module
-            {
-              _module.args.pkgs = pkgs;
-              files.root = inputs.self;
-              files.relativeRoot = "templates/fleet";
-            }
-          ]
-          ++ files;
-        };
-      in
-      {
-        packages.x86_64-linux.write-files = e.config.files.writer.drv;
-        checks.x86_64-linux = e.config.files.checks;
-      };
+    out = yen.lib.batteries.files.writer {
+      from = yen.kinds.system.sinks.files;
+      inherit (inputs) files;
+      inherit lib;
+      pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+      root = inputs.self;
+      relativeRoot = "templates/fleet";
+    };
   };
   yen.aspects.files-input = {
     at = yen.fleet.main;

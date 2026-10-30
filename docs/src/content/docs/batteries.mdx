@@ -1,0 +1,38 @@
+---
+{"description":"Ready rules for common jobs, in yen.lib.batteries. You write every key; a battery is the value. Or write your own.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-index/page.nix","title":"Battery packs"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+The yen engine is domain independent: it knows no host, no user and no NixOS. The examples in these docs write
+every rule by hand, so you can see each step.
+
+Many rules come back in every fleet. `yen.lib.batteries` has them ready, as plain Nix values:
+
+- Generic batteries, at the top of `yen.lib.batteries`, know no domain: `mesh`, `claim`, `ordered`.
+- A pack is the batteries of one domain, under its name: `yen.lib.batteries.nixos`.
+
+A battery never adds a word to your fleet. You write `yen.kinds.…`, the sinks and the aspects with your own
+names. The battery is the value of one key. It reads only `scope` and `sinks`, and it takes the sinks it reads
+as refs, so it works in any fleet:
+
+
+```nix
+yen.kinds.host.sinks.unfree.nixos = yen.lib.batteries.nixos.unfree { from = yen.kinds.host.sinks.unfree; };
+yen.aspects.hostname = { at = yen.kinds.host; nixos = yen.lib.batteries.nixos.hostname; };
+```
+
+When a battery does not fit, write your own with the same shape. It is a few lines of Nix in your fleet.
+
+
+<CardGrid>
+<LinkCard title="Generic batteries" href="/batteries/generic/" description="mesh, claim, ordered, eval-modules, configurations, imports: values for keys you write. And how to write your own." />
+<LinkCard title="NixOS batteries" href="/batteries/nixos/" description="yen.lib.batteries.nixos: system, accounts, shells, autologin, unfree, firewall, hosts, builders, persist, facter. NixOS options are the domain; yen keys are yours." />
+<LinkCard title="Repo batteries" href="/batteries/repo/" description="files, github, devshell, flake-file: README, CI workflow, ci.json, dev shell and flake.nix, written from fleet data." />
+<LinkCard title="Diagram and docs batteries" href="/batteries/diagrams/" description="mermaid views of scopes, kinds, gates and routes; tables, links that follow edits, doc lines checked against live names." />
+<LinkCard title="Platform batteries" href="/batteries/platforms/" description="NixOS, nix-darwin, home-manager, nix-on-droid and microvm.nix: each kind builds its output with a battery; homes go into machines." />
+<LinkCard title="Clan batteries" href="/batteries/clan/" description="clan-like service instances: members by name or tag, layered settings, exports, contracts, vars generators and their plan." />
+<LinkCard title="Caches and secrets batteries" href="/batteries/secrets/" description="cachix caches trusted by hosts and the flake, pushed from CI; secretspec.toml and .sops.yaml from what each feature declares." />
+<LinkCard title="Deploy and infrastructure batteries" href="/batteries/deploy/" description="colmena and deploy-rs, terranix, Kubernetes manifests, machines writing config into each other, modules exported for other flakes." />
+<LinkCard title="Editor and AI batteries" href="/batteries/editors/" description="VS Code and Zed from language aspects; one pool of agent extensions (skills, MCP servers) that each agent filters." />
+</CardGrid>

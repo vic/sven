@@ -96,6 +96,10 @@
         - `specialArgs` and `extraSpecialArgs`: the `host` arg is in every module of an aspect, and in home-manager too.
         - `lib.mkIf (hostname == "pi")` in shared modules: the aspect's `at` says where it applies.
       '')
+      (docs.tip "As a battery" ''
+        The kind that builds NixOS and the hostname rule are ready as `yen.lib.batteries.nixos.system` and
+        `hostname`: see [NixOS batteries](/batteries/nixos/). This page writes them by hand, so you can change them.
+      '')
     ];
 
   checks =

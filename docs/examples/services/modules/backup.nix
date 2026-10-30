@@ -25,13 +25,13 @@ in
       { exports, ... }:
       {
         backup.allow = lib.sort (a: b: a < b) (
-          map (e: e.value) (lib.filter (e: e.from.kind == "member") exports)
+          map (e: e.value) (lib.filter (e: yen.lib.holds yen.kinds.member e.from) exports)
         );
       };
   };
   # once per machine that takes part in any role of the service
   yen.aspects.backup-tools = {
-    at = yen.lib.has (s: s.kind == "member" && s.instance == "backup");
+    at = yen.lib.has (s: yen.lib.holds yen.kinds.member s && s.instance == "backup");
     config.packages = [ "borgbackup" ];
   };
 }

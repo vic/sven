@@ -7,12 +7,12 @@
     map (s: {
       head = "bad:desktop-on-server:${s.name}";
       pos = [ "has:desktop:${s.id}" ];
-    }) (lib.filter (s: s.kind == "host" && s.form == "server") scopes);
+    }) (lib.filter (s: yen.lib.holds yen.kinds.host s && s.form == "server") scopes);
   # no two hosts share an address: a rule across machines
   yen.invariants.unique-addr =
     { scopes, ... }:
     let
-      hosts = lib.filter (s: s.kind == "host") scopes;
+      hosts = lib.filter (s: yen.lib.holds yen.kinds.host s) scopes;
     in
     lib.concatMap (
       a:

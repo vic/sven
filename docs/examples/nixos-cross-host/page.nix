@@ -37,6 +37,10 @@
         `yen.host` and the `syncthing-device` sink are yen data. They exist before any NixOS module runs. A NixOS
         module reads them, and never reads another host's NixOS `config`.
       '')
+      (docs.tip "As a battery" ''
+        This page writes the rule by hand. The shape is ready as `yen.lib.batteries.mesh`: the records of a sink, except
+        your own. See [Generic batteries](/batteries/generic/). When it does not fit, keep your own copy of the lines above.
+      '')
     ];
 
   checks =

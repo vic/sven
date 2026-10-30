@@ -193,7 +193,7 @@ in
       { scope, ... }:
       {
         who = "${scope.name}@${scope.parent.name}";
-        to = s: s.kind == "host";
+        to = s: yen.lib.holds yen.kinds.host s;
       }; # to every host
   };
   yen.aspects.peer-dev-reader = {

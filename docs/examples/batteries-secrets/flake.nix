@@ -1,0 +1,20 @@
+{
+  description = "yen: caches and secrets batteries";
+
+  outputs =
+    inputs:
+    inputs.yen.lib.mkFlake {
+      imports = [ (inputs.import-tree ./modules) ];
+      _module.args = {
+        inherit inputs;
+        inherit (inputs.nixpkgs) lib;
+      };
+    };
+
+  inputs = {
+    yen.url = "github:vic/yen";
+    import-tree.url = "github:denful/import-tree";
+    nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";
+    files.url = "github:sini/files";
+  };
+}

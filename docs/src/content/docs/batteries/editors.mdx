@@ -1,0 +1,134 @@
+---
+{"description":"VS Code and Zed from language aspects; one pool of agent extensions (skills, MCP servers) that each agent filters.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-editors/page.nix","title":"Editor and AI batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+An editor's extension list grows with every language you use, and every AI agent wants the same skills and MCP
+servers in its own format. With these batteries a language aspect or a tool aspect gives what it needs once;
+each editor and each agent reads the pool.
+
+| Battery | Value of | Gives |
+|---|---|---|
+| `editors.vscode { from; profile; }` | a home-manager key of a sink of `{ extensions; settings; }` | `programs.vscode` |
+| `editors.zed { from; }` | the same, extensions by name | `programs.zed-editor` |
+| `ai.extensions { from; types; build; }` | any key | `build` of the records of the given types (an element may be a list) |
+| `ai.skills dir` | an element | one `{ type = "skill"; name; path; }` per subdirectory with a SKILL.md |
+
+
+```nix title="modules/fleet.nix"
+# Standalone homes. Language aspects add editor extensions and settings; AI tools add agent extensions.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  b = yen.lib.batteries;
+in
+{
+  yen.kinds.fleet = {
+    spawns.home = _: yen.home;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.home = {
+    sinks = {
+      homeManager.out = b.home-manager.system {
+        from = yen.kinds.home.sinks.homeManager;
+        homeManagerConfiguration = _: inputs.home-manager.lib.homeManagerConfiguration;
+        pkgs = _: inputs.nixpkgs.legacyPackages.x86_64-linux;
+      };
+      vscode.homeManager = b.editors.vscode { from = yen.kinds.home.sinks.vscode; };
+      zed.homeManager = b.editors.zed { from = yen.kinds.home.sinks.zed; };
+      # one pool of agent extensions; each agent picks the types it reads
+      agent-ext.homeManager = b.ai.extensions {
+        from = yen.kinds.home.sinks.agent-ext;
+        types = [ "skill" ];
+        build = skills: {
+          home.file = lib.listToAttrs (
+            map (s: lib.nameValuePair ".claude/skills/${s.name}" { source = s.path; }) skills
+          );
+        };
+      };
+    };
+  };
+  yen.fleet.main = { };
+  yen.home.ana = { };
+  yen.flake = { out, ... }: out;
+  yen.aspects.home = {
+    at = yen.kinds.home;
+    homeManager =
+      { scope, ... }:
+      {
+        home.username = scope.name;
+        home.homeDirectory = "/home/${scope.name}";
+        home.stateVersion = "25.05";
+        nixpkgs.config.allowUnfree = true; # vscode
+      };
+  };
+}
+```
+
+```nix title="modules/languages.nix"
+# Each language aspect gives what both editors need; no editor file lists the languages.
+{ yen, inputs, ... }:
+let
+  pkgs = inputs.nixpkgs.legacyPackages.x86_64-linux;
+in
+{
+  yen.aspects.nix-lang = {
+    at = yen.kinds.home;
+    vscode = {
+      extensions = [ pkgs.vscode-extensions.jnoortheen.nix-ide ];
+      settings."nix.enableLanguageServer" = true;
+    };
+    zed.extensions = [ "nix" ];
+  };
+  yen.aspects.go-lang = {
+    at = yen.kinds.home;
+    vscode.extensions = [ pkgs.vscode-extensions.golang.go ];
+    zed.extensions = [ "go" ];
+  };
+  # skills from a directory, and an mcp server, in one pool
+  yen.aspects.agents = {
+    at = yen.kinds.home;
+    agent-ext = yen.lib.batteries.ai.skills ../skills ++ [
+      {
+        type = "mcp";
+        name = "github";
+      }
+    ];
+  };
+}
+```
+
+```md title="skills/review/SKILL.md"
+---
+name: review
+description: review a diff
+---
+Read the diff. List the risks.
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-editors`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-editors
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - fleet.nix
+  - languages.nix
+- skills/
+  - notes/
+    - README.md
+  - review/
+    - SKILL.md
+
+</FileTree>
+:::

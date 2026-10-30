@@ -10,14 +10,10 @@ let
 in
 {
   yen.kinds.system.sinks = {
-    devshell.out =
-      { system, devshell, ... }:
-      {
-        devShells.${system.name}.default = (pkgs system).mkShell {
-          packages = lib.concatMap (d: d.packages or [ ]) devshell;
-          shellHook = lib.concatMapStrings (d: d.shellHook or "") devshell;
-        };
-      };
+    devshell.out = yen.lib.batteries.devshell.mkshell {
+      from = yen.kinds.system.sinks.devshell;
+      pkgsOf = pkgs;
+    };
     treefmt.out =
       { system, treefmt, ... }:
       {

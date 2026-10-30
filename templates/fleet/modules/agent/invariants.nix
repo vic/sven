@@ -1,15 +1,13 @@
 # Fleet invariants: Datalog rules over the fleet's facts (`kind:K:ID`, `has:ASPECT:ID`, `edge:SINK:FROM:TO`,
 # `error:CODE:FROM`). A true `bad:` atom is a violation, an undefined one an incomplete answer. An agent reads
 # `check` (nix eval --file query.nix check) before and after a change; `stage` refuses a change that adds a violation.
-{ lib, ... }:
+{ yen, lib, ... }:
 let
-  machines =
-    s:
-    lib.elem s.kind [
-      "host"
-      "mac"
-      "guest"
-    ];
+  machines = yen.lib.holds [
+    yen.kinds.host
+    yen.kinds.mac
+    yen.kinds.guest
+  ];
 in
 {
   yen.invariants = {
@@ -33,10 +31,10 @@ in
         (
           lib.filter (
             s:
-            lib.elem s.kind [
-              "host"
-              "mac"
-            ]
+            yen.lib.holds [
+              yen.kinds.host
+              yen.kinds.mac
+            ] s
             && !(lib.hasInfix "/host:lb/host:" s.id)
           ) scopes
         );
@@ -46,7 +44,7 @@ in
       map (s: {
         head = "bad:attic-on-mac:${s.id}";
         pos = [ "has:attic:${s.id}" ];
-      }) (lib.filter (s: s.kind == "mac") scopes);
+      }) (lib.filter (s: yen.lib.holds yen.kinds.mac s) scopes);
 
     # ── between machines: what must hold across hosts, environments and services before anything deploys ──
     # a host's database host lives in the same environment (a prod app never writes to a staging database)
@@ -56,7 +54,7 @@ in
         (
           s:
           let
-            x = lib.findFirst (h: h.kind == "host" && h.name == s.dbOn.name) null scopes;
+            x = lib.findFirst (h: yen.lib.holds yen.kinds.host h && h.name == s.dbOn.name) null scopes;
           in
           if x == null then
             [
@@ -76,7 +74,8 @@ in
         )
         (
           lib.filter (
-            s: s.kind == "host" && (s.dbOn or null) != null && !(lib.hasInfix "/host:lb/host:" s.id)
+            s:
+            yen.lib.holds yen.kinds.host s && (s.dbOn or null) != null && !(lib.hasInfix "/host:lb/host:" s.id)
           ) scopes
         );
     # no two machines share an address (a variant such as lb-minimal is the same machine, so it is not counted)
@@ -106,7 +105,7 @@ in
           lab = 2;
           staging = 1;
         };
-        hostScope = n: lib.findFirst (h: h.kind == "host" && h.name == n) null scopes;
+        hostScope = n: lib.findFirst (h: yen.lib.holds yen.kinds.host h && h.name == n) null scopes;
       in
       lib.concatMap (
         s:
@@ -120,6 +119,6 @@ in
             pos = [ "ref:dependsOn:${s.id}:host:${x.name}" ];
           }
         ) (s.dependsOn or [ ])
-      ) (lib.filter (s: s.kind == "host") scopes);
+      ) (lib.filter (s: yen.lib.holds yen.kinds.host s) scopes);
   };
 }

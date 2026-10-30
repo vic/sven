@@ -29,6 +29,7 @@ The codes below are read from the engine source when the docs are written.
 | `program` | a change program op is not valid |
 | `ref` | a field wants an instance ref and got something else |
 | `rejected` | a staged change was rejected before (its sha is in `rejected`) |
+| `reserved` | a sink is named `scope` or `sinks`: those names are fixed args of every element |
 | `spawns` | a `spawns` function gives no attrset, or an instance in it is no attrset |
 | `tree-request` | a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds) |
 | `two-answers` | one declaration leaf has two different values |

@@ -33,6 +33,7 @@
         "program"
         "grants"
         "change"
+        "batteries"
       ];
     in
     [

@@ -7,14 +7,10 @@
     };
     spawns.user = yen.helpers.usersOn; # no spawns.guest: no guest in a guest
     sinks = {
-      nixos.nixos =
-        { guest, nixos, ... }:
-        {
-          microvm.vms.${guest.name} = {
-            pkgs = yen.helpers.pkgsOf guest;
-            config.imports = nixos;
-          };
-        };
+      nixos.nixos = yen.lib.batteries.microvm.guest {
+        from = yen.kinds.guest.sinks.nixos;
+        pkgs = yen.helpers.pkgsOf;
+      };
       inherit (yen.kinds.host.sinks)
         os
         persist

@@ -322,7 +322,7 @@ filter or a rename is a plain function in the reader:
     { host, firewall, ... }:
     {
       userPorts.${host.name} = lib.concatMap (e: e.value.ports) (
-        lib.filter (e: e.from.kind == "user") firewall
+        lib.filter (e: yen.lib.holds yen.kinds.user e.from) firewall
       );
     };
 }
@@ -358,6 +358,11 @@ The [reference fleet](https://github.com/vic/yen/tree/main/templates/fleet) show
 
 For the shapes that real Den configurations use (every battery, `includes` and `provides`, custom classes, the
 dendritic aspect patterns), see [Den patterns in yen](/den/).
+:::
+
+:::tip[As a battery]
+yen has batteries too, as plain values for keys you write: see [Battery packs](/batteries/). This page writes
+them by hand, so you can see that a battery is only an aspect.
 :::
 
 :::tip[Run this example]

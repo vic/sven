@@ -27,7 +27,7 @@
     { host, firewall, ... }:
     {
       userPorts.${host.name} = lib.concatMap (e: e.value.ports) (
-        lib.filter (e: e.from.kind == "user") firewall
+        lib.filter (e: yen.lib.holds yen.kinds.user e.from) firewall
       );
     };
 }

@@ -91,25 +91,29 @@ in
       title = "Den patterns in yen";
       order = 6;
     };
+    batteries = {
+      title = "Battery packs";
+      order = 7;
+    };
     query = {
       title = "Ask and prove";
-      order = 7;
+      order = 8;
     };
     agents = {
       title = "For agents";
-      order = 8;
+      order = 9;
     };
     perf = {
       title = "Performance";
-      order = 9;
+      order = 10;
     };
     reference = {
       title = "Reference";
-      order = 10;
+      order = 11;
     };
     project = {
       title = "Project";
-      order = 11;
+      order = 12;
     };
   };
 }

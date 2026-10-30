@@ -184,6 +184,10 @@
         For the shapes that real Den configurations use (every battery, `includes` and `provides`, custom classes, the
         dendritic aspect patterns), see [Den patterns in yen](/den/).
       '')
+      (docs.tip "As a battery" ''
+        yen has batteries too, as plain values for keys you write: see [Battery packs](/batteries/). This page writes
+        them by hand, so you can see that a battery is only an aspect.
+      '')
     ];
 
   checks =

@@ -549,7 +549,7 @@ bash tests/cost.sh                                # PASS aspect-ref-memo, PASS r
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 28 kinds, 187 aspects, 983 routed elements.
+Generated from the fleet's queries: 87 scopes, 28 kinds, 195 aspects, 991 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
 | `backup` |  |  | `nixos` | 3 |
@@ -575,7 +575,7 @@ Generated from the fleet's queries: 87 scopes, 28 kinds, 187 aspects, 983 routed
 | `region` | `zone` |  |  | 0 |
 | `replica` | `db`, `region` |  |  | 1 |
 | `secret` | `sopsKey` |  |  | 3 |
-| `system` |  | `vim` | `checks`, `devshell`, `files`, `git-hooks`, `no-gui`, `packages`, `treefmt` | 3 |
+| `system` |  | `vim` | `checks`, `devshell`, `files`, `git-hooks`, `no-gui`, `packages`, `readme`, `treefmt` | 3 |
 | `toy` | `of` |  |  | 2 |
 | `user` | `classes`, `groups`, `phone`, `shell` |  | `account`, `age-secrets`, `both`, `git`, `hmvals`, `homeDarwin`, `homeLinux`, `homeManager`, `maid`, `secrets` | 13 |
 | `variant` | `of` |  | `nixos` | 1 |
@@ -790,10 +790,13 @@ flowchart LR
   n52f2128ad0 --> n6b201efe64
   n52f2128ad0 --> n8c182f1484
   n250aeb1446 --> n250aeb1446
+  n250aeb1446 -.->|"under"| n250aeb1446
   nba34edff52 --> nc92432ddea
   nba34edff52 --> n91a43a88c2
   nba34edff52 --> n25061baf77
   nba34edff52 --> n2d3040b89e
+  nba34edff52 -.->|"base"| nba34edff52
+  nba34edff52 -.->|"monitoring"| nc92432ddea
   n0d07ea97e1 --> n52f2128ad0
   n0d07ea97e1 --> n250aeb1446
   n0d07ea97e1 --> nba34edff52
@@ -804,12 +807,15 @@ flowchart LR
   n0d07ea97e1 --> n0953dd6b11
   n8df93cc983 --> naf777705f2
   n8df93cc983 -.->|"channel"| n827e34afc1
+  n8df93cc983 -.->|"dbOn"| n91a43a88c2
   n8df93cc983 -.->|"environment"| nba34edff52
   n8df93cc983 -.->|"on"| n91a43a88c2
   n8df93cc983 -.->|"system"| n0953dd6b11
+  n8df93cc983 -.->|"system-owner"| naf777705f2
   nbdd2e394af -.->|"environment"| nba34edff52
   nd265c5f895 --> naf777705f2
   nd265c5f895 -.->|"channel"| n827e34afc1
+  nd265c5f895 -.->|"on"| n91a43a88c2
   nd265c5f895 -.->|"system"| n0953dd6b11
   nd265c5f895 -.->|"user"| naf777705f2
   n91a43a88c2 --> n7cbc0bc9ca
@@ -821,16 +827,22 @@ flowchart LR
   n91a43a88c2 --> naf777705f2
   n91a43a88c2 --> nb5e23250d3
   n91a43a88c2 -.->|"channel"| n827e34afc1
+  n91a43a88c2 -.->|"dbOn"| n91a43a88c2
   n91a43a88c2 -.->|"environment"| nba34edff52
   n91a43a88c2 -.->|"system"| n0953dd6b11
+  n91a43a88c2 -.->|"system-owner"| naf777705f2
   n25061baf77 --> nf384c24853
   n25061baf77 --> naf777705f2
   n25061baf77 -.->|"channel"| n827e34afc1
+  n25061baf77 -.->|"dbOn"| n91a43a88c2
   n25061baf77 -.->|"environment"| nba34edff52
   n25061baf77 -.->|"system"| n0953dd6b11
+  n25061baf77 -.->|"system-owner"| naf777705f2
   n5e4f590e9f -.->|"channel"| n827e34afc1
+  n5e4f590e9f -.->|"dbOn"| n91a43a88c2
   n5e4f590e9f -.->|"environment"| nba34edff52
   n5e4f590e9f -.->|"system"| n0953dd6b11
+  n5e4f590e9f -.->|"system-owner"| naf777705f2
   n6bef2d08c6 --> nd6ba07fb42
   n6bef2d08c6 -.->|"of"| n91a43a88c2
   n2d3040b89e --> naf777705f2
@@ -909,6 +921,7 @@ flowchart LR
   n24ae98cb28("platform")
   n70818b36fd("port-forwards")
   n44ee9b93c9("public-reads")
+  n0a126f32d2("readme")
   n93bdf79f40("records")
   nf995268350("replicate-home")
   n9577e49d40("route-claims")
@@ -1217,7 +1230,7 @@ flowchart LR
 | `web-2` | host | 46 | alloy, autoinclude, base, ci-host, clan-sshd, db-claim, +40 |
 | `stage` | host | 53 | alloy, base, ci-host, clan-sshd, db-claim, db-client, +47 |
 | `ci` | guest | 12 | alloy, base, dev, docker, global-pkgs, globals-addr, +6 |
-| `studio` | mac | 12 | base, ci-mac, clan-sshd, darwin-base, dev, dock, +6 |
+| `studio` | mac | 13 | base, ci-mac, clan-sshd, darwin-base, darwin-primary-user, dev, +7 |
 
 | Sink | Given at | Received at | Elements |
 |---|---|---|---|
@@ -1232,7 +1245,7 @@ flowchart LR
 | `class-members` | host | fleet | 9 |
 | `colmena` | host | fleet | 9 |
 | `connect-claims` | fleet | fleet | 1 |
-| `darwin` | mac | mac | 4 |
+| `darwin` | mac | mac | 5 |
 | `db-claims` | host | fleet | 3 |
 | `deploy` | host | host | 9 |
 | `dev` | host | host | 1 |
@@ -1280,6 +1293,7 @@ flowchart LR
 | `platform` | host | host | 9 |
 | `port-forwards` | host | environment | 1 |
 | `public-reads` | host, mac | fleet | 10 |
+| `readme` | system | system | 7 |
 | `records` | guest, host, mac | fleet | 11 |
 | `replicate-home` | user | fleet | 9 |
 | `route-claims` | host | fleet | 1 |
@@ -1311,7 +1325,7 @@ Every list below is computed from the engine and this fleet when the README is w
 
 **Queries on an eval result** (`result = yen.lib.eval module`): `active`, `ask`, `check`, `context`, `data`, `declaredIn`, `errors`, `explain`, `facts`, `flake`, `floor`, `graph`, `impact`, `labels`, `queries`, `reduced`, `root`, `schema`, `scopes`, `undefined`.
 
-**Engine library** (`yen.lib`): `agent`, `allowed`, `asOf`, `derive`, `diffData`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `maybe`, `mkFlake`, `narrow`, `opt`, `stage`, `validAt`, `without`.
+**Engine library** (`yen.lib`): `agent`, `allowed`, `asOf`, `batteries`, `derive`, `diffData`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `maybe`, `mkFlake`, `narrow`, `opt`, `stage`, `validAt`, `without`.
 Reduce strategies: `entries`, `list`, `merge`, `one`, `set`. Change programs (`yen.lib.program`): `dryRun`, `opErrors`, `render`, `toModule`, `validate`. Grants: `allowed`, `grant`, `narrow`.
 
 | Library | Functions |

@@ -11,11 +11,11 @@ let
     result: env:
     lib.filter (
       s:
-      lib.elem s.kind [
-        "host"
-        "mac"
-      ]
-      && s.parent.kind == "environment"
+      yen.lib.holds [
+        yen.kinds.host
+        yen.kinds.mac
+      ] s
+      && yen.lib.holds yen.kinds.environment s.parent
       && s.parent.name == env
     ) result.scopes;
 in
@@ -24,7 +24,8 @@ in
     freePort =
       { host, result }:
       let
-        id = (lib.findFirst (s: s.kind == "host" && s.name == host) { id = ""; } result.scopes).id;
+        id =
+          (lib.findFirst (s: yen.lib.holds yen.kinds.host s && s.name == host) { id = ""; } result.scopes).id;
         used = lib.concatMap (
           m: lib.attrValues (builtins.fromJSON (m.environment.etc."apps/ports".text or "{}"))
         ) (result.reduced.nixos.${id} or [ ]);
@@ -43,11 +44,18 @@ in
     placeDb =
       { host, result }:
       let
-        rows = map (s: {
-          name = s.name;
-          env = s.parent.name;
-          db = s.dbRole or false;
-        }) (lib.filter (s: s.kind == "host" && s.parent.kind == "environment") result.scopes);
+        rows =
+          map
+            (s: {
+              name = s.name;
+              env = s.parent.name;
+              db = s.dbRole or false;
+            })
+            (
+              lib.filter (
+                s: yen.lib.holds yen.kinds.host s && yen.lib.holds yen.kinds.environment s.parent
+              ) result.scopes
+            );
       in
       K.runAll (
         q:

@@ -2346,5 +2346,6 @@ in
     ++ map (n: "datalog/${n}") (import ./datalog.nix).failed
     ++ map (n: "rdf/${n}") (import ./rdf.nix).failed
     ++ map (n: "krn/${n}") (import ./krn.nix).failed
-    ++ map (n: "shacl/${n}") (import ./shacl.nix).failed;
+    ++ map (n: "shacl/${n}") (import ./shacl.nix).failed
+    ++ map (n: "batteries/${n}") (import ./batteries.nix).failed;
 }

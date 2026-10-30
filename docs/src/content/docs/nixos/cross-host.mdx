@@ -163,6 +163,11 @@ host then reads the sink as an arg. `entries` keeps who gave each id, so a host 
 module reads them, and never reads another host's NixOS `config`.
 :::
 
+:::tip[As a battery]
+This page writes the rule by hand. The shape is ready as `yen.lib.batteries.mesh`: the records of a sink, except
+your own. See [Generic batteries](/batteries/generic/). When it does not fit, keep your own copy of the lines above.
+:::
+
 :::tip[Run this example]
 Every block on this page is a file of the template `nixos-cross-host`. Copy it and run it:
 

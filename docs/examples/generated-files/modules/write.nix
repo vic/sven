@@ -1,7 +1,7 @@
 # README.md and the CI workflow, generated from fleet data by github:sini/files.
 { yen, lib, ... }:
 let
-  hosts = lib.filter (s: s.kind == "host") yen.lib.graph.scopes;
+  hosts = lib.filter (s: yen.lib.holds yen.kinds.host s) yen.lib.graph.scopes;
 in
 {
   yen.aspects.write = {
