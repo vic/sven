@@ -398,12 +398,26 @@ let
         };
         yen.aspects.g3.at = s: s.name == "c";
         yen.aspects.g4.at = yen.aspects.g2; # makes g2 a gate: its own `at` is drawn
+        # the declarations are the whole fleet: a reader of them asks the `graph` request
         yen.aspects.views = {
           at = yen.top.t;
-          out.views = {
-            kinds = mm.kinds yen.kinds;
-            gates = mm.gates yen.aspects;
-          };
+          cycle =
+            { tree, ... }:
+            let
+              whole.graph = true;
+              y = b.head (tree.select whole);
+            in
+            {
+              tree = [ whole ];
+              out = [
+                {
+                  views = {
+                    kinds = mm.kinds y.kinds;
+                    gates = mm.gates y.aspects;
+                  };
+                }
+              ];
+            };
         };
       }
     )

@@ -520,11 +520,6 @@ let
   r1grant = yen.grant { scopes = [ "top:t/host:web" ]; };
   r1outside =
     s: b.sort b.lessThan (map (e: e.got) (b.filter (e: e.code == "outside-grant") s.refused));
-  r1others = [
-    "top:t"
-    "top:t/host:db"
-    "top:t/host:webhook"
-  ];
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -3034,8 +3029,7 @@ let
         }
       );
     };
-    # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
-    # scope: each scope outside the grant is refused, once (vic/quorum/r3-impact.md)
+    # D14 exact (R-yen): a change is refused only where its seeds reach through reads, once per scope (vic/r-yen.md)
     r1-grant-added = eq (r1outside (
       r1stage {
         yen.aspects.extra = {
@@ -3046,52 +3040,186 @@ let
           fw = "x";
         };
       } r1grant
-    )) (r1others);
-    r1-grant-removed = eq (r1outside (r1stage { yen.host.db.bypass = true; } r1grant)) (r1others);
-    r1-grant-changed = eq (r1outside (r1stage { yen.host.db.port = 2222; } r1grant)) (r1others);
-    r1-grant-inside = eq (r1outside (r1stage { yen.host.web.port = 2222; } r1grant)) (r1others);
-    # the closure channel: db reads web's port through `yen`; a change at web reaches db
+    )) ([ "top:t/host:webhook" ]);
+    r1-grant-removed = eq (r1outside (r1stage { yen.host.db.bypass = true; } r1grant)) ([
+      "top:t/host:db"
+    ]);
+    r1-grant-changed = eq (r1outside (r1stage { yen.host.db.port = 2222; } r1grant)) ([
+      "top:t/host:db"
+    ]);
+    r1-grant-inside = eq (r1outside (r1stage { yen.host.web.port = 2222; } r1grant)) ([ ]);
+    # the closure channel is closed: an element that reads another instance through `yen` is an eval error
     r1-grant-closure =
-      let
-        s = yen.stage {
-          base = rung1 [
-            (
-              { yen, ... }:
-              {
-                yen.aspects.peer = {
-                  at = yen.host.db;
-                  fw = "${toString yen.host.web.port}";
-                };
-              }
-            )
-          ];
-          change = {
-            yen.host.web.port = 2222;
-          };
-          grant = r1grant;
-        };
-      in
-      yes (b.elem "top:t/host:db" (r1outside s));
+      no
+        (b.tryEval (
+          b.deepSeq
+            (yen.eval (rung1 [
+              (
+                { yen, ... }:
+                {
+                  yen.aspects.peer = {
+                    at = yen.host.db;
+                    fw = "${toString yen.host.web.port}";
+                  };
+                }
+              )
+            ])).reduced.fw
+            true
+        )).success;
+    # a read through a cycle request is an edge: a change at web reaches db, which asks for every host
+    r1-grant-request = eq (r1outside (
+      yen.stage {
+        base = rung1 [
+          (
+            { yen, ... }:
+            {
+              yen.aspects.peer = {
+                at = yen.host.db;
+                cycle =
+                  { tree, ... }:
+                  let
+                    hosts.instances = yen.kinds.host;
+                  in
+                  {
+                    tree = [ hosts ];
+                    fw = [ (toString (map (h: h.port) (b.head (tree.select hosts)))) ];
+                  };
+              };
+            }
+          )
+        ];
+        change.yen.host.web.port = 2222;
+        grant = r1grant;
+      }
+    )) ([ "top:t/host:db" ]);
     r1-grant-whole = eq ((r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; }))
       .refused
     ) ([ ]);
-    r1-grant-sinks =
-      eq
-        (r1outside (
-          r1stage { yen.host.web.port = 2222; } (
-            yen.grant {
-              scopes = [ "top:t" ];
-              sinks = [ "fw" ];
+    r1-grant-sinks = eq (r1outside (
+      r1stage { yen.host.web.port = 2222; } (
+        yen.grant {
+          scopes = [ "top:t" ];
+          sinks = [ "fw" ];
+        }
+      )
+    )) ([ "top:t/host:web" ]); # the port reaches web's nixos, a sink the grant does not name
+    r1-grant-noop = eq ((r1stage { } r1grant).refused) ([ ]);
+    # one oracle per read channel, each with the read removed as its negative control (C1-C5, vic/quorum/r3-impact.md)
+    r1-grant-channels =
+      let
+        reach =
+          extra: change:
+          r1outside (
+            yen.stage {
+              base = rung1 (
+                [
+                  (
+                    { yen, ... }:
+                    {
+                      yen.kinds.top.sinks.ports = { };
+                    }
+                  )
+                ]
+                ++ extra
+              );
+              inherit change;
+              grant = r1grant;
+            }
+          );
+        # every host gives its port to top: a cycle reads every sink, so a C3 or C5 reader runs without it
+        up = [
+          (
+            { yen, ... }:
+            {
+              yen.aspects.up = {
+                at = yen.kinds.host;
+                ports = { host, ... }: host.port;
+              };
             }
           )
-        ))
-        ([
-          "top:t"
-          "top:t/host:db"
-          "top:t/host:web"
-          "top:t/host:webhook"
-        ]);
-    r1-grant-noop = eq ((r1stage { } r1grant).refused) ([ ]);
+        ];
+        port.yen.host.web.port = 2222;
+        at-db = el: [
+          (
+            { yen, ... }:
+            {
+              yen.aspects.reader = {
+                at = yen.host.db;
+              }
+              // el yen;
+            }
+          )
+        ];
+        asks =
+          q:
+          at-db (yen: {
+            cycle =
+              { tree, ... }:
+              let
+                r = q yen;
+              in
+              {
+                tree = [ r ];
+                fw = [ (b.length (tree.select r)) ];
+              };
+          });
+      in
+      {
+        # C1: a sink arg reads the reduced value at its receiver
+        c1 =
+          eq
+            (reach (
+              up
+              ++ at-db (_: {
+                fw = { ports, ... }: b.length ports;
+              })
+            ) port)
+            ([
+              "top:t"
+              "top:t/host:db"
+            ]);
+        # C2, and the control of C1: a kind arg reads the nearest instance of the kind: db's own host, never web
+        c2 = eq (reach (
+          up
+          ++ at-db (_: {
+            fw = { host, ... }: host.port;
+          })
+        ) port) ([ "top:t" ]);
+        # C3: a tree request reads what it asks
+        c3 = eq (reach (asks (yen: {
+          scopesOf = yen.host.web;
+        })) port) ([ "top:t/host:db" ]);
+        c3-control = eq (reach (asks (yen: {
+          scopesOf = yen.host.webhook;
+        })) port) ([ ]);
+        # C4: a spawned scope is new data; it reaches what reads it
+        c4 =
+          eq
+            (reach up {
+              yen.host.mail = { };
+            })
+            ([
+              "top:t"
+              "top:t/host:mail"
+            ]);
+        # C5: a whole-fleet reader is reached by every change, and a change that does nothing reaches nothing
+        c5 = eq (reach (asks (_: {
+          graph = true;
+        })) port) ([ "top:t/host:db" ]);
+        c5-control = eq (reach (asks (_: {
+          graph = true;
+        })) { }) ([ ]);
+        # C6: a spawn reads instance data, so a scope's data can change with no declaration of its own
+        c6 = eq (reach [
+          (
+            { yen, ... }:
+            {
+              yen.kinds.mirror = { };
+              yen.kinds.host.spawns.mirror = s: if s.name == "db" then { m.port = yen.host.web.port; } else { };
+            }
+          )
+        ] port) ([ "top:t/host:db/mirror:m" ]);
+      };
     # D9: a change never declares the law
     r1-law-change =
       eq
@@ -3304,139 +3432,82 @@ in
     krn = (import ./krn.nix).tests;
     shacl = (import ./shacl.nix).tests;
     batteries = (import ./batteries.nix).tests;
-    impact-of = {
-      # chain A -> B.s -> C.t
-      t1 =
-        eq
-          (impactOf {
-            edges = [
-              {
-                to = "B";
-                sink = "s";
-                reads = [ "d:A" ];
-              }
-              {
-                to = "C";
-                sink = "t";
-                reads = [ "k:s@B" ];
-              }
-            ];
-            seeds = [ "d:A" ];
-            children = { };
-          })
+    impact-of =
+      let
+        d = id: { data = id; };
+        k = sink: at: { inherit sink at; };
+        chain = [
           {
-            tokens = [
-              "d:A"
-              "k:s@B"
-              "k:t@C"
-            ];
-            scopes = [
-              "A"
-              "B"
-              "C"
-            ];
-          };
-      # negative control: nothing reads Z, so B and C stay clean
-      t2 =
-        eq
-          (impactOf {
-            edges = [
-              {
-                to = "B";
-                sink = "s";
-                reads = [ "d:A" ];
-              }
-              {
-                to = "C";
-                sink = "t";
-                reads = [ "k:s@B" ];
-              }
-            ];
-            seeds = [ "d:Z" ];
-            children = { };
-          })
+            out = k "s" "B";
+            reads = [ (d "A") ];
+          }
           {
-            tokens = [ "d:Z" ];
-            scopes = [ "Z" ];
-          };
-      # P2: a dirty scope dirties its children
-      t3 =
-        eq
-          (impactOf {
-            edges = [ ];
-            seeds = [ "d:A" ];
-            children = {
-              A = [
-                "A/x"
-                "A/y"
+            out = k "t" "C";
+            reads = [ (k "s" "B") ];
+          }
+        ];
+      in
+      {
+        # P1: a dirty token dirties every edge that reads it, transitively
+        chain =
+          eq
+            (impactOf {
+              edges = chain;
+              seeds = [ (d "A") ];
+            })
+            ([
+              (k "s" "B")
+              (k "t" "C")
+              (d "A")
+            ]);
+        # negative control: nothing reads Z, so B and C stay clean
+        unread = eq (impactOf {
+          edges = chain;
+          seeds = [ (d "Z") ];
+        }) ([ (d "Z") ]);
+        # a self-loop terminates
+        loop = eq (impactOf {
+          edges = [
+            {
+              out = k "s" "B";
+              reads = [ (k "s" "B") ];
+            }
+          ];
+          seeds = [ (k "s" "B") ];
+        }) ([ (k "s" "B") ]);
+        # a whole-fleet reader is dirty when anything is, and only then
+        whole =
+          eq
+            (impactOf {
+              edges = [ ];
+              whole = [ (k "docs" "F") ];
+              seeds = [ (d "A") ];
+            })
+            ([
+              (k "docs" "F")
+              (d "A")
+            ]);
+        whole-control = eq (impactOf {
+          edges = [ ];
+          whole = [ (k "docs" "F") ];
+          seeds = [ ];
+        }) ([ ]);
+        # scope ids hold `:`, `/` and `@`: a token is data, never parsed
+        ids =
+          eq
+            (impactOf {
+              edges = [
+                {
+                  out = k "out" "fleet:main";
+                  reads = [ (d "fleet:main/host:db@x") ];
+                }
               ];
-            };
-          })
-          {
-            tokens = [
-              "d:A"
-              "d:A/x"
-              "d:A/y"
-            ];
-            scopes = [
-              "A"
-              "A/x"
-              "A/y"
-            ];
-          };
-      # a self-loop terminates
-      t4 =
-        eq
-          (impactOf {
-            edges = [
-              {
-                to = "B";
-                sink = "s";
-                reads = [ "k:s@B" ];
-              }
-            ];
-            seeds = [ "k:s@B" ];
-            children = { };
-          })
-          {
-            tokens = [ "k:s@B" ];
-            scopes = [ "B" ];
-          };
-      t5 =
-        eq
-          (impactOf {
-            edges = [ ];
-            seeds = [ ];
-            children = { };
-          })
-          {
-            tokens = [ ];
-            scopes = [ ];
-          };
-      # scope ids with ':' and '/' parse; the sink key is split at the first '@'
-      t6 =
-        eq
-          (impactOf {
-            edges = [
-              {
-                to = "fleet:main";
-                sink = "out";
-                reads = [ "d:fleet:main/host:db" ];
-              }
-            ];
-            seeds = [ "d:fleet:main/host:db" ];
-            children = { };
-          })
-          {
-            tokens = [
-              "d:fleet:main/host:db"
-              "k:out@fleet:main"
-            ];
-            scopes = [
-              "fleet:main"
-              "fleet:main/host:db"
-            ];
-          };
-    };
+              seeds = [ (d "fleet:main/host:db@x") ];
+            })
+            ([
+              (k "out" "fleet:main")
+              (d "fleet:main/host:db@x")
+            ]);
+      };
   };
 }

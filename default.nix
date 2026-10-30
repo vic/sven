@@ -352,13 +352,13 @@ let
       loadWith =
         y:
         genericClosure {
-        startSet = [ (node { yen = y; } "root" root) ];
-        operator =
-          n:
-          b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt n.mod.imports i)) (
-            length (n.mod.imports or [ ])
-          );
-      };
+          startSet = [ (node { yen = y; } "root" root) ];
+          operator =
+            n:
+            b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt n.mod.imports i)) (
+              length (n.mod.imports or [ ])
+            );
+        };
       loaded = loadWith yen;
       defsOf = l: map (n: n.mod.yen or { }) (filter (n: n ? mod) l);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
@@ -443,11 +443,18 @@ let
           __kind = k;
           check = checkOf { __kind = k; };
         }
-        // (if d ? sinks then { sinks = mapAttrs (n: v: withAt d.sinks.${n} (v // { __sink = n; })) topRefs.kinds.${k}.sinks; } else { }) # a sink is a ref: it carries its name
+        // (
+          if d ? sinks then
+            { sinks = mapAttrs (n: v: withAt d.sinks.${n} (v // { __sink = n; })) topRefs.kinds.${k}.sinks; }
+          else
+            { }
+        ) # a sink is a ref: it carries its name
       ) (top.kinds or { }); # a kind is a type: its instances pass
       # values come from the refs load; `at` reads data: stage diffs where aspects are active and where sinks receive
       withAt = d: v: v // (if d ? at then { inherit (d) at; } else { });
-      aspects = mapAttrs (n: a: withAt top.aspects.${n} (a // { __aspect = n; })) (topRefs.aspects or { });
+      aspects = mapAttrs (n: a: withAt top.aspects.${n} (a // { __aspect = n; })) (
+        topRefs.aspects or { }
+      );
       # a relation is called by reference: `yen.relations.rank e 3` is the atom [ "rank" e 3 ]; one of arity 0 is a literal
       #: yen.relations.<name> :: term… -> literal -- a declared relation called by reference, one term per arity; arity 0 is the literal itself
       relations = mapAttrs (
@@ -713,9 +720,31 @@ let
           lib =
             lib
             // genAttrs (words "graph scopesOf children declaredIn labels floor") (
-              q: throw "yen.lib.${q}: an aspect reads the fleet only through its args: ask the cycle `tree` for it"
+              q:
+              throw "yen.lib.${q}: an aspect reads the fleet only through its args: ask the cycle `tree` for it"
             );
           helpers = topRefs.helpers or { };
+          # a kind, a sink and an aspect are refs here: another declaration's content is no read an edge can record
+          kinds = mapAttrs (
+            k: d:
+            {
+              inherit (d) __kind check;
+            }
+            // (if d ? sinks then { sinks = mapAttrs (n: _: { __sink = n; }) d.sinks; } else { })
+            // mapAttrs (
+              f: _: throw "yen.kinds.${k}.${f}: an aspect reads a kind only as a ref (a type, a request)"
+            ) (removeAttrs d (words "__kind check sinks"))
+          ) kinds;
+          aspects = mapAttrs (
+            n: a:
+            {
+              __aspect = n;
+            }
+            // mapAttrs (
+              k: _:
+              throw "yen.aspects.${n}.${k}: an aspect reads another aspect only as a ref: put shared code in yen.helpers"
+            ) (removeAttrs a [ "__aspect" ])
+          ) aspects;
         };
 
       # ── the scope tree: nested cycles. key = what the parent spawned; identity = keys from the root ──
@@ -999,6 +1028,7 @@ let
               # data merges; functions from several files each apply
               b.genList (i: {
                 origin = "aspect ${n}" + (if one then "" else "#${toString i}");
+                aspect = n;
                 key = k;
                 from = s;
                 value = if one then a.${k} else b.elemAt hs i;
@@ -1011,6 +1041,7 @@ let
               in
               b.genList (i: {
                 origin = "aspect ${n}";
+                aspect = n;
                 key = k;
                 from = s;
                 value = b.elemAt vs i;
@@ -1066,8 +1097,8 @@ let
           [ (lib.scopesOf q.scopesOf) ]
         else if q ? instances then
           [ (b.attrValues instances.${q.instances.__kind}) ]
-          # the whole fleet: a reader of it (docs, diagrams) is reached by every change, and only it
-          else if q ? graph then
+        # the whole fleet: a reader of it (docs, diagrams) is reached by every change, and only it
+        else if q ? graph then
           [ yen ] # instances with their data, and every structure query in yen.lib
         else
           [ (holds q.holds s) ];
@@ -1109,12 +1140,13 @@ let
         s:
         concatMap (
           n:
-          map (_: errWith s.id "aspect ${n}: unknown tree request" {
-            code = "tree-request";
-            fix = "ask one of ${concatStringsSep ", " requestKinds}, with no category, and select it by itself: tree.select request";
-          }) (
-            filter (q: !known q) (toList ((outAt n s).tree or [ ]))
-          )
+          map (
+            _:
+            errWith s.id "aspect ${n}: unknown tree request" {
+              code = "tree-request";
+              fix = "ask one of ${concatStringsSep ", " requestKinds}, with no category, and select it by itself: tree.select request";
+            }
+          ) (filter (q: !known q) (toList ((outAt n s).tree or [ ])))
         ) (attrNames cycleOuts)
       ) unsorted;
 
@@ -1210,7 +1242,8 @@ let
           filled = map (e: fill e.from e.value // { inherit e; }) es;
           okOf = x: x ? ok && (!(d ? of) || checkOf d.of x.ok);
           # a sink `of` a kind gets refs; it reduces their instances (an element holds a ref, never instance data)
-          resolve = v: if d ? of && isType d.of && d.of ? __kind && isRef v then instances.${v.kind}.${v.name} else v;
+          resolve =
+            v: if d ? of && isType d.of && d.of ? __kind && isRef v then instances.${v.kind}.${v.name} else v;
           red = (d.reduce or reduce.list) (
             map (x: {
               from = x.e.from;
@@ -1272,6 +1305,152 @@ let
           inherit (e) origin;
         }) routed;
       }; # origin: "aspect x" or "sink y": who gave it
+      # ── reads: what each routed element reads, as tokens (lib/impact.nix). A value reads the fleet only through its
+      # args and its cycle's sources, so these are all its reads: a staged change follows them, never more ──
+      dataT = id: { data = id; };
+      sinkT = n: id: {
+        sink = n;
+        at = id;
+      };
+      instT = k: n: {
+        instance = k;
+        name = n;
+      };
+      sinkAt = n: s: map (r: sinkT n r.id) (orNull (receiverIn n s.rup));
+      # an aspect ref in a predicate reads where that aspect is active, at the scope and above it (`within`)
+      activeAt =
+        p: x:
+        concatMap (
+          a:
+          map (y: {
+            aspect = a;
+            at = y.id;
+          }) x.up
+        ) (refsOf p);
+      formalReads =
+        s: v:
+        if !isFn v then
+          [ ]
+        else
+          concatMap (
+            n:
+            if n == "scope" then
+              [ (dataT s.id) ]
+            else if n == "sinks" then
+              concatMap (k: sinkAt k s) sinkNames
+            else if kinds ? ${n} then
+              map (x: dataT x.id) (orNull (nearest n s))
+            else
+              sinkAt n s
+          ) (filter isRen (attrNames (fnArgs v)));
+      requestReads =
+        s: q:
+        if q ? nearest then
+          map (x: dataT x.id) (orNull (nearest q.nearest.__kind s))
+        else if q ? parent then
+          map (x: dataT x.id) (orNull s.parent)
+        else if q ? children then
+          concatMap (c: [ (dataT c.id) ] ++ activeAt q.children c) (childrenAt.${s.id} or [ ])
+        else if q ? scopesOf then
+          map (x: dataT x.id) (lib.scopesOf q.scopesOf)
+        else if q ? instances then
+          map (instT q.instances.__kind) (instNames q.instances.__kind)
+        else if q ? graph then
+          [ ]
+        else
+          [ (dataT s.id) ] ++ activeAt q.holds s;
+      requestsOf = e: filter known (toList ((outAt e.aspect e.from).tree or [ ]));
+      isWhole = e: e ? raw && any (q: q ? graph) (requestsOf e); # a whole-fleet reader: every change reaches it
+      edgeReads =
+        e:
+        formalReads e.from e.value
+        ++ (
+          if e ? raw then
+            [ (dataT e.from.id) ]
+            ++ concatMap (k: sinkAt k e.from) sinkNames
+            ++ concatMap (requestReads e.from) (requestsOf e)
+          else
+            [ ]
+        );
+      # a scope's own data, with refs cut to their identity: its fingerprint, the instances it holds, and functions
+      walk =
+        v:
+        let
+          many = ws: {
+            refs = concatMap (w: w.refs) ws;
+            opaque = any (w: w.opaque) ws;
+          };
+        in
+        if isRef v && isString v.kind && isString v.name && (instances.${v.kind} or { }) ? ${v.name} then
+          {
+            fp.__ref = [
+              v.kind
+              v.name
+            ];
+            refs = [ (instT v.kind v.name) ];
+            opaque = false;
+          }
+        else if isFunction v || isAttrs v && (v ? __functor || (v.type or null) == "derivation") then
+          {
+            fp = null;
+            refs = [ ];
+            opaque = true;
+          }
+        else if isList v then
+          let
+            ws = map walk v;
+          in
+          many ws // { fp = map (w: w.fp) ws; }
+        else if isAttrs v then
+          let
+            ws = mapAttrs (_: walk) v;
+          in
+          many (b.attrValues ws) // { fp = mapAttrs (_: w: w.fp) ws; }
+        else
+          {
+            fp = if isPath v then toString v else v;
+            refs = [ ];
+            opaque = false;
+          };
+      walks = byScope (s: walk (removeAttrs s scopeMeta)) scopes;
+      #: result.reads :: { edges; whole; data; } -- what every element, scope and instance reads, as tokens; whole: reached by any change; data: each scope's data by its sha256
+      reads = {
+        edges =
+          map (e: {
+            out = sinkT e.key e.to.id;
+            reads = edgeReads e;
+          }) (filter (e: !isWhole e) routed)
+          # a scope's record holds its parent's (`up`), its instance and the instances it refs
+          ++ map (s: {
+            out = dataT s.id;
+            reads = [ (instT s.kind s.name) ] ++ walks.${s.id}.refs ++ map (p: dataT p.id) (orNull s.parent);
+          }) scopes
+          ++ concatMap (
+            k:
+            map (n: {
+              out = instT k n;
+              reads = (walk (removeAttrs instances.${k}.${n} (words "kind name"))).refs;
+            }) (instNames k)
+          ) kindNames
+          # a sink `of` a kind reduces the instances its refs name
+          ++ concatMap (
+            n:
+            concatMap (
+              r:
+              let
+                d = sinkOf r n;
+              in
+              optional (d ? of && isType d.of && d.of ? __kind) {
+                out = sinkT n r.id;
+                reads = map (instT d.of.__kind) (instNames d.of.__kind);
+              }
+            ) (receivers n)
+          ) sinkNames;
+        whole =
+          map (e: sinkT e.key e.to.id) (filter isWhole routed)
+          ++ map (s: dataT s.id) (filter (s: walks.${s.id}.opaque) scopes); # a function in the data: no fingerprint
+        data = mapAttrs (_: w: b.hashString "sha256" (b.toJSON w.fp)) walks; # by hash: a secret field stays unstated
+      };
       # ── facts and invariants: the fleet as typed atoms `[ rel t… ]`; `yen.invariants.<name>` gives Datalog rules over them.
       # A true `bad` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
       # a field value: `[ "ref" FIELD ID KIND NAME ]` for a ref, `[ "val" FIELD ID VALUE ]` for a string, int or bool, one
@@ -2115,6 +2294,7 @@ let
           context
           agent
           impact
+          reads
           labels
           floor
           ;
@@ -2317,9 +2497,122 @@ let
               prefix = null;
               file = null;
             });
-      reaches = any (k: declared.declaredIn [ k ] != [ ]) (
-        yenKeys ++ attrNames changedResult.schema.kinds
+      # D14 exact: a change reaches what its seeds reach through reads, in either eval (lib/impact.nix, vic/r-yen.md)
+      declares = path: declared.declaredIn path != [ ];
+      impactOf = (import ./lib/impact.nix).impactOf;
+      instT = k: n: {
+        instance = k;
+        name = n;
+      };
+      both = f: f baseResult ++ f changedResult;
+      edgesBoth = both (r: r.graph.edges);
+      outOf = e: {
+        inherit (e) sink;
+        at = e.to;
+      };
+      aspectOf = o: b.head (b.match "aspect ([^#]*).*" o ++ [ null ]); # origin "aspect n#1": an element of aspect n
+      kindAt = listToAttrs (
+        map (s: {
+          name = s.id;
+          value = s.kind;
+        }) (both (r: r.graph.scopes))
       );
+      kindsBoth = names (both (r: attrNames r.schema.kinds));
+      instancesOf = k: names (both (r: attrNames (r.data.${k} or { })));
+      activePairs =
+        r:
+        concatMap (
+          n:
+          map (id: {
+            aspect = n;
+            at = id;
+          }) (filter (id: r.active.${n}.${id}) (attrNames r.active.${n}))
+        ) (attrNames r.active);
+      activeDelta = delta b.toJSON activePairs;
+      inBoth = filter (id: elem id (ids baseResult)) (ids changedResult);
+      # S8: the same edges into one receiver, in another order (a list reduction sees the order)
+      orderOf =
+        r: other:
+        mapAttrs (_: map keyG) (
+          groupBy (e: b.toJSON (outOf e)) (
+            filter (e: elem (keyG e) (map keyG other.graph.edges)) r.graph.edges
+          )
+        );
+      ordered = orderOf baseResult changedResult;
+      reordered = orderOf changedResult baseResult;
+      seeds =
+        map outOf (diff.edges.added ++ diff.edges.removed) # S1
+        ++ concatMap (
+          k:
+          map (n: instT k n) (
+            filter (
+              n:
+              declares [
+                k
+                n
+              ]
+            ) (instancesOf k)
+          )
+        ) kindsBoth # S2
+        ++ map outOf (
+          filter (
+            e:
+            aspectOf e.origin != null
+            && declares [
+              "aspects"
+              (aspectOf e.origin)
+            ]
+          ) edgesBoth
+        ) # S3
+        ++ map (id: { data = id; }) (diff.scopes.added ++ diff.scopes.removed) # S4
+        ++ concatMap (
+          p: [ p ] ++ map outOf (filter (e: e.from == p.at && aspectOf e.origin == p.aspect) edgesBoth)
+        ) (activeDelta.added ++ activeDelta.removed) # S5
+        ++ concatMap (
+          k:
+          if
+            declares [
+              "kinds"
+              k
+            ]
+          then
+            map (id: { data = id; }) (filter (id: kindAt.${id} == k) (attrNames kindAt))
+            ++ map (instT k) (instancesOf k)
+            ++ map outOf (filter (e: kindAt.${e.to} == k || kindAt.${e.from} == k) edgesBoth)
+          else
+            [ ]
+        ) kindsBoth # S6
+        ++ map (id: { data = id; }) (
+          filter (id: baseResult.reads.data.${id} != changedResult.reads.data.${id}) inBoth
+        ) # S7: a scope's data, spawned or declared
+        ++ map b.fromJSON (filter (k: ordered.${k} != reordered.${k} or [ ]) (attrNames ordered)); # S8
+      dirty = impactOf {
+        edges = both (r: r.reads.edges);
+        whole = both (r: r.reads.whole);
+        inherit seeds;
+      };
+      # helpers and queries are code every module can call: a change to them reaches every scope
+      everywhere = any (k: declares [ k ]) (words "helpers queries");
+      allowedT =
+        t:
+        if t ? sink then
+          grants.allowed grant {
+            inherit (t) sink;
+            to = t.at;
+          }
+        else
+          any (p: covers p (t.data or t.at)) grant.scopes;
+      reached =
+        if everywhere then
+          filter (
+            id:
+            !grants.allowed grant {
+              to = id;
+              sink = null;
+            }
+          ) (attrNames (keySet (ids baseResult ++ ids changedResult)))
+        else
+          names (map (t: t.data or t.at) (filter (t: !(t ? instance) && !allowedT t) dirty));
       outside =
         id:
         errWith "stage" "the change can reach ${id}, outside the grant" {
@@ -2348,18 +2641,8 @@ let
             path = [ k ];
           }
         ) law
-        # one refusal per scope, before or after the change, that the grant does not cover for every sink
-        ++ map outside (
-          filter (
-            id:
-            grant != null
-            && reaches
-            && !grants.allowed grant {
-              to = id;
-              sink = null;
-            }
-          ) (attrNames (keySet (ids baseResult ++ ids changedResult)))
-        );
+        # one refusal per scope, before or after the change, where it reaches outside the grant
+        ++ map outside (if grant == null then [ ] else reached);
     in
     {
       inherit
