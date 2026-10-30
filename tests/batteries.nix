@@ -1659,7 +1659,7 @@ let
     });
     claim-two-owners = {
       t1 = eq (codes claimBad) ([ "claim" ]);
-      t2 = eq (claimBad.flake) (null);
+      t2 = eq (builtins.attrNames claimBad.flake) ([ "invalid-flake-errors" ]);
     };
     claim-rank = {
       t1 = eq (claimRank.errors) ([ ]);

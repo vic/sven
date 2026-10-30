@@ -39,8 +39,9 @@
       (docs.file "variants/duplicate.nix")
       (docs.value (variant "variants/duplicate.nix").errors)
       ''
-        A fleet with an error gives no outputs. Its `flake` is `null` until `errors` is `[ ]` and every invariant
-        holds, so nothing can build it:
+        A fleet with an error gives no outputs. Its `flake` is `{ invalid-flake-errors = { errors; violations; incomplete; }; }`
+        until `errors` is `[ ]` and every invariant holds: a build finds no output, and `nix eval .#invalid-flake-errors`
+        tells you, or an agent, why:
       ''
       (docs.value (variant "variants/duplicate.nix").flake)
       ''
@@ -84,7 +85,9 @@
               class = "fixable";
             }
           ]);
-      no-outputs = eq ((variant "variants/duplicate.nix").flake) (null);
+      no-outputs = eq (builtins.attrNames (variant "variants/duplicate.nix").flake) ([
+        "invalid-flake-errors"
+      ]);
       warnings = eq (result.flake.warnings) ([ "scratch has no backup" ]);
       typo = yes (
         builtins.any (e: e.code == "unknown-field" && e.near == [ "backup" ])

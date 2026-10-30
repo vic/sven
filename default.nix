@@ -2010,7 +2010,17 @@ let
         # L0: a fleet with an error, a violation, an undefined invariant or a forged rule head gives no outputs, and no
         # reduced sink values to build them from by hand (D13)
         reduced = if clean then reduced else null;
-        flake = if clean then flakeFill.ok else null;
+        # its flake is the reason instead: a build finds no output, and `nix eval .#invalid-flake-errors` says why
+        flake =
+          if clean then
+            flakeFill.ok
+          else
+            {
+              invalid-flake-errors = {
+                errors = errorsAll;
+                inherit (check) violations incomplete;
+              };
+            };
         # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.

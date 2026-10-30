@@ -128,7 +128,7 @@
       ]);
       clash = {
         t1 = eq (map (e: e.code) (variant "variants/clash.nix").errors) ([ "claim" ]);
-        t2 = eq ((variant "variants/clash.nix").flake) (null);
+        t2 = eq (builtins.attrNames (variant "variants/clash.nix").flake) ([ "invalid-flake-errors" ]);
       };
       ordered = eq (result.flake.readme) ("# My fleet\n## Usage\n## Hosts");
       eval-modules = {

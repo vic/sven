@@ -24,7 +24,7 @@
       (docs.file "modules/deliver.nix")
       (docs.value result.flake.secretsPlan)
       ''
-        A secret that nobody owns is an error, and a fleet with an error gives no outputs (`flake` is `null`):
+        A secret that nobody owns is an error, and a fleet with an error gives no outputs (`flake` is `{ invalid-flake-errors = … }`, the reason):
       ''
       (docs.file "variants/orphan.nix")
       (docs.value {
@@ -69,7 +69,7 @@
         t1 = eq (map (e: e.error) (variant "variants/orphan.nix").errors) ([
           "secret old-token (secrets/old-token.age) has no owner"
         ]);
-        t2 = eq ((variant "variants/orphan.nix").flake) (null);
+        t2 = eq (builtins.attrNames (variant "variants/orphan.nix").flake) ([ "invalid-flake-errors" ]);
       };
       by-name = eq (map (e: e.code) (variant "variants/by-name.nix").errors) ([ "of" ]);
     };

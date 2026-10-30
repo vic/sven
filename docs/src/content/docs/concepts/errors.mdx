@@ -135,12 +135,31 @@ A new host with the address of `web` gives an error record:
 ]
 ```
 
-A fleet with an error gives no outputs. Its `flake` is `null` until `errors` is `[ ]` and every invariant
-holds, so nothing can build it:
+A fleet with an error gives no outputs. Its `flake` is `{ invalid-flake-errors = { errors; violations; incomplete; }; }`
+until `errors` is `[ ]` and every invariant holds: a build finds no output, and `nix eval .#invalid-flake-errors`
+tells you, or an agent, why:
 
 
 ```nix title="result"
-null
+{
+  invalid-flake-errors = {
+    errors = [
+      {
+        class = "fixable";
+        code = "duplicate-addr";
+        error = "10.0.0.1 is the address of cache and web";
+        fix = "give each host its own addr";
+        from = "fleet:main";
+        got = "10.0.0.1";
+        path = [
+          "addr"
+        ];
+      }
+    ];
+    incomplete = [ ];
+    violations = [ ];
+  };
+}
 ```
 
 ## Warnings

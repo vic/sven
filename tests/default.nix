@@ -2253,7 +2253,7 @@ let
     # D13: an error withholds the outputs and the reduced values (good-persist reads them on the clean fleet)
     neg-missing-addr-withholds = {
       reduced = eq noAddr.reduced null;
-      flake = eq noAddr.flake null;
+      flake = eq (builtins.attrNames noAddr.flake) [ "invalid-flake-errors" ];
     };
     neg-unknown-field = yes (
       has (yen.eval (fleet {
@@ -2425,12 +2425,35 @@ let
         ]);
     # rung 1: outputs only from a clean fleet (D0)
     r1-clean-flake = eq (yen.eval (rung1 [ ])).flake { ok = true; };
-    r1-violation-no-flake = eq ((yen.eval (rung1 [ sshdWeb ])).flake) (null);
-    r1-error-no-flake = eq ((yen.eval (rung1 [
-      { yen.host.web.port = 1; }
-      { yen.host.web.port = 2; }
-    ])).flake
-    ) (null);
+    r1-violation-no-flake =
+      let
+        f = (yen.eval (rung1 [ sshdWeb ])).flake;
+      in
+      {
+        t1 = eq (builtins.attrNames f) ([ "invalid-flake-errors" ]);
+        t2 = eq (f.invalid-flake-errors) ({
+          errors = [ ];
+          violations = [
+            [
+              "bad"
+              "no"
+            ]
+          ];
+          incomplete = [ ];
+        });
+      };
+    r1-error-no-flake =
+      let
+        f =
+          (yen.eval (rung1 [
+            { yen.host.web.port = 1; }
+            { yen.host.web.port = 2; }
+          ])).flake.invalid-flake-errors;
+      in
+      {
+        t1 = eq (map (e: e.code) f.errors) ([ "two-answers" ]);
+        t2 = eq (f.violations) ([ ]);
+      };
     # D13: a fleet that is not clean gives no reduced values to build outputs from by hand
     r1-violation-no-reduced = {
       t1 = eq ((yen.eval (rung1 [ sshdWeb ])).reduced) (null);
@@ -2447,7 +2470,7 @@ let
         };
       in
       {
-        t1 = eq (r.flake) (null);
+        t1 = eq (builtins.attrNames r.flake) ([ "invalid-flake-errors" ]);
         t2 = yes (b.any (e: e.code == "arg" && e.want == "host") r.errors);
       };
     # D9: a rule never derives a fact yen extracts; it is an error, and the fleet gives no outputs
@@ -2464,7 +2487,7 @@ let
       in
       {
         t1 = eq (codes r) ([ "edb-head" ]);
-        t2 = eq (r.flake) (null);
+        t2 = eq (builtins.attrNames r.flake) ([ "invalid-flake-errors" ]);
       };
     # rung 2 (vic/formally-verified.md section 3): typed facts, relations, rules as data
     # two hosts whose colon strings collide (D1): two facts, and a rule on one never fires on the other
@@ -2521,7 +2544,7 @@ let
       in
       {
         t1 = eq (codes r) ([ "invariant-data" ]);
-        t2 = eq (r.flake) (null);
+        t2 = eq (builtins.attrNames r.flake) ([ "invalid-flake-errors" ]);
       };
     r2-parent-fact = yes (b.elem [ "parent" "top:t/host:a" "top:t" ] (tags (_: { })).facts);
     # .21: a secret field never leaves the engine in an answer: facts, data, scopes, errors, the RDF export and the
@@ -2655,7 +2678,7 @@ let
         t2 = eq (byFn.check.violations) (bad);
         t3 = yes (codes broken != [ ]);
         t4 = yes (b.all (c: c == "external-not-bool") (codes broken));
-        t5 = eq (broken.flake) (null);
+        t5 = eq (builtins.attrNames broken.flake) ([ "invalid-flake-errors" ]);
       };
     # .41 (E1): a field a rule reads through an even number of `not` from `bad` gives a fact for every value, or the
     # verdict is not ok. Host a.tag is an attrset: no fact, so `bad` could be missed. Read under `not`, a missing fact
