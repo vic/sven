@@ -37,19 +37,16 @@ Some mistakes live between machines: no single host can see them. Say once that 
 environment:
 
 ```nix
-yen.invariants.db-same-env = [{
-  head = [ "bad" "db-other-env" (v "H") ];
-  pos = [
-    [ "ref" "db" (v "H") "host" (v "N") ]       # H uses the host named N as its database
-    [ "instance" (v "D") "host" (v "N") ]      # D is that host
-    [ "ref" "env" (v "H") "env" (v "E") ]      # H lives in environment E
-  ];
-  neg = [ [ "ref" "env" (v "D") "env" (v "E") ] ];  # and D does not
-}];
+yen.invariants.db-same-env = { H, D, E }: {
+  bad = H;
+  pos = [ (host.db H D) (host.env H E) ];  # H uses D as its database, and lives in environment E
+  neg = [ (host.env D E) ];                # and D does not
+};                                         # host = yen.facts.host
 ```
 
-A lab host that points at the prod database gives `[ "bad" "db-other-env" "fleet:main/env:lab/host:api" ]`, and
-the fleet builds nothing until it is fixed.
+Fields, aspects and variables are references, not strings: a typo is an evaluation error. A lab host that points at
+the prod database gives `[ "bad" "db-same-env" "fleet:main/env:lab/host:api" ]`, and the fleet builds nothing until
+it is fixed.
 
 ## Why Yen
 

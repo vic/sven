@@ -38,9 +38,9 @@ let
     check-not-bool = "a field type's check gives no bool (a curried check, such as a gen-types one, needs its other argument)";
     external-not-bool = "a relation's `holds` function answers a tuple with something other than a bool";
     relation-check = "a rule derives a tuple that fails the `check` of its relation in `yen.relations`";
-    invariant-function = "an invariant is a function: an invariant is a list of rules, as data, so a verdict's rules can be read";
+    invariant-data = "an invariant is data: write each rule as a function of its variables, `{ H }: { bad = H; pos = [ … ]; }`, its literals by reference";
     law-change = "a staged change declares `invariants`, `relations`, `labels` or `flake`: the law is the owner's, never a change's";
-    bad-atom = "a rule atom is not a list `[ rel t… ]` of strings, ints, bools and `{ var = \"X\"; }`";
+    bad-atom = "a rule literal is not a reference from `yen.facts` or `yen.relations`, or a term is not a variable, a string, an int or a bool";
     edb-head = "a rule derives a fact yen extracts (`scope`, `instance`, `parent`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison)";
     unknown-relation = "a rule names a relation that is neither extracted nor declared in `yen.relations`";
     arity = "a rule atom has the wrong number of terms for its relation";

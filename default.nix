@@ -47,6 +47,13 @@ let
   optional = c: x: if c then [ x ] else [ ];
   words = s: filter isString (b.split " " s); # "a b" is [ "a" "b" ]
   isRef = v: isAttrs v && v ? kind && v ? name; # an instance, or a ref to one
+  lit = atom: {
+    inherit atom;
+    join = [ ];
+  }; # a rule literal: its atom, and the atoms that bind its own `#` variables
+  curried =
+    n: f: acc:
+    if length acc == n then f acc else x: curried n f (acc ++ [ x ]); # n arguments, one at a time
   combinators = words "all not within has"; # `lib.all ps` is { __all = ps; }, and so on
   # keys the engine reads; the other keys of a sink, an aspect, a cycle output or a scope are data
   sinkMeta = words "at reduce of __sink";
@@ -153,13 +160,15 @@ let
   isLeaf =
     v: !isAttrs v || v ? check || v ? __kind || v ? __functor || (v.type or null) == "derivation";
   isType = t: isAttrs t && (t ? check || t ? __kind);
-  # the kind a type refers to, through `maybe`; null when it is no ref
+  # the kind a type refers to, through `maybe` and `listOf`; null when it is no ref
   refKind =
     t:
     if t ? __kind then
       t.__kind
     else if t ? __maybe then
       refKind t.__maybe
+    else if t ? __of then
+      refKind t.__of
     else
       null;
   # a secret value is stated by its hash; a type is secret itself or through `maybe`
@@ -261,6 +270,10 @@ let
       check = v: v == null || checkOf t v;
       default = null;
       __maybe = t; # the type it wraps: a maybe-ref is still a ref (refKind)
+    };
+    listOf = t: {
+      check = v: isList v && all (checkOf t) v;
+      __of = t; # a list of refs is still a ref field: one fact per element (refKind)
     };
     # a secret: checked like t, but no answer (facts, data, scopes, errors, exports) ever states its value, only its
     # sha256; an aspect still reads it
@@ -411,6 +424,116 @@ let
         // (if d ? sinks then { sinks = mapAttrs (n: v: v // { __sink = n; }) d.sinks; } else { }) # a sink is a ref: it carries its name
       ) (top.kinds or { }); # a kind is a type: its instances pass
       aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
+      # a relation is called by reference: `yen.relations.rank e 3` is the atom [ "rank" e 3 ]; one of arity 0 is a literal
+      relations = mapAttrs (
+        n: r:
+        r
+        // (
+          if (r.arity or 1) == 0 then
+            lit [ n ]
+          else
+            { __functor = _: curried (if r ? type then 1 else r.arity) (ts: lit ([ n ] ++ ts)) [ ]; }
+        )
+      ) (top.relations or { });
+      # rule literals by reference, never by name: `yen.facts.<kind>.<field> S T`, `kind`, `has`, `instance`, `parent`
+      # and the comparisons. A ref field with a variable target joins its instance; `#` variables are the literal's own.
+      # `<kind>.<field>.set S`: the field of S holds a value (a ref field: whether or not its instance has a scope)
+      factLits = {
+        kind =
+          k: s:
+          lit [
+            "kind"
+            k.__kind
+            s
+          ];
+        has =
+          a: s:
+          lit [
+            "has"
+            a.__aspect
+            s
+          ];
+        instance =
+          s: r:
+          lit [
+            "instance"
+            s
+            r.kind
+            r.name
+          ];
+        parent =
+          s: p:
+          lit [
+            "parent"
+            s
+            p
+          ];
+      }
+      // mapAttrs (
+        n: _: x: y:
+        lit [
+          n
+          x
+          y
+        ]
+      ) static.datalog.comparisons
+      // mapAttrs (k: d: mapAttrs (f: _: fieldLit k f) (d.fields or { })) kinds;
+      fieldLit =
+        k: f:
+        let
+          isRefField = first (t: refKind t != null) (typesAt k [ f ]) != null;
+          ref = s: [
+            "ref"
+            f
+            s
+            { var = "#k"; }
+            { var = "#n"; }
+          ];
+        in
+        {
+          __functor =
+            _: s: t:
+            if !isRefField then
+              lit [
+                "val"
+                f
+                s
+                t
+              ]
+            else if isRef t then
+              lit [
+                "ref"
+                f
+                s
+                t.kind
+                t.name
+              ]
+            else
+              {
+                atom = ref s;
+                join = [
+                  [
+                    "instance"
+                    t
+                    { var = "#k"; }
+                    { var = "#n"; }
+                  ]
+                ];
+              };
+          set =
+            s:
+            lit (
+              if isRefField then
+                ref s
+              else
+                [
+                  "val"
+                  f
+                  s
+                  { var = "#v"; }
+                ]
+            );
+        };
       kindNames = attrNames kinds;
       aspectNames = attrNames aspects;
 
@@ -532,7 +655,8 @@ let
         helpers = top.helpers or { };
         queries = top.queries or { };
         invariants = top.invariants or { };
-        relations = top.relations or { }; # user relations a rule derives: `<name>.arity`
+        inherit relations; # user relations a rule derives: `<name>.arity`, called by reference
+        facts = factLits; # rule literals by reference
         inherit labelTable;
       }; # declarations an agent or the docs read
 
@@ -1173,19 +1297,68 @@ let
         let
           D = static.datalog;
           invs = yen.invariants;
-          # rules are data (D3): a function is an error, so every rule a verdict uses can be read and certified
-          rulesOf = n: if isList invs.${n} then invs.${n} else [ ];
+          # a rule is a function of its variables, `{ H, D }: { bad = H; pos = [ … ]; neg = [ … ]; }`, its literals by
+          # reference (yen.facts, yen.relations). One call with { var = "H"; } terms gives the rule as data (D3), so every
+          # rule a verdict uses can be read and certified. `bad = t` is [ "bad" <invariant> t ]; `head = l` derives l
+          ruleFns =
+            n:
+            if isFunction invs.${n} then
+              [ invs.${n} ]
+            else if isList invs.${n} then
+              invs.${n}
+            else
+              [ ];
+          rulesOf = n: map (readRule n) (filter isFunction (ruleFns n));
+          readRule =
+            n: f:
+            let
+              r = f (mapAttrs (x: _: { var = x; }) (b.functionArgs f));
+              # a literal only by reference: a hand-written list is a bad atom
+              literal = l: if isAttrs l && isList (l.atom or null) && isList (l.join or null) then l else null;
+              ls = map literal (r.pos or [ ] ++ r.neg or [ ]);
+              # the literal's own `#` variables, numbered by its place
+              own =
+                i: t: if D.isVar t && b.substring 0 1 t.var == "#" then { var = "${t.var}${toString i}"; } else t;
+              at =
+                i:
+                if b.elemAt ls i == null then
+                  {
+                    atom = null;
+                    join = [ ];
+                  }
+                else
+                  {
+                    atom = map (own i) (b.elemAt ls i).atom;
+                    join = map (map (own i)) (b.elemAt ls i).join;
+                  };
+              pos = b.genList at (length (r.pos or [ ]));
+              neg = b.genList (i: at (i + length pos)) (length (r.neg or [ ]));
+            in
+            {
+              head =
+                if r ? bad then
+                  [
+                    "bad"
+                    n
+                  ]
+                  ++ (if isList r.bad then r.bad else [ r.bad ])
+                else
+                  (literal (r.head or null)).atom or null;
+              # a negated ref joins its target's instance in pos: every scope has one instance fact, so this is exact
+              pos = concatMap (l: [ l.atom ] ++ l.join) pos ++ concatMap (l: l.join) neg;
+              neg = map (l: l.atom) neg;
+            };
           shapeErrors = map (
             n:
-            errWith "invariant ${n}" "an invariant is a list of rules, not a ${b.typeOf invs.${n}}" {
-              code = "invariant-function";
+            errWith "invariant ${n}" "an invariant is a rule function or a list of them, not data" {
+              code = "invariant-data";
               path = [
                 "invariants"
                 n
               ];
-              fix = "write the rules as data: [ { head = [ \"bad\" … ]; pos = [ … ]; neg = [ … ]; } ], with { var = \"X\"; }";
+              fix = "write each rule as { H, … }: { bad = H; pos = [ (yen.facts.host.addr H X) ]; neg = [ … ]; }";
             }
-          ) (filter (n: !isList invs.${n}) (attrNames invs));
+          ) (filter (n: !all isFunction (ruleFns n) || ruleFns n == [ ]) (attrNames invs));
           # externals decide atoms on bound terms: the comparisons, a relation with `holds = terms: bool`, and a
           # relation with `type` (rung 4: a type is a predicate, true when the term passes its check)
           externals =
@@ -1223,7 +1396,7 @@ let
             if !(isAttrs r && r ? head) || !all isAtom atoms then
               {
                 code = "bad-atom";
-                error = "an atom is a list [ rel t… ] of strings, ints, bools and { var = \"X\"; }";
+                error = "a rule literal comes from yen.facts or yen.relations, and its terms are variables, strings, ints or bools";
                 got = static.jsonSafe r;
               }
             else if edbArity ? ${head r.head} || isCmp r.head then

@@ -30,7 +30,7 @@ out=$(call yen_errors '{}' | text)
 check errors-list '.complete == true and (.result | type == "array")' "$out"
 
 out=$(call yen_stage '{"change":{"yen":{"aspects":{"attic":{"at":[{"kind":"mac","name":"studio"}]}}}}}' | text)
-check stage-attic '.result.ok == false and (.result.violations | map(.[1] == "attic-on-mac") | any)' "$out"
+check stage-attic '.result.ok == false and (.result.violations | map(.[1] == "attic") | any)' "$out"
 
 out=$(call yen_queries '{}' | text)
 check queries-freeport '.result.freePort.required == ["host"]' "$out"
@@ -50,11 +50,11 @@ check impact-unknown-sink '.result.code == "unknown-sink"' "$out"
 out=$(call yen_labels '{"floor":3}' | text)
 check labels-floor '(.result.floor | length > 0 and all(.trust == 1)) and (.result.labels | type == "object")' "$out"
 
-out=$(call yen_why_not '{"atom":["bad","attic-on-mac","fleet:main/environment:staging/mac:studio"]}' | text)
+out=$(call yen_why_not '{"atom":["bad","attic","fleet:main/environment:staging/mac:studio"]}' | text)
 check why-not-holds-false '.result.holds == false' "$out"
 
 out=$(call yen_program '{"program":[{"op":"place","aspect":"attic","kind":"mac","name":"studio"}]}' | text)
-check program-violation '.result.ok == false and (.result.violations | map(.[1] == "attic-on-mac") | any)' "$out"
+check program-violation '.result.ok == false and (.result.violations | map(.[1] == "attic") | any)' "$out"
 
 out=$(call yen_program '{"program":[{"op":"plac"}]}' | text)
 check program-invalid '.result.valid == false and .result.errors[0].near == ["place"]' "$out"

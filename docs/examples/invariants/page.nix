@@ -14,18 +14,25 @@
     [
       ''
         An invariant is a rule about the whole fleet: "no server runs a desktop", "no two hosts share an address".
-        `yen.invariants.<name>` gives [Datalog](/query/datalog/) rules over the fleet's facts, as data. A true `[ "bad" … ]` atom is a violation.
+        `yen.invariants.<name>` gives [Datalog](/query/datalog/) rules over the fleet's facts. A true `[ "bad" … ]` atom is a violation.
       ''
       (docs.file "modules/fleet.nix")
       (docs.file "modules/invariants.nix")
       ''
-        A rule is `{ head; pos ? [ ]; neg ? [ ]; }`. An atom is a list `[ rel t… ]`. A term is a string, an int, a bool,
-        or a variable `{ var = "X"; }`: every string is a constant. `lt` and `neq` compare two bound terms. A relation you derive
-        (other than `bad`) is declared with its arity and an optional `check` on its terms: `yen.relations.reach.arity = 2;`. A derived tuple that fails the check is the error `relation-check`.
+        A rule is a function of its variables: `{ H }: { bad = H; pos = [ … ]; neg = [ … ]; }`. Each argument is a
+        variable. A literal comes by reference from `yen.facts`, never by name: `host.addr A X` (a field holds X; for a ref
+        field, X is a scope of the instance it refers to, and a ref such as `yen.env.prod` is a constant), `kind yen.kinds.host H`,
+        `has yen.aspects.desktop H`, `instance H yen.host.db`, `parent H P`, and `lt` and `neq`, which compare two bound terms.
+        A string, an int or a bool is a constant. `bad = H` makes the violation `[ "bad" <invariant> H ]`. A typo in a field,
+        an aspect or a variable is an evaluation error, so a rule can never silently match nothing.
+
+        A relation you derive is declared with its arity and an optional `check` on its terms:
+        `yen.relations.reach.arity = 2;`. Call it by reference, `yen.relations.reach A B`, as a literal or as a rule's
+        `head`. A derived tuple that fails the check is the error `relation-check`.
         A relation can also be decided by a function on bound terms: `yen.relations.digits = { arity = 1; holds = ts: …; }`,
         or by a type: `yen.relations.port.type = yen.kinds.host.fields.port;`, true when the term passes the type's check.
         Such a relation is never a fact and never a rule head, and its variables must be bound by other atoms. A
-        `holds` answer that is not a bool is the error `external-not-bool`. The facts:
+        `holds` answer that is not a bool is the error `external-not-bool`. The facts the literals read:
       ''
       (docs.table
         [ "Fact" "Holds when" ]
@@ -82,7 +89,7 @@
       (docs.value (
         (variant "variants/mistakes.nix").check.why [
           "bad"
-          "same-addr"
+          "unique-addr"
           "fleet:main/host:db"
           "fleet:main/host:spare"
         ]
@@ -148,12 +155,12 @@
         t1 = eq (m.violations) ([
           [
             "bad"
-            "desktop-on-server"
+            "no-desktop-on-servers"
             "fleet:main/host:web"
           ]
           [
             "bad"
-            "same-addr"
+            "unique-addr"
             "fleet:main/host:db"
             "fleet:main/host:spare"
           ]

@@ -112,7 +112,7 @@
         t2 = eq (d.violations) ([
           [
             "bad"
-            "desktop-on-server"
+            "no-desktop-on-servers"
             "fleet:main/host:web"
           ]
         ]);

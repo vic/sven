@@ -77,9 +77,8 @@ let
     };
   r = yen.eval { imports = [ base ] ++ b.genList aspect n; };
   # services: `perHost` per host, each on a port, each using the next service of its host as its database. Three
-  # rules across machines (data, with variables): no port clash on a host, a database in the same environment, every
+  # rules across machines (by reference): no port clash on a host, a database in the same environment, every
   # service monitored. The fleet is clean: the check must prove every absence.
-  v = x: { var = x; };
   services =
     { yen, ... }:
     {
@@ -116,112 +115,66 @@ let
         )
       );
       yen.aspects.monitor.at = yen.kinds.svc;
-      yen.invariants.services = rules;
+      yen.invariants = rules yen;
     };
-  rules = [
+  rules =
+    yen:
+    let
+      inherit (yen.facts)
+        svc
+        kind
+        parent
+        has
+        lt
+        ;
+    in
     {
-      head = [
-        "bad"
-        "port-clash"
-        (v "A")
-        (v "B")
-      ];
-      pos = [
-        [
-          "parent"
-          (v "A")
-          (v "H")
-        ]
-        [
-          "parent"
-          (v "B")
-          (v "H")
-        ]
-        [
-          "val"
-          "port"
-          (v "A")
-          (v "P")
-        ]
-        [
-          "val"
-          "port"
-          (v "B")
-          (v "P")
-        ]
-        [
-          "lt"
-          (v "A")
-          (v "B")
-        ]
-      ];
-    }
-    {
-      head = [
-        "bad"
-        "db-cross-env"
-        (v "S")
-      ];
-      pos = [
-        [
-          "ref"
-          "db"
-          (v "S")
-          "svc"
-          (v "N")
-        ]
-        [
-          "instance"
-          (v "D")
-          "svc"
-          (v "N")
-        ]
-        [
-          "parent"
-          (v "S")
-          (v "H")
-        ]
-        [
-          "parent"
-          (v "H")
-          (v "E")
-        ]
-        [
-          "parent"
-          (v "D")
-          (v "H2")
-        ]
-      ];
-      neg = [
-        [
-          "parent"
-          (v "H2")
-          (v "E")
-        ]
-      ];
-    }
-    {
-      head = [
-        "bad"
-        "unmonitored"
-        (v "S")
-      ];
-      pos = [
-        [
-          "kind"
-          "svc"
-          (v "S")
-        ]
-      ];
-      neg = [
-        [
-          "has"
-          "monitor"
-          (v "S")
-        ]
-      ];
-    }
-  ];
+      port-clash =
+        {
+          A,
+          B,
+          H,
+          P,
+        }:
+        {
+          bad = [
+            A
+            B
+          ];
+          pos = [
+            (parent A H)
+            (parent B H)
+            (svc.port A P)
+            (svc.port B P)
+            (lt A B)
+          ];
+        };
+      db-cross-env =
+        {
+          S,
+          D,
+          H,
+          E,
+          H2,
+        }:
+        {
+          bad = S;
+          pos = [
+            (svc.db S D)
+            (parent S H)
+            (parent H E)
+            (parent D H2)
+          ];
+          neg = [ (parent H2 E) ];
+        };
+      unmonitored =
+        { S }:
+        {
+          bad = S;
+          pos = [ (kind yen.kinds.svc S) ];
+          neg = [ (has yen.aspects.monitor S) ];
+        };
+    };
   fleet = yen.eval {
     imports = [
       base

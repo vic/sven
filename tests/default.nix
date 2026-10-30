@@ -400,11 +400,10 @@ let
     }
   );
   # rung 1 (vic/formally-verified.md): the law gates outputs and stage; grants by path segment, edges and values
-  # a variable is { var = "X"; }; every string is a constant
-  v = x: { var = x; };
+  # a rule is a function of its variables; its literals are references (yen.facts, yen.relations)
   nofw = id: [
     "bad"
-    "no-firewall"
+    "fw"
     id
   ];
   hasFw = id: [
@@ -412,37 +411,27 @@ let
     "firewall"
     id
   ];
-  cyc = [
-    "has"
-    "cyc"
-    "top:t"
-  ];
-  # every host has the firewall aspect
-  fwRules = [
+  # a violation on one host: web runs sshd
+  sshdWeb =
+    { yen, ... }:
     {
-      head = [
-        "bad"
-        "no-firewall"
-        (v "H")
-      ];
-      pos = [
-        [
-          "kind"
-          "host"
-          (v "H")
-        ]
-      ];
-      neg = [
-        [
-          "has"
-          "firewall"
-          (v "H")
-        ]
-      ];
-    }
-  ];
+      yen.invariants.no = _: {
+        bad = [ ];
+        pos = [ (yen.facts.has yen.aspects.sshd "top:t/host:web") ];
+      };
+    };
+  # every host has the firewall aspect
+  fwRules =
+    yen:
+    { H }:
+    {
+      bad = H;
+      pos = [ (yen.facts.kind yen.kinds.host H) ];
+      neg = [ (yen.facts.has yen.aspects.firewall H) ];
+    };
   codes = r: map (e: e.code) r.errors;
-  # rung 2 fixture: hosts `a` (tag "b:1") and `a:b` (tag "2"); `ok` is a user relation of arity 1
+  # rung 2 fixture: hosts `a` (tag "b:1") and `a:b` (tag "2"); `ok` is a user relation of arity 1; `rules yen` names
+  # the invariants
   tagsWith =
     rules: hosts:
     yen.eval (
@@ -460,11 +449,15 @@ let
           arity = 1;
           check = ts: b.match "[0-9]+" (b.head ts) != null; # digits only: tag "b:1" fails, "2" passes
         };
-        yen.invariants.r = rules;
+        yen.invariants = rules yen;
       }
     );
   tags = rules: tagsWith rules { };
-  rule2 = r: tags [ r ];
+  rule2 =
+    r:
+    tags (_: {
+      inherit r;
+    });
   rung1 = extra: {
     imports = [
       (
@@ -506,23 +499,20 @@ let
             q.arity = 0;
           };
           yen.invariants.cycle = [
-            {
-              head = [ "p" ];
-              pos = [ cyc ];
-              neg = [ [ "q" ] ];
-            }
-            {
-              head = [ "q" ];
-              pos = [ cyc ];
-              neg = [ [ "p" ] ];
-            }
-            {
-              head = [
-                "bad"
-                "cycle"
-              ];
-              pos = [ [ "p" ] ];
-            }
+            (_: {
+              head = yen.relations.p;
+              pos = [ (yen.facts.has yen.aspects.cyc "top:t") ];
+              neg = [ yen.relations.q ];
+            })
+            (_: {
+              head = yen.relations.q;
+              pos = [ (yen.facts.has yen.aspects.cyc "top:t") ];
+              neg = [ yen.relations.p ];
+            })
+            (_: {
+              bad = [ ];
+              pos = [ yen.relations.p ];
+            })
           ];
           yen.flake.ok = true; # outputs exist only when the fleet is clean
         }
@@ -790,7 +780,7 @@ let
         at = yen.host.a;
         fw = "on";
       };
-      yen.invariants.fw = fwRules;
+      yen.invariants.fw = fwRules yen;
     };
   ports =
     extra:
@@ -815,7 +805,7 @@ let
           at = yen.host.a;
           fw = "on";
         };
-        yen.invariants.fw = fwRules;
+        yen.invariants.fw = fwRules yen;
       }
     );
   rec1 = r: code: b.head (b.filter (e: e.code == code) r.errors);
@@ -888,25 +878,25 @@ let
       };
     invariants-incomplete =
       let
-        r = ports {
-          yen.relations.ok.arity = 1;
-          yen.invariants.loop = [
-            {
-              head = loop;
-              neg = [ okLoop ];
-            }
-            {
-              head = okLoop;
-              neg = [ loop ];
-            }
-          ];
-        };
+        # ok "loop" holds when it does not: undefined, and so is the `bad` it proves
+        r = ports (
+          { yen, ... }:
+          {
+            yen.relations.ok.arity = 1;
+            yen.invariants.loop = [
+              (_: {
+                head = yen.relations.ok "loop";
+                neg = [ (yen.relations.ok "loop") ];
+              })
+              (_: {
+                bad = [ ];
+                pos = [ (yen.relations.ok "loop") ];
+              })
+            ];
+          }
+        );
         loop = [
           "bad"
-          "loop"
-        ];
-        okLoop = [
-          "ok"
           "loop"
         ];
       in
@@ -2435,26 +2425,7 @@ let
         ]);
     # rung 1: outputs only from a clean fleet (D0)
     r1-clean-flake = eq (yen.eval (rung1 [ ])).flake { ok = true; };
-    r1-violation-no-flake = eq ((yen.eval (rung1 [
-      {
-        yen.invariants.no = [
-          {
-            head = [
-              "bad"
-              "sshd-web"
-            ];
-            pos = [
-              [
-                "has"
-                "sshd"
-                "top:t/host:web"
-              ]
-            ];
-          }
-        ];
-      }
-    ])).flake
-    ) (null);
+    r1-violation-no-flake = eq ((yen.eval (rung1 [ sshdWeb ])).flake) (null);
     r1-error-no-flake = eq ((yen.eval (rung1 [
       { yen.host.web.port = 1; }
       { yen.host.web.port = 2; }
@@ -2462,26 +2433,7 @@ let
     ) (null);
     # D13: a fleet that is not clean gives no reduced values to build outputs from by hand
     r1-violation-no-reduced = {
-      t1 = eq ((yen.eval (rung1 [
-        {
-          yen.invariants.no = [
-            {
-              head = [
-                "bad"
-                "sshd-web"
-              ];
-              pos = [
-                [
-                  "has"
-                  "sshd"
-                  "top:t/host:web"
-                ]
-              ];
-            }
-          ];
-        }
-      ])).reduced
-      ) (null);
+      t1 = eq ((yen.eval (rung1 [ sshdWeb ])).reduced) (null);
       t2 = yes ((yen.eval (rung1 [ ])).reduced.nixos ? "top:t/host:web");
     };
     # a flake that cannot be filled is an error record, never a silent null
@@ -2502,17 +2454,12 @@ let
     r1-edb-head =
       let
         r = yen.eval (rung1 [
-          {
-            yen.invariants.f = [
-              {
-                head = [
-                  "has"
-                  "fw"
-                  "top:t/host:web"
-                ];
-              }
-            ];
-          }
+          (
+            { yen, ... }:
+            {
+              yen.invariants.f = _: { head = yen.facts.has yen.aspects.fw "top:t/host:web"; };
+            }
+          )
         ]);
       in
       {
@@ -2523,22 +2470,12 @@ let
     # two hosts whose colon strings collide (D1): two facts, and a rule on one never fires on the other
     r2-no-collision =
       let
-        r = tags [
-          {
-            head = [
-              "bad"
-              "collide"
-            ];
-            pos = [
-              [
-                "val"
-                "tag"
-                "top:t/host:a:b"
-                "1"
-              ]
-            ];
-          }
-        ];
+        r = tags (yen: {
+          collide = _: {
+            bad = [ ];
+            pos = [ (yen.facts.host.tag "top:t/host:a:b" "1") ];
+          };
+        });
       in
       {
         t1 = yes (r.check.ok);
@@ -2548,35 +2485,26 @@ let
     # the same rule with a variable binds over both hosts, and lt keeps one pair
     r2-vars =
       eq
-        ((tags [
-          {
-            head = [
-              "bad"
-              "pair"
-              (v "A")
-              (v "B")
-            ];
-            pos = [
-              [
-                "val"
-                "tag"
-                (v "A")
-                (v "X")
-              ]
-              [
-                "val"
-                "tag"
-                (v "B")
-                (v "Y")
-              ]
-              [
-                "lt"
-                (v "A")
-                (v "B")
-              ]
-            ];
-          }
-        ]).check.violations
+        ((tags (yen: {
+          pair =
+            {
+              A,
+              B,
+              X,
+              Y,
+            }:
+            {
+              bad = [
+                A
+                B
+              ];
+              pos = [
+                (yen.facts.host.tag A X)
+                (yen.facts.host.tag B Y)
+                (yen.facts.lt A B)
+              ];
+            };
+        })).check.violations
         )
         ([
           [
@@ -2586,16 +2514,16 @@ let
             "top:t/host:a:b"
           ]
         ]);
-    # D3: an invariant is data; a function is an error and gives no rules
-    r2-invariant-function =
+    # D3: a rule is a function of its variables; an invariant written as data is an error and gives no rules
+    r2-invariant-data =
       let
-        r = yen.eval (rung1 [ { yen.invariants.f = _: [ ]; } ]);
+        r = yen.eval (rung1 [ { yen.invariants.f = [ { head = [ "bad" ]; } ]; } ]);
       in
       {
-        t1 = eq (codes r) ([ "invariant-function" ]);
+        t1 = eq (codes r) ([ "invariant-data" ]);
         t2 = eq (r.flake) (null);
       };
-    r2-parent-fact = yes (b.elem [ "parent" "top:t/host:a" "top:t" ] (tags [ ]).facts);
+    r2-parent-fact = yes (b.elem [ "parent" "top:t/host:a" "top:t" ] (tags (_: { })).facts);
     # .21: a secret field never leaves the engine in an answer: facts, data, scopes, errors, the RDF export and the
     # seal state it by its hash, so a rule can still compare two secrets; an aspect still reads the value
     secrets-hidden =
@@ -2622,39 +2550,30 @@ let
             }
           );
         clean = fleet { };
-        shared = fleet {
-          yen.host.b.token = "hunter2";
-          yen.host.c.token = 424242;
-          yen.invariants.shared = [
-            {
-              head = [
-                "bad"
-                "shared-token"
-                (v "A")
-                (v "B")
-              ];
-              pos = [
-                [
-                  "val"
-                  "token"
-                  (v "A")
-                  (v "X")
-                ]
-                [
-                  "val"
-                  "token"
-                  (v "B")
-                  (v "X")
-                ]
-                [
-                  "lt"
-                  (v "A")
-                  (v "B")
-                ]
-              ];
-            }
-          ];
-        };
+        shared = fleet (
+          { yen, ... }:
+          {
+            yen.host.b.token = "hunter2";
+            yen.host.c.token = 424242;
+            yen.invariants.shared-token =
+              {
+                A,
+                B,
+                X,
+              }:
+              {
+                bad = [
+                  A
+                  B
+                ];
+                pos = [
+                  (yen.facts.host.token A X)
+                  (yen.facts.host.token B X)
+                  (yen.facts.lt A B)
+                ];
+              };
+          }
+        );
         seen =
           r:
           b.toJSON {
@@ -2689,27 +2608,14 @@ let
       };
     r4-types =
       let
-        rule = {
-          head = [
-            "bad"
-            "not-digits"
-            (v "H")
-          ];
-          pos = [
-            [
-              "val"
-              "tag"
-              (v "H")
-              (v "X")
-            ]
-          ];
-          neg = [
-            [
-              "digits"
-              (v "X")
-            ]
-          ];
-        };
+        rule =
+          yen:
+          { H, X }:
+          {
+            bad = H;
+            pos = [ (yen.facts.host.tag H X) ];
+            neg = [ (yen.relations.digits X) ];
+          };
         run =
           rel:
           yen.eval (
@@ -2723,7 +2629,7 @@ let
                 "a:b".tag = "2";
               };
               yen.relations.digits = rel;
-              yen.invariants.r = [ rule ];
+              yen.invariants.not-digits = rule yen;
             }
           );
         digits = s: b.match "[0-9]+" s != null;
@@ -2758,23 +2664,14 @@ let
       let
         meta =
           tagsWith
-            [
-              {
-                head = [
-                  "bad"
-                  "x"
-                  (v "H")
-                ];
-                pos = [
-                  [
-                    "val"
-                    "tag"
-                    (v "H")
-                    "x"
-                  ]
-                ];
-              }
-            ]
+            (yen: {
+              x =
+                { H }:
+                {
+                  bad = H;
+                  pos = [ (yen.facts.host.tag H "x") ];
+                };
+            })
             {
               a.tag = {
                 x = 1;
@@ -2782,30 +2679,15 @@ let
             };
         safe =
           tagsWith
-            [
-              {
-                head = [
-                  "bad"
-                  "x"
-                  (v "H")
-                ];
-                pos = [
-                  [
-                    "kind"
-                    "host"
-                    (v "H")
-                  ]
-                ];
-                neg = [
-                  [
-                    "val"
-                    "tag"
-                    (v "H")
-                    "x"
-                  ]
-                ];
-              }
-            ]
+            (yen: {
+              x =
+                { H }:
+                {
+                  bad = H;
+                  pos = [ (yen.facts.kind yen.kinds.host H) ];
+                  neg = [ (yen.facts.host.tag H "x") ];
+                };
+            })
             {
               a.tag = {
                 x = 1;
@@ -2874,10 +2756,21 @@ let
           why = "facts";
         });
         t3 = eq ((p.check.verify tamper).why) ("certificate");
-        t4 = eq ((ports { yen.invariants.more = fwRules; }).check.verify seal) ({
-          ok = false;
-          why = "rules";
-        });
+        t4 =
+          eq
+            (
+              (ports (
+                { yen, ... }:
+                {
+                  yen.invariants.more = fwRules yen;
+                }
+              )).check.verify
+              seal
+            )
+            ({
+              ok = false;
+              why = "rules";
+            });
       };
     # rung 3: each verdict ships a staged certificate that the plain checker accepts, and it states the same verdict
     r3-certified =
@@ -2905,22 +2798,14 @@ let
     # a derived tuple that fails its relation's check is an error (ok takes one string term here)
     relation-check =
       let
-        r = tagsWith [
-          {
-            head = [
-              "ok"
-              (v "X")
-            ];
-            pos = [
-              [
-                "val"
-                "tag"
-                (v "H")
-                (v "X")
-              ]
-            ];
-          }
-        ] { };
+        r = tagsWith (yen: {
+          r =
+            { H, X }:
+            {
+              head = yen.relations.ok X;
+              pos = [ (yen.facts.host.tag H X) ];
+            };
+        }) { };
       in
       eq (codes r) ([ "relation-check" ]);
     # a type whose check gives no bool (a curried gen-types check) is an error record, never a throw
@@ -2937,43 +2822,154 @@ let
         );
       in
       eq (codes r) ([ "check-not-bool" ]);
-    r2-string-atom = eq (codes (rule2 {
-      head = "bad:x";
-    })) ([ "bad-atom" ]);
+    # a literal is a reference: a string, or a hand-written list of strings, is a bad atom
+    r2-string-atom = {
+      t1 = eq (codes (
+        rule2 (_: {
+          head = "bad:x";
+        })
+      )) ([ "bad-atom" ]);
+      t2 = eq (codes (
+        rule2 (_: {
+          bad = [ ];
+          pos = [
+            [
+              "kind"
+              "host"
+              "top:t/host:a"
+            ]
+          ];
+        })
+      )) ([ "bad-atom" ]);
+    };
+    # the guards below hold for a literal built by hand, outside yen.facts and yen.relations
     r2-unknown-relation =
       let
         e =
           b.head
-            (rule2 {
-              head = [
-                "okk"
-                "x"
-              ];
-            }).errors;
+            (rule2 (_: {
+              head = {
+                atom = [
+                  "okk"
+                  "x"
+                ];
+                join = [ ];
+              };
+            })).errors;
       in
       {
         t1 = eq (e.code) ("unknown-relation");
         t2 = eq (e.near) ([ "ok" ]);
       };
-    r2-arity = eq (codes (rule2 {
-      head = [ "ok" ];
-    })) ([ "arity" ]);
-    r2-unsafe = eq (codes (rule2 {
-      head = [
-        "bad"
-        (v "X")
-      ];
-      neg = [
-        [
-          "has"
-          "fw"
-          (v "X")
-        ]
-      ];
-    })) ([ "unsafe-rule" ]);
+    r2-arity = eq (codes (
+      rule2 (_: {
+        head = {
+          atom = [ "ok" ];
+          join = [ ];
+        };
+      })
+    )) ([ "arity" ]);
+    r2-unsafe = eq (codes (
+      rule2 (
+        { X }:
+        {
+          bad = X;
+        }
+      )
+    )) ([ "unsafe-rule" ]);
+    # refs in rules: a ref field joins its target's scope; negated, the join goes to pos (one instance per scope)
+    refs-db-same-env =
+      let
+        fleet =
+          extra:
+          yen.eval (
+            { yen, ... }:
+            {
+              imports = [ extra ];
+              yen.kinds.top.spawns.env = _: yen.env;
+              yen.kinds.env.spawns.host =
+                s:
+                b.removeAttrs yen.host (
+                  if s.name == "lab" then
+                    [
+                      "db"
+                      "web"
+                    ]
+                  else
+                    [ "api" ]
+                );
+              yen.kinds.host.fields = {
+                env = yen.kinds.env;
+                db = yen.lib.maybe yen.kinds.host;
+              };
+              yen.top.t = { };
+              yen.env.prod = { };
+              yen.env.lab = { };
+              yen.host.db.env = yen.env.prod;
+              yen.host.web = {
+                env = yen.env.prod;
+                db = yen.host.db;
+              };
+              yen.invariants = {
+                same-env =
+                  {
+                    H,
+                    D,
+                    E,
+                  }:
+                  {
+                    bad = H;
+                    pos = [
+                      (yen.facts.host.db H D)
+                      (yen.facts.host.env H E)
+                    ];
+                    neg = [ (yen.facts.host.env D E) ];
+                  };
+                db-set =
+                  { H }:
+                  {
+                    bad = H;
+                    pos = [ (yen.facts.host.db.set H) ];
+                  };
+              };
+            }
+          );
+        lab = fleet (
+          { yen, ... }:
+          {
+            yen.host.api = {
+              env = yen.env.lab;
+              db = yen.host.db;
+            };
+          }
+        );
+      in
+      {
+        t1 = eq (b.filter (a: b.elemAt a 1 == "same-env") (fleet { }).check.violations) ([ ]);
+        t2 = eq (b.filter (a: b.elemAt a 1 == "same-env") lab.check.violations) ([
+          [
+            "bad"
+            "same-env"
+            "top:t/env:lab/host:api"
+          ]
+        ]);
+        t3 = eq (b.filter (a: b.elemAt a 1 == "db-set") lab.check.violations) ([
+          [
+            "bad"
+            "db-set"
+            "top:t/env:lab/host:api"
+          ]
+          [
+            "bad"
+            "db-set"
+            "top:t/env:prod/host:web"
+          ]
+        ]);
+        t4 = eq (lab.errors) ([ ]);
+      };
     r2-unencodable =
       let
-        r = tagsWith [ ] { "a:b".tag = 1.5; };
+        r = tagsWith (_: { }) { "a:b".tag = 1.5; };
       in
       {
         t1 = eq (codes r) ([ "unencodable" ]);
@@ -3086,14 +3082,7 @@ let
       eq
         (map (e: e.code)
           (r1stage {
-            yen.invariants.w = [
-              {
-                head = [
-                  "bad"
-                  "web"
-                ];
-              }
-            ];
+            yen.invariants.w = _: { bad = [ ]; };
           } null).refused
         )
         ([
