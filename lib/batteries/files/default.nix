@@ -4,4 +4,5 @@
   document = import ./document.nix;
   json = import ./json.nix;
   toml = import ./toml.nix;
+  comment = import ./comment.nix;
 }

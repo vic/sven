@@ -18,4 +18,5 @@
   clan = import ./clan;
   cachix = import ./cachix;
   secretspec = import ./secretspec;
+  exports = import ./exports;
 }

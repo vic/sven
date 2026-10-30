@@ -2,4 +2,7 @@
 {
   links = import ./links.nix;
   vocabulary = import ./vocabulary.nix;
+  table = import ./table.nix;
+  kinds = import ./kinds.nix;
+  templates = import ./templates.nix;
 }

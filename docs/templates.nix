@@ -1,18 +1,6 @@
-# Every example with a flake.nix is a flake template. Pure and cheap: no inputs, no yen evaluation.
-# Both flakes use it: docs/flake.nix and the repository root flake.nix.
-let
+# Every example with a flake.nix is a flake template (yen.lib.batteries.docs.templates). Pure and cheap: no inputs,
+# no yen evaluation. Both flakes use it: docs/flake.nix and the repository root flake.nix.
+import ../lib/batteries/docs/templates.nix {
   root = ./examples;
-  isTemplate = n: t: t == "directory" && builtins.pathExists (root + "/${n}/flake.nix");
-  names = builtins.filter (n: isTemplate n (builtins.readDir root).${n}) (
-    builtins.attrNames (builtins.readDir root)
-  );
-in
-builtins.listToAttrs (
-  map (n: {
-    name = n;
-    value = {
-      path = root + "/${n}";
-      inherit ((import (root + "/${n}/page.nix"))) description;
-    };
-  }) names
-)
+  description = d: (import (d + "/page.nix")).description;
+}

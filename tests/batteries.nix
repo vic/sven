@@ -805,6 +805,59 @@ let
   ];
 
   checks = {
+    exports-modules =
+      bat.exports.modules
+        {
+          from.__sink = "os";
+          output = "homeModules";
+        }
+        {
+          scope.name = "base";
+          sinks.os = [ "m" ];
+        } == {
+        homeModules.base.imports = [ "m" ];
+      };
+    docs-table =
+      bat.docs.table
+        [ "A" "B" ]
+        [
+          [
+            "1"
+            "2"
+          ]
+        ] == "| A | B |\n|---|---|\n| 1 | 2 |";
+    docs-kinds =
+      bat.docs.kinds
+        {
+          box = {
+            fields.x = 1;
+            sinks.s = { };
+          };
+        }
+        {
+          scopes = [
+            { kind = "box"; }
+            { kind = "box"; }
+          ];
+        }
+      == "| Kind | Fields | Spawns | Sinks | Scopes |\n|---|---|---|---|---|\n| `box` | `x` |  | `s` | 2 |";
+    docs-templates =
+      b.attrNames (
+        bat.docs.templates {
+          root = ../docs/examples;
+          description = _: "";
+        }
+      ) != [ ]
+      && !(bat.docs.templates {
+        root = ../docs/examples;
+        description = _: "";
+      })
+        ? about; # docs/examples/about has no flake.nix
+    files-comment =
+      bat.files.comment "README.md" "x" == "<!-- x -->\n"
+      && bat.files.comment "a/ci.yml" "x" == "# x\n"
+      && bat.files.comment "main.rs" "x" == "// x\n"
+      && bat.files.comment "ci.json" "x" == "";
     nixos-user-shell =
       (nixos.user-shell { shell = u: u.sh; } {
         scope = sc "ana" // {
