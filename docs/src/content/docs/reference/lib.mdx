@@ -239,6 +239,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 | API | Takes and returns | Purpose |
 |---|---|---|
 | `lib.reduce.entries` | `[ element ] -> { value = [ element ]; errors; }` | the elements themselves, each with its value and where it came from |
+| `lib.reduce.flat` | `[ element ] -> { value = [ v ]; errors; }` | the element values joined: a list element gives its items, any other value itself; without duplicates, in first-seen order |
 | `lib.reduce.list` | `[ element ] -> { value = [ v ]; errors; }` | every element value, in the order the elements arrive |
 | `lib.reduce.merge` | `[ element ] -> { value = attrs; errors; }` | the element values merged as attrsets; two different answers at one path are an error |
 | `lib.reduce.one` | `[ element ] -> { value; errors; }` | the one element value; zero or two or more elements is the error one |

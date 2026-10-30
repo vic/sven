@@ -4,6 +4,7 @@ let
   inherit (yen.lib.reduce)
     list
     set
+    flat
     one
     merge
     entries
@@ -23,6 +24,7 @@ in
       reduce = set;
       of = lib.types.port;
     };
+    packages.reduce = flat;
     admin.reduce = one;
     nginx.reduce = merge;
     owners.reduce = entries;
@@ -36,6 +38,7 @@ in
         host,
         motd,
         ports,
+        packages,
         admin,
         nginx,
         owners,
@@ -47,6 +50,7 @@ in
           inherit
             motd
             ports
+            packages
             admin
             nginx
             groups

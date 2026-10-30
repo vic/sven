@@ -239,6 +239,8 @@ let
     list = es: pure (map (e: e.value) es);
     #: lib.reduce.set :: [ element ] -> { value = [ v ]; errors; } -- the element values without duplicates
     set = es: pure (uniq (map (e: e.value) es));
+    #: lib.reduce.flat :: [ element ] -> { value = [ v ]; errors; } -- the element values joined: a list element gives its items, any other value itself; without duplicates, in first-seen order
+    flat = es: pure (uniq (concatMap (e: if isList e.value then e.value else [ e.value ]) es));
     #: lib.reduce.one :: [ element ] -> { value; errors; } -- the one element value; zero or two or more elements is the error one
     one = es: {
       value = if es == [ ] then null else (head es).value;

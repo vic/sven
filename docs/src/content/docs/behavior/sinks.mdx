@@ -1,5 +1,5 @@
 ---
-{"description":"A sink collects elements and reduces them: list, set, one, merge, entries, or your own function.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/sinks/page.nix","title":"Sinks and reduce"}
+{"description":"A sink collects elements and reduces them: list, set, flat, one, merge, entries, or your own function.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/sinks/page.nix","title":"Sinks and reduce"}
 ---
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
@@ -12,18 +12,20 @@ A sink on a kind collects the elements that aspects give, and reduces them to on
 |---|---|---|
 | `list` (default) | the elements in scope order | none |
 | `set` | the elements without duplicates | none |
+| `flat` | the elements joined: a list element gives its items; without duplicates | none |
 | `one` | the single element | 0 or 2+ elements |
 | `merge` | a deep attrset | two different leaves at one path |
 | `entries` | `[ { from; value; } ]`: each value with the scope that gave it | none |
 | a function | `[ { from; value; } ] -> { value; errors; }` | the errors you give |
 
-```nix title="modules/sinks.nix" {11-14}
+```nix title="modules/sinks.nix" {12-15}
 # A sink collects elements and reduces them. `of` checks each element.
 { yen, lib, ... }:
 let
   inherit (yen.lib.reduce)
     list
     set
+    flat
     one
     merge
     entries
@@ -43,6 +45,7 @@ in
       reduce = set;
       of = lib.types.port;
     };
+    packages.reduce = flat;
     admin.reduce = one;
     nginx.reduce = merge;
     owners.reduce = entries;
@@ -56,6 +59,7 @@ in
         host,
         motd,
         ports,
+        packages,
         admin,
         nginx,
         owners,
@@ -67,6 +71,7 @@ in
           inherit
             motd
             ports
+            packages
             admin
             nginx
             groups
@@ -88,6 +93,10 @@ Two aspects give elements:
     at = yen.kinds.host;
     motd = "welcome";
     ports = 22;
+    packages = [
+      "git"
+      "curl"
+    ]; # `flat` joins list elements
     admin = "alice";
     nginx.http.gzip = true;
     owners = "ops";
@@ -97,6 +106,10 @@ Two aspects give elements:
     at = yen.host.web;
     motd = "this host serves web";
     ports = 22; # a duplicate: `set` keeps one
+    packages = [
+      "nginx"
+      "git"
+    ]; # a duplicate: `flat` keeps one, in order of arrival
     nginx.http.servers.www.port = 80; # `merge` joins the attrsets
     groups = "audio";
   };
@@ -129,6 +142,11 @@ And each sink reduces them:
   };
   owners = [
     "host"
+  ];
+  packages = [
+    "git"
+    "curl"
+    "nginx"
   ];
   ports = [
     22
