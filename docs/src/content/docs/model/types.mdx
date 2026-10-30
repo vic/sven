@@ -16,6 +16,9 @@ and `yen.lib.is` makes a type from any function.
 | `yen.lib.maybe type` | `null` |
 | `yen.lib.derive type (self: …)` | computed from the instance itself |
 | `yen.lib.is (v: …)` | none: a type from a check function |
+| `yen.lib.listOf type` | none: a list whose elements pass the type |
+| `yen.lib.attrsOf type` | none: an attrset whose values pass the type |
+| `yen.lib.enum [ … ]` | none: one of the listed values |
 
 ```nix title="modules/host.nix" {13-14}
 # A type is anything with `check = value: bool`. yen adds defaults on top of it.
@@ -35,10 +38,11 @@ in
     jump = maybe lib.types.str; # null by default
     vpn = derive lib.types.str (self: "vpn-${self.name}"); # a default computed from the instance
     tags = opt (is (v: lib.isList v && lib.all lib.isString v)) [ ]; # your own check
-    settings.kernel.channel = opt (lib.types.enum [
+    labels = opt (yen.lib.attrsOf lib.types.str) { }; # an attrset whose values are strings
+    settings.kernel.channel = opt (yen.lib.enum [
       "lts"
       "latest"
-    ]) "lts"; # nested fields
+    ]) "lts"; # one of a list, and a nested field
   };
 }
 ```
@@ -55,6 +59,7 @@ An instance gives only what it needs:
     addr = "10.0.0.2";
     port = 2222;
     vpn = "vpn-database"; # an explicit value wins over `derive`
+    labels.role = "database";
     settings.kernel.channel = "latest";
   };
 }
@@ -68,6 +73,9 @@ The read of a field looks at the instance first, then at the default, then check
   db = {
     channel = "latest";
     jump = null;
+    labels = {
+      role = "database";
+    };
     port = 2222;
     tags = [ ];
     vpn = "vpn-database";
@@ -75,11 +83,61 @@ The read of a field looks at the instance first, then at the default, then check
   web = {
     channel = "lts";
     jump = null;
+    labels = { };
     port = 22;
     tags = [ ];
     vpn = "vpn-web";
   };
 }
+```
+
+A value that fails its type is an error record that names the field. `listOf` and `attrsOf` check every item,
+which the nixpkgs types of the same names do not (see [Modules](/principles/modules/)):
+
+
+```nix title="variants/bad-values.nix"
+# A channel that is not in the list, and a label that is not a string.
+{ yen, ... }:
+{
+  yen.host.cache = {
+    addr = "10.0.0.3";
+    settings.kernel.channel = "stable";
+    labels.owner = 1;
+  };
+}
+```
+
+```nix title="result"
+[
+  {
+    class = "fixable";
+    code = "check";
+    error = "labels fails its check";
+    fix = "give labels a value of type an attrset of values its check accepts";
+    from = "host:cache";
+    got = {
+      owner = 1;
+    };
+    path = [
+      "labels"
+    ];
+    want = "an attrset of values its check accepts";
+  }
+  {
+    class = "fixable";
+    code = "check";
+    error = "settings.kernel.channel fails its check";
+    fix = "give settings.kernel.channel a value of type one of \"lts\", \"latest\"";
+    from = "host:cache";
+    got = "stable";
+    path = [
+      "settings"
+      "kernel"
+      "channel"
+    ];
+    want = "one of \"lts\", \"latest\"";
+  }
+]
 ```
 
 :::note[Derived defaults]
@@ -102,6 +160,8 @@ nix flake init -t github:vic/yen#types
   - host.nix
   - hosts.nix
   - report.nix
+- variants/
+  - bad-values.nix
 
 </FileTree>
 :::
