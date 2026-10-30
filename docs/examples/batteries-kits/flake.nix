@@ -1,5 +1,5 @@
 {
-  description = "yen: clan batteries";
+  description = "yen: kits batteries";
 
   outputs =
     inputs:

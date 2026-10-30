@@ -1,11 +1,12 @@
-# The service: an aspect per role, at member scopes. Clients export their address; the server reads them.
+# The backup: an aspect per role, at member scopes. Clients export their address; the server reads them.
 { yen, lib, ... }:
 let
+  inherit (yen.lib) same;
   role =
     r:
     yen.lib.all [
       yen.kinds.member
-      (s: s.instance == "backup" && s.role == r)
+      (s: same s.assembly yen.assembly.backup && s.role == r)
     ];
 in
 {
@@ -29,9 +30,9 @@ in
         );
       };
   };
-  # once per machine that takes part in any role of the service
+  # once per machine that takes part in any role of the assembly
   yen.aspects.backup-tools = {
-    at = yen.lib.has (s: yen.lib.holds yen.kinds.member s && s.instance == "backup");
+    at = yen.lib.has (s: yen.lib.holds yen.kinds.member s && same s.assembly yen.assembly.backup);
     config.packages = [ "borgbackup" ];
   };
 }

@@ -1,0 +1,323 @@
+---
+{"description":"Kits and assemblies: members by `at` predicates, layered settings, exports, contracts, vars generators and their plan.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/batteries-kits/page.nix","title":"Kits batteries"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+A kit is data: it has roles, each role has typed settings, members export values to each other, and kits
+declare the secrets they generate. An assembly is one use of a kit: its `kit` is a ref, and each role takes the
+machines where its `at` predicate holds, the same predicates an aspect uses. `yen.lib.batteries.kits` gives
+the rules. You keep the words: here the machine kind is `machine` and the member kind is `member`.
+
+| Battery | Value of | Does |
+|---|---|---|
+| `members { assemblies; holds; }` | `spawns.<member kind>` of a machine kind | one member per (assembly, role), with refs to its assembly and kit; settings layered: interface default, then the role's (attrs, or a function of the machine) |
+| `exports { isMember; }` | `reduce` of the exports sink | members write their own entry; another scope overrides an entry by refs; an unlisted export is an error |
+| `contract { assemblies; machines; holds; }` | `errors` | a kit that is no kit, an unknown role, an `at` that is no predicate, no roles, min and max machines per role, `maxAssemblies` |
+| `settings-typed` | `errors` at a member | every interface setting is set and has its type |
+
+`yen.lib.batteries.vars` gives the secrets that kits generate:
+
+| Battery | Value of | Does |
+|---|---|---|
+| `generators { machineOf; }` | `reduce` of the generators sink | shared generators once, the rest per machine; a missing dependency is an error |
+| `vars-plan { from; machines; recipientsOf; }` | `out` of the generators sink | per machine: secret files with their paths, recipients, generation order |
+| `secret-reads { from; reads; }` | `errors` | an eval-time read of a secret file |
+| `public-value { root; }` | a function | a public var read at eval time, with a default |
+
+
+```nix title="modules/inventory.nix"
+# Kits and assemblies: a kit is data; an assembly places machines in its roles with `at` predicates.
+{ yen, lib, ... }:
+let
+  kits = yen.lib.batteries.kits;
+  inherit (yen.lib) opt holds same;
+  attrs = yen.lib.is lib.isAttrs;
+  assemblies = lib.attrValues yen.assembly;
+  machines = lib.attrValues yen.machine;
+in
+{
+  yen.kinds.fleet = {
+    spawns.machine = _: yen.machine;
+    sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  yen.kinds.machine = {
+    fields.storage = opt lib.types.bool false;
+    # one member scope per (assembly, role) the machine takes
+    spawns.member = kits.members { inherit assemblies holds; };
+    sinks.config = {
+      reduce = yen.lib.reduce.merge;
+      out =
+        { scope, sinks, ... }:
+        {
+          config.${scope.name} = sinks.config;
+        };
+    };
+  };
+  yen.kinds.member = { };
+  yen.kinds.kit.fields = {
+    roles = opt attrs { };
+    constraints = opt attrs { };
+    exports = opt (yen.lib.is lib.isList) [ ];
+  };
+  yen.kinds.assembly.fields = {
+    kit = yen.kinds.kit;
+    roles = opt attrs { };
+  };
+  yen.kinds.fleet.sinks.exports = {
+    reduce = kits.exports { isMember = holds yen.kinds.member; };
+    out =
+      { sinks, ... }:
+      {
+        exports = sinks.exports;
+      };
+  };
+  yen.fleet.main = { };
+  yen.machine = {
+    nas.storage = true;
+    web = { };
+  };
+  yen.flake = { out, ... }: out;
+
+  # what a kit is: its roles, a typed interface per role, limits, the exports it may give
+  yen.kit.borg = {
+    roles.server = { };
+    roles.client.interface.dir = {
+      type = lib.types.str;
+      default = "/var/backup";
+    };
+    constraints.roles.server.max = 1;
+    exports = [ "endpoint" ];
+  };
+  yen.assembly.daily = {
+    kit = yen.kit.borg;
+    roles.server.at = m: m.storage;
+    roles.client = {
+      at = yen.kinds.machine;
+      settings = m: lib.optionalAttrs (same m yen.machine.web) { dir = "/srv/backup"; };
+    };
+  };
+
+  yen.aspects = {
+    contract = {
+      at = yen.kinds.fleet;
+      errors = kits.contract { inherit assemblies machines holds; };
+    };
+    settings-typed = {
+      at = yen.kinds.member;
+      errors = kits.settings-typed;
+    };
+    # once per member. The server exports its endpoint; clients read it back.
+    borg-server = {
+      at = yen.lib.all [
+        yen.kinds.member
+        (s: same s.kit yen.kit.borg && s.role == "server")
+      ];
+      exports =
+        { scope, ... }:
+        {
+          endpoint = "${scope.parent.name}:22";
+        };
+    };
+    borg-client = {
+      at = yen.lib.all [
+        yen.kinds.member
+        (s: same s.kit yen.kit.borg && s.role == "client")
+      ];
+      config =
+        { scope, exports, ... }:
+        {
+          backup.${scope.assembly.name} = {
+            inherit (scope.settings) dir;
+            to = map (x: x.value.endpoint) (
+              lib.filter (x: same x.assembly scope.assembly && x.role == "server") exports
+            );
+          };
+        };
+    };
+    # one assembly gets more: an aspect at its members
+    daily-verbose = {
+      at = yen.lib.all [
+        yen.kinds.member
+        (s: same s.assembly yen.assembly.daily && s.role == "client")
+      ];
+      config.verbose = true;
+    };
+  };
+}
+```
+
+Each client reads the server's endpoint from the exports of its assembly, with its own settings:
+
+
+```nix title="result"
+{
+  nas = {
+    backup = {
+      daily = {
+        dir = "/var/backup";
+        to = [
+          "nas:22"
+        ];
+      };
+    };
+    sshPub = "absent";
+    verbose = true;
+  };
+  web = {
+    backup = {
+      daily = {
+        dir = "/srv/backup";
+        to = [
+          "nas:22"
+        ];
+      };
+    };
+    sshPub = "ssh-ed25519 AAAAweb";
+    verbose = true;
+  };
+}
+```
+
+## Vars
+
+
+```nix title="modules/vars.nix"
+# vars: generators declared by kits, a plan per machine, public values read at eval time.
+{ yen, lib, ... }:
+let
+  vars = yen.lib.batteries.vars;
+  machineOf = s: if yen.lib.holds yen.kinds.member s then s.parent else s;
+in
+{
+  yen.kinds.fleet.sinks = {
+    generators = {
+      reduce = vars.generators { inherit machineOf; };
+      out = vars.vars-plan {
+        from = yen.kinds.fleet.sinks.generators;
+        machines = lib.attrNames yen.machine;
+        recipientsOf = m: [ "age1admin" ];
+      };
+    };
+    public-reads.reduce = yen.lib.reduce.entries;
+  };
+  yen.aspects.ssh-vars = {
+    at = yen.kinds.machine;
+    # a function of the scope: one per machine (static content goes once per receiver)
+    generators =
+      { scope, ... }:
+      {
+        name = "ssh";
+        files.key.secret = true;
+        files."key.pub".secret = false;
+      };
+    config =
+      { scope, ... }:
+      {
+        sshPub = vars.public-value { root = ../vars/per-machine; } scope.name "ssh" "key.pub" "absent";
+      };
+  };
+  yen.aspects.borg-vars = {
+    at = yen.lib.all [
+      yen.kinds.member
+      (s: yen.lib.same s.kit yen.kit.borg && s.role == "client")
+    ];
+    generators =
+      { scope, ... }:
+      {
+        name = "borg-${scope.assembly.name}";
+        dependencies = [ "ssh" ];
+        files.passphrase.neededFor = "users";
+      };
+  };
+  yen.aspects.secret-reads = {
+    at = yen.kinds.fleet;
+    errors = vars.secret-reads {
+      from = yen.kinds.fleet.sinks.generators;
+      reads = yen.kinds.fleet.sinks.public-reads;
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  {
+    file = "passphrase";
+    generator = "borg-daily";
+    neededForUsers = true;
+    path = "/run/secrets-for-users/vars/borg-daily/passphrase";
+  }
+  {
+    file = "key";
+    generator = "ssh";
+    neededForUsers = false;
+    path = "/run/secrets/vars/ssh/key";
+  }
+]
+```
+
+## The contract
+
+borg allows one server. A second machine with `storage` makes two:
+
+
+```nix title="result"
+[
+  "kits: assembly daily role server: 2 machines, at most 1"
+]
+```
+
+A name is not a ref. A string where the kit goes, and a string where a role's machines go, are errors:
+
+
+```nix title="variants/by-name.nix"
+# a name where a ref goes: the kit, and a role's machines
+{ yen, ... }:
+{
+  yen.assembly = {
+    weekly = {
+      kit = "borg";
+      roles.server.at = yen.machine.nas;
+    };
+    hourly = {
+      kit = yen.kit.borg;
+      roles.server.at = "nas";
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "kit wants a kit ref"
+  "kits: assembly hourly role server: `at` is a string, not a predicate"
+  "kits: assembly weekly: kit is a null, not a kit"
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `batteries-kits`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#batteries-kits
+```
+
+<FileTree>
+
+- flake.nix
+- modules/
+  - inventory.nix
+  - vars.nix
+- variants/
+  - by-name.nix
+  - two-servers.nix
+- vars/
+  - per-machine/
+    - web/
+      - ssh/
+        - key.pub/
+          - value
+
+</FileTree>
+:::

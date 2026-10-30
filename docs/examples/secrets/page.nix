@@ -46,7 +46,7 @@
         compare two secrets, because equal values have equal hashes: "no two hosts share a token" is a rule.
       ''
       (docs.tip "Guard who may read" ''
-        The plan is data, so a rule about it is a query. The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/clan/vars.nix)
+        The plan is data, so a rule about it is a query. The [reference fleet](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/vars.nix)
         adds shared and per-machine generators, a deploy plan, and a guard that refuses a secret read by the wrong host.
       '')
     ];
