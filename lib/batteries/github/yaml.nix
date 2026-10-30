@@ -1,7 +1,4 @@
-# GitHub Actions: a YAML writer and workflow files from a sink of jobs. Builtins only.
-#   yen.kinds.repo.sinks.jobs = { reduce = yen.lib.reduce.merge;
-#     files = github.workflow { from = yen.kinds.repo.sinks.jobs; path = ".github/workflows/test.yml";
-#       doc = { name = "test"; on.push = { }; }; }; };
+# YAML for GitHub Actions: block style, `|` for multi-line strings, JSON-quoted scalars and keys. Builtins only.
 let
   b = builtins;
   spaces = n: b.concatStringsSep "" (b.genList (_: " ") n);
@@ -34,22 +31,4 @@ let
     else
       " ${b.toJSON x}\n";
 in
-{
-  yaml = yaml 0;
-
-  # a workflow file from the jobs of sink `from` (reduce merge: one attr per job). `header` reads the job names.
-  workflow =
-    {
-      from,
-      path,
-      doc,
-      header ? _: "",
-    }:
-    { sinks, ... }:
-    let
-      jobs = sinks.${from.__sink};
-    in
-    {
-      files.file.${path}.text = header (b.attrNames jobs) + yaml 0 (doc // { inherit jobs; });
-    };
-}
+yaml 0
