@@ -45,13 +45,16 @@
     };
     files.url = "github:sini/files";
     flake-file.url = "github:denful/flake-file";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    nixpkgs-unstable.url = "https://nixos.org/channels/nixos-unstable/nixexprs.tar.xz";
     home-manager = {
       url = "github:nix-community/home-manager/release-25.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     import-tree.url = "github:denful/import-tree";
-    fastest.url = "github:denful/fastest"; # the parallel test runner: every suite is tests.<suite>.<test> = { expr; expected; } (its own nixpkgs: it builds there)
+    fastest = {
+       url = "github:denful/fastest"; # the parallel test runner: every suite is tests.<suite>.<test> = { expr; expected; } (its own nixpkgs: it builds there)
+       inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
     nix-darwin = {
       url = "github:nix-darwin/nix-darwin/nix-darwin-25.05";
       inputs.nixpkgs.follows = "nixpkgs";

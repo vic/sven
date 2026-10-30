@@ -17,9 +17,9 @@ let
   cmd = category: name: help: command: {
     inherit category name help;
     command = "set -eu; cd \"$(git rev-parse --show-toplevel)\"; ${command}";
-  }; # from any directory of the repo
+  }; # from any directory of the rep
   # every suite runs on github:denful/fastest: tests.<suite>.<test> = { expr; expected; }, in parallel
-  fastest = dir: suite: ''fastest -q --flake "$PWD${dir}#tests" ${suite}'';
+  fastest = dir: suite: ''fastest --flake "$PWD${dir}#tests" ${suite}'';
   fleet = "path:$PWD?dir=templates/fleet";
 in
 {
@@ -56,6 +56,14 @@ in
         done
       '')
       (cmd "docs" "docs-test" "the checks of every example (fast)" (fastest "?dir=docs" "fast"))
+      (cmd "docs" "docs-example"
+        "the fast checks of one example: docs-example NAME (a docs/examples/ directory)"
+        ''
+          name=''${1:?usage: docs-example NAME}
+          test -d "docs/examples/$name" || { echo "no docs/examples/$name" >&2; exit 1; }
+          ${fastest "?dir=docs" "fast.$name"}
+        ''
+      )
       (cmd "docs" "docs-e2e" "real NixOS, nix-darwin and home-manager evaluations of the examples" (
         fastest "?dir=docs" "e2e"
       ))
@@ -143,7 +151,7 @@ in
       (cmd "ci" "test-all" "every *-test command: engine, docs, fleet (no e2e, no cost)"
         "for c in engine-test docs-test fleet-test; do echo \"== $c\"; $c; done"
       )
-      (cmd "ci" "fastest-tests"
+      (cmd "ci" "fastest-all"
         "every fastest suite at once, in parallel: engine, docs fast and e2e, fleet and e2e (FASTEST_WORKERS each, default 4)"
         ''
           export FASTEST_WORKERS=''${FASTEST_WORKERS:-4}
