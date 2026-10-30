@@ -3,4 +3,5 @@
   writer = import ./writer.nix;
   document = import ./document.nix;
   json = import ./json.nix;
+  toml = import ./toml.nix;
 }

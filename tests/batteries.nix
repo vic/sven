@@ -702,7 +702,131 @@ let
       };
   pub = cl.public-value { root = ./fixtures/vars; };
 
+  # secretspec through a claim sink: one secret per (profile, name)
+  specRun =
+    extra:
+    run [
+      (
+        { yen, ... }:
+        {
+          yen.kinds.box.sinks.secrets = {
+            reduce = bat.claim { key = s: "${s.profile or "default"}/${s.name}"; };
+            sys = bat.secretspec.toml {
+              from = yen.kinds.box.sinks.secrets;
+              project.name = "app";
+              profiles.dev.defaults."inherit" = false;
+            };
+          };
+          yen.aspects.s1 = {
+            at = yen.box.a;
+            secrets = {
+              name = "DB_URL";
+              description = "db";
+            };
+          };
+          yen.aspects.s2 = {
+            at = yen.person.p;
+            secrets = {
+              name = "DB_URL";
+              profile = "dev";
+              default = "sqlite://x";
+            };
+          };
+        }
+      )
+      extra
+    ];
+  cachesRun = run [
+    (
+      { yen, ... }:
+      {
+        yen.kinds.box.sinks.caches = {
+          sys = bat.cachix.caches { from = yen.kinds.box.sinks.caches; };
+        };
+        yen.aspects.c1 = {
+          at = yen.box.a;
+          caches = {
+            name = "vix";
+            publicKey = "vix.cachix.org-1:K";
+          };
+        };
+        yen.aspects.c2 = {
+          at = yen.person.p;
+          caches = {
+            name = "own";
+            url = "https://cache.example";
+            publicKey = "own-1:K";
+          };
+        };
+        yen.aspects.c3 = {
+          at = yen.box.a;
+          caches = {
+            name = "vix";
+            publicKey = "vix.cachix.org-1:K";
+          };
+        };
+      }
+    )
+  ];
+
   checks = {
+    files-toml =
+      bat.files.toml { } {
+        p.name = "a b";
+        p."x.y" = [
+          1
+          true
+        ];
+        t.k.inline = {
+          a = 1;
+        };
+      } == "[p]\nname = \"a b\"\n\"x.y\" = [1, true]\n\n[t.k]\ninline = { a = 1 }\n";
+    secretspec-toml =
+      (specRun { }).flake.sys.a == [
+        {
+          files.file."secretspec.toml".text =
+            "[profiles.default]\nDB_URL = { description = \"db\" }\n\n[profiles.dev]\nDB_URL = { default = \"sqlite://x\" }\ndefaults = { inherit = false }\n\n[project]\nname = \"app\"\n";
+        }
+      ];
+    secretspec-twice =
+      codes (
+        specRun (
+          { yen, ... }: {
+            yen.aspects.s3 = {
+              at = yen.person.p; # another scope than s1: two owners
+              secrets.name = "DB_URL";
+            };
+          }
+        )
+      ) == [ "claim" ];
+    cachix-caches =
+      cachesRun.flake.sys.a == [
+        {
+          nix.settings = {
+            substituters = [
+              "https://vix.cachix.org"
+              "https://cache.example"
+            ];
+            trusted-public-keys = [
+              "vix.cachix.org-1:K"
+              "own-1:K"
+            ];
+          };
+        }
+      ];
+    cachix-flake-config =
+      (bat.cachix.flake-config { from.__sink = "c"; } {
+        sinks.c = [
+          {
+            name = "vix";
+            publicKey = "k";
+          }
+        ];
+      }).nixConfig == {
+        extra-substituters = [ "https://vix.cachix.org" ];
+        extra-trusted-public-keys = [ "k" ];
+      };
+    cachix-action = (bat.cachix.action { name = "vix"; }).uses == "cachix/cachix-action@v17";
     clan-generators =
       b.attrNames gens.value == [
         "borg@a"

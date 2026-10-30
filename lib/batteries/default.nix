@@ -16,4 +16,6 @@
   devshell = import ./devshell;
   flake-file = import ./flake-file;
   clan = import ./clan;
+  cachix = import ./cachix;
+  secretspec = import ./secretspec;
 }
