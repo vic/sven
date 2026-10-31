@@ -399,7 +399,6 @@ let
             ) (length (n.probe.imports or [ ]));
         };
       # the sinks of a module set, from `p0` values: they never read a source
-      givers = ns: c: filter (n: n.p0 ? ${c} || (n.p0.yen.sinks or { }) ? ${c}) ns;
       sinksOf =
         F:
         let
@@ -2751,7 +2750,23 @@ in
 {
   lib = tools // {
     inherit eval asOf history;
-    #: lib.mkFlake :: module -> flake -- the flake outputs of the fleet, or { invalid-flake-errors } when it has an error or a violation
-    mkFlake = m: (eval m).flake;
+    #: lib.mkFlake :: sinks -> module -> flake -- the flake outputs of the fleet, or { invalid-flake-errors } when it has an error or a violation.
+    # `sinks` is a root module: each of its keys but `imports` and `yen` is a module sink, declared for you
+    mkFlake =
+      sinks: m:
+      (eval {
+        imports = [
+          sinks
+          {
+            yen.sinks = mapAttrs (_: _: { }) (
+              removeAttrs sinks [
+                "imports"
+                "yen"
+              ]
+            );
+          }
+          m
+        ];
+      }).flake;
   };
 }

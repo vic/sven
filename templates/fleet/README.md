@@ -21,15 +21,13 @@ This fleet is the reference example. It models the [Ren](https://github.com/vic/
   inputs.import-tree.url = "github:denful/import-tree";
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
   outputs = inputs: inputs.yen.lib.mkFlake {
-    imports = [ (inputs.import-tree ./modules) ];
     inherit inputs;
     inherit (inputs.nixpkgs) lib;
-    yen.sinks = { inputs = { }; lib = { }; };
-  };
+  } (inputs.import-tree ./modules);
 }
 ```
 
-yen reads one module. A module is a path, a function or an attrset. Its keys are `imports`, `yen` and sinks. yen does not know what `inputs` or `lib` are. The root module gives them as sinks, and declares them in `yen.sinks`. Any file asks for them as args.
+`mkFlake sinks module` reads one module. A module is a path, a function or an attrset. Its keys are `imports`, `yen` and sinks. yen does not know what `inputs` or `lib` are. `sinks` gives them, and `mkFlake` declares each of its keys as a module sink. Any file asks for them as args.
 
 A file in `modules/` looks like this:
 

@@ -22,8 +22,9 @@
       ''
         ## With or without flakes
 
-        `(import yen).lib.mkFlake module` gives the flake outputs. `(import yen).lib.eval module` gives every query,
-        and `flake` is one of them. `mkFlake m` is `(eval m).flake`.
+        `(import yen).lib.mkFlake sinks module` gives the flake outputs. `(import yen).lib.eval module` gives every query,
+        and `flake` is one of them. Each key of `sinks` is a module sink: `mkFlake sinks m` is the `flake` of a root module
+        that imports `sinks` and `m`, and declares each key of `sinks` in `yen.sinks`.
       ''
       (docs.note "Laziness closes the loop" ''
         `inventory` reads `out` and gives to `out`. There is no fixpoint to run: Nix computes a value only when something reads it,

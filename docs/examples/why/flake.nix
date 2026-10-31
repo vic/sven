@@ -1,4 +1,4 @@
 {
   inputs.yen.url = "github:vic/yen";
-  outputs = inputs: inputs.yen.lib.mkFlake ./modules/hello.nix;
+  outputs = inputs: inputs.yen.lib.mkFlake { } ./modules/hello.nix;
 }
