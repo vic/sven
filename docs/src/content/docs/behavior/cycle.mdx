@@ -110,9 +110,9 @@ a ref field of an arg".
 
 ```nix title="variants/read-addr.nix"
 # An element reads a field of another instance: refused, with the fix.
-{ lib, yen, ... }:
+{ yen, ... }:
 {
-  yen.kinds.host.fields.addr = lib.types.str;
+  yen.kinds.host.fields.addr = yen.lib.is builtins.isString;
   yen.host.server.addr = "10.0.0.1";
   yen.aspects.read-addr = {
     at = yen.kinds.host;

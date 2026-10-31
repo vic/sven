@@ -307,6 +307,7 @@ from these references, never from strings. See [Invariants](/query/invariants/).
 | `result.impact` | `scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth` | the scopes an element of the scope reaches, transitively |
 | `result.labels` | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
 | `result.queries` | `{ name = args -> answer; }` | the stored queries of yen.queries |
+| `result.reads` | `{ edges; whole; data; }` | what every element, scope and instance reads, as tokens; whole: reached by any change; data: each scope's data by its sha256 |
 | `result.reduced` | `{ sink = { scope id = value; }; } or null` | each sink reduced at each receiver; null when the fleet is not clean |
 | `result.root` | `module` | the module this result came from |
 | `result.schema` | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |

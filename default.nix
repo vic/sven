@@ -1390,7 +1390,13 @@ let
             refs = [ (instT v.kind v.name) ];
             opaque = false;
           }
-        else if isFunction v || isAttrs v && (v ? __functor || (v.type or null) == "derivation") then
+        else if isAttrs v && v ? __here then
+          {
+            fp.__scope = v.id;
+            refs = [ (dataT v.id) ];
+            opaque = false;
+          } # a scope record: its data is that scope's token (its `up` holds itself)
+        else if isFunction v || isAttrs v && (isLeaf v || v ? outPath) then
           {
             fp = null;
             refs = [ ];
@@ -2510,7 +2516,8 @@ let
         inherit (e) sink;
         at = e.to;
       };
-      aspectOf = o: b.head (b.match "aspect ([^#]*).*" o ++ [ null ]); # origin "aspect n#1": an element of aspect n
+      # origin "aspect n#1": an element of aspect n; "sink k": no aspect
+      aspectOf = o: b.head (b.concatLists (orNull (b.match "aspect ([^#]*).*" o)) ++ [ null ]);
       kindAt = listToAttrs (
         map (s: {
           name = s.id;

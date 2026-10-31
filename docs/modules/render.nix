@@ -19,7 +19,9 @@ let
   indent =
     n: text:
     lib.concatStringsSep "\n" (
-      lib.imap0 (i: l: if i == 0 || l == "" then l else lib.fixedWidthString n " " "" + l) (lib.splitString "\n" text)
+      lib.imap0 (i: l: if i == 0 || l == "" then l else lib.fixedWidthString n " " "" + l) (
+        lib.splitString "\n" text
+      )
     ); # continuation lines only
   attr = v: lib.replaceStrings [ "\"" ] [ "&quot;" ] v;
   # every file of a template, as Starlight's FileTree list
@@ -27,7 +29,11 @@ let
     dir: pre:
     lib.concatLists (
       lib.mapAttrsToList (
-        n: t: if t == "directory" then [ "${pre}- ${n}/" ] ++ treeOf (dir + "/${n}") "${pre}  " else [ "${pre}- ${n}" ]
+        n: t:
+        if t == "directory" then
+          [ "${pre}- ${n}/" ] ++ treeOf (dir + "/${n}") "${pre}  "
+        else
+          [ "${pre}- ${n}" ]
       ) (lib.filterAttrs (n: _: n != "page.nix") (builtins.readDir dir))
     );
 
@@ -48,7 +54,9 @@ let
     # a Nix value, printed: what a query answers
     value =
       v:
-      fence "nix" ''title="result"'' (builtins.replaceStrings [ "${toString dir}/" ] [ "" ] (lib.generators.toPretty { } v)); # paths relative to the template
+      fence "nix" ''title="result"'' (
+        builtins.replaceStrings [ "${toString dir}/" ] [ "" ] (lib.generators.toPretty { } v)
+      ); # paths relative to the template
     aside =
       type: title: body:
       ":::${type}[${title}]\n${trim body}\n:::";
@@ -58,11 +66,15 @@ let
     tabs =
       items:
       lib.concatStringsSep "\n" (
-        [ "<Tabs>" ] ++ map (i: "<TabItem label=\"${attr i.label}\">\n\n${trim i.body}\n\n</TabItem>") items ++ [ "</Tabs>" ]
+        [ "<Tabs>" ]
+        ++ map (i: "<TabItem label=\"${attr i.label}\">\n\n${trim i.body}\n\n</TabItem>") items
+        ++ [ "</Tabs>" ]
       );
     steps =
       items:
-      "<Steps>\n\n${lib.concatStringsSep "\n\n" (lib.imap1 (i: s: "${toString i}. ${indent 3 (trim s)}") items)}\n\n</Steps>";
+      "<Steps>\n\n${
+        lib.concatStringsSep "\n\n" (lib.imap1 (i: s: "${toString i}. ${indent 3 (trim s)}") items)
+      }\n\n</Steps>";
     cards =
       items:
       "<CardGrid>\n${
@@ -74,7 +86,8 @@ let
       items:
       "<CardGrid>\n${
         lib.concatMapStringsSep "\n" (
-          c: "<LinkCard title=\"${attr c.title}\" href=\"${c.href}\" description=\"${attr (c.description or "")}\" />"
+          c:
+          "<LinkCard title=\"${attr c.title}\" href=\"${c.href}\" description=\"${attr (c.description or "")}\" />"
         ) items
       }\n</CardGrid>";
     badge = text: variant: "<Badge text=\"${attr text}\" variant=\"${variant}\" />";
@@ -91,13 +104,23 @@ let
     mermaid = text: fence "mermaid" "" text;
     # the scope tree of an eval result: each scope under its parent
     scopes =
-      r: mermaid (yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (yen.lib.batteries.mermaid.scopes { } r.graph));
+      r:
+      mermaid (
+        yen.lib.batteries.mermaid.flowchart { direction = "TD"; } (
+          yen.lib.batteries.mermaid.scopes { } r.graph
+        )
+      );
     # routed elements: who gives what to whom (an element given at its own scope is a loop, left out)
     routes =
-      r: mermaid (yen.lib.batteries.mermaid.flowchart { direction = "BT"; } (yen.lib.batteries.mermaid.routes r.graph));
+      r:
+      mermaid (
+        yen.lib.batteries.mermaid.flowchart { direction = "BT"; } (yen.lib.batteries.mermaid.routes r.graph)
+      );
     fleet =
       path: line: label:
-      "[${label}](${repo}/blob/main/templates/fleet/${path}${lib.optionalString (line != null) "#L${toString line}"})";
+      "[${label}](${repo}/blob/main/templates/fleet/${path}${
+        lib.optionalString (line != null) "#L${toString line}"
+      })";
     src = p: "${repo}/blob/main/docs/examples/${baseNameOf dir}/${p}";
   };
 
@@ -140,13 +163,12 @@ let
       })
       (
         lib.sort (
-          a: b: if a.section.order == b.section.order then a.order < b.order else a.section.order < b.section.order
+          a: b:
+          if a.section.order == b.section.order then a.order < b.order else a.section.order < b.section.order
         ) instances
       );
-  # the devshell commands, as data: pages list them (modules/devshell.nix)
-  commands = lib.concatMap (a: a.commands or [ ]) (lib.attrValues yen.aspects);
   bodyOf =
-    pages: page:
+    commands: pages: page:
     let
       x = yen.helpers.example page.dir;
     in
@@ -165,7 +187,7 @@ let
       inherit lib pages commands;
     };
   render =
-    pages: page:
+    commands: pages: page:
     let
       x = yen.helpers.example page.dir;
       d = docs page.dir;
@@ -175,19 +197,19 @@ let
         (frontmatter page x.page d)
         imports
       ]
-      ++ bodyOf pages page
+      ++ bodyOf commands pages page
       ++ lib.optional x.template (runIt page d)
     )
     + "\n";
   # a page can also be a plain markdown repo file (CONTRIBUTING.md): its body only, so it must not use MDX components
   plain =
-    pages: page:
+    commands: pages: page:
     lib.concatStringsSep "\n\n" (
       [
         "# ${(yen.helpers.example page.dir).page.plainTitle or page.title}"
         "<!-- Generated from docs/examples/${page.name}/page.nix. Edit there, then run `nix run .#write-files` in docs/. -->"
       ]
-      ++ bodyOf pages page
+      ++ bodyOf commands pages page
     )
     + "\n";
   # a fastest test: { expr; expected; }
@@ -195,7 +217,7 @@ let
   yes = x: eq x true;
   no = x: eq x false;
   testsOf =
-    pages: page:
+    commands: pages: page:
     let
       x = yen.helpers.example page.dir;
       args = {
@@ -239,20 +261,26 @@ in
   yen.aspects.page = {
     at = yen.kinds.page;
     cycle =
-      { scope, tree, ... }:
+      {
+        scope,
+        tree,
+        commands,
+        ...
+      }:
       let
         page = scope;
         pages = pagesOf (lib.head (tree.select allPages));
+        cmds = lib.concatLists (lib.head commands); # the reduced `commands` sink: each aspect gives a list
       in
       {
         tree = [ allPages ];
         files = [
           {
             files.file = {
-              "src/content/docs/${page.route}.mdx".text = render pages page;
+              "src/content/docs/${page.route}.mdx".text = render cmds pages page;
             }
             // lib.optionalAttrs ((yen.helpers.example page.dir).page ? alsoAt) {
-              ${(yen.helpers.example page.dir).page.alsoAt}.text = plain pages page;
+              ${(yen.helpers.example page.dir).page.alsoAt}.text = plain cmds pages page;
             };
           }
         ];
@@ -269,7 +297,7 @@ in
         ];
         tests = [
           {
-            ${page.name} = testsOf pages page;
+            ${page.name} = testsOf cmds pages page;
           }
         ];
       };
@@ -278,13 +306,18 @@ in
   yen.aspects.links = {
     at = yen.kinds.site;
     cycle =
-      { tree, ... }:
+      { tree, commands, ... }:
       let
         instances = lib.head (tree.select allPages);
         pages = pagesOf instances;
+        cmds = lib.concatLists (lib.head commands);
         routes = map (p: if p.route == "index" then "/" else "/${p.route}/") pages;
-        linksIn = t: lib.concatMap (x: if lib.isList x then x else [ ]) (builtins.split ''([]][(]|href=")(/[^)"#]*)'' t);
-        found = lib.unique (lib.filter (l: lib.hasPrefix "/" l) (lib.concatMap (p: linksIn (render pages p)) instances));
+        linksIn =
+          t:
+          lib.concatMap (x: if lib.isList x then x else [ ]) (builtins.split ''([]][(]|href=")(/[^)"#]*)'' t);
+        found = lib.unique (
+          lib.filter (l: lib.hasPrefix "/" l) (lib.concatMap (p: linksIn (render cmds pages p)) instances)
+        );
         broken = lib.filter (l: !lib.elem l routes && !lib.hasPrefix "/yen.png" l) found;
       in
       {
