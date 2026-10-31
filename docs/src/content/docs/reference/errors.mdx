@@ -27,8 +27,8 @@ The codes below are read from the engine source when the docs are written.
 | `merge` | `merge`: two different leaves at one path |
 | `missing` | a required field has no value |
 | `missing-param` | a stored query is asked without a required parameter |
-| `module` | a module asks for an arg that has no answer |
-| `of` | a sink element fails the sink's `of` type |
+| `module` | a module asks for an arg no module gives or declares, or its `imports` or key names read an arg |
+| `of` | a sink element, or a module's value for a `yen.sinks` sink, fails the sink's `of` type |
 | `one` | `one`: 0 or 2+ elements |
 | `order` | an `order` answer is not a number |
 | `outside-grant` | a staged change can reach a scope outside its grant |
@@ -43,12 +43,13 @@ The codes below are read from the engine source when the docs are written.
 | `unencodable` | a field holds a float, a function or a derivation: no fact can state it |
 | `unknown-aspect` | a query names an aspect that does not exist |
 | `unknown-field` | an instance sets a field its kind does not declare |
-| `unknown-key` | a module, `yen` or a kind declares a key yen does not read (yen modules are not NixOS modules) |
+| `unknown-key` | `yen`, a kind or a `yen.sinks` declaration has a key yen does not read (yen modules are not NixOS modules) |
 | `unknown-param` | a stored query is asked with a parameter it does not take |
 | `unknown-query` | `result.ask` names a stored query that does not exist |
 | `unknown-relation` | a rule names a relation that is neither extracted nor declared in `yen.relations` |
 | `unknown-scope` | a query names a scope id that does not exist |
 | `unknown-sink` | a query names a sink that does not exist |
+| `unread-sink` | a module gives a sink that no module reads or declares in `yen.sinks` |
 | `unsafe-rule` | a variable of the head, a negative atom or a comparison is not bound by a positive atom |
 
 <CardGrid>

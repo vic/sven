@@ -1,6 +1,6 @@
 {
   title = "Yen modules are not NixOS modules";
-  description = "A yen module has `imports`, `_module.args` and `yen`. yen does not use nixpkgs. Each NixOS pattern, and how to write it in yen.";
+  description = "A yen module has `imports`, `yen` and sinks. yen does not use nixpkgs. Each NixOS pattern, and how to write it in yen.";
   section = "principles";
   order = 4;
 
@@ -19,17 +19,31 @@
       ''
         A yen module looks like a NixOS module: a path, a function or an attrset, with `imports`. It is not one.
         yen does not use the NixOS module system and does not depend on nixpkgs: it uses Nix builtins only.
-        A yen module has three keys:
+        A module is a function `sources -> sinks`, as in Cycle. Its keys:
 
         - `imports`: more yen modules.
-        - `_module.args`: args for the modules below, such as `lib` or `inputs`.
         - `yen`: every declaration.
+        - any other key: a module sink, such as `lib` or `inputs`. Any module reads a sink as an arg.
 
-        There is no `options`, no `config` and no free-form key. A key that yen does not read is an error,
-        at the top of a module, inside `yen` and inside a kind:
+        There is no `options` and no `config`. A sink that no module reads or declares is an error. So is a
+        key that yen does not read inside `yen` or inside a kind:
       ''
       (docs.file "variants/nixos-style.nix")
       (docs.value (map (e: { inherit (e) code error path; }) (variant "variants/nixos-style.nix").errors))
+      ''
+        ## Module sinks: the options of a module
+
+        `yen.sinks.<name>` declares a module sink, as a top-level `options` does in NixOS. Its keys are the
+        keys of a kind's sink: `of` is the type that checks each module's value, and `reduce` is the merge
+        strategy. A sink with no `reduce` takes `one` value, which an arg gets as it is. A declared sink that
+        no module gives reduces to its empty value.
+      ''
+      (docs.file "variants/module-sinks.nix")
+      (docs.value (variant "variants/module-sinks.nix").reduced.nixos."fleet:main/host:web".users)
+      ''
+        `imports` and the key names of a module load before any arg has an answer. A module that reads an arg
+        in its `imports` or in a key name gets an error record, not an infinite recursion.
+      ''
       ''
         ## Types: anything with `check`
 
@@ -111,6 +125,10 @@
             "`yen.kinds.K.fields.x = yen.lib.opt type default`"
           ]
           [
+            "a top-level option that many modules set, such as `flake.lib`"
+            "a module sink: `yen.sinks.x = { of = type; reduce = …; }`, then `x = v;` in each module"
+          ]
+          [
             "`mkEnableOption`"
             "a nested field: `fields.firewall.enable = yen.lib.opt lib.types.bool false`"
           ]
@@ -140,7 +158,7 @@
           ]
           [
             "`imports`, `specialArgs`"
-            "`imports`, `_module.args`"
+            "`imports`, and the sinks of the root module: `inherit inputs lib;`"
           ]
           [
             "`attrsOf (submodule { … })`"
@@ -186,9 +204,19 @@
     in
     {
       nixos-style = eq (map (e: e.code) (variant "variants/nixos-style.nix").errors) ([
-        "unknown-key"
-        "unknown-key"
+        "unread-sink"
+        "unread-sink"
       ]);
+      module-sinks = {
+        value =
+          eq
+            (variant "variants/module-sinks.nix").reduced.nixos."fleet:main/host:web".users.groups.wheel.members
+            [
+              "ana"
+              "bo"
+            ];
+        errors = eq (variant "variants/module-sinks.nix").errors [ ];
+      };
       mkif = {
         t1 = yes (result.active.firewall."fleet:main/host:web");
         t2 = no (result.active.firewall."fleet:main/host:db");

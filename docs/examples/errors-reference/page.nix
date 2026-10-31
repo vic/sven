@@ -30,8 +30,8 @@ let
     check = "a field value fails its type";
     cycle = "an instance appears twice on its own scope path: `spawns` loops";
     error = "a message from an aspect's `errors` key";
-    module = "a module asks for an arg that has no answer";
-    of = "a sink element fails the sink's `of` type";
+    module = "a module asks for an arg no module gives or declares, or its `imports` or key names read an arg";
+    of = "a sink element, or a module's value for a `yen.sinks` sink, fails the sink's `of` type";
     order = "an `order` answer is not a number";
     spawns = "a `spawns` function gives no attrset, or an instance in it is no attrset";
     tree-request = "a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds)";
@@ -57,7 +57,8 @@ let
     two-answers = "one declaration leaf has two different values";
     reserved = "a sink is named `scope` or `sinks`: those names are fixed args of every element";
     unknown-aspect = "a query names an aspect that does not exist";
-    unknown-key = "a module, `yen` or a kind declares a key yen does not read (yen modules are not NixOS modules)";
+    unknown-key = "`yen`, a kind or a `yen.sinks` declaration has a key yen does not read (yen modules are not NixOS modules)";
+    unread-sink = "a module gives a sink that no module reads or declares in `yen.sinks`";
     unknown-field = "an instance sets a field its kind does not declare";
     unknown-param = "a stored query is asked with a parameter it does not take";
     unknown-query = "`result.ask` names a stored query that does not exist";

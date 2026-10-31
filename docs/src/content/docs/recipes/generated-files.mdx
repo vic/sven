@@ -101,10 +101,9 @@ Each aspect declares the flake inputs it uses on the `flake-file` sink. The host
         inputs:
         inputs.yen.lib.mkFlake {
           imports = [ (inputs.import-tree ./modules) ];
-          _module.args = {
-            inherit inputs;
-            inherit (inputs.nixpkgs) lib;
-          };
+          inherit inputs;
+          inherit (inputs.nixpkgs) lib;
+          yen.sinks = { inputs = { }; lib = { }; };
         }
       '';
       inputs = {
@@ -188,9 +187,11 @@ The template's own `flake.nix` is the `flake-file` output. Remove the `web` aspe
     inputs:
     inputs.yen.lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
-      _module.args = {
-        inherit inputs;
-        inherit (inputs.nixpkgs) lib;
+      inherit inputs;
+      inherit (inputs.nixpkgs) lib;
+      yen.sinks = {
+        inputs = { };
+        lib = { };
       };
     };
 
