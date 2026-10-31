@@ -143,7 +143,7 @@ let
     ];
   };
   argsMissing = yen.eval { imports = [ ({ nope, ... }: { }) ]; };
-  # a sibling answers: `cfg` zips from two modules, and `lib` is one value given twice
+  # a sibling answers. `cfg` is declared with `reduce.merge`: two modules give it; `lib` has one giver
   chanLib = {
     id = x: x;
   };
@@ -153,10 +153,13 @@ let
         cfg.a = "x";
         lib = chanLib;
       }
-      {
-        cfg.b = "y";
-        lib = chanLib;
-      }
+      (
+        { yen, ... }:
+        {
+          cfg.b = "y";
+          yen.sinks.cfg.reduce = yen.lib.reduce.merge;
+        }
+      )
       (
         { cfg, lib, ... }:
         {
@@ -183,11 +186,38 @@ let
       )
     ];
   };
+  # an undeclared sink is `reduce.one`: two givers are the error one
   argsTwo = yen.eval {
     imports = [
       { cfg.a = "x"; }
       { cfg.a = "y"; }
       ({ cfg, ... }: { })
+    ];
+  };
+  # `of` checks each module's value; a declared sink with no giver reduces to its empty value
+  argsTyped = yen.eval {
+    imports = [
+      (
+        { yen, ... }:
+        {
+          yen.sinks.port.of = yen.lib.is builtins.isInt;
+          yen.sinks.extra.reduce = yen.lib.reduce.flat;
+          yen.sinks.none.reduce = yen.lib.reduce.list;
+          yen.sinks.bad.tpye = 1;
+          port = 22;
+          extra = [ "a" ];
+        }
+      )
+      {
+        port = "x";
+        extra = [ "b" ];
+      }
+      (
+        { extra, none, ... }:
+        {
+          imports = [ (fleet { addr = builtins.concatStringsSep "," (extra ++ none); }) ];
+        }
+      )
     ];
   };
 
@@ -3348,15 +3378,32 @@ let
         error = "module root/1: `imports` or its keys read an arg";
       }
     ];
-    args-two-answers = eq (map (e: { inherit (e) code path; }) argsTwo.errors) [
+    args-two-givers = eq (map (e: { inherit (e) code sink; }) argsTwo.errors) [
       {
-        code = "two-answers";
-        path = [
-          "cfg"
-          "a"
-        ];
+        code = "one";
+        sink = "cfg";
       }
     ];
+    args-typed = {
+      addr = eq (hostOf argsTyped).addr "a,b";
+      errors = eq (map (e: { inherit (e) code from path; }) argsTyped.errors) [
+        {
+          code = "of";
+          from = "root/1";
+          path = [ "port" ];
+        }
+        {
+          code = "unknown-key";
+          from = "root/0";
+          path = [
+            "yen"
+            "sinks"
+            "bad"
+            "tpye"
+          ];
+        }
+      ];
+    };
     args-unread =
       eq
         (map (e: { inherit (e) code from near; })

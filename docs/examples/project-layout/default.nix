@@ -10,4 +10,8 @@
   imports = [ (import-tree ./modules) ];
   inputs = { inherit nixpkgs; };
   lib = import "${nixpkgs}/lib";
+  yen.sinks = {
+    inputs = { };
+    lib = { };
+  };
 }

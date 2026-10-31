@@ -24,7 +24,7 @@
           "aspects"
           "backend"
         ];
-        args = { inherit (module) inputs lib; };
+        args = { inherit (module) inputs lib yen; };
       };
     in
     [
@@ -90,7 +90,7 @@
           "aspects"
           "backend"
         ];
-        args = { inherit (module) inputs lib; };
+        args = { inherit (module) inputs lib yen; };
       };
     in
     {

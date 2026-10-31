@@ -75,7 +75,7 @@ let
     val = 3;
   };
   # the only keys `yen` and a kind declare; any other key is an error, never ignored
-  yenKeys = words "kinds aspects helpers queries invariants relations labels flake"; # and the kind names
+  yenKeys = words "kinds aspects helpers queries invariants relations labels flake sinks"; # and the kind names
   kindKeys = words "fields spawns sinks";
   # s occurs in x, as text (no regex)
   hasInfix =
@@ -352,7 +352,10 @@ let
           k = if file then toString m else key;
           ok =
             (b.tryEval (
-              isAttrs probe && b.seq (length (attrNames probe)) (all (i: b.seq i true) (probe.imports or [ ]))
+              isAttrs probe
+              && b.seq (length (attrNames probe) + length (attrNames (probe.yen.sinks or { }))) (
+                all (i: b.seq i true) (probe.imports or [ ])
+              )
             )).value;
         in
         {
@@ -381,21 +384,48 @@ let
             } "${n.key}/${toString i}" (b.elemAt n.probe.imports i)
           ) (length (n.probe.imports or [ ]));
       };
-      # the sinks some module gives (`yen` always), and the sources some module asks
+      # the sinks some module gives or declares in `yen.sinks` (`yen` always); a declared sink counts as read
       gives = n: filter (c: c != "imports") (attrNames n.probe);
-      moduleSinks = keySet ([ "yen" ] ++ concatMap gives (filter (n: n ? probe) found));
-      asked = keySet ([ "yen" ] ++ concatMap (n: attrNames n.fa) found);
-      # a source: the sink of that name, from every module
-      source = c: if c == "yen" then yen else zipSink (sinkOfModules c);
-      sinkOfModules =
-        c: concatMap (n: if n.mod ? ${c} then [ n.mod.${c} ] else [ ]) (filter (n: n ? mod) loaded);
-      # one value is itself; several zip like `yen` declarations: attrsets by key, a leaf is the first answer
-      zipSink =
-        vs:
-        if length vs == 1 || !all (v: isAttrs v && !isLeaf v) vs then
-          head vs
-        else
-          genAttrs (names (attrsIn vs)) (n: zipSink (concatMap (v: if v ? ${n} then [ v.${n} ] else [ ]) vs));
+      declares = n: attrNames (n.probe.yen.sinks or { });
+      probed = filter (n: n ? probe) found;
+      moduleSinks = keySet ([ "yen" ] ++ concatMap gives probed ++ concatMap declares probed);
+      asked = keySet ([ "yen" ] ++ concatMap (n: attrNames n.fa) found ++ concatMap declares probed);
+      used = keySet (concatMap gives probed ++ concatMap (n: attrNames n.fa) found); # a sink reduces only where it is given or read
+      # a source: its sink reduced like a kind sink. `of` checks each module's value; `reduce` defaults to `one`
+      source = c: if c == "yen" then yen else (reduceModules c).value;
+      reduceModules =
+        c:
+        let
+          d = (top.sinks or { }).${c} or { };
+          es = concatMap (
+            n:
+            optional (n.mod ? ${c}) {
+              from = n.key;
+              value = n.mod.${c};
+            }
+          ) (filter (n: n ? mod) loaded);
+          okOf = e: !(d ? of) || checkOf d.of e.value;
+          red = (d.reduce or reduce.one) (filter okOf es);
+        in
+        {
+          inherit (red) value;
+          errors =
+            map (
+              e:
+              errWith e.from "sink ${c}: the value of ${e.from} fails `of`" {
+                code = "of";
+                path = [ c ];
+              }
+            ) (filter (e: !okOf e) es)
+            ++ map (
+              e:
+              e
+              // {
+                from = "modules";
+                sink = c;
+              }
+            ) red.errors;
+        };
       real = listToAttrs (
         map (n: {
           name = n.key;
@@ -449,24 +479,6 @@ let
       loadErrors = map (
         n: errWith "module" n.error ({ code = "module"; } // intersectAttrs { fix = 0; } n)
       ) (filter (n: n ? error) loaded);
-      # two modules that give one sink leaf two different values: as in `yen`, data never overrides data
-      moduleSinkErrors =
-        path: vs:
-        if length vs < 2 || all (v: v == head vs) vs then
-          [ ]
-        else if all (v: isAttrs v && !isLeaf v) vs then
-          concatMap (
-            n: moduleSinkErrors (path ++ [ n ]) (concatMap (v: if v ? ${n} then [ v.${n} ] else [ ]) vs)
-          ) (names (attrsIn vs))
-        else
-          [
-            (errWith "modules" "two answers for ${concatStringsSep "." path}" {
-              code = "two-answers";
-              inherit path;
-              got = length vs;
-              fix = "keep one answer for ${concatStringsSep "." path}: data never overrides data";
-            })
-          ];
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
       # one lazy index over every file (zipAttrsWith): a lookup walks its path, never all files
@@ -2073,8 +2085,8 @@ let
             }
           ) (filter (c: !(asked ? ${c})) (gives n))
         ) (filter (n: n ? probe) found)
-        ++ concatMap (c: moduleSinkErrors [ c ] (sinkOfModules c)) (
-          filter (c: c != "yen") (attrNames moduleSinks)
+        ++ concatMap (c: (reduceModules c).errors) (
+          filter (c: c != "yen" && used ? ${c}) (attrNames moduleSinks)
         )
         ++ bad (files [ ]) [ "yen" ] (yenKeys ++ kindNames) (attrNames top)
         ++ concatMap (
@@ -2083,7 +2095,14 @@ let
             "kinds"
             k
           ]) [ "yen" "kinds" k ] kindKeys (attrNames top.kinds.${k})
-        ) kindNames;
+        ) kindNames
+        ++ concatMap (
+          c:
+          bad (files [
+            "sinks"
+            c
+          ]) [ "yen" "sinks" c ] (words "of reduce") (attrNames top.sinks.${c})
+        ) (attrNames (top.sinks or { }));
       # `scope` and `sinks` are fixed args: a sink of that name could never be read
       reservedErrors =
         map

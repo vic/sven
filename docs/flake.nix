@@ -16,6 +16,10 @@
           inherit yen;
         };
         inherit (inputs.nixpkgs) lib;
+        yen.sinks = {
+          inputs = { };
+          lib = { };
+        };
       };
     in
     {

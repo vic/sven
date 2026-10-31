@@ -9,6 +9,10 @@ let
     imports = [ (inputs.import-tree (fleet + "/modules")) ];
     inherit inputs;
     inherit (inputs.nixpkgs) lib;
+    yen.sinks = {
+      inputs = { };
+      lib = { };
+    };
   };
   r = yen.lib.eval base;
   safe = yen.lib.jsonSafe;

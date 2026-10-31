@@ -18,6 +18,7 @@ let
   r = S.eval {
     imports = files;
     lib = import (nixpkgs + "/lib");
+    yen.sinks.lib = { };
   };
 in
 S.jsonSafe {

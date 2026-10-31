@@ -11,6 +11,7 @@
           imports = [ (inputs.import-tree ./modules) ];
           inherit inputs;
           inherit (inputs.nixpkgs) lib;
+          yen.sinks = { inputs = { }; lib = { }; };
         }
       '';
       inputs = {

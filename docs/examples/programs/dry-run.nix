@@ -12,6 +12,7 @@
   base = {
     imports = [ (import-tree ./modules) ];
     lib = import "${nixpkgs}/lib";
+    yen.sinks.lib = { };
   };
   prog = builtins.fromJSON (builtins.readFile (./. + "/${program}"));
 }

@@ -10,6 +10,10 @@
       imports = [ ./module.nix ];
       inherit inputs;
       inherit (inputs.nixpkgs) lib;
+      yen.sinks = {
+        inputs = { };
+        lib = { };
+      };
     };
 
   inputs = {

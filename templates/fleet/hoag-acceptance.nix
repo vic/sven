@@ -272,6 +272,7 @@ let
     yen.eval {
       imports = ms;
       inherit lib;
+      yen.sinks.lib = { };
     };
   r = mk modules;
   rp = mk (lib.reverseList modules);

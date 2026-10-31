@@ -14,6 +14,7 @@ let
   base = {
     imports = [ (import-tree ./modules) ];
     lib = import "${nixpkgs}/lib";
+    yen.sinks.lib = { };
   };
   s = (import yen).lib.stage {
     inherit base grant rejected;

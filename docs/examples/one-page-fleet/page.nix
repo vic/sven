@@ -22,6 +22,10 @@ in
         imports = [ (inputs.import-tree (dir + "/modules")) ];
         inherit inputs;
         inherit (inputs.nixpkgs) lib;
+        yen.sinks = {
+          inputs = { };
+          lib = { };
+        };
       };
       staged = engine.stage {
         inherit base;
@@ -118,6 +122,10 @@ in
           imports = [ (inputs.import-tree (dir + "/modules")) ];
           inherit inputs;
           inherit (inputs.nixpkgs) lib;
+          yen.sinks = {
+            inputs = { };
+            lib = { };
+          };
         };
         change = dir + "/changes/api-in-lab.nix";
       };

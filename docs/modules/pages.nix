@@ -34,6 +34,10 @@ in
         imports = [ (inputs.import-tree (dir + "/modules")) ];
         inherit inputs;
         inherit (inputs.nixpkgs) lib;
+        yen.sinks = {
+          inputs = { };
+          lib = { };
+        };
       };
     in
     {
@@ -56,7 +60,7 @@ in
         fs:
         inputs.yen.lib.eval {
           imports = map (f: dir + "/${f}") fs;
-          inherit (module) inputs lib;
+          inherit (module) inputs lib yen;
         };
       # the example's flake outputs, from its own flake.nix
       flake =
