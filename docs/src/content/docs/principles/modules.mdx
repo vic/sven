@@ -95,6 +95,27 @@ a sink, such as `inputs`, when modules outside its own imports give it. yen load
 not an infinite recursion.
 
 
+## What yen gets from not using nixpkgs modules
+
+- **A loop is data.** In nixpkgs, a module whose `imports` reads `config` stops the evaluation with
+  `infinite recursion encountered`. In yen, an `imports` that asks a sink that its own imports give is an
+  `import-loop` error record, and the rest of the fleet still evaluates.
+- **A type error is data, and it names the file.** In nixpkgs, a wrong value throws, and only the first throw
+  shows. In yen, a value that fails `of` is an error record with the module that gave it, and yen drops that value
+  and continues. You see every error in one pass.
+- **Validation is apart from merging.** `of` only checks and `reduce` only merges. A nixpkgs type does both,
+  and a composite type checks its items only in `merge` (see the caution below).
+- **No priorities.** There is no `mkDefault` or `mkForce`. Two different answers are an error with a `fix`:
+  data never overrides data.
+- **One concept for args and options.** `specialArgs`, `_module.args` and `options` are all module sinks. A sink
+  without a declaration gives its value as it is, such as `lib` or `inputs`.
+- **The loader is data.** `result.modules` shows what each module asks, gives and declares, and which module
+  imports it. Yen queries and graphs read it.
+- **No dependency.** yen modules use Nix builtins only. They do not need nixpkgs `lib`.
+
+nixpkgs modules still have more: NixOS, home-manager and nix-darwin are written for them, and yen uses those
+modules inside sink elements. nixpkgs also has `mkIf` on `config`, where yen has the `at` of an aspect.
+
 ## Types: anything with `check`
 
 A field type is any value with `check = v: bool`. yen does not ship its own type library, and it needs no
