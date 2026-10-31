@@ -551,7 +551,7 @@ All of them at once, in parallel: `fastest-tests` in the devshell (`nix develop 
 GitHub Actions run all of these on each push and pull request ([.github/workflows/test.yml](https://github.com/vic/yen/blob/main/.github/workflows/test.yml)): the engine and cost oracles, the fleet checks and e2e evaluations, the fleet cost oracle, the MCP tests, `nix flake check` (with KVM for the VM test) and one job per `ci.json` target that must evaluate to a derivation.
 
 ## This fleet, live
-Generated from the fleet's queries: 87 scopes, 29 kinds, 196 aspects, 1006 routed elements.
+Generated from the fleet's queries: 87 scopes, 29 kinds, 196 aspects, 1004 routed elements.
 | Kind | Fields | Spawns | Sinks | Scopes |
 |---|---|---|---|---|
 | `assembly` | `kit`, `roles` |  |  | 0 |
@@ -1286,7 +1286,7 @@ flowchart LR
 | `meta` | hive | hive | 2 |
 | `monitor` | host | host | 1 |
 | `monitoring-ingest` | cluster | fleet | 1 |
-| `nixos` | backup, guest, host, member, user, variant | backup, guest, host, variant | 230 |
+| `nixos` | backup, guest, host, member, user, variant | backup, guest, host, variant | 228 |
 | `no-gui` | system | system | 1 |
 | `nodes` | host | fleet | 1 |
 | `os` | export, guest, host, mac, member, user | export, guest, home, host, mac | 113 |
