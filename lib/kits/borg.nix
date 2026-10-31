@@ -1,5 +1,8 @@
-# A kit shipped outside the fleet's modules (as from another flake). The server exports its address; each client
-# reads it from the exports of its own assembly.
+#: lib.kits.borg :: module -- backup kit: roles client (startAt) and server (1); the server exports its repo address
+# A kit shipped as a library module (import it in a fleet). The server exports its address and a known-hosts generator
+# for the clients' machines (`deploy` is the clients' `at` predicate); each client reads them from the exports of its
+# own assembly. Every borg assembly adds an sshd assembly on its servers. Needs a machine field `addr`.
+#   imports = [ inputs.yen.lib.kits.borg ];
 { yen, lib, ... }:
 let
   inherit (yen.lib) all same;
@@ -42,7 +45,7 @@ in
       {
         repo = "borg@${scope.parent.addr}";
         generators.known-host = {
-          deploy = [ "web-1" ];
+          deploy = scope.assembly.roles.client.at or [ ];
           files."borg.known_hosts".secret = false;
         };
       };

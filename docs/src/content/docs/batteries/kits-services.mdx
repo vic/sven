@@ -1,0 +1,477 @@
+---
+{"description":"Ready-made kits for backups, wifi, remote builders, a binary cache, monitoring and postgres: the fleet writes only assemblies.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/kits-services/page.nix","title":"Kits of the library"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+`yen.lib.kits` holds ready-made kits. A kit is a module: you import it, then write an assembly that puts your
+machines in its roles. The kit has the roles, the typed interface, the limits, the exports and the aspects.
+Each client reads what the servers of its own assembly export, never another assembly's.
+
+| Kit | Roles | Server exports | Client does |
+|---|---|---|---|
+| `borg` | `client`, `server` (1) | `repo`, a known-hosts generator for the clients | `services.borgbackup.jobs` |
+| `wifi` | `default` with `networks` | | `/etc/wifi/networks`; one secret file `psk.<network>` in a generator shared by all machines of the role |
+| `remote-builders` | `builder` (1 or more), `client` | `host`, `systems`, `speedFactor` | `nix.buildMachines`, with the battery `nixos.remote-builders` |
+| `nix-cache` | `server` (1), `client` | `url`, `key` (the ref of the generated `cache-key.pub`); a signing-key generator; harmonia with the `cache-key.pem` path | `nix.settings.substituters` and `trusted-public-keys`, read from the public var |
+| `monitoring` | `server` (1), `exporter` | exporter: `target` | server: `services.prometheus.scrapeConfigs`, one job per exporter |
+| `postgres` | `server` (1), `client` with `database`, `user` | `dsn` | server: the roles and databases, listens, one `pg_hba` line per client of its own assembly; client: its connection string |
+
+The kits need a machine field `addr`. `nix-cache` takes `{ root; }`, the vars directory the public key is read from. The fleet writes only the assemblies:
+
+
+```nix title="modules/assemblies.nix"
+# The kits come from the library; the fleet writes only assemblies: which machines take which role.
+{ yen, inputs, ... }:
+let
+  inherit (yen) host kit;
+  lib' = inputs.yen.lib.kits;
+in
+{
+  imports = [
+    lib'.borg
+    lib'.wifi
+    lib'.remote-builders
+    (lib'.nix-cache { root = ../vars/per-machine; })
+    lib'.monitoring
+    lib'.postgres
+  ];
+  yen.kit.sshd.roles.server = { }; # borg adds an assembly of it
+  yen.host = {
+    lb.addr = "10.0.0.1";
+    web.addr = "10.0.0.2";
+    nas.addr = "10.0.0.3";
+  };
+  yen.assembly = {
+    backup = {
+      kit = kit.borg;
+      roles = {
+        client = {
+          at = host.web;
+          settings.startAt = "02:00";
+        };
+        server.at = host.nas;
+      };
+    };
+    wifi = {
+      kit = kit.wifi;
+      roles.default = {
+        at = host.web;
+        settings.networks = {
+          home = { };
+          office = { };
+        };
+      };
+    };
+    builders = {
+      kit = kit.remote-builders;
+      roles = {
+        builder = {
+          at = host.nas;
+          settings.speedFactor = 4;
+        };
+        client.at = host.web;
+      };
+    };
+    cache = {
+      kit = kit.nix-cache;
+      roles = {
+        server = {
+          at = host.nas;
+        };
+        client.at = [
+          host.web
+          host.lb
+        ];
+      };
+    };
+    metrics = {
+      kit = kit.monitoring;
+      roles = {
+        server.at = host.lb;
+        exporter.at = [
+          host.web
+          host.nas
+        ];
+      };
+    };
+    db = {
+      kit = kit.postgres;
+      roles = {
+        server.at = host.nas;
+        client = {
+          at = host.web;
+          settings = {
+            database = "shop";
+            user = "shop";
+          };
+        };
+      };
+    };
+  };
+}
+```
+
+The sinks and the contract are the fleet's words, the same as in the kits battery page:
+
+
+```nix title="modules/fleet.nix"
+# The fleet's words: hosts with an address, members of assemblies, and the sinks the library kits write to.
+{ yen, lib, ... }:
+let
+  kits = yen.lib.batteries.kits;
+  inherit (yen.lib) opt holds;
+  attrs = yen.lib.is lib.isAttrs;
+  # a kit that adds assemblies of another kit (borg adds sshd), per assembly of its own
+  added =
+    a:
+    lib.mapAttrsToList (
+      name: v:
+      v
+      // {
+        kind = "assembly";
+        inherit name;
+      }
+    ) (a.kit.adds a);
+  own = lib.attrValues yen.assembly;
+  assemblies = own ++ lib.concatMap added own;
+  machineOf = s: if holds yen.kinds.member s then s.parent else s;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks = {
+      out.reduce = yen.lib.reduce.merge;
+      exports.reduce = kits.exports { isMember = holds yen.kinds.member; };
+      generators = {
+        reduce = yen.lib.batteries.vars.generators { inherit machineOf; };
+        out = yen.lib.batteries.vars.vars-plan {
+          from = yen.kinds.fleet.sinks.generators;
+          machines = lib.attrNames yen.host;
+          recipientsOf = _: [ "age1admin" ];
+        };
+      };
+    };
+  };
+  yen.kinds.host = {
+    fields.addr = lib.types.str;
+    spawns.member = kits.members { inherit assemblies holds; };
+    # the NixOS keys of a host, as data
+    sinks.nixos = {
+      reduce = yen.lib.reduce.merge;
+      out =
+        { scope, sinks, ... }:
+        {
+          config.${scope.name} = sinks.nixos;
+        };
+    };
+  };
+  yen.kinds.member = { };
+  yen.kinds.kit.fields = {
+    roles = opt attrs { };
+    constraints = opt attrs { };
+    exports = opt (yen.lib.is lib.isList) [ ];
+    adds = opt (yen.lib.is lib.isFunction) (_: { });
+  };
+  yen.kinds.assembly.fields = {
+    kit = yen.kinds.kit;
+    roles = opt attrs { };
+  };
+  yen.aspects.contract = {
+    at = yen.kinds.fleet;
+    errors = kits.contract {
+      inherit assemblies holds;
+      machines = lib.attrValues yen.host;
+    };
+  };
+  yen.aspects.settings-typed = {
+    at = yen.kinds.member;
+    errors = kits.settings-typed;
+  };
+  # a generator that an export carries goes to the machines of its `deploy` predicate
+  yen.aspects.generators-from-exports = {
+    at = yen.kinds.host;
+    generators =
+      { scope, exports, ... }:
+      let
+        gens = lib.concatMap (
+          x: lib.filter (g: holds g.deploy scope) (lib.attrValues (x.value.generators or { }))
+        ) exports;
+      in
+      if gens == [ ] then
+        null
+      else
+        {
+          name = "from-exports";
+          files = lib.foldl' (a: g: a // g.files) { } gens;
+        };
+  };
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+## The result
+
+The web host builds on the nas, uses its cache, runs the node exporter and the borg job:
+
+
+```nix title="result"
+{
+  environment = {
+    etc = {
+      "postgres/shop.dsn" = {
+        text = "postgresql://shop@10.0.0.3:5432/shop";
+      };
+      "wifi/networks" = {
+        text = "home office";
+      };
+    };
+  };
+  nix = {
+    buildMachines = [
+      {
+        hostName = "10.0.0.3";
+        speedFactor = 4;
+        systems = [
+          "x86_64-linux"
+        ];
+      }
+    ];
+    settings = {
+      substituters = [
+        "http://10.0.0.3:5000"
+      ];
+      trusted-public-keys = [
+        "nas-cache-1:AAAA"
+      ];
+    };
+  };
+  services = {
+    borgbackup = {
+      jobs = {
+        backup = {
+          encryption = {
+            mode = "none";
+          };
+          paths = [
+            "/var/lib"
+          ];
+          repo = "borg@10.0.0.3:/srv/web";
+          startAt = "02:00";
+        };
+      };
+    };
+    prometheus = {
+      exporters = {
+        node = {
+          enable = true;
+          port = 9100;
+        };
+      };
+    };
+  };
+}
+```
+
+The monitoring server reads one scrape job per exporter of its assembly:
+
+
+```nix title="result"
+[
+  {
+    job_name = "nas";
+    static_configs = [
+      {
+        targets = [
+          "10.0.0.3:9100"
+        ];
+      }
+    ];
+  }
+  {
+    job_name = "web";
+    static_configs = [
+      {
+        targets = [
+          "10.0.0.2:9100"
+        ];
+      }
+    ];
+  }
+]
+```
+
+The secrets the kits generate, as the vars plan of the nas:
+
+
+```nix title="result"
+[
+  {
+    file = "cache-key.pem";
+    generator = "nix-cache-cache";
+    neededForUsers = false;
+    path = "/run/secrets/vars/nix-cache-cache/cache-key.pem";
+  }
+]
+```
+
+## The contract
+
+nix-cache allows one server. A cache with two:
+
+
+```nix title="variants/two-servers.nix"
+# a cache with two servers: nix-cache allows one
+{ yen, ... }:
+{
+  yen.assembly.cache2 = {
+    kit = yen.kit.nix-cache;
+    roles.server = {
+      at = [
+        yen.host.nas
+        yen.host.lb
+      ];
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "merge conflict at services.harmonia.signKeyPaths"
+  "kits: assembly cache2 role server: 2 machines, at most 1"
+  "nix-cache: lb has no nix-cache-cache2/cache-key.pub public key"
+  "nix-cache: nas has no nix-cache-cache2/cache-key.pub public key"
+  "nix-cache: lb has no nix-cache-cache2/cache-key.pub public key"
+  "nix-cache: nas has no nix-cache-cache2/cache-key.pub public key"
+]
+```
+
+A database with a client and no machine for the server role:
+
+
+```nix title="variants/no-server.nix"
+# a database with a client and no machine for the server role
+{ yen, ... }:
+{
+  yen.assembly.db2 = {
+    kit = yen.kit.postgres;
+    roles = {
+      server.at = _: false;
+      client = {
+        at = yen.host.web;
+        settings = {
+          database = "d";
+          user = "u";
+        };
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "kits: assembly db2 role server: 0 machines, at least 1"
+]
+```
+
+A setting of the wrong type, and a port that is no port:
+
+
+```nix title="variants/wrong-type.nix"
+# a database user that is a number, and a cache server with a port that is no port
+{ yen, ... }:
+{
+  yen.assembly = {
+    db3 = {
+      kit = yen.kit.postgres;
+      roles = {
+        server.at = yen.host.nas;
+        client = {
+          at = yen.host.web;
+          settings = {
+            database = "d";
+            user = 42;
+          };
+        };
+      };
+    };
+    cache3 = {
+      kit = yen.kit.nix-cache;
+      roles.server = {
+        at = yen.host.nas;
+        settings.port = 70000;
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "merge conflict at services.harmonia.settings.bind"
+  "merge conflict at services.harmonia.signKeyPaths"
+  "merge conflict at services.postgresql.authentication"
+  "merge conflict at services.postgresql.ensureDatabases"
+  "merge conflict at services.postgresql.ensureUsers"
+  "nix-cache: nas has no nix-cache-cache3/cache-key.pub public key"
+  "kits: cache3.server: setting port is not a 16 bit unsigned integer; between 0 and 65535 (both inclusive)"
+  "kits: db3.client: setting user is not a string"
+]
+```
+
+A cache whose server has no generated public key in the vars directory is an error, never a key "absent":
+
+
+```nix title="variants/no-key.nix"
+# a cache whose server machine has no generated cache-key.pub in the vars directory
+{ yen, ... }:
+{
+  yen.assembly.cache5 = {
+    kit = yen.kit.nix-cache;
+    roles = {
+      server.at = yen.host.web;
+      client.at = yen.host.lb;
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "merge conflict at nix.settings.substituters"
+  "merge conflict at nix.settings.trusted-public-keys"
+  "nix-cache: web has no nix-cache-cache5/cache-key.pub public key"
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `kits-services`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#kits-services
+```
+
+<FileTree>
+
+- checks.nix
+- flake.nix
+- modules/
+  - assemblies.nix
+  - fleet.nix
+- variants/
+  - no-key.nix
+  - no-server.nix
+  - two-servers.nix
+  - wrong-type.nix
+- vars/
+  - per-machine/
+    - nas/
+      - nix-cache-cache/
+        - cache-key.pub/
+          - value
+
+</FileTree>
+:::

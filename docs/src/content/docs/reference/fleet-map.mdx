@@ -106,8 +106,13 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 
 | Module | What it shows |
 |---|---|
+| [`kits/access.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/access.nix) | access kits: who may log in and how machines trust each other. sshd, users and emergency-access come from yen.lib.kits; |
 | [`kits/assemblies.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/assemblies.nix) | kits and assemblies in yen. A kit is data: roles, a typed interface per role, constraints, the export keys it may |
+| [`kits/bundles.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/bundles.nix) | bundles from yen.lib.kits: one homelab over the app hosts (app-1 serves, app-2 and app-3 are nodes). It adds base |
+| [`kits/install.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/install.nix) | install and deploy: the library kit disko gives a machine its disk layout; each machine with one gets an app |
 | [`kits/kits.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/kits.nix) | kits written in yen. A kit is data (roles, typed interface, constraints, the assemblies it adds) plus aspects: an |
+| [`kits/network.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/network.nix) | network kits from yen.lib.kits: wireguard (controller lb, peers web-1 and web-2), zerotier (controller lb, moon web-1, |
+| [`kits/services.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/services.nix) | Services-like kits of the library (yen.lib.kits): each assembly names the machines of its roles; the kit does the rest. |
 | [`kits/vars.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/kits/vars.nix) | vars, the configuration half: kits declare generators; generation itself is a tool, not yen. |
 
 ## platforms

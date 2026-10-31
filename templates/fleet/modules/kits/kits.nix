@@ -1,9 +1,14 @@
 # kits written in yen. A kit is data (roles, typed interface, constraints, the assemblies it adds) plus aspects: an
 # aspect at a member scope runs once per assembly and role, an aspect at a machine that `has` a member once per
-# machine. borg comes from a file outside modules/, as a kit from another flake.
-{ yen, lib, ... }:
+# machine. borg, wifi, sshd, users and dns come from yen.lib.kits.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
 let
-  inherit (yen.lib) all has same;
+  inherit (yen.lib) all same;
   inherit (yen) kit host;
   memberOf =
     k: role: s:
@@ -17,15 +22,15 @@ let
   str = lib.types.str;
 in
 {
-  imports = [ (import ../../services/borg.nix) ]; # a value, not a path: it takes the label of this file
+  imports = [
+    inputs.yen.lib.kits.borg
+    inputs.yen.lib.kits.wifi
+    inputs.yen.lib.kits.dns
+    inputs.yen.lib.kits.sshd
+    inputs.yen.lib.kits.users
+  ]; # kits of the library
 
   yen.kit = {
-    sshd.roles.server = { };
-    wifi.roles.default.interface.networks = {
-      type = lib.types.attrs;
-      default = { };
-    };
-    users.roles.default.interface.user.type = str;
     banner = {
       roles.default.interface.text = {
         type = str;
@@ -39,35 +44,6 @@ in
     };
   };
 
-  # sshd: one config per machine however many assemblies
-  yen.aspects.kit-sshd = {
-    at = all [
-      yen.helpers.machines
-      (has (memberOf kit.sshd null))
-    ];
-    os.services.openssh.enable = true;
-  };
-  # wifi: the settings a member reads are interface defaults, then the role's
-  yen.aspects.kit-wifi = {
-    at = at kit.wifi "default";
-    nixos =
-      { member, ... }:
-      {
-        environment.etc."wifi/networks".text = toString (lib.attrNames member.settings.networks);
-      };
-  };
-  # users: many assemblies of one kit on one machine, each its own scope
-  yen.aspects.kit-users = {
-    at = at kit.users "default";
-    nixos =
-      { member, ... }:
-      {
-        users.users.${member.settings.user} = {
-          isSystemUser = true;
-          group = "nogroup";
-        };
-      };
-  };
   # one assembly gets more: an aspect at its members
   yen.aspects.svc-a-extra = {
     at = all [
@@ -76,27 +52,13 @@ in
     ];
     os.environment.etc."extra".text = "svc-a";
   };
-  # site exports its endpoints; dns, another kit, reads every kit's endpoints
+  # site exports its endpoints; dns (inputs.yen.lib.kits.dns), another kit, reads every kit's endpoints
   yen.aspects.kit-site = {
     at = at kit.site "default";
     exports =
       { member, ... }:
       {
         endpoints = [ "${member.assembly.name}.example.org" ];
-      };
-  };
-  yen.aspects.kit-dns = {
-    at = yen.kinds.fleet;
-    out =
-      { exports, ... }:
-      {
-        cnames = lib.concatMap (
-          x:
-          map (e: {
-            name = e;
-            target = x.machine.name;
-          }) (x.value.endpoints or [ ])
-        ) exports;
       };
   };
   yen.aspects.kit-banner = {

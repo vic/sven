@@ -7,13 +7,11 @@
 let
   inherit (yen.lib)
     all
-    has
     opt
     maybe
     same
     ;
   machineOf = s: if yen.lib.holds yen.kinds.member s then s.parent else s;
-  publicValue = yen.lib.batteries.vars.public-value { root = ../../vars/per-machine; };
   machineNames = lib.attrNames yen.host ++ lib.attrNames yen.mac;
 in
 {
@@ -81,35 +79,7 @@ in
       ) (lib.attrValues generators);
   };
 
-  yen.aspects.vars-openssh = {
-    at = all [
-      yen.helpers.machines
-      (has (s: same (s.kit or null) yen.kit.sshd))
-    ];
-    generators =
-      { scope, ... }:
-      {
-        files = {
-          "ssh.id_ed25519".secret = true;
-          "ssh.id_ed25519.pub".secret = false;
-        };
-        name = "openssh";
-      }; # a function: one per machine (static content goes once per receiver)
-    public-reads =
-      { scope, ... }:
-      {
-        machine = scope.name;
-        generator = "openssh";
-        file = "ssh.id_ed25519.pub";
-      };
-    os =
-      { scope, ... }:
-      {
-        environment.etc."ssh/host-key.pub".text =
-          publicValue scope.name "openssh" "ssh.id_ed25519.pub"
-            "absent";
-      };
-  };
+  # the openssh host key generator is part of the sshd kit (lib/kits/sshd.nix)
   yen.aspects.vars-wifi = {
     at = all [
       yen.kinds.member
@@ -151,7 +121,7 @@ in
       { scope, exports, ... }:
       let
         gens = lib.concatMap (
-          x: lib.filter (g: lib.elem scope.name g.deploy) (lib.attrValues (x.value.generators or { }))
+          x: lib.filter (g: yen.lib.holds g.deploy scope) (lib.attrValues (x.value.generators or { }))
         ) exports;
       in
       if gens == [ ] then

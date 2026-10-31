@@ -1,0 +1,298 @@
+---
+{"description":"sshd, users and emergency-access: ready-made kits for who may log in, and the known-hosts battery that lets machines trust each other.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/kits-access/page.nix","title":"Access kits"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+Three kits ship with yen, in `yen.lib.kits`. You import one as a module, then write assemblies of it.
+Each kit needs the fleet's `exports` sink (`kits.exports`) and `generators` sink (`vars.generators`), as below.
+
+| Kit | Roles | Does |
+|---|---|---|
+| `sshd` | `server`, `client` | a server runs openssh, generates a host key (the private file secret, the public file not) and exports where the public key is; a client gets `programs.ssh.knownHosts` for the servers of its own assembly |
+| `users` | `default` | `user`, `groups`, `shell` (a function from `pkgs` to a package: the fleet has no package ref); a password hash, secret, generated on the machine of that member only |
+| `emergency-access` | `default` | `authorizedKeys` (public keys are data) for root, and a root password hash, secret, on machines that hold a member only |
+
+`yen.lib.batteries.vars.known-hosts { from; rootOf; entry; keep ? }` is the battery behind the sshd client. It reads the
+public keys with `public-value` and gives two values: `nixos` (the `programs.ssh.knownHosts` records) and
+`errors` (one record for each key file that is missing, never a throw).
+
+The fleet: machines, the sinks and the contract.
+
+
+```nix title="modules/fleet.nix"
+# The fleet's words: machines, kits and assemblies, and the sinks the access kits write to and read from.
+{
+  yen,
+  lib,
+  inputs,
+  ...
+}:
+let
+  kits = yen.lib.batteries.kits;
+  inherit (yen.lib) opt holds;
+  attrs = yen.lib.is lib.isAttrs;
+  assemblies = lib.attrValues yen.assembly;
+  machines = lib.attrValues yen.machine;
+  # what a machine gets, the NixOS values of its modules merged for the page
+  merged = ms: lib.foldl' lib.recursiveUpdate { } (lib.filter lib.isAttrs ms);
+in
+{
+  imports = [
+    inputs.yen.lib.kits.sshd
+    inputs.yen.lib.kits.users
+    inputs.yen.lib.kits.emergency-access
+  ];
+  yen.kinds.fleet = {
+    spawns.machine = _: yen.machine;
+    sinks.out.reduce = yen.lib.reduce.merge;
+    sinks.exports.reduce = kits.exports { isMember = holds yen.kinds.member; };
+    sinks.generators.reduce = yen.lib.batteries.vars.generators {
+      machineOf = s: if holds yen.kinds.member s then s.parent else s;
+    };
+  };
+  yen.kinds.machine = {
+    spawns.member = kits.members { inherit assemblies holds; };
+    sinks.nixos.out =
+      { scope, nixos, ... }:
+      {
+        nixos.${scope.name} = merged nixos;
+      };
+    sinks.os.out =
+      { scope, os, ... }:
+      {
+        os.${scope.name} = merged os;
+      };
+  };
+  yen.kinds.member = { };
+  yen.kinds.kit.fields = {
+    roles = opt attrs { };
+    constraints = opt attrs { };
+    exports = opt (yen.lib.is lib.isList) [ ];
+  };
+  yen.kinds.assembly.fields = {
+    kit = yen.kinds.kit;
+    roles = opt attrs { };
+  };
+  yen.fleet.main = { };
+  yen.machine = {
+    web = { };
+    db = { };
+  };
+  yen.flake = { out, ... }: out;
+
+  yen.aspects = {
+    contract = {
+      at = yen.kinds.fleet;
+      errors = kits.contract { inherit assemblies machines holds; };
+    };
+    settings-typed = {
+      at = yen.kinds.member;
+      errors = kits.settings-typed;
+    };
+  };
+}
+```
+
+The assemblies. No machine is named by a string: each role's machines are a ref.
+
+
+```nix title="modules/access.nix"
+# Four assemblies: db serves ssh and trusts nothing, web trusts db, ops logs in on web, a break-glass key on db.
+{ yen, ... }:
+{
+  yen.assembly = {
+    ssh = {
+      kit = yen.kit.sshd;
+      roles = {
+        server.at = yen.machine.db;
+        client = {
+          at = yen.machine.web;
+          settings.root = ../vars/per-machine; # where the public host keys are read from
+        };
+      };
+    };
+    ops = {
+      kit = yen.kit.users;
+      roles.default = {
+        at = yen.machine.web;
+        settings = {
+          user = "ops";
+          groups = [ "wheel" ];
+        };
+      };
+    };
+    break-glass = {
+      kit = yen.kit.emergency-access;
+      roles.default = {
+        at = yen.machine.db;
+        settings.authorizedKeys = [ "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBreakGlassKeyNotReal admin" ];
+      };
+    };
+  };
+}
+```
+
+web trusts the key of db, read from `vars/per-machine/db/openssh/ssh.id_ed25519.pub`. db has no known hosts:
+
+
+```nix title="result"
+{
+  knownHosts = {
+    db = {
+      hostNames = [
+        "db"
+      ];
+      publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDocsKeyNotReal db";
+    };
+  };
+}
+```
+
+```nix title="result"
+null
+```
+
+The secrets are in the plan of the generators, each on one machine:
+
+
+```nix title="result"
+[
+  "emergency-root@db"
+  "openssh@db"
+  "user-ops@web"
+]
+```
+
+The server settings, and root on db only:
+
+
+```nix title="result"
+{
+  enable = true;
+}
+```
+
+```nix title="result"
+{
+  authorizedKeys = {
+    keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBreakGlassKeyNotReal admin"
+    ];
+  };
+}
+```
+
+```nix title="result"
+null
+```
+
+## Errors
+
+An sshd assembly with no server is a count of zero, and a client alone has nobody to trust:
+
+
+```nix title="variants/no-server.nix"
+# an sshd assembly with no server: a count of zero, and a client with no server in its assembly
+{ yen, ... }:
+{
+  yen.assembly = {
+    none = {
+      kit = yen.kit.sshd;
+      roles.server.at = _: false;
+    };
+    alone = {
+      kit = yen.kit.sshd;
+      roles.client = {
+        at = yen.machine.web;
+        settings.root = ../vars/per-machine;
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "kits: assembly none role server: 0 machines, at least 1"
+  "sshd: alone.client has no server in its assembly"
+]
+```
+
+A server without a public key file is an error record. The fleet still evaluates:
+
+
+```nix title="variants/missing-key.nix"
+# a server whose public host key was never generated: there is no file under vars/per-machine/edge
+{ yen, ... }:
+{
+  yen.machine.edge = { };
+  yen.assembly.ssh-edge = {
+    kit = yen.kit.sshd;
+    roles = {
+      server.at = yen.machine.edge;
+      client = {
+        at = yen.machine.web;
+        settings.root = ../vars/per-machine;
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "known-hosts: edge has no openssh/ssh.id_ed25519.pub public key"
+]
+```
+
+One user in two assemblies on one machine:
+
+
+```nix title="variants/same-user.nix"
+# the users kit twice for one user on one machine
+{ yen, ... }:
+{
+  yen.assembly.ops-again = {
+    kit = yen.kit.users;
+    roles.default = {
+      at = yen.machine.web;
+      settings.user = "ops";
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "users: ops is set by assemblies ops and ops-again on web"
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `kits-access`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#kits-access
+```
+
+<FileTree>
+
+- checks.nix
+- flake.nix
+- modules/
+  - access.nix
+  - fleet.nix
+- variants/
+  - missing-key.nix
+  - no-server.nix
+  - same-user.nix
+- vars/
+  - per-machine/
+    - db/
+      - openssh/
+        - ssh.id_ed25519.pub/
+          - value
+
+</FileTree>
+:::

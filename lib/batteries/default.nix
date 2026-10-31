@@ -4,6 +4,7 @@
 {
   # generic
   mesh = import ./mesh.nix;
+  addresses = import ./addresses.nix;
   claim = import ./claim.nix;
   ordered = import ./ordered.nix;
   eval-modules = import ./eval-modules.nix;
@@ -27,6 +28,8 @@
   microvm = import ./microvm;
   imports = import ./imports.nix;
   deploy = import ./deploy;
+  disko = import ./disko;
+  install = import ./install;
   secrets = import ./secrets;
   k8s = import ./k8s;
   terranix = import ./terranix;

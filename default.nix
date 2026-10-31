@@ -305,6 +305,7 @@ let
     rdf = import ./lib/rdf.nix; # triples, ntriples, share: an eval result as sorted N-Triples with a content hash
     datalog = import ./lib/datalog.nix; # ground rules with negation: wfs (three values), stable, why
     batteries = import ./lib/batteries; # roles in, a yen module out: pool, gated, system; nixos.*
+    kits = import ./lib/kits; # ready-made kits: modules a fleet imports
     # JSON-safe: functions and derivations become strings; toJSON then never fails
     #: lib.jsonSafe :: value -> value -- the value with functions and derivations as strings, so toJSON never fails
     jsonSafe =

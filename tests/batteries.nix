@@ -704,6 +704,43 @@ let
         };
       };
   pub = bat.vars.public-value { root = ./fixtures/vars; };
+  kh = bat.vars.known-hosts {
+    from.__sink = "x";
+    rootOf = _: ./fixtures/vars;
+    keep = _: e: e.role == "server";
+    entry = e: {
+      host = e.machine.name;
+      machine = e.machine.name;
+      inherit (e.value.hostKey) generator file;
+    };
+  };
+  khArgs = {
+    scope = { };
+    sinks.x =
+      map
+        (m: {
+          machine.name = m;
+          role = "server";
+          value.hostKey = {
+            generator = "openssh";
+            file = "key.pub";
+          };
+        })
+        [
+          "lb"
+          "nope"
+        ]
+      ++ [
+        {
+          machine.name = "c";
+          role = "client";
+          value.hostKey = {
+            generator = "openssh";
+            file = "key.pub";
+          };
+        }
+      ];
+  };
 
   # secretspec through a claim sink: one secret per (profile, name)
   specRun =
@@ -1372,6 +1409,17 @@ let
       t1 = eq (pub "lb" "openssh" "key.pub" "absent") ("ssh-ed25519 PUB");
       t2 = eq (pub "lb" "openssh" "nope" "absent") ("absent");
     };
+    vars-known-hosts = {
+      t1 = eq ((kh.nixos khArgs).programs.ssh.knownHosts) ({
+        lb = {
+          hostNames = [ "lb" ];
+          publicKey = "ssh-ed25519 PUB";
+        };
+      });
+      t2 = eq (map (e: e.error) (kh.errors khArgs)) ([
+        "known-hosts: nope has no openssh/key.pub public key"
+      ]);
+    };
     kits-members =
       let
         ms = kt.members {
@@ -1657,6 +1705,83 @@ let
         specialArgs.x = 1;
       }
     ]);
+    addresses =
+      let
+        a = bat.addresses;
+      in
+      {
+        t1 =
+          eq
+            (a {
+              prefix = "10.8.0.0/24";
+              members = [
+                { name = "lb"; }
+                {
+                  name = "web";
+                  address = "10.8.0.1";
+                }
+                { name = "db"; }
+              ];
+            })
+            ({
+              value = {
+                lb = "10.8.0.2";
+                web = "10.8.0.1";
+                db = "10.8.0.3";
+              };
+              errors = [ ];
+            });
+        t2 = eq (map (e: e.code)
+          (a {
+            prefix = "10.8.0.0/24";
+            members = [
+              {
+                name = "a";
+                address = "10.8.0.5";
+              }
+              {
+                name = "b";
+                address = "10.8.0.5";
+              }
+            ];
+          }).errors
+        ) ([ "addresses-twice" ]);
+        t3 = eq (map (e: e.got)
+          (a {
+            prefix = "10.8.0.0/24";
+            members = map (i: { name = "m${toString i}"; }) (b.genList (i: i) 255);
+          }).errors
+        ) ([ [ "m254" ] ]);
+        t4 = eq (map (e: e.code)
+          (a {
+            prefix = "10.8.0.0/30";
+            members = [ ];
+          }).errors
+        ) ([ "addresses-prefix" ]);
+        # /8 and /15 are too wide: the `>= 16` lower bound
+        t5 =
+          eq
+            (map
+              (
+                p:
+                map (e: e.code)
+                  (a {
+                    prefix = p;
+                    members = [ ];
+                  }).errors
+              )
+              [
+                "10.0.0.0/8"
+                "10.8.0.0/15"
+                "10.8.0.0/16"
+              ]
+            )
+            ([
+              [ "addresses-prefix" ]
+              [ "addresses-prefix" ]
+              [ ]
+            ]);
+      };
     mesh = {
       t1 = eq (meshR.errors) ([ ]);
       t2 = eq (meshR.flake.sys) ({
@@ -1745,6 +1870,87 @@ let
       t4 = no ((pred { pname = "zoom"; }));
       t5 = no ((unfreeR.flake.sys ? c)); # a sink with no elements gives nothing
     };
+    # install and deploy: a fake pkgs whose script is its text
+    disko-devices = {
+      t1 = eq (bat.disko { from.__sink = "d"; } {
+        sinks.d = {
+          disk.main.device = "/dev/x";
+        };
+      }) ({ disko.devices.disk.main.device = "/dev/x"; });
+      t2 = eq (bat.disko { from.__sink = "d"; } { sinks.d = { }; }) ({ });
+    };
+    install-apps =
+      let
+        pkgs = {
+          lib.escapeShellArg = s: "'${s}'";
+          stdenv.hostPlatform.system = "x86_64-linux";
+          writeShellScript = _: t: t;
+          nixos-anywhere = "NA";
+        };
+        app = bat.install.apps {
+          from.__sink = "d";
+          inherit pkgs;
+          flake = "git";
+          report = h: "./hw/${h.name}.json";
+          target = h: "root@${h.name}";
+        };
+        got = app {
+          scope.name = "lb";
+          sinks.d.disk = { };
+        };
+      in
+      {
+        t1 = eq (b.attrNames got.apps.x86_64-linux) ([ "install-lb" ]);
+        t2 = yes (
+          b.match
+            ".*NA/bin/nixos-anywhere --flake 'git#lb'.*nixos-facter './hw/lb.json'.*--target-host 'root@lb'.*"
+            (b.replaceStrings [ "\n" ] [ " " ] got.apps.x86_64-linux.install-lb.program) != null
+        );
+        t3 = eq (app {
+          scope.name = "lb";
+          sinks.d = { };
+        }) ({ });
+      };
+    deploy-rebuild =
+      let
+        pkgs = {
+          lib.escapeShellArg = s: "'${s}'";
+          stdenv.hostPlatform.system = "x86_64-linux";
+          writeShellScript = _: t: t;
+          nixos-rebuild = "NR";
+        };
+        app = bat.deploy.rebuild {
+          from.__sink = "p";
+          inherit pkgs;
+          flake = "git";
+        };
+        text =
+          d:
+          b.replaceStrings [ "\n" ] [ " " ] (
+            (app {
+              scope.name = "web";
+              sinks.p = d;
+            }).apps.x86_64-linux.rebuild-web.program
+          );
+        host = {
+          user = "deploy";
+          address = "10.0.0.2";
+        };
+      in
+      {
+        t1 = yes (
+          b.match
+            ".*NR/bin/nixos-rebuild switch --flake 'git#web'.*--target-host 'deploy@10.0.0.2' --build-host 'b' .*"
+            (text (host // { buildHost = "b"; })) != null
+        );
+        t2 = no (b.match ".*build-host.*" (text (host // { buildHost = null; })) != null);
+        t3 = eq (app {
+          scope.name = "web";
+          sinks.p = null;
+        }) ({ });
+        # the shell quoting is the battery's own (no nixpkgs lib): a quote in a value is closed, escaped, reopened
+        t4 = yes (b.match ".*--build-host 'a'.''b' .*" (text (host // { buildHost = "a'b"; })) != null);
+      };
   };
 in
 {

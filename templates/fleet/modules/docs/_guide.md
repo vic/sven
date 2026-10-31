@@ -367,9 +367,9 @@ result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
 | aspect factories; an aspect checked alone with stand-in args; one DNS edge at most | sini | [sini/joins.nix](modules/sini/joins.nix) |
 | merge strategy per key with provenance and refs; claim dedup; negation; demand cascade; shadowing query; suppression chain | den-hoag CI | [hoag/ci.nix](modules/hoag/ci.nix) |
 | assemblies of kits × roles, once per assembly and once per machine, layered typed settings, contract errors | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [kits/kits.nix](modules/kits/kits.nix) |
-| exports: scoped by the engine, allow-listed per kit, read across kits, overridden by the owner | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [services/borg.nix](services/borg.nix) |
+| exports: scoped by the engine, allow-listed per kit, read across kits, overridden by the owner | clan | [kits/assemblies.nix](modules/kits/assemblies.nix), [lib/kits/borg.nix](../../lib/kits/borg.nix) |
 | vars: generator graph, shared or per machine, a deploy plan as data, secret-read guard | clan | [kits/vars.nix](modules/kits/vars.nix) |
-| machines from directories, a kit from outside `modules/` | clan | [kits/vars.nix](modules/kits/vars.nix), [services/borg.nix](services/borg.nix) |
+| machines from directories, a kit from outside `modules/` | clan | [kits/vars.nix](modules/kits/vars.nix), [lib/kits/borg.nix](../../lib/kits/borg.nix) |
 | deploy waves, impact of losing a host, a dependency cycle as an error (`yen.lib.graphs`) | den-hoag | [hoag/relations.nix](modules/hoag/relations.nix) |
 | a serving policy with maintenance, drain by dependency, a primary chosen by stable models (`yen.lib.datalog`) | Gen | [query/datalog.nix](modules/query/datalog.nix) |
 | port allocation, guest memory, database placement, a query run backward (`yen.lib.krn` with finite domains) | µKanren, CLP(FD) | [query/krn.nix](modules/query/krn.nix) |
@@ -460,7 +460,7 @@ Three families of Den bugs cannot happen in yen:
 | `perMachine` | an aspect at a machine that `has` a member | [kits/kits.nix](modules/kits/kits.nix) |
 | role settings, then machine settings, typed by the role interface | interface defaults, then the role's settings (attrs, or a function of the machine); a wrong type is an error record | [kits/assemblies.nix](modules/kits/assemblies.nix) |
 | exports, `selectExports`, scope rules | a fleet sink; the engine sets the writer; a kit lists its keys; a reader filters by refs (`yen.lib.same`); the owner overrides from the fleet scope | [kits/assemblies.nix](modules/kits/assemblies.nix) |
-| a service from another flake (`module.input`) | a module file that declares a kit, imported | [services/borg.nix](services/borg.nix) |
+| a service from another flake (`module.input`) | a module file that declares a kit, imported | [lib/kits/borg.nix](../../lib/kits/borg.nix) |
 | vars generators, `share`, dependencies, `neededFor`, `deploy = false`, recipients | the `generators` sink and `out.varsPlan` | [kits/vars.nix](modules/kits/vars.nix) |
 | autoincludes from `machines/<name>/` | a host per directory (field `fromDir`), its `configuration.nix` imported | [kits/vars.nix](modules/kits/vars.nix) |
 

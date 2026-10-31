@@ -1,0 +1,336 @@
+---
+{"description":"A bundle is a kit whose assemblies make more assemblies: base for a new machine, homelab for a server and its nodes.","editUrl":"https://github.com/vic/yen/blob/main/docs/examples/kits-bundles/page.nix","title":"Bundles of the library"}
+---
+
+import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
+
+A bundle is a kit whose `adds` make several assemblies, each on machines taken from the bundle's own roles.
+
+| Bundle | Roles | Adds |
+|---|---|---|
+| `base` | `default` with `device`, `layout` (a ref), `authorizedKeys`, `hardware` | disko, facter, emergency-access, and sshd as server, on the same machines. No users: a user needs a name per machine |
+| `homelab` | `server` (exactly 1), `node`; the settings of `base` and `prefix` | base on both roles; wireguard (server controller, nodes peers); borg (server backs up); monitoring (server scrapes); dns on the server |
+
+The engine adds one level, so `homelab` also lists what `base` and `borg` add. A role's `settings` may be a
+function of the machine, for a device per machine. You import the kits a bundle uses, then write one assembly:
+
+
+```nix title="modules/assemblies.nix"
+# A bundle is a kit whose assemblies make more assemblies: one `homelab` assembly names the server and the nodes,
+# and the base, wireguard, borg, monitoring and dns assemblies follow from those two roles. Import the kits it uses.
+{ yen, inputs, ... }:
+let
+  inherit (yen) host kit;
+  k = inputs.yen.lib.kits;
+  shared = import ../shared.nix yen;
+in
+{
+  imports = [
+    k.homelab
+    k.base
+    k.disko
+    k.facter
+    k.sshd
+    k.emergency-access
+    (k.wireguard { root = ../vars; })
+    k.borg
+    k.monitoring
+    k.dns
+  ];
+  yen.host = {
+    lb.addr = "10.0.0.1";
+    web.addr = "10.0.0.2";
+    nas.addr = "10.0.0.3";
+  };
+  yen.assembly.lab = {
+    kit = kit.homelab;
+    roles = {
+      server = {
+        at = host.nas;
+        settings = shared // {
+          device = "/dev/sda /dev/sdb";
+          layout = yen.layout.zfs-mirror;
+        };
+      };
+      node = {
+        at = [
+          host.lb
+          host.web
+        ];
+        settings = shared;
+      };
+    };
+  };
+}
+```
+
+```nix title="modules/fleet.nix"
+# The fleet's words: hosts with an address, members of assemblies, and the sinks the library kits write to.
+{ yen, lib, ... }:
+let
+  kits = yen.lib.batteries.kits;
+  inherit (yen.lib) opt holds;
+  attrs = yen.lib.is lib.isAttrs;
+  # a kit that adds assemblies of another kit (borg adds sshd), per assembly of its own
+  added =
+    a:
+    lib.mapAttrsToList (
+      name: v:
+      v
+      // {
+        kind = "assembly";
+        inherit name;
+      }
+    ) (a.kit.adds a);
+  own = lib.attrValues yen.assembly;
+  assemblies = own ++ lib.concatMap added own;
+  machineOf = s: if holds yen.kinds.member s then s.parent else s;
+in
+{
+  yen.kinds.fleet = {
+    spawns.host = _: yen.host;
+    sinks = {
+      out.reduce = yen.lib.reduce.merge;
+      exports.reduce = kits.exports { isMember = holds yen.kinds.member; };
+      generators = {
+        reduce = yen.lib.batteries.vars.generators { inherit machineOf; };
+        out = yen.lib.batteries.vars.vars-plan {
+          from = yen.kinds.fleet.sinks.generators;
+          machines = lib.attrNames yen.host;
+          recipientsOf = _: [ "age1admin" ];
+        };
+      };
+    };
+  };
+  yen.kinds.host = {
+    fields.addr = lib.types.str;
+    spawns.member = kits.members { inherit assemblies holds; };
+    # the NixOS keys of a host, as data
+    sinks.disks.reduce = yen.lib.reduce.merge; # kit disko gives disks here
+    sinks.nixos = {
+      reduce = yen.lib.reduce.merge;
+      out =
+        { scope, sinks, ... }:
+        {
+          config.${scope.name} = sinks.nixos;
+        };
+    };
+  };
+  yen.kinds.member = { };
+  yen.kinds.kit.fields = {
+    roles = opt attrs { };
+    constraints = opt attrs { };
+    exports = opt (yen.lib.is lib.isList) [ ];
+    adds = opt (yen.lib.is lib.isFunction) (_: { });
+  };
+  yen.kinds.assembly.fields = {
+    kit = yen.kinds.kit;
+    roles = opt attrs { };
+  };
+  yen.aspects.contract = {
+    at = yen.kinds.fleet;
+    errors = kits.contract {
+      inherit assemblies holds;
+      machines = lib.attrValues yen.host;
+    };
+  };
+  yen.aspects.settings-typed = {
+    at = yen.kinds.member;
+    errors = kits.settings-typed;
+  };
+  # a generator that an export carries goes to the machines of its `deploy` predicate
+  yen.aspects.generators-from-exports = {
+    at = yen.kinds.host;
+    generators =
+      { scope, exports, ... }:
+      let
+        gens = lib.concatMap (
+          x: lib.filter (g: holds g.deploy scope) (lib.attrValues (x.value.generators or { }))
+        ) exports;
+      in
+      if gens == [ ] then
+        null
+      else
+        {
+          name = "from-exports";
+          files = lib.foldl' (a: g: a // g.files) { } gens;
+        };
+  };
+  yen.fleet.main = { };
+  yen.flake = { out, ... }: out;
+}
+```
+
+## The result
+
+The members of each machine (the assemblies the bundle added are named `lab-...`):
+
+
+```nix title="result"
+{
+  lb = [
+    "lab-base-disko.default"
+    "lab-base-emergency.default"
+    "lab-base-facter.default"
+    "lab-base-sshd.server"
+    "lab-base.default"
+    "lab-borg.client"
+    "lab-monitoring.exporter"
+    "lab-wg.peer"
+    "lab.node"
+  ];
+  nas = [
+    "lab-base-disko.default"
+    "lab-base-emergency.default"
+    "lab-base-facter.default"
+    "lab-base-sshd.server"
+    "lab-base.default"
+    "lab-borg-sshd.server"
+    "lab-borg.server"
+    "lab-dns.default"
+    "lab-monitoring.server"
+    "lab-wg.controller"
+    "lab.server"
+  ];
+  web = [
+    "lab-base-disko.default"
+    "lab-base-emergency.default"
+    "lab-base-facter.default"
+    "lab-base-sshd.server"
+    "lab-base.default"
+    "lab-borg.client"
+    "lab-monitoring.exporter"
+    "lab-wg.peer"
+    "lab.node"
+  ];
+}
+```
+
+What the members export:
+
+
+```nix title="result"
+[
+  "sshd:lab-base-sshd:server:lb"
+  "monitoring:lab-monitoring:exporter:lb"
+  "wireguard:lab-wg:peer:lb"
+  "sshd:lab-base-sshd:server:nas"
+  "sshd:lab-borg-sshd:server:nas"
+  "borg:lab-borg:server:nas"
+  "wireguard:lab-wg:controller:nas"
+  "sshd:lab-base-sshd:server:web"
+  "monitoring:lab-monitoring:exporter:web"
+  "wireguard:lab-wg:peer:web"
+]
+```
+
+## The contract
+
+`homelab` allows exactly one server. Two:
+
+
+```nix title="variants/two-servers.nix"
+# a homelab with two servers: exactly one is allowed
+{ yen, ... }:
+{
+  yen.assembly.lab2 = {
+    kit = yen.kit.homelab;
+    roles = {
+      server = {
+        at = [
+          yen.host.nas
+          yen.host.lb
+        ];
+        settings = import ../shared.nix yen;
+      };
+      node = {
+        at = yen.host.web;
+        settings = import ../shared.nix yen;
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "merge conflict at services.prometheus.scrapeConfigs"
+  "kits: assembly lab2 role server: 2 machines, at most 1"
+  "kits: assembly lab2-borg role server: 2 machines, at most 1"
+  "kits: assembly lab2-monitoring role server: 2 machines, at most 1"
+  "kits: assembly lab2-wg role controller: 2 machines, at most 1"
+  "wireguard: lb has no wg-lab2-wg.pub public key"
+  "wireguard: nas has no wg-lab2-wg.pub public key"
+  "wireguard: web has no wg-lab2-wg.pub public key"
+]
+```
+
+And none:
+
+
+```nix title="variants/no-server.nix"
+# a homelab with nodes and no machine for the server role
+{ yen, ... }:
+{
+  yen.assembly.lab0 = {
+    kit = yen.kit.homelab;
+    roles = {
+      server = {
+        at = _: false;
+        settings = import ../shared.nix yen;
+      };
+      node = {
+        at = yen.host.web;
+        settings = import ../shared.nix yen;
+      };
+    };
+  };
+}
+```
+
+```nix title="result"
+[
+  "kits: assembly lab0 role server: 0 machines, at least 1"
+  "kits: assembly lab0-borg role server: 0 machines, at least 1"
+  "kits: assembly lab0-borg-sshd role server: 0 machines, at least 1"
+  "kits: assembly lab0-monitoring role server: 0 machines, at least 1"
+  "kits: assembly lab0-wg role controller: 0 machines, at least 1"
+  "wireguard: web has no wg-lab0-wg.pub public key"
+]
+```
+
+:::tip[Run this example]
+Every block on this page is a file of the template `kits-bundles`. Copy it and run it:
+
+```sh frame="terminal"
+nix flake init -t github:vic/yen#kits-bundles
+```
+
+<FileTree>
+
+- checks.nix
+- flake.nix
+- members.nix
+- modules/
+  - assemblies.nix
+  - fleet.nix
+- shared.nix
+- variants/
+  - no-server.nix
+  - two-servers.nix
+- vars/
+  - lb/
+    - from-exports/
+      - wg-lab-wg.pub/
+        - value
+  - nas/
+    - from-exports/
+      - wg-lab-wg.pub/
+        - value
+  - web/
+    - from-exports/
+      - wg-lab-wg.pub/
+        - value
+
+</FileTree>
+:::
