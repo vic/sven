@@ -2,6 +2,14 @@ let
   site = "https://yen.oeiuwq.com";
   link = text: path: "[${text}](${site}${path})"; # absolute: this page is also the repository README
   doc = path: "<sup>[docs](${site}${path})</sup>"; # a small link after a point, so the prose stays clean
+  # the two hosts of variants/invariant.nix, as a caller outside the fleet names them: their identity
+  web = {
+    kind = "host";
+    name = "web";
+  };
+  db = web // {
+    name = "db";
+  };
 in
 {
   title = "Why Yen";
@@ -110,7 +118,8 @@ in
 
         Logic questions about your fleet get answers you can read. `result.check.why` gives the rules that make a violation
         true. `result.check.whyNot` works the other way. For an atom that is not true, it gives each rule with that head, and
-        the body atoms that stop it. For an atom that is true, it gives nothing.
+        the body atoms that stop it. For an atom that is true, it gives nothing. A question is a literal, by reference:
+        `result.check.bad.<invariant> host`, with the host an instance (or `{ kind; name; }` from outside the fleet).
       ''
       (docs.file "variants/invariant.nix")
       ''
@@ -123,11 +132,10 @@ in
         is not even a candidate at `db`.
       ''
       (docs.value (
-        (variant "variants/invariant.nix").check.whyNot [
-          "bad"
-          "no-desktop-on-servers"
-          "fleet:main/host:db"
-        ]
+        let
+          inv = (variant "variants/invariant.nix").check;
+        in
+        inv.whyNot (inv.bad.no-desktop-on-servers db)
       ))
       ''
 
@@ -246,24 +254,13 @@ in
             "fleet:main/host:web"
           ]
         ]);
-        whyNot-holds = eq (inv.whyNot [
-          "bad"
-          "no-desktop-on-servers"
-          "fleet:main/host:web"
-        ]) ([ ]);
-        whyNot-candidate =
-          eq
-            (inv.whyNot [
-              "bad"
-              "no-desktop-on-servers"
-              "fleet:main/host:db"
-            ])
-            ([
-              {
-                rule = null;
-                reason = "no rule has this head";
-              }
-            ]);
+        whyNot-holds = eq (inv.whyNot (inv.bad.no-desktop-on-servers web)) ([ ]);
+        whyNot-candidate = eq (inv.whyNot (inv.bad.no-desktop-on-servers db)) ([
+          {
+            rule = null;
+            reason = "no rule has this head";
+          }
+        ]);
       };
       ports-errors = eq ((variant "variants/ports.nix").errors) ([ ]);
       region = eq ((variant "variants/region.nix").check.violations) ([

@@ -28,6 +28,7 @@ The codes below are read from the engine source when the docs are written.
 | `missing` | a required field has no value |
 | `missing-param` | a stored query is asked without a required parameter |
 | `module` | a module asks for an arg that has no answer |
+| `not-a-literal` | a check question (`why`, `whyNot`, `proof`, `from`) is a hand-written list, not a literal by reference |
 | `of` | a sink element fails the sink's `of` type |
 | `one` | `one`: 0 or 2+ elements |
 | `order` | an `order` answer is not a number |
@@ -38,6 +39,7 @@ The codes below are read from the engine source when the docs are written.
 | `rejected` | a staged change was rejected before (its sha is in `rejected`) |
 | `relation-check` | a rule derives a tuple that fails the `check` of its relation in `yen.relations` |
 | `reserved` | a sink is named `scope` or `sinks`: those names are fixed args of every element |
+| `scope-ambiguous` | a check question names an instance with no scope or with two or more: pass one scope record |
 | `spawns` | a `spawns` function gives no attrset, or an instance in it is no attrset |
 | `tree-request` | a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds) |
 | `two-answers` | one declaration leaf has two different values |

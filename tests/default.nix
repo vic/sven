@@ -1585,44 +1585,62 @@ let
               fw = "on";
             };
             yen.aspects.firewall.at = yen.host.b;
+            # a literal by reference, built where the refs are: the scope term is an instance
+            yen.flake =
+              { ... }:
+              {
+                kindA = yen.facts.kind yen.kinds.host yen.host.a;
+              };
+          }
+        );
+        # an instance as a caller outside the fleet writes it: its identity
+        host = name: {
+          kind = "host";
+          inherit name;
+        };
+        bad = r.check.bad.fw (host "b");
+        twice = ports (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.kinds.second.spawns.host = _: yen.host;
+            yen.second.s = { };
           }
         );
       in
       {
         ok = yes r.check.ok;
-        blocking = yes (
-          b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot (nofw "top:t/host:b"))
-        );
-        proof =
-          eq
-            (r.check.proof [
-              "kind"
-              "host"
-              "top:t/host:a"
-            ]).atom
-            [
-              "kind"
-              "host"
-              "top:t/host:a"
-            ];
-        holds = eq ((ports { }).check.whyNot (nofw "top:t/host:b")) [ ];
+        blocking = yes (b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot bad));
+        proof = eq (r.check.proof r.flake.kindA).atom [
+          "kind"
+          "host"
+          "top:t/host:a"
+        ];
+        holds = eq ((ports { }).check.whyNot ((ports { }).check.bad.fw (host "b"))) [ ];
+        # a scope record is its own scope
+        scope-record = eq (r.check.whyNot (
+          r.check.bad.fw (b.head (b.filter (s: s.id == "top:t/host:b") r.scopes))
+        )) (r.check.whyNot bad);
+        # negative controls: a hand-written list is no literal; an instance with two scopes names no one scope
+        list = eq (r.check.whyNot (nofw "top:t/host:b")).code "not-a-literal";
+        ambiguous = eq (twice.check.why (twice.check.bad.fw (host "b"))).code "scope-ambiguous";
+        unknown-instance = eq (r.check.why (r.check.bad.fw (host "z"))).code "scope-ambiguous";
       };
     # D10: explanations and the verdict read one model; a fact no rule mentions is still true
     explain-same-model =
       let
         c = (ports { }).check;
+        a = c.facts.scope {
+          kind = "host";
+          name = "a";
+        };
       in
       {
-        proof = no (
-          (c.proof [
-            "scope"
-            "top:t/host:a"
-          ]) ? status
-        );
-        why-not = eq (c.whyNot [
+        proof = eq (c.proof a).atom [
           "scope"
           "top:t/host:a"
-        ]) [ ];
+        ];
+        why-not = eq (c.whyNot a) [ ];
       };
     program-validate =
       let
@@ -1757,9 +1775,19 @@ let
               }
             ];
       };
-    invariants-why = eq (b.head ((ports { }).check.why (nofw "top:t/host:b"))).neg [
-      (hasFw "top:t/host:b")
-    ];
+    invariants-why =
+      eq
+        (b.head (
+          (ports { }).check.why (
+            (ports { }).check.bad.fw {
+              kind = "host";
+              name = "b";
+            }
+          )
+        )).neg
+        [
+          (hasFw "top:t/host:b")
+        ];
     graphs-reach = {
       app = eq (G.reach dag "app") [
         "cache"
@@ -2977,17 +3005,19 @@ let
           "host"
           "a"
         ];
+        F = r.check.facts;
+        hostA = {
+          kind = "host";
+          name = "a";
+        };
       in
       {
         t1 = eq (b.length (b.filter (x: x == a) r.facts)) (1);
-        t2 = eq (b.length (r.check.from a)) (2);
-        t3 = eq (b.length (r.check.from (hasFw "top:t/host:a"))) (1);
-        t4 = eq (r.check.from [
-          "edge"
-          "fw"
-          "top:t/host:a"
-          "top:t/host:a"
-        ]) ([ "aspect firewall" ]);
+        # the question is a literal, by reference: identities from outside the fleet, no scope id written
+        t2 = eq (b.length (r.check.from (F.instance hostA hostA))) (2);
+        t3 = eq (b.length (r.check.from (F.has { aspect = "firewall"; } hostA))) (1);
+        t4 = eq (r.check.from (F.edge { sink = "fw"; } hostA hostA)) ([ "aspect firewall" ]);
+        list = eq (r.check.from a).code "not-a-literal";
       };
     # .42: a seal binds the verdict to its rules, facts and engine; checking it means evaluating again
     r3-seal =

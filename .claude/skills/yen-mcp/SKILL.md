@@ -50,7 +50,8 @@ An error record in a result has `code`, `path`, `got`, `want`, `fix` and, for ty
 3. **Explain what you see.**
    - `yen_context` with a scope id: one scope, its parent, children, aspects, elements and errors.
    - `yen_explain` with an aspect and a scope: why the aspect is active, inactive or undefined there.
-   - `yen_why_not` with an atom: whether it holds, and the rules for and against it.
+   - `yen_why_not` with an invariant and a scope (`{"invariant":"attic","scope":{"kind":"mac","name":"studio"}}`):
+     whether it is violated there, and the rules for and against it. Never a hand-written atom.
    - `yen_declared_in` with a declaration path: the files that answer it.
    - `yen_impact` with a scope id: the scopes its elements reach, by depth.
    - `yen_errors`, optionally with one `code`.

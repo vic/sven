@@ -1919,19 +1919,12 @@ let
             "fleet:main/environment:lab/host:app-4"
           ]
         ]);
-        t3 =
-          eq
-            (r.check.whyNot [
-              "bad"
-              "db-same-env"
-              "fleet:main/environment:lab/host:app-4"
-            ])
-            ([
-              {
-                rule = null;
-                reason = "no rule has this head";
-              }
-            ]); # not even a candidate today
+        t3 = eq (r.check.whyNot (r.check.bad.db-same-env (ref "host" "app-4"))) ([
+          {
+            rule = null;
+            reason = "no rule has this head";
+          }
+        ]); # not even a candidate today
       };
     safety-addr-clash =
       let

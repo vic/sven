@@ -34,7 +34,7 @@ This table is read from the tool list the server embeds (`mcp/src/tools.json`) (
 | `yen_ask` | Run a stored query by name with an args object. A ref is its identity: {kind,name} an instance, {kind} a kind, {aspect} an aspect. Errors (missing-param, ref, unknown query) come back as the result. |
 | `yen_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
 | `yen_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
-| `yen_why_not` | Whether an invariant atom (a tuple, ["bad", …]) is violated, and the why/whyNot rules for it. |
+| `yen_why_not` | Whether an invariant is violated at a scope, and the why/whyNot rules for it. By reference: invariant is its name, scope an instance {kind,name} with one scope. |
 | `yen_program` | Dry-run a change program (list of op objects): valid, errors, ok, violations, diff. |
 
 Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.

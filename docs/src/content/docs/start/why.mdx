@@ -190,7 +190,8 @@ builds nothing until it is fixed.
 
 Logic questions about your fleet get answers you can read. `result.check.why` gives the rules that make a violation
 true. `result.check.whyNot` works the other way. For an atom that is not true, it gives each rule with that head, and
-the body atoms that stop it. For an atom that is true, it gives nothing.
+the body atoms that stop it. For an atom that is true, it gives nothing. A question is a literal, by reference:
+`result.check.bad.<invariant> host`, with the host an instance (or `{ kind; name; }` from outside the fleet).
 
 
 ```nix title="variants/invariant.nix"

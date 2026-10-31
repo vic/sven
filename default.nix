@@ -498,7 +498,7 @@ let
           k: s:
           lit [
             "kind"
-            k.__kind
+            (k.__kind or k.kind)
             s
           ];
         #: yen.facts.has :: aspect -> scope -> literal -- the aspect is active at the scope (yen.aspects.<name>)
@@ -506,7 +506,7 @@ let
           a: s:
           lit [
             "has"
-            a.__aspect
+            (a.__aspect or a.aspect)
             s
           ];
         #: yen.facts.instance :: scope -> instance -> literal -- the scope holds that instance (yen.<kind>.<name>)
@@ -517,6 +517,22 @@ let
             s
             r.kind
             r.name
+          ];
+        #: yen.facts.scope :: scope -> literal -- the scope exists
+        scope =
+          s:
+          lit [
+            "scope"
+            s
+          ];
+        #: yen.facts.edge :: sink -> scope -> scope -> literal -- an element of the sink goes from the first scope to the second (yen.kinds.<kind>.sinks.<sink>)
+        edge =
+          k: f: t:
+          lit [
+            "edge"
+            (k.__sink or k.sink)
+            f
+            t
           ];
         #: yen.facts.parent :: scope -> scope -> literal -- the second scope is the parent of the first
         parent =
@@ -1872,8 +1888,8 @@ let
               { ok = true; };
           # .43: where a fact comes from, beside the fact, never in it: an edge's origin, or the files that declare its
           # instance, its field, or its aspect
-          #: result.check.from :: atom -> [ origin ] -- where a fact comes from: the edge origin, or the files that declare its instance, field or aspect
-          from =
+          #: result.check.from :: literal -> [ origin ] -- where a fact comes from: the edge origin, or the files that declare its instance, field or aspect
+          from = asked (
             a:
             let
               r = head a;
@@ -1911,7 +1927,8 @@ let
             else if r == "error" then
               [ (b.elemAt a 2) ]
             else
-              inst [ ];
+              inst [ ]
+          );
           program = ground ++ D.facts facts;
           # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `program`
           model = m // {
@@ -1940,12 +1957,27 @@ let
           };
           #: result.check.ok :: bool -- no violation, no incomplete atom, no opaque field
           ok = violations == [ ] && incomplete == [ ] && opaque == [ ];
-          #: result.check.why :: atom -> [ rule ] -- the rules that make the atom true
-          why = D.why program model;
-          #: result.check.whyNot :: atom -> [ { rule; missing; blocking; undefinedBody; } ] -- why the atom is not true
-          whyNot = D.whyNot program model;
-          #: result.check.proof :: atom -> tree -- the proof tree of a true atom
-          proof = D.proof program model;
+          # the literals of yen.facts and yen.relations, for a question from outside the fleet: a ref or its identity
+          #: result.check.facts, result.check.relations :: … -> literal -- yen.facts and yen.relations; a kind, aspect or sink may be its identity { kind; }, { aspect; }, { sink; }
+          facts = factLits;
+          inherit relations;
+          #: result.check.bad :: { invariant = term or [ term ] -> literal; } -- the violation of an invariant, by reference: a scope record, or an instance with one scope
+          bad = mapAttrs (
+            n: _: t:
+            lit (
+              [
+                "bad"
+                n
+              ]
+              ++ (if isList t then t else [ t ])
+            )
+          ) invs;
+          #: result.check.why :: literal -> [ rule ] -- the rules that make the literal true
+          why = asked (D.why program model);
+          #: result.check.whyNot :: literal -> [ { rule; missing; blocking; undefinedBody; } ] -- why the literal is not true
+          whyNot = asked (D.whyNot program model);
+          #: result.check.proof :: literal -> tree -- the proof tree of a true literal
+          proof = asked (D.proof program model);
           #: result.check.invariants :: [ name ] -- the names of the invariants
           invariants = attrNames invs;
         };
@@ -2031,6 +2063,39 @@ let
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
       byId = byScope (s: s) unsorted;
+      # a check question is a literal: a scope record term is its id, an instance its one scope, a constant itself
+      termIn =
+        t:
+        let
+          ss = filter (s: s.kind == t.kind && s.name == t.name) unsorted;
+        in
+        if isAttrs t && t ? id && byId ? ${t.id} then
+          { ok = t.id; }
+        else if !isRef t then
+          { ok = t; }
+        else if length ss == 1 then
+          { ok = (head ss).id; }
+        else
+          errWith "check" "${t.kind} ${t.name} has ${toString (length ss)} scopes, not one" {
+            code = "scope-ambiguous";
+            want = "one scope";
+            fix = "pass one scope of yen.lib.scopesOf (a record of result.scopes)";
+          };
+      asked =
+        f: l:
+        let
+          ts = map termIn l.atom;
+          bad = first (x: !(x ? ok)) ts;
+        in
+        if !(isAttrs l && isList (l.atom or null)) then
+          errWith "check" "a check question is a literal, not a list" {
+            code = "not-a-literal";
+            fix = "use result.check.bad.<invariant> term, or a literal of yen.facts or yen.relations";
+          }
+        else if bad != null then
+          bad
+        else
+          f (map (x: x.ok) ts);
       noScope = from: id: unknown from id (attrNames byId) { code = "unknown-scope"; };
       trace =
         d: p: s:

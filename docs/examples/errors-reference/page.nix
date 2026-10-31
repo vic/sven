@@ -49,6 +49,7 @@ let
     merge = "`merge`: two different leaves at one path";
     missing = "a required field has no value";
     missing-param = "a stored query is asked without a required parameter";
+    not-a-literal = "a check question (`why`, `whyNot`, `proof`, `from`) is a hand-written list, not a literal by reference";
     one = "`one`: 0 or 2+ elements";
     outside-grant = "a staged change can reach a scope outside its grant";
     program = "a change program op is not valid";
@@ -57,6 +58,7 @@ let
     rejected = "a staged change was rejected before (its sha is in `rejected`)";
     two-answers = "one declaration leaf has two different values";
     reserved = "a sink is named `scope` or `sinks`: those names are fixed args of every element";
+    scope-ambiguous = "a check question names an instance with no scope or with two or more: pass one scope record";
     unknown-aspect = "a query names an aspect that does not exist";
     unknown-key = "a module, `yen` or a kind declares a key yen does not read (yen modules are not NixOS modules)";
     unknown-field = "an instance sets a field its kind does not declare";

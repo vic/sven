@@ -54,8 +54,11 @@ check impact-unknown-sink '.result.code == "unknown-sink"' "$out"
 out=$(call yen_labels '{"floor":3}' | text)
 check labels-floor '(.result.floor | length > 0 and all(.trust == 1)) and (.result.labels | type == "object")' "$out"
 
-out=$(call yen_why_not '{"atom":["bad","attic","fleet:main/environment:staging/mac:studio"]}' | text)
+out=$(call yen_why_not '{"invariant":"attic","scope":{"kind":"mac","name":"studio"}}' | text)
 check why-not-holds-false '.result.holds == false' "$out"
+
+out=$(call yen_why_not '{"invariant":"atic","scope":{"kind":"mac","name":"studio"}}' | text)
+check why-not-unknown-invariant '.result.code == "unknown-invariant"' "$out"
 
 out=$(call yen_program '{"program":[{"op":"place","aspect":"attic","kind":"mac","name":"studio"}]}' | text)
 check program-violation '.result.ok == false and (.result.violations | map(.[1] == "attic") | any)' "$out"
