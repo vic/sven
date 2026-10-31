@@ -126,9 +126,9 @@ let
       }
     );
 
-  # imports nest; `_module.args` flow down to them
+  # imports nest; a key is a sink, an arg is a source, from any module
   argsDown = yen.eval {
-    _module.args.greeting = "hi";
+    greeting = "hi";
     imports = [
       {
         imports = [
@@ -143,6 +143,53 @@ let
     ];
   };
   argsMissing = yen.eval { imports = [ ({ nope, ... }: { }) ]; };
+  # a sibling answers: `cfg` zips from two modules, and `lib` is one value given twice
+  chanLib = {
+    id = x: x;
+  };
+  argsSibling = yen.eval {
+    imports = [
+      {
+        cfg.a = "x";
+        lib = chanLib;
+      }
+      {
+        cfg.b = "y";
+        lib = chanLib;
+      }
+      (
+        { cfg, lib, ... }:
+        {
+          imports = [ (fleet { addr = lib.id (cfg.a + cfg.b); }) ];
+        }
+      )
+    ];
+  };
+  # `imports` and key names load before any source: reading an arg there is an error, not a loop
+  argsInImports = yen.eval {
+    greeting = "hi";
+    imports = [
+      (
+        { greeting, ... }:
+        {
+          imports = if greeting == "hi" then [ ] else [ ];
+        }
+      )
+      (
+        { greeting, ... }:
+        {
+          ${greeting} = 1;
+        }
+      )
+    ];
+  };
+  argsTwo = yen.eval {
+    imports = [
+      { cfg.a = "x"; }
+      { cfg.a = "y"; }
+      ({ cfg, ... }: { })
+    ];
+  };
 
   # stack safety: a chain 3000 deep, a fan-out of 3000
   deep =
@@ -2458,7 +2505,7 @@ let
       t3 = eq (map (e: e.code) (treeAllWith true).errors) ([ "tree-request" ]);
       t4 = eq ((treeAllWith true).reduced) (null);
     };
-    # yen modules are not NixOS modules: a key yen does not read is an error, at every level
+    # yen modules are not NixOS modules: a sink no module reads, or a key yen does not read, is an error
     unknown-keys =
       eq
         (map (e: { inherit (e) code from path; })
@@ -2474,7 +2521,7 @@ let
         )
         ([
           {
-            code = "unknown-key";
+            code = "unread-sink";
             from = "root/0";
             path = [ "options" ];
           }
@@ -3282,11 +3329,57 @@ let
         ];
       }
     )) ([ ]);
-    args-flow-down = {
+    args-source = {
       addr = eq (hostOf argsDown).addr "hi";
       errors = eq (msgs argsDown) [ ];
     };
     args-missing = yes (has argsMissing "module root/0: arg `nope` has no answer");
+    args-sibling = {
+      addr = eq (hostOf argsSibling).addr "xy";
+      errors = eq (msgs argsSibling) [ ];
+    };
+    args-in-imports = eq (map (e: { inherit (e) code error; }) argsInImports.errors) [
+      {
+        code = "module";
+        error = "module root/0: `imports` or its keys read an arg";
+      }
+      {
+        code = "module";
+        error = "module root/1: `imports` or its keys read an arg";
+      }
+    ];
+    args-two-answers = eq (map (e: { inherit (e) code path; }) argsTwo.errors) [
+      {
+        code = "two-answers";
+        path = [
+          "cfg"
+          "a"
+        ];
+      }
+    ];
+    args-unread =
+      eq
+        (map (e: { inherit (e) code from near; })
+          (yen.eval {
+            greting = "hi";
+            imports = [
+              (
+                {
+                  greeting ? "",
+                  ...
+                }:
+                { }
+              )
+            ];
+          }).errors
+        )
+        [
+          {
+            code = "unread-sink";
+            from = "root";
+            near = [ "greeting" ];
+          }
+        ];
     presence-spawns = {
       t1 = eq (ids presence) ([
         "top:t"

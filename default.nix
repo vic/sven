@@ -1,6 +1,6 @@
 # yen.nix: builtins only. A query language for configurations: a Cycle.js loop over nested scopes.
 # No throws: an error is an emission. No merge, no module system: every read is a query on the files that answer it.
-# Entry: `(import ./yen.nix).lib.eval module`. A module is a path, a function or an attrset; `imports` nest, `_module.args` flow down.
+# Entry: `(import ./yen.nix).lib.eval module`. A module is a path, a function or an attrset; `imports` nest; each key is a sink, each arg is a source.
 let
   b = builtins;
   inherit (b)
@@ -74,8 +74,7 @@ let
     ref = 4;
     val = 3;
   };
-  # the only keys a module, its `yen` and a kind declare; any other key is an error, never ignored
-  moduleKeys = words "imports _module yen";
+  # the only keys `yen` and a kind declare; any other key is an error, never ignored
   yenKeys = words "kinds aspects helpers queries invariants relations labels flake"; # and the kind names
   kindKeys = words "fields spawns sinks";
   # s occurs in x, as text (no regex)
@@ -338,36 +337,95 @@ let
   eval =
     root:
     let
-      # ── load: imports are nested modules; `_module.args` flow down to them, like sources ──
+      # ── load: a module is `sources -> sinks` (Cycle). Each key it gives is a sink; each arg is a source ──
+      # the probe: a call whose every arg is a sentinel. It gives the import tree and the sink names, which never read a source
+      sentinel =
+        assert false;
+        null; # tryEval catches it below; an infinite recursion it would not
       node =
-        args: key: m:
+        at: key: m:
         let
-          f = if isPath m || isString m then import m else m;
+          file = isPath m || isString m;
+          f = if file then import m else m;
           fa = if isFunction f then functionArgs f else { };
-          missing = filter (a: !fa.${a} && !(args ? ${a})) (attrNames fa);
-          v = if isFunction f then f (intersectAttrs fa args) else f;
-          k = if isPath m || isString m then toString m else key;
+          probe = if isFunction f then f (b.mapAttrs (_: _: sentinel) fa) else f;
+          k = if file then toString m else key;
+          ok =
+            (b.tryEval (
+              isAttrs probe && b.seq (length (attrNames probe)) (all (i: b.seq i true) (probe.imports or [ ]))
+            )).value;
         in
         {
           key = k;
+          inherit fa;
+          at = if file then null else at; # an inline module is read again from its parent's real `imports`
         }
         // (
-          if missing != [ ] then
-            { error = "module ${k}: arg `${head missing}` has no answer"; }
+          if ok then
+            { inherit f probe; }
           else
             {
-              mod = v;
-              args = args // (v._module.args or { }) // { inherit yen; };
+              error = "module ${k}: `imports` or its keys read an arg";
+              fix = "an arg is a source, answered once every module is loaded: read it in a value, not in `imports` or a key name";
             }
         );
-      loaded = genericClosure {
-        startSet = [ (node { inherit yen; } "root" root) ];
+      found = genericClosure {
+        startSet = [ (node null "root" root) ];
         operator =
           n:
-          b.genList (i: node n.args "${n.key}/${toString i}" (b.elemAt n.mod.imports i)) (
-            length (n.mod.imports or [ ])
-          );
+          b.genList (
+            i:
+            node {
+              parent = n.key;
+              inherit i;
+            } "${n.key}/${toString i}" (b.elemAt n.probe.imports i)
+          ) (length (n.probe.imports or [ ]));
       };
+      # the sinks some module gives (`yen` always), and the sources some module asks
+      gives = n: filter (c: c != "imports") (attrNames n.probe);
+      moduleSinks = keySet ([ "yen" ] ++ concatMap gives (filter (n: n ? probe) found));
+      asked = keySet ([ "yen" ] ++ concatMap (n: attrNames n.fa) found);
+      # a source: the sink of that name, from every module
+      source = c: if c == "yen" then yen else zipSink (sinkOfModules c);
+      sinkOfModules =
+        c: concatMap (n: if n.mod ? ${c} then [ n.mod.${c} ] else [ ]) (filter (n: n ? mod) loaded);
+      # one value is itself; several zip like `yen` declarations: attrsets by key, a leaf is the first answer
+      zipSink =
+        vs:
+        if length vs == 1 || !all (v: isAttrs v && !isLeaf v) vs then
+          head vs
+        else
+          genAttrs (names (attrsIn vs)) (n: zipSink (concatMap (v: if v ? ${n} then [ v.${n} ] else [ ]) vs));
+      real = listToAttrs (
+        map (n: {
+          name = n.key;
+          value = load n;
+        }) found
+      );
+      load =
+        n:
+        let
+          parent = if n.at or null == null then null else real.${n.at.parent};
+          f = if parent == null then n.f else b.elemAt parent.mod.imports n.at.i;
+          missing = filter (a: !n.fa.${a} && !(moduleSinks ? ${a})) (attrNames n.fa);
+        in
+        if !(n ? probe) then
+          n
+        else if parent != null && !(parent ? mod) then
+          { inherit (n) key; } # it goes with its parent, which has the error
+        else if missing != [ ] then
+          {
+            inherit (n) key;
+            error = "module ${n.key}: arg `${head missing}` has no answer";
+            fix = "a module must give `${head missing}`, or give the arg a default";
+          }
+        else
+          {
+            inherit (n) key;
+            mod =
+              if isFunction f then f (genAttrs (filter (a: moduleSinks ? ${a}) (attrNames n.fa)) source) else f;
+          };
+      loaded = map (n: real.${n.key}) found;
       defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
       #: result.declaredIn, yen.lib.declaredIn :: [ name ] -> [ file ] -- the modules that answer a declaration path, in file order
@@ -388,7 +446,27 @@ let
           "aspects"
           n
         ];
-      loadErrors = map (n: errWith "module" n.error { code = "module"; }) (filter (n: n ? error) loaded);
+      loadErrors = map (
+        n: errWith "module" n.error ({ code = "module"; } // intersectAttrs { fix = 0; } n)
+      ) (filter (n: n ? error) loaded);
+      # two modules that give one sink leaf two different values: as in `yen`, data never overrides data
+      moduleSinkErrors =
+        path: vs:
+        if length vs < 2 || all (v: v == head vs) vs then
+          [ ]
+        else if all (v: isAttrs v && !isLeaf v) vs then
+          concatMap (
+            n: moduleSinkErrors (path ++ [ n ]) (concatMap (v: if v ? ${n} then [ v.${n} ] else [ ]) vs)
+          ) (names (attrsIn vs))
+        else
+          [
+            (errWith "modules" "two answers for ${concatStringsSep "." path}" {
+              code = "two-answers";
+              inherit path;
+              got = length vs;
+              fix = "keep one answer for ${concatStringsSep "." path}: data never overrides data";
+            })
+          ];
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
       # one lazy index over every file (zipAttrsWith): a lookup walks its path, never all files
@@ -1983,8 +2061,20 @@ let
             ) (filter (k: !elem k known) xs);
           files = path: k: concatStringsSep ", " (declaredIn (path ++ [ k ]));
         in
-        concatMap (n: bad (_: n.key) [ ] moduleKeys (if isAttrs n.mod then attrNames n.mod else [ ])) (
-          filter (n: n ? mod) loaded
+        concatMap (
+          n:
+          map (
+            c:
+            errWith n.key "no module reads the sink `${c}`" {
+              code = "unread-sink";
+              path = [ c ];
+              near = near c (attrNames asked);
+              fix = "ask `${c}` as an arg of the module that reads it, or remove it";
+            }
+          ) (filter (c: !(asked ? ${c})) (gives n))
+        ) (filter (n: n ? probe) found)
+        ++ concatMap (c: moduleSinkErrors [ c ] (sinkOfModules c)) (
+          filter (c: c != "yen") (attrNames moduleSinks)
         )
         ++ bad (files [ ]) [ "yen" ] (yenKeys ++ kindNames) (attrNames top)
         ++ concatMap (
@@ -2371,7 +2461,7 @@ let
       changes = if i == 0 then [ ] else diffData (r (i - 1)).data (r i).data;
     }) (length revs);
   # without: the fleet with the files that declare `path` removed (coarse: a whole file goes; no engine hook)
-  #: lib.without :: { files; path; args ? { }; } -> { dropped; result; } -- the fleet without the files that declare path
+  #: lib.without :: { files; path; args ? { }; } -> { dropped; result; } -- the fleet without the files that declare path; args = sinks the root gives
   without =
     {
       files,
@@ -2379,10 +2469,7 @@ let
       args ? { },
     }:
     let
-      mk = fs: {
-        imports = fs;
-        _module.args = args;
-      };
+      mk = fs: args // { imports = fs; };
       hit = (eval (mk files)).declaredIn path;
       keep = filter (f: !elem (toString f) hit) files;
     in
