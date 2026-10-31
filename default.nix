@@ -338,72 +338,188 @@ let
     root:
     let
       # ── load: a module is `sources -> sinks` (Cycle). Each key it gives is a sink; each arg is a source ──
-      # the probe: a call whose every arg is a sentinel. It gives the import tree and the sink names, which never read a source
+      # `p0` is a call whose every arg is a sentinel: key names never read a source. `imports` may read a sink
+      # that the modules loaded without it give: those sinks come in rounds, reduced from `p0` values only
       sentinel =
         assert false;
         null; # tryEval catches it below; an infinite recursion it would not
+      try = x: (b.tryEval x).value;
+      spine = p: isAttrs p && b.seq (length (attrNames p) + length (attrNames (p.yen.sinks or { }))) true;
+      forced = p: all (i: b.seq i true) (p.imports or [ ]);
       node =
-        at: key: m:
+        S: parent: at: key: m:
         let
           file = isPath m || isString m;
           f = if file then import m else m;
           fa = if isFunction f then functionArgs f else { };
-          probe = if isFunction f then f (b.mapAttrs (_: _: sentinel) fa) else f;
+          call = s: if isFunction f then f (b.mapAttrs (a: _: s.${a} or sentinel) fa) else f;
+          p0 = call { };
+          probe = call S;
           k = if file then toString m else key;
-          ok =
-            (b.tryEval (
-              isAttrs probe
-              && b.seq (length (attrNames probe) + length (attrNames (probe.yen.sinks or { }))) (
-                all (i: b.seq i true) (probe.imports or [ ])
-              )
-            )).value;
         in
         {
           key = k;
-          inherit fa;
+          inherit fa parent;
           at = if file then null else at; # an inline module is read again from its parent's real `imports`
         }
         // (
-          if ok then
-            { inherit f probe; }
+          if !try (spine p0) then
+            {
+              error = "module ${k}: its keys read an arg";
+              fix = "an arg is a source, answered once every module is loaded: read it in a value, not in a key name";
+            }
+          else if !try (forced probe) then
+            {
+              error = "module ${k}: `imports` reads an arg that no module gives without it";
+              fix = "`imports` can read a sink that other modules give, never `yen` or a sink its own imports give";
+            }
           else
             {
-              error = "module ${k}: `imports` or its keys read an arg";
-              fix = "an arg is a source, answered once every module is loaded: read it in a value, not in `imports` or a key name";
+              inherit
+                f
+                p0
+                probe
+                call
+                ;
+              importer = !try (forced p0); # its `imports` reads a sink
             }
         );
-      found = genericClosure {
-        startSet = [ (node null "root" root) ];
-        operator =
+      closure =
+        S:
+        genericClosure {
+          startSet = [ (node S null null "root" root) ];
+          operator =
+            n:
+            b.genList (
+              i:
+              node S n.key {
+                parent = n.key;
+                inherit i;
+              } "${n.key}/${toString i}" (b.elemAt n.probe.imports i)
+            ) (length (n.probe.imports or [ ]));
+        };
+      # the sinks of a module set, from `p0` values: they never read a source
+      givers = ns: c: filter (n: n.p0 ? ${c} || (n.p0.yen.sinks or { }) ? ${c}) ns;
+      sinksOf =
+        F:
+        let
+          ns = filter (n: n ? p0) F;
+        in
+        genAttrs (filter (c: c != "yen") (names (concatMap gives ns ++ concatMap declares ns))) (
+          c:
+          (reduceWith c (first (n: (n.p0.yen.sinks or { }) ? ${c}) ns).p0.yen.sinks.${c} or { } (
+            concatMap (
+              n:
+              optional (n.p0 ? ${c}) {
+                from = n.key;
+                value = n.p0.${c};
+              }
+            ) ns
+          )).value
+        );
+      importers = F: length (filter (n: n.importer or false) F);
+      # one round per stratum: stop when the keys hold and every importer had its round (or the rounds outgrow the modules)
+      rounds =
+        r: F:
+        let
+          F' = closure (sinksOf F);
+          same = map (n: n.key) F' == map (n: n.key) F;
+        in
+        if same && r > importers F' || r > length F' + 1 then
+          {
+            found = F';
+            settled = same;
+          }
+        else
+          rounds (r + 1) F';
+      F0 = closure { };
+      inherit
+        (
+          if all (n: !(n ? error)) F0 then
+            {
+              found = F0;
+              settled = true;
+            }
+          else
+            rounds 1 F0
+        )
+        found
+        settled
+        ;
+      # ── modules as a graph: what each module asks, gives, declares and imports. An import loop is a cycle ──
+      # edges are "depends on": an importer on the sinks it asks (its declared args, as for aspects), a sink on
+      # the modules that give or declare it, a module on the module that imports it
+      ok0 = filter (n: n ? p0) found;
+      sinkNode = c: "sink:${c}";
+      #: result.modules :: { key = { parent; asks; gives; declares; importer; }; } -- every module, as the loader sees it
+      modules = listToAttrs (
+        map (n: {
+          name = n.key;
+          value = {
+            inherit (n) parent;
+            asks = attrNames n.fa;
+            gives = if n ? p0 then gives n else [ ];
+            declares = if n ? p0 then declares n else [ ];
+            importer = n.importer or false;
+          };
+        }) found
+      );
+      moduleGraph = static.graphs.fromEdges (
+        concatMap (
           n:
-          b.genList (
-            i:
-            node {
-              parent = n.key;
-              inherit i;
-            } "${n.key}/${toString i}" (b.elemAt n.probe.imports i)
-          ) (length (n.probe.imports or [ ]));
-      };
+          optional (n.parent != null) {
+            from = n.key;
+            to = n.parent;
+          }
+        ) found
+        ++ concatMap (
+          n:
+          map (c: {
+            from = n.key;
+            to = sinkNode c;
+          }) (filter (c: roundNames ? ${c}) (attrNames n.fa))
+        ) (filter (n: n.importer or false) found)
+        ++ concatMap (
+          n:
+          map (c: {
+            from = sinkNode c;
+            to = n.key;
+          }) (gives n ++ declares n)
+        ) ok0
+      );
+      roundNames = removeAttrs (keySet (concatMap gives ok0 ++ concatMap declares ok0)) [ "yen" ]; # `yen` never answers `imports`
+      onCycle = keySet (static.graphs.cycles moduleGraph);
+      # the importers on a cycle; when the rounds never settle, every importer
+      looping = keySet (
+        map (n: n.key) (filter (n: (n.importer or false) && (!settled || onCycle ? ${n.key})) found)
+      );
+      moduleAbove =
+        n: static.graphs.reach (mapAttrs (_: m: optional (m.parent != null) m.parent) modules) n.key;
       # the sinks some module gives or declares in `yen.sinks` (`yen` always); a declared sink counts as read
-      gives = n: filter (c: c != "imports") (attrNames n.probe);
-      declares = n: attrNames (n.probe.yen.sinks or { });
-      probed = filter (n: n ? probe) found;
+      gives = n: filter (c: c != "imports") (attrNames n.p0);
+      declares = n: attrNames (n.p0.yen.sinks or { });
+      probed = filter (n: n ? p0) found;
       moduleSinks = keySet ([ "yen" ] ++ concatMap gives probed ++ concatMap declares probed);
       asked = keySet ([ "yen" ] ++ concatMap (n: attrNames n.fa) found ++ concatMap declares probed);
       used = keySet (concatMap gives probed ++ concatMap (n: attrNames n.fa) found); # a sink reduces only where it is given or read
       # a source: its sink reduced like a kind sink. `of` checks each module's value; `reduce` defaults to `one`
       source = c: if c == "yen" then yen else (reduceModules c).value;
+      # the givers and the declaration come from the module key sets: a sink never waits on every module (`top`)
       reduceModules =
         c:
         let
-          d = (top.sinks or { }).${c} or { };
-          es = concatMap (
-            n:
-            optional (n.mod ? ${c}) {
-              from = n.key;
-              value = n.mod.${c};
-            }
-          ) (filter (n: n ? mod) loaded);
+          ms = filter (n: real.${n.key} ? mod) ok0;
+          decl = first (n: (n.p0.yen.sinks or { }) ? ${c}) ms;
+        in
+        reduceWith c (if decl == null then { } else real.${decl.key}.mod.yen.sinks.${c}) (
+          map (n: {
+            from = n.key;
+            value = real.${n.key}.mod.${c};
+          }) (filter (n: n.p0 ? ${c}) ms)
+        );
+      reduceWith =
+        c: d: es:
+        let
           okOf = e: !(d ? of) || checkOf d.of e.value;
           red = (d.reduce or reduce.one) (filter okOf es);
         in
@@ -441,7 +557,15 @@ let
         in
         if !(n ? probe) then
           n
-        else if parent != null && !(parent ? mod) then
+        else if looping ? ${n.key} then
+          {
+            inherit (n) key;
+            error = "module ${n.key}: `imports` reads a sink that its own imports give";
+            fix = "give the sinks that `imports` reads from modules outside its own imports";
+            code = "import-loop";
+            path = filter (c: roundNames ? ${c}) (attrNames n.fa);
+          }
+        else if parent != null && !(parent ? mod) || any (a: looping ? ${a}) (moduleAbove n) then
           { inherit (n) key; } # it goes with its parent, which has the error
         else if missing != [ ] then
           {
@@ -477,7 +601,17 @@ let
           n
         ];
       loadErrors = map (
-        n: errWith "module" n.error ({ code = "module"; } // intersectAttrs { fix = 0; } n)
+        n:
+        errWith "module" n.error (
+          {
+            code = "module";
+          }
+          // intersectAttrs {
+            fix = 0;
+            code = 0;
+            path = 0;
+          } n
+        )
       ) (filter (n: n ? error) loaded);
 
       # ── declarations: queries on the files, in file order. A leaf is the first answer; `at` is all answers ──
@@ -2165,6 +2299,7 @@ let
           graph
           undefined
           declaredIn
+          modules
           check
           facts
           schema

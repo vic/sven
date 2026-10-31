@@ -59,6 +59,7 @@ let
     unknown-aspect = "a query names an aspect that does not exist";
     unknown-key = "`yen`, a kind or a `yen.sinks` declaration has a key yen does not read (yen modules are not NixOS modules)";
     unread-sink = "a module gives a sink that no module reads or declares in `yen.sinks`";
+    import-loop = "the `imports` of a module asks a sink that a module below it gives: a cycle in `result.modules`";
     unknown-field = "an instance sets a field its kind does not declare";
     unknown-param = "a stored query is asked with a parameter it does not take";
     unknown-query = "`result.ask` names a stored query that does not exist";

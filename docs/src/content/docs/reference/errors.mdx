@@ -22,6 +22,7 @@ The codes below are read from the engine source when the docs are written.
 | `edb-head` | a rule derives a fact yen extracts (`scope`, `instance`, `parent`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison) |
 | `error` | a message from an aspect's `errors` key |
 | `external-not-bool` | a relation's `holds` function answers a tuple with something other than a bool |
+| `import-loop` | the `imports` of a module asks a sink that a module below it gives: a cycle in `result.modules` |
 | `invariant-data` | an invariant is data: write each rule as a function of its variables, `{ H }: { bad = H; pos = [ … ]; }`, its literals by reference |
 | `law-change` | a staged change declares `invariants`, `relations`, `labels` or `flake`: the law is the owner's, never a change's |
 | `merge` | `merge`: two different leaves at one path |

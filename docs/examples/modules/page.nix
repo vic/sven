@@ -41,8 +41,10 @@
       (docs.file "variants/module-sinks.nix")
       (docs.value (variant "variants/module-sinks.nix").reduced.nixos."fleet:main/host:web".users)
       ''
-        `imports` and the key names of a module load before any arg has an answer. A module that reads an arg
-        in its `imports` or in a key name gets an error record, not an infinite recursion.
+        Key names load before any arg has an answer: a key name that reads an arg is an error record. `imports` can read
+        a sink, such as `inputs`, when modules outside its own imports give it. yen loads such imports in rounds.
+        `result.modules` shows what each module asks, gives and declares. A cycle in it is `import-loop`, an error record,
+        not an infinite recursion.
       ''
       ''
         ## Types: anything with `check`

@@ -168,7 +168,8 @@ let
       )
     ];
   };
-  # `imports` and key names load before any source: reading an arg there is an error, not a loop
+  # key names load before any source: reading an arg there is an error, not a loop.
+  # `imports` may read a sink that modules outside its own imports give
   argsInImports = yen.eval {
     greeting = "hi";
     imports = [
@@ -182,6 +183,41 @@ let
         { greeting, ... }:
         {
           ${greeting} = 1;
+        }
+      )
+    ];
+  };
+  # a kit from `inputs`, and a chain: the kit gives `more`, which another module imports (two rounds)
+  importsRead = yen.eval {
+    inputs.kit = {
+      more = fleet { addr = "kit"; };
+      yen.sinks.more = { };
+    };
+    yen.sinks.inputs = { };
+    imports = [
+      (
+        { inputs, ... }:
+        {
+          imports = [ inputs.kit ];
+        }
+      )
+      (
+        { more, ... }:
+        {
+          imports = [ more ];
+        }
+      )
+    ];
+  };
+  # a loop: `imports` reads `cfg`, and the module it imports gives `cfg`
+  importsLoop = yen.eval {
+    cfg = [ "root" ];
+    yen.sinks.cfg.reduce = yen.reduce.flat;
+    imports = [
+      (
+        { cfg, ... }:
+        {
+          imports = if b.length cfg == 1 then [ { cfg = [ "more" ]; } ] else [ ];
         }
       )
     ];
@@ -3371,11 +3407,26 @@ let
     args-in-imports = eq (map (e: { inherit (e) code error; }) argsInImports.errors) [
       {
         code = "module";
-        error = "module root/0: `imports` or its keys read an arg";
+        error = "module root/1: its keys read an arg";
       }
+    ];
+    # the loader as data: what each module asks, gives, declares, and which module imports it
+    imports-modules = eq importsRead.modules."root/1" {
+      parent = "root";
+      asks = [ "more" ];
+      gives = [ ];
+      declares = [ ];
+      importer = true;
+    };
+    imports-read = {
+      addr = eq (hostOf importsRead).addr "kit";
+      errors = eq (msgs importsRead) [ ];
+    };
+    imports-loop = eq (map (e: { inherit (e) code error path; }) importsLoop.errors) [
       {
-        code = "module";
-        error = "module root/1: `imports` or its keys read an arg";
+        code = "import-loop";
+        error = "module root/0: `imports` reads a sink that its own imports give";
+        path = [ "cfg" ];
       }
     ];
     args-two-givers = eq (map (e: { inherit (e) code sink; }) argsTwo.errors) [
