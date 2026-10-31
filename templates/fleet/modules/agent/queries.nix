@@ -42,12 +42,14 @@
           ms = lib.filter (
             s: yen.lib.holds yen.kinds.member s && yen.lib.same s.assembly assembly
           ) result.scopes;
-          role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: s.role == rl) ms));
+          role =
+            rl: lib.unique (map (s: { inherit (s.parent) kind name; }) (lib.filter (s: s.role == rl) ms));
           servers = role "server";
+          g = yen.lib.graphs.of (role "client" ++ servers) (
+            m: if lib.any (yen.lib.same m) servers then [ ] else servers
+          );
         in
-        yen.lib.graphs.layers (
-          lib.genAttrs (role "client" ++ servers) (m: if lib.elem m servers then [ ] else servers)
-        );
+        map (map (m: m.name)) (yen.lib.graphs.layers g);
     };
   };
   yen.labels = {

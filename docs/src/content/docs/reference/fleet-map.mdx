@@ -85,7 +85,7 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 | [`hoag/claims.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/claims.nix) | den-hoag productions: claim / provide with the reverse read (who claims me). Apps claim databases; the database host |
 | [`hoag/class-share.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/class-share.nix) | den-hoag class-share (A18) as a capability: the config every member of a class shares is computed ONCE (the core), |
 | [`hoag/collectors.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/collectors.nix) | den-hoag collectors: an aggregate is an entity. A hive has its own content (its `meta` sink) and selects its members |
-| [`hoag/relations.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/relations.nix) | den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it. |
+| [`hoag/relations.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/relations.nix) | den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it (`G.of`, by ref). |
 | [`hoag/settings.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/settings.nix) | den-hoag A8/A14/A10: aspect settings in layers with authority, and an aspect that projects settings onto other aspects. |
 
 ## hosts

@@ -1836,6 +1836,71 @@ let
         ]
       ];
     };
+    # a graph over refs: G.of nodes next; every answer is a node identity { kind; name; }, never a name string
+    graphs-refs =
+      let
+        r = yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.kinds.host.fields.dependsOn = yen.lib.opt (yen.lib.listOf yen.kinds.host) [ ];
+            yen.top.t = { };
+            yen.host = {
+              db = { };
+              lb.dependsOn = [ yen.host.web ];
+              web.dependsOn = [ yen.host.db ];
+            };
+            yen.flake =
+              { ... }:
+              let
+                g = G.of (b.attrValues yen.host) (h: h.dependsOn);
+              in
+              {
+                layers = G.layers g;
+                reach = G.reach g yen.host.lb;
+                reachers = G.reachers g yen.host.db;
+                shortest = G.shortest g yen.host.lb yen.host.db;
+                topo = (G.topo g).order;
+                transposed = G.reach (G.transpose g) yen.host.db;
+                none = G.shortest g yen.host.db yen.host.lb;
+              };
+          }
+        );
+        h = name: {
+          kind = "host";
+          inherit name;
+        };
+      in
+      {
+        layers = eq r.flake.layers [
+          [ (h "db") ]
+          [ (h "web") ]
+          [ (h "lb") ]
+        ];
+        reach = eq r.flake.reach [
+          (h "db")
+          (h "web")
+        ];
+        reachers = eq r.flake.reachers [
+          (h "lb")
+          (h "web")
+        ];
+        shortest = eq r.flake.shortest [
+          (h "lb")
+          (h "web")
+          (h "db")
+        ];
+        topo = eq r.flake.topo [
+          (h "db")
+          (h "web")
+          (h "lb")
+        ];
+        transposed = eq r.flake.transposed [
+          (h "lb")
+          (h "web")
+        ];
+        none = eq r.flake.none null;
+      };
     datalog-wfs =
       let
         w = D.wfs choice;

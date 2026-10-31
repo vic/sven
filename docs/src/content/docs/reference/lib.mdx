@@ -170,17 +170,18 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.graphs.cycles`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L48) | `succ -> [ node ]` | the nodes on a cycle |
-| [`lib.graphs.fromEdges`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L44) | `[ { from; to; } ] -> succ` | a graph from a list of edges |
-| [`lib.graphs.layers`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L97) | `succ -> [ [ node ] ]` | waves: each node in the first wave after all its successors |
-| [`lib.graphs.nodesOf`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L17) | `succ -> [ node ]` | every node of the graph, sorted, with or without edges |
-| [`lib.graphs.paths`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L132) | `succ -> from -> to -> [ [ node ] ]` | every simple path from from to to |
-| [`lib.graphs.reach`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L21) | `succ -> node -> [ node ]` | the nodes reachable from node by one edge or more, sorted |
-| [`lib.graphs.reachers`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L46) | `succ -> node -> [ node ]` | the nodes that reach node (its dependents, when succ is "depends on") |
-| [`lib.graphs.sccs`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L50) | `succ -> [ [ node ] ]` | the strongly connected components with 2 or more nodes or a self loop, each sorted, by first node |
-| [`lib.graphs.shortest`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L111) | `succ -> from -> to -> [ node ] or null` | the shortest path by edges (breadth first), from first, to last |
-| [`lib.graphs.topo`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L70) | `succ -> { ok; order; stuck; }` | each node after all its successors (Kahn); the nodes on a cycle stay in stuck |
-| [`lib.graphs.transpose`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L32) | `succ -> succ` | the graph with every edge reversed |
+| [`lib.graphs.cycles`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L71) | `succ -> [ node ]` | the nodes on a cycle |
+| [`lib.graphs.fromEdges`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L67) | `[ { from; to; } ] -> succ` | a graph from a list of edges |
+| [`lib.graphs.layers`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L120) | `succ -> [ [ node ] ]` | waves: each node in the first wave after all its successors |
+| [`lib.graphs.nodesOf`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L18) | `succ -> [ node ]` | every node of the graph, sorted, with or without edges |
+| [`lib.graphs.of`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L173) | `[ ref ] -> (ref -> [ ref ]) -> graph` | a graph over instances: the nodes and each node's successors; every function here takes it, and answers with refs &#123; kind; name; &#125; |
+| [`lib.graphs.paths`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L155) | `succ -> from -> to -> [ [ node ] ]` | every simple path from from to to |
+| [`lib.graphs.reach`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L22) | `succ -> node -> [ node ]` | the nodes reachable from node by one edge or more, sorted |
+| [`lib.graphs.reachers`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L69) | `succ -> node -> [ node ]` | the nodes that reach node (its dependents, when succ is "depends on") |
+| [`lib.graphs.sccs`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L73) | `succ -> [ [ node ] ]` | the strongly connected components with 2 or more nodes or a self loop, each sorted, by first node |
+| [`lib.graphs.shortest`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L134) | `succ -> from -> to -> [ node ] or null` | the shortest path by edges (breadth first), from first, to last |
+| [`lib.graphs.topo`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L93) | `succ -> { ok; order; stuck; }` | each node after all its successors (Kahn); the nodes on a cycle stay in stuck |
+| [`lib.graphs.transpose`](https://github.com/vic/yen/blob/main/lib/graphs.nix#L33) | `succ -> succ` | the graph with every edge reversed |
 
 ## `lib.kind`
 
