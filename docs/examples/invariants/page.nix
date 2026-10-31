@@ -84,15 +84,24 @@
       (docs.file "variants/mistakes.nix")
       (docs.value { inherit ((variant "variants/mistakes.nix").check) ok violations; })
       ''
-        `result.check.why atom` gives the rules that prove a violation. `whyNot` and `proof` work as in Datalog:
+        `result.check.why literal` gives the rules that prove a violation. `whyNot` and `proof` work as in Datalog. The question is
+        a literal by reference: `result.check.bad.<invariant> terms`, each term an instance (`{ kind; name; }` from outside the fleet)
+        or a scope record:
       ''
       (docs.value (
-        (variant "variants/mistakes.nix").check.why [
-          "bad"
-          "unique-addr"
-          "fleet:main/host:db"
-          "fleet:main/host:spare"
-        ]
+        let
+          c = (variant "variants/mistakes.nix").check;
+          host = name: {
+            kind = "host";
+            inherit name;
+          };
+        in
+        c.why (
+          c.bad.unique-addr [
+            (host "db")
+            (host "spare")
+          ]
+        )
       ))
       (docs.caution "Incomplete is not a pass" ''
         A `bad` atom on a cycle through `not` is undefined. It goes to `incomplete`, and `ok` is false.
@@ -112,7 +121,8 @@
         `result.check.seal` binds the verdict and its certificate to hashes of the engine, the rules and the facts.
         Anyone can check it by evaluating the fleet again: `result.check.verify seal` gives `{ ok = true; }`, or
         `{ ok = false; why; }` with `why` one of `engine`, `rules`, `facts`, `certificate` or `verdict`.
-        `result.check.from atom` tells where a fact comes from: the files that declare it, or an edge's origin.
+        `result.check.from literal` tells where a fact comes from: the files that declare it, or an edge's origin. Its literals
+        are `result.check.facts` and `result.check.relations`, the same as `yen.facts` and `yen.relations`.
         Where a fact comes from is never part of the fact.
 
         A field that holds an attrset gives no `val` fact. When a rule reads that field through an even number of

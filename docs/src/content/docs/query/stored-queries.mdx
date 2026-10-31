@@ -4,32 +4,54 @@
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-A stored query names a question about the fleet. `result` is the eval result, the same `result` as outside the fleet: yen passes it when the query is asked with `result.ask`. The other formal args are its parameters:
-required, unless they have a default.
+A stored query names a question about the fleet: `{ params; answer; }`. Each parameter has a type, and it is optional when
+the type has a default (`yen.lib.opt`). `answer` gets the parameters and `result`, the same eval result as outside the fleet.
+A parameter that names a kind, an instance or an aspect is a ref (`yen.kinds.host`, `yen.lib.kind`, `yen.lib.aspect`), never a name.
 
 
 ```nix title="modules/queries.nix"
-# A stored query names a question. `result` is the eval result; the other args are its parameters.
+# A stored query names a question. `params` gives each parameter a type; `answer` gets the parameters and `result`, the
+# eval result. A parameter that names a fleet thing is a ref: a kind, an instance or an aspect, never its name.
 { yen, lib, ... }:
 {
   yen.queries = {
-    aspectsOn =
-      { result, host }:
-      lib.sort (a: b: a < b) (
-        lib.filter (a: result.active.${a}."fleet:main/host:${host}" or false) (lib.attrNames result.active)
-      );
-    hostsWith =
-      {
-        result,
-        aspect,
-        kind ? "host",
-      }:
-      map (s: s.name) (lib.filter (s: s.kind == kind && result.active.${aspect}.${s.id}) result.scopes);
+    aspectsOn = {
+      params.host = yen.kinds.host;
+      answer =
+        { result, host }:
+        let
+          s = lib.findFirst (yen.lib.same host) null result.scopes;
+        in
+        if s == null then
+          [ ]
+        else
+          lib.sort (a: b: a < b) (lib.filter (a: result.active.${a}.${s.id}) (lib.attrNames result.active));
+    };
+    hostsWith = {
+      params = {
+        aspect = yen.lib.aspect;
+        kind = yen.lib.opt yen.lib.kind yen.kinds.host;
+      };
+      answer =
+        {
+          result,
+          aspect,
+          kind,
+        }:
+        map (s: s.name) (
+          lib.filter (yen.lib.holds (
+            yen.lib.all [
+              kind
+              aspect
+            ]
+          )) result.scopes
+        );
+    };
   };
 }
 ```
 
-`result.queries` lists them with their parameters:
+`result.queries` lists them with their parameters and types:
 
 
 ```nix title="result"
@@ -39,6 +61,9 @@ required, unless they have a default.
     required = [
       "host"
     ];
+    types = {
+      host = "a host ref";
+    };
   };
   hostsWith = {
     optional = [
@@ -47,15 +72,20 @@ required, unless they have a default.
     required = [
       "aspect"
     ];
+    types = {
+      aspect = "an aspect";
+      kind = "a kind";
+    };
   };
 }
 ```
 
-`result.ask name args` answers:
+`result.ask name args` checks each parameter, then answers. From JSON (the CLI, an agent), a ref is its identity:
+`{ kind; name; }` an instance, `{ kind; }` a kind, `{ aspect; }` an aspect.
 
 
 <Tabs>
-<TabItem label="ask &quot;aspectsOn&quot; { host = &quot;web&quot;; }">
+<TabItem label="ask &quot;aspectsOn&quot; { host = { kind = &quot;host&quot;; name = &quot;web&quot;; }; }">
 
 ```nix title="result"
 [
@@ -65,7 +95,7 @@ required, unless they have a default.
 ```
 
 </TabItem>
-<TabItem label="ask &quot;hostsWith&quot; { aspect = &quot;git&quot;; kind = &quot;user&quot;; }">
+<TabItem label="ask &quot;hostsWith&quot; { aspect.aspect = &quot;git&quot;; kind.kind = &quot;user&quot;; }">
 
 ```nix title="result"
 [
@@ -76,7 +106,8 @@ required, unless they have a default.
 </TabItem>
 </Tabs>
 
-A wrong call is an error record, never a throw: a missing parameter, an unknown one, or an unknown query with `near`.
+A wrong call is an error record, never a throw: a missing parameter, an unknown one, a name where a ref belongs, or an
+unknown query with `near`.
 
 
 <Tabs>
@@ -93,6 +124,21 @@ A wrong call is an error record, never a throw: a missing parameter, an unknown 
   want = [
     "host"
   ];
+}
+```
+
+</TabItem>
+<TabItem label="a name, not a ref">
+
+```nix title="result"
+{
+  class = "fixable";
+  code = "ref";
+  error = "query aspectsOn: host wants a host ref";
+  fix = "give host a host ref: yen.host.<name>, or { kind; name; } from JSON";
+  from = "ask";
+  path = [ ];
+  want = "a host ref";
 }
 ```
 
@@ -116,7 +162,7 @@ A wrong call is an error record, never a throw: a missing parameter, an unknown 
 </Tabs>
 
 ```sh frame="terminal"
-nix eval --impure --json --expr '(import ./query.nix).ask "aspectsOn" { host = "web"; }' 
+nix eval --impure --json --expr '(import ./query.nix).ask "aspectsOn" { host = { kind = "host"; name = "web"; }; }' 
 ```
 
 :::tip[Queries that synthesize]

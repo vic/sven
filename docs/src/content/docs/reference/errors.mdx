@@ -16,7 +16,7 @@ The codes below are read from the engine source when the docs are written.
 | `at` | `at` holds a value that is not a predicate |
 | `bad-atom` | a rule literal is not a reference from `yen.facts` or `yen.relations`, or a term is not a variable, a string, an int or a bool |
 | `bare-function` | an element is a function without named args (`x: …`): wrap it as `{ ... }:` |
-| `check` | a field value fails its type |
+| `check` | a field value or a stored query parameter fails its type |
 | `check-not-bool` | a field type's check gives no bool (a curried check, such as a gen-types one, needs its other argument) |
 | `cycle` | an instance appears twice on its own scope path: `spawns` loops |
 | `edb-head` | a rule derives a fact yen extracts (`scope`, `instance`, `parent`, `kind`, `has`, `edge`, `error`, `ref`, `val`, or a comparison) |
@@ -29,21 +29,25 @@ The codes below are read from the engine source when the docs are written.
 | `missing` | a required field has no value |
 | `missing-param` | a stored query is asked without a required parameter |
 | `module` | a module asks for an arg no module gives or declares, or its `imports` or key names read an arg |
+| `not-a-literal` | a check question (`why`, `whyNot`, `proof`, `from`) is a hand-written list, not a literal by reference |
 | `of` | a sink element, or a module's value for a `yen.sinks` sink, fails the sink's `of` type |
 | `one` | `one`: 0 or 2+ elements |
 | `order` | an `order` answer is not a number |
 | `outside-grant` | a staged change can reach a scope outside its grant |
 | `program` | a change program op is not valid |
-| `ref` | a field wants an instance ref and got something else |
+| `query-untyped` | a stored query is not `{ params; answer; }`: `ask` cannot check its parameters |
+| `ref` | a field or a stored query parameter wants a ref (an instance, a kind, an aspect) and got something else |
 | `rejected` | a staged change was rejected before (its sha is in `rejected`) |
 | `relation-check` | a rule derives a tuple that fails the `check` of its relation in `yen.relations` |
 | `reserved` | a sink is named `scope` or `sinks`: those names are fixed args of every element |
+| `scope-ambiguous` | a check question names an instance with no scope or with two or more: pass one scope record |
 | `spawns` | a `spawns` function gives no attrset, or an instance in it is no attrset |
 | `tree-request` | a cycle asks the tree something it does not answer (want nearest, parent, children, scopesOf or holds) |
 | `two-answers` | one declaration leaf has two different values |
 | `unencodable` | a field holds a float, a function or a derivation: no fact can state it |
 | `unknown-aspect` | a query names an aspect that does not exist |
 | `unknown-field` | an instance sets a field its kind does not declare |
+| `unknown-instance` | a ref from JSON names an instance that does not exist |
 | `unknown-key` | `yen`, a kind or a `yen.sinks` declaration has a key yen does not read (yen modules are not NixOS modules) |
 | `unknown-param` | a stored query is asked with a parameter it does not take |
 | `unknown-query` | `result.ask` names a stored query that does not exist |

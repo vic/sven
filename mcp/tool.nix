@@ -27,14 +27,28 @@ let
     )) args;
   tools = {
     schema = r.agent.schema;
-    check = (removeAttrs r.check [ "why" ]) // {
-      why = builtins.listToAttrs (
-        map (v: {
-          name = builtins.toJSON v; # a violation is a tuple: its JSON names it
-          value = r.check.why v;
-        }) r.check.violations
-      );
-    };
+    check =
+      (removeAttrs r.check [
+        "why"
+        "bad"
+        "facts"
+        "relations"
+      ])
+      // {
+        why = builtins.listToAttrs (
+          map (v: {
+            name = builtins.toJSON v; # a violation is a tuple: its JSON names it
+            # asked back by reference: each scope id of the answer as its scope record
+            value = r.check.why (
+              r.check.bad.${builtins.elemAt v 1} (
+                map (t: builtins.head (builtins.filter (s: s.id == t) r.scopes ++ [ t ])) (
+                  builtins.tail (builtins.tail v)
+                )
+              )
+            );
+          }) r.check.violations
+        );
+      };
     context = r.context args.id (opt [
       "maxEdges"
       "maxAspects"
@@ -65,11 +79,23 @@ let
         else
           [ ];
     };
-    why_not = {
-      holds = builtins.elem args.atom r.check.violations;
-      whyNot = r.check.whyNot args.atom;
-      why = r.check.why args.atom;
-    };
+    # a violation by reference: { invariant; scope = { kind; name; }; }
+    why_not =
+      let
+        l = r.check.bad.${args.invariant} args.scope;
+      in
+      if !(r.check.bad ? ${args.invariant}) then
+        {
+          error = "no invariant ${args.invariant}";
+          code = "unknown-invariant";
+          known = builtins.attrNames r.check.bad;
+        }
+      else
+        {
+          holds = r.check.whyNot l == [ ];
+          whyNot = r.check.whyNot l;
+          why = r.check.why l;
+        };
     program = yen.lib.program.dryRun {
       inherit base;
       result = r;

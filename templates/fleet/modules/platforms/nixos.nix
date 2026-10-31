@@ -18,6 +18,15 @@ in
       man.enable = false;
     };
   };
+  # the hosts on shared pkgs, at the fleet: a host reads its group through this sink, so the read is an edge
+  yen.kinds.fleet.sinks.shared-pkgs.reduce = yen.lib.reduce.entries;
+  yen.aspects.shared-pkgs = {
+    at = yen.lib.all [
+      yen.kinds.host
+      (s: s ? addr && s.sharedPkgs)
+    ];
+    shared-pkgs = { host, ... }: host.name;
+  };
   yen.kinds.host = {
     fields = yen.kinds.machine.fields;
     spawns = {
@@ -35,6 +44,7 @@ in
             nixos,
             deploy,
             out,
+            shared-pkgs,
             ...
           }:
           let
@@ -59,10 +69,8 @@ in
               );
             build = build' false;
             group = lib.sort (a: b: a < b) (
-              lib.attrNames (
-                lib.filterAttrs (
-                  _: h: h ? addr && h.sharedPkgs && same h.channel host.channel && same h.system host.system
-                ) yen.host
+              map (e: e.from.name) (
+                lib.filter (e: same e.from.channel host.channel && same e.from.system host.system) shared-pkgs
               )
             );
             leader = lib.head group;

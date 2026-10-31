@@ -4,15 +4,15 @@
 
 import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, TabItem, Tabs } from '@astrojs/starlight/components';
 
-Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary. The reference fleet builds it as `.#yen-mcp`.
-`mcp/` is also its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
+Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary.
+`mcp/` is its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
 directory, and `packages.<system>.yen-mcp` is the package. It answers agents over stdio
 (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
 
 
 ```sh frame="terminal"
 cd templates/fleet
-nix run .#yen-mcp
+nix run github:vic/yen?dir=mcp
 ```
 
 ## Tools
@@ -30,11 +30,11 @@ This table is read from the tool list the server embeds (`mcp/src/tools.json`) (
 | `yen_declared_in` | The files that answer a declaration path. |
 | `yen_export` | The fleet as sorted N-Triples with sha256 and count. The agent decides whether to store it. |
 | `yen_stage` | Evaluate a change (a module as JSON) without applying it: ok, errors, violations, diff, refused, sha. |
-| `yen_queries` | The stored-query catalog: each query with its required and optional parameters. |
-| `yen_ask` | Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result. |
+| `yen_queries` | The stored-query catalog: each query with its required and optional parameters and their types. |
+| `yen_ask` | Run a stored query by name with an args object. A ref is its identity: {kind,name} an instance, {kind} a kind, {aspect} an aspect. Errors (missing-param, ref, unknown query) come back as the result. |
 | `yen_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
 | `yen_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
-| `yen_why_not` | Whether an invariant atom (a tuple, ["bad", …]) is violated, and the why/whyNot rules for it. |
+| `yen_why_not` | Whether an invariant is violated at a scope, and the why/whyNot rules for it. By reference: invariant is its name, scope an instance {kind,name} with one scope. |
 | `yen_program` | Dry-run a change program (list of op objects): valid, errors, ok, violations, diff. |
 
 Each answer is `{ complete; result }`, or `{ complete = false; error }`. A timeout is never an empty answer.
@@ -59,7 +59,7 @@ Any MCP client that starts a stdio server can use it. For example, in an `mcpSer
 | `YEN_TIMEOUT` | seconds per nix call (default 120) |
 
 :::tip[Your own fleet]
-Copy `mcp/` and [agent/mcp.nix](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/mcp.nix) into your fleet. The server needs only
+Nothing to copy into your fleet. Run the mcp flake from the fleet's directory, as above. The server needs only
 the queries of the other agent pages: `schema`, `check`, `context`, `explain`, stored queries, `stage` and `program`.
 `mcp/test.sh` drives every tool.
 :::

@@ -27,7 +27,6 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 | Module | What it shows |
 |---|---|
 | [`agent/invariants.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/invariants.nix) | Fleet invariants: Datalog rules over the fleet's facts, by reference. A rule is a function of its variables; its |
-| [`agent/mcp.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/mcp.nix) | The MCP server as a flake app: `nix run .#yen-mcp` from the fleet directory serves the fleet in $PWD on stdio. |
 | [`agent/queries.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/queries.nix) | Stored queries, labels and valid time for agents. |
 | [`agent/rdf.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/rdf.nix) | The fleet as a knowledge pack: sorted N-Triples and their sha256 (yen.lib.rdf). The same fleet gives the same hash |
 | [`agent/synthesis.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/agent/synthesis.nix) | Synthesis an agent can call (stored queries, so `ask` and the MCP server reach them). Each answer is checked |
@@ -86,7 +85,7 @@ nix eval --impure --file tests.nix failed   # [ ]: a check for each pattern
 | [`hoag/claims.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/claims.nix) | den-hoag productions: claim / provide with the reverse read (who claims me). Apps claim databases; the database host |
 | [`hoag/class-share.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/class-share.nix) | den-hoag class-share (A18) as a capability: the config every member of a class shares is computed ONCE (the core), |
 | [`hoag/collectors.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/collectors.nix) | den-hoag collectors: an aggregate is an entity. A hive has its own content (its `meta` sink) and selects its members |
-| [`hoag/relations.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/relations.nix) | den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it. |
+| [`hoag/relations.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/relations.nix) | den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it (`G.of`, by ref). |
 | [`hoag/settings.nix`](https://github.com/vic/yen/blob/main/templates/fleet/modules/hoag/settings.nix) | den-hoag A8/A14/A10: aspect settings in layers with authority, and an aspect that projects settings onto other aspects. |
 
 ## hosts

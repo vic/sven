@@ -2,6 +2,7 @@
 { yen, ... }:
 let
   inherit (yen.lib.batteries) docs;
+  whole.graph = true; # a tree request: the whole fleet
 in
 {
   yen.kinds.fleet.sinks.links = {
@@ -20,14 +21,26 @@ in
       needle = "db = maybe";
       text = "db";
     };
-    out.kinds = docs.kinds yen.kinds yen.lib.graph;
-    # any table: the hosts and their environment
-    out.hosts = docs.table [ "Host" "Environment" ] (
-      map (h: [
-        h
-        yen.host.${h}.environment.name
-      ]) (builtins.attrNames yen.host)
-    );
+    cycle =
+      { tree, ... }:
+      let
+        yen = builtins.head (tree.select whole); # the whole fleet, with its data
+      in
+      {
+        tree = [ whole ];
+        out = [
+          {
+            kinds = docs.kinds yen.kinds yen.lib.graph;
+            # any table: the hosts and their environment
+            hosts = docs.table [ "Host" "Environment" ] (
+              map (h: [
+                h
+                yen.host.${h}.environment.name
+              ]) (builtins.attrNames yen.host)
+            );
+          }
+        ];
+      };
     # flake templates from the directories under templates/ that have a flake.nix
     out.templates = builtins.mapAttrs (_: t: t.description) (
       docs.templates {

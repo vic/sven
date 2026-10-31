@@ -38,19 +38,23 @@ let
       ]
     );
   # guest memory in GiB: each guest in its range, the running sums s1 … sk, and sk + the host's reserve within its ram
+  # tree requests: every guest and host, with their data
+  guestsReq.instances = yen.kinds.guest;
+  hostsReq.instances = yen.kinds.host;
+  byName = xs: lib.listToAttrs (map (x: lib.nameValuePair x.name x) xs);
   guestsOf =
-    h: lib.attrNames (lib.filterAttrs (_: g: g.on.name == h.name && g.ramRange != [ ]) yen.guest);
+    guests: h: lib.attrNames (lib.filterAttrs (_: g: g.on.name == h.name && g.ramRange != [ ]) guests);
   memRel =
-    h: q:
+    guests: h: q:
     let
-      gs = guestsOf h;
+      gs = guestsOf guests h;
       n = lib.length gs;
       sums = lib.genList (i: "__s${toString i}") n;
       v = vs: i: vs.${lib.elemAt sums i};
     in
     freshNamed (gs ++ sums) (
       vs:
-      map (g: infd [ vs.${g} ] (lo yen.guest.${g}.ramRange) (hi yen.guest.${g}.ramRange)) gs
+      map (g: infd [ vs.${g} ] (lo guests.${g}.ramRange) (hi guests.${g}.ramRange)) gs
       ++ map (s: infd [ vs.${s} ] 0 h.ram) sums
       ++ lib.genList (i: plusfd (if i == 0 then 0 else v vs (i - 1)) vs.${lib.elemAt gs i} (v vs i)) n
       ++ lib.optional (n > 0) (lefd (v vs (n - 1)) (h.ram - h.ramReserve))
@@ -62,18 +66,22 @@ let
   # the allocation that gives the guests the most memory (the first, in label order, among the largest)
   # the allocation that gives the guests the most memory, by krn maximize within a fuel budget: a search cut by fuel is an
   # error record, never a silent "best"
-  memSearch = h: K.maximize h.ramFuel (m: lib.foldl' (a: x: a + x) 0 (lib.attrValues m)) (memRel h);
+  memSearch =
+    guests: h:
+    K.maximize h.ramFuel (m: lib.foldl' (a: x: a + x) 0 (lib.attrValues m)) (memRel guests h);
   bestMem =
-    h:
+    guests: h:
     let
-      s = memSearch h;
+      s = memSearch guests h;
     in
     if s.complete then s.best else null;
-  hostRows = lib.mapAttrsToList (n: h: {
-    name = n;
-    env = h.environment.name;
-    db = h.dbRole;
-  }) (lib.filterAttrs (_: h: h ? addr) yen.host);
+  hostRows =
+    hosts:
+    map (h: {
+      inherit (h) name;
+      env = h.environment.name;
+      db = h.dbRole;
+    }) (lib.filter (h: h ? addr) hosts);
 in
 {
   yen.kinds.machine.fields = {
@@ -112,24 +120,29 @@ in
   yen.aspects.memory-synthesis = {
     at = yen.lib.all [
       yen.kinds.host
-      (s: guestsOf s != [ ])
+      (s: guestsOf yen.guest s != [ ])
     ];
-    nixos =
-      { host, ... }:
+    cycle =
+      { tree, scope, ... }:
       let
-        m = bestMem host;
+        host = scope;
+        guests = byName (lib.head (tree.select guestsReq));
+        s = memSearch guests host;
+        m = bestMem guests host;
       in
-      lib.optionalAttrs (m != null) { environment.etc."guests/memory".text = builtins.toJSON m; };
-    errors =
-      { host, ... }:
-      let
-        s = memSearch host;
-      in
-      lib.optional (s.complete && s.best == null)
-        "memory: the guests of ${host.name} do not fit in ${toString host.ram} GiB with ${toString host.ramReserve} reserved"
-      ++ lib.optional (
-        !s.complete
-      ) "memory: the search for ${host.name} ran out of fuel after ${toString s.count} answers";
+      {
+        tree = [ guestsReq ];
+        nixos = lib.optionalAttrs (m != null) { environment.etc."guests/memory".text = builtins.toJSON m; };
+        errors = [
+          (
+            lib.optional (s.complete && s.best == null)
+              "memory: the guests of ${host.name} do not fit in ${toString host.ram} GiB with ${toString host.ramReserve} reserved"
+            ++ lib.optional (
+              !s.complete
+            ) "memory: the search for ${host.name} ran out of fuel after ${toString s.count} answers"
+          )
+        ];
+      };
   };
 
   yen.aspects.port-synthesis = {
@@ -150,41 +163,48 @@ in
   };
   yen.aspects.db-placement = {
     at = yen.fleet.main;
-    out =
-      { ... }:
+    cycle =
+      { tree, ... }:
+      let
+        hosts = lib.head (tree.select hostsReq);
+        rows = hostRows hosts;
+      in
       {
-        dbPlacement = lib.genAttrs (map (r: r.name) hostRows) (
-          h:
-          runAll (
-            q:
-            fresh (
-              {
-                env,
-                d,
-                own,
-              }:
-              [
-                (facto hostRows {
-                  name = h;
-                  inherit env;
-                  db = own;
-                })
-                (facto hostRows {
-                  name = d;
-                  inherit env;
-                  db = true;
-                })
-                (eq q d)
-              ]
+        tree = [ hostsReq ];
+        out = {
+          dbPlacement = lib.genAttrs (map (r: r.name) rows) (
+            h:
+            runAll (
+              q:
+              fresh (
+                {
+                  env,
+                  d,
+                  own,
+                }:
+                [
+                  (facto rows {
+                    name = h;
+                    inherit env;
+                    db = own;
+                  })
+                  (facto rows {
+                    name = d;
+                    inherit env;
+                    db = true;
+                  })
+                  (eq q d)
+                ]
+              )
             )
-          )
-        );
-        # backward: which apps can take port 8081 in some allocation of lb
-        takes8081 = lib.unique (
-          lib.concatMap (m: lib.attrNames (lib.filterAttrs (_: p: p == 8081) m)) (
-            runAll (portsRel yen.host.lb)
-          )
-        );
+          );
+          # backward: which apps can take port 8081 in some allocation of lb
+          takes8081 = lib.unique (
+            lib.concatMap (m: lib.attrNames (lib.filterAttrs (_: p: p == 8081) m)) (
+              runAll (portsRel (lib.findFirst (yen.lib.same yen.host.lb) null hosts))
+            )
+          );
+        };
       };
   };
 }

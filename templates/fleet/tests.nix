@@ -8,6 +8,8 @@ let
   inherit (inputs.nixpkgs) lib;
   yen = inputs.yen.lib;
   b = builtins;
+  # a ref as a JSON caller writes it (an agent, the MCP server): its identity
+  ref = kind: name: { inherit kind name; };
   # a fastest test: { expr; expected; }
   eq = expr: expected: { inherit expr expected; };
   yes = x: eq x true;
@@ -1814,20 +1816,19 @@ let
       t1 = eq (r.queries.hostsIn) ({
         required = [ "env" ];
         optional = [ ];
+        types.env = "a environment ref";
       });
-      t2 = eq (r.ask "hostsIn" { env = "prod"; }) ([
+      t2 = eq (r.ask "hostsIn" { env = ref "environment" "prod"; }) ([
         "lb"
         "lb-minimal"
         "web-1"
         "web-2"
       ]);
-      t3 = yes (lib.elem "attic" (r.ask "aspectsOn" { host = "lb"; }));
+      t3 = yes (lib.elem "attic" (r.ask "aspectsOn" { host = ref "host" "lb"; }));
       t4 = eq ((r.ask "hostsIn" { }).code) ("missing-param");
       t5 = eq (r.ask "errorsBy" { }) ([ ]);
-    };
-    agent-mcp-app = {
-      t1 = eq (out.apps.x86_64-linux.yen-mcp.type) ("app");
-      t2 = yes (lib.hasSuffix "/bin/yen-mcp" out.apps.x86_64-linux.yen-mcp.program);
+      # negative control: a name string is no ref
+      t6 = eq ((r.ask "hostsIn" { env = "prod"; }).code) ("ref");
     };
     agent-labels = {
       t1 = eq (r.labels.rdf-pack.trust) (1);
@@ -1839,7 +1840,6 @@ let
             "rdf-pack"
             "serving-explain"
             "retire-notice"
-            "mcp-app"
           ]
         ) (r.floor 3)
       );
@@ -1927,19 +1927,12 @@ let
             "fleet:main/environment:lab/host:app-4"
           ]
         ]);
-        t3 =
-          eq
-            (r.check.whyNot [
-              "bad"
-              "db-same-env"
-              "fleet:main/environment:lab/host:app-4"
-            ])
-            ([
-              {
-                rule = null;
-                reason = "no rule has this head";
-              }
-            ]); # not even a candidate today
+        t3 = eq (r.check.whyNot (r.check.bad.db-same-env (ref "host" "app-4"))) ([
+          {
+            rule = null;
+            reason = "no rule has this head";
+          }
+        ]); # not even a candidate today
       };
     safety-addr-clash =
       let
@@ -2000,7 +1993,7 @@ let
       };
     synth-free-port =
       let
-        a = r.ask "freePort" { host = "lb"; };
+        a = r.ask "freePort" { host = ref "host" "lb"; };
       in
       {
         t1 = eq (a.port) (8083);
@@ -2009,17 +2002,17 @@ let
           8081
           8082
         ]);
-        t3 = eq ((r.ask "freePort" { host = "web-1"; }).port) (8080);
+        t3 = eq ((r.ask "freePort" { host = ref "host" "web-1"; }).port) (8080);
       };
     synth-place-db = {
-      t1 = eq (r.ask "placeDb" { host = "web-1"; }) ([ "lb" ]);
-      t2 = eq (r.ask "placeDb" { host = "stage"; }) ([ "stage" ]);
+      t1 = eq (r.ask "placeDb" { host = ref "host" "web-1"; }) ([ "lb" ]);
+      t2 = eq (r.ask "placeDb" { host = ref "host" "stage"; }) ([ "stage" ]);
     };
     synth-safe-hosts =
       eq
         (r.ask "safeHostsFor" {
-          aspect = "attic";
-          env = "staging";
+          aspect.aspect = "attic";
+          env = ref "environment" "staging";
         })
         ({
           safe = [ "stage" ];
@@ -2033,7 +2026,7 @@ let
         });
     kits-install-order =
       let
-        w = r.ask "installOrder" { assembly = "backup"; };
+        w = r.ask "installOrder" { assembly = ref "assembly" "backup"; };
       in
       {
         t1 = eq (lib.head w) ([ "lb" ]);

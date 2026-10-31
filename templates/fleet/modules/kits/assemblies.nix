@@ -20,9 +20,12 @@ let
         inherit name;
       }
     ) (a.kit.adds a);
-  own = lib.attrValues yen.assembly;
-  assemblies = own ++ lib.concatMap added own;
-  machines = lib.attrValues yen.host ++ lib.attrValues yen.mac;
+  withAdded = own: own ++ lib.concatMap added own;
+  assemblies = withAdded (lib.attrValues yen.assembly); # spawns and helpers read data
+  # tree requests: every assembly, host and mac, with their data
+  own.instances = yen.kinds.assembly;
+  hosts.instances = yen.kinds.host;
+  macs.instances = yen.kinds.mac;
   membersOf = kits.members { inherit assemblies holds; };
 in
 {
@@ -48,7 +51,25 @@ in
   # the contract: a kit ref, known roles, `at` predicates, machine and assembly counts; typed settings per member
   yen.aspects.kits-contract = {
     at = yen.kinds.fleet;
-    errors = kits.contract { inherit assemblies machines holds; };
+    cycle =
+      { tree, ... }:
+      let
+        get = q: lib.head (tree.select q);
+      in
+      {
+        tree = [
+          own
+          hosts
+          macs
+        ];
+        errors = [
+          (kits.contract {
+            assemblies = withAdded (get own);
+            machines = get hosts ++ get macs;
+            inherit holds;
+          })
+        ];
+      };
   };
   yen.aspects.kits-settings-typed = {
     at = yen.kinds.member;

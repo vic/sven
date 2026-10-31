@@ -10,10 +10,11 @@
       ''
         Some questions are rules: "a host serves when it runs a web server and is not drained; a host is drained when a host
         it depends on is down." `yen.lib.datalog` solves ground rules with negation. Each rule is `{ head; pos; neg; }`.
-        You ground the rules with Nix: one set per host.
+        You ground the rules with Nix: one set per host. Each atom is a relation of `yen.relations` called by reference,
+        and each term an instance: no relation or host is written as a string. In an answer, an instance is `{ kind; name; }`.
       ''
       (docs.file "modules/fleet.nix")
-      (docs.fileWith "{7-12}" "modules/policy.nix")
+      (docs.fileWith "{17-29}" "modules/policy.nix")
       (docs.value result.flake.serving)
       (docs.table
         [ "Function" "Answer" ]
@@ -68,19 +69,27 @@
     }:
     let
       s = result.flake.serving;
+      # an atom as the answer states it: the relation, then the instance identity
+      atom = rel: name: [
+        rel
+        {
+          kind = "host";
+          inherit name;
+        }
+      ];
     in
     {
       serves = eq (s.serves) ([ "web-1" ]);
       choice = {
         t1 = eq (s.choices) ([
-          [ "primary:db-1" ]
-          [ "primary:db-2" ]
+          [ "db-1" ]
+          [ "db-2" ]
         ]);
         t2 = eq (s.undefined) ([
-          "primary:db-1"
-          "primary:db-2"
+          (atom "primary" "db-1")
+          (atom "primary" "db-2")
         ]);
       };
-      blocking = eq ((builtins.head s.whyNot).blocking) ([ "drained:web-2" ]);
+      blocking = eq ((builtins.head s.whyNot).blocking) ([ (atom "drained" "web-2") ]);
     };
 }

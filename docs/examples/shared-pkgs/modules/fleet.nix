@@ -6,12 +6,22 @@
   ...
 }:
 let
+  inherit (yen.lib) same;
   np = inputs.nixpkgs;
 in
 {
   yen.kinds.fleet = {
     spawns.host = _: yen.host;
     sinks.out.reduce = yen.lib.reduce.merge;
+  };
+  # the sharing hosts, at the fleet: a host reads its group through this sink, so the read is an edge
+  yen.kinds.fleet.sinks.shared-pkgs.reduce = yen.lib.reduce.entries;
+  yen.aspects.shared-pkgs = {
+    at = yen.lib.all [
+      yen.kinds.host
+      (s: s.sharedPkgs)
+    ];
+    shared-pkgs = { host, ... }: host.name;
   };
   yen.kinds.host = {
     fields = {
@@ -23,11 +33,12 @@ in
         host,
         nixos,
         out,
+        shared-pkgs,
         ...
       }:
       let
         group = lib.sort (a: b: a < b) (
-          lib.attrNames (lib.filterAttrs (_: h: h.sharedPkgs && h.system == host.system) yen.host)
+          map (e: e.from.name) (lib.filter (e: same e.from.system host.system) shared-pkgs)
         ); # one group per system
         leader = lib.head group;
         follower = host.sharedPkgs && leader != host.name;

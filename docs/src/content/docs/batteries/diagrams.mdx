@@ -85,37 +85,50 @@ in
 # Diagrams of the fleet: every view is data ({ nodes; edges; }), flowchart renders it.
 { yen, ... }:
 let
+  whole.graph = true; # a tree request: the whole fleet
   inherit (yen.lib.batteries) mermaid;
   draw = direction: view: mermaid.flowchart { inherit direction; } view;
 in
 {
   yen.aspects.diagrams = {
     at = yen.fleet.main;
-    out.diagrams = {
-      # each environment as a subgraph around its hosts
-      scopes = draw "TD" (
-        mermaid.scopes {
-          keep = s: !(yen.lib.holds yen.kinds.fleet s);
-          label = s: s.name;
-          group = s: if yen.lib.holds yen.kinds.host s then dirOf s.id else null; # hosts inside their environment (the parent id)
-        } yen.lib.graph
-      );
-      kinds = draw "LR" (mermaid.kinds yen.kinds);
-      gates = draw "LR" (mermaid.gates yen.aspects);
-      routes = draw "BT" (mermaid.routes yen.lib.graph);
-      # kind level: kind -> sink -> kind, counted; sinks as rounded nodes, outputs as cylinders
-      routing = mermaid.flowchart {
-        shapes = with mermaid.shapes; {
-          sink = round;
-        };
-      } (mermaid.routing yen.lib.graph);
-      sinks = mermaid.flowchart {
-        shapes = with mermaid.shapes; {
-          sink = round;
-          output = cylinder;
-        };
-      } (mermaid.sinks yen.lib);
-    };
+    cycle =
+      { tree, ... }:
+      let
+        yen = builtins.head (tree.select whole); # the whole fleet, with its data
+      in
+      {
+        tree = [ whole ];
+        out = [
+          {
+            diagrams = {
+              # each environment as a subgraph around its hosts
+              scopes = draw "TD" (
+                mermaid.scopes {
+                  keep = s: !(yen.lib.holds yen.kinds.fleet s);
+                  label = s: s.name;
+                  group = s: if yen.lib.holds yen.kinds.host s then dirOf s.id else null; # hosts inside their environment (the parent id)
+                } yen.lib.graph
+              );
+              kinds = draw "LR" (mermaid.kinds yen.kinds);
+              gates = draw "LR" (mermaid.gates yen.aspects);
+              routes = draw "BT" (mermaid.routes yen.lib.graph);
+              # kind level: kind -> sink -> kind, counted; sinks as rounded nodes, outputs as cylinders
+              routing = mermaid.flowchart {
+                shapes = with mermaid.shapes; {
+                  sink = round;
+                };
+              } (mermaid.routing yen.lib.graph);
+              sinks = mermaid.flowchart {
+                shapes = with mermaid.shapes; {
+                  sink = round;
+                  output = cylinder;
+                };
+              } (mermaid.sinks yen.lib);
+            };
+          }
+        ];
+      };
   };
 }
 ```
@@ -199,13 +212,13 @@ flowchart LR
   n011dfa1a2c("nixos")
   ndc260b07ca("out")
   n0d07ea97e1 -->|"1"| ncf7fef0f82
-  n0d07ea97e1 -->|"2"| ndc260b07ca
+  n0d07ea97e1 -->|"3"| ndc260b07ca
   n91a43a88c2 -->|"3"| n890cfd7ebf
   n91a43a88c2 -->|"2"| n011dfa1a2c
   n890cfd7ebf -->|"3"| nba34edff52
   ncf7fef0f82 -->|"1"| n0d07ea97e1
   n011dfa1a2c -->|"2"| n91a43a88c2
-  ndc260b07ca -->|"2"| n0d07ea97e1
+  ndc260b07ca -->|"3"| n0d07ea97e1
 ```
 
 ```mermaid
@@ -227,6 +240,7 @@ flowchart LR
 { yen, ... }:
 let
   inherit (yen.lib.batteries) docs;
+  whole.graph = true; # a tree request: the whole fleet
 in
 {
   yen.kinds.fleet.sinks.links = {
@@ -245,14 +259,26 @@ in
       needle = "db = maybe";
       text = "db";
     };
-    out.kinds = docs.kinds yen.kinds yen.lib.graph;
-    # any table: the hosts and their environment
-    out.hosts = docs.table [ "Host" "Environment" ] (
-      map (h: [
-        h
-        yen.host.${h}.environment.name
-      ]) (builtins.attrNames yen.host)
-    );
+    cycle =
+      { tree, ... }:
+      let
+        yen = builtins.head (tree.select whole); # the whole fleet, with its data
+      in
+      {
+        tree = [ whole ];
+        out = [
+          {
+            kinds = docs.kinds yen.kinds yen.lib.graph;
+            # any table: the hosts and their environment
+            hosts = docs.table [ "Host" "Environment" ] (
+              map (h: [
+                h
+                yen.host.${h}.environment.name
+              ]) (builtins.attrNames yen.host)
+            );
+          }
+        ];
+      };
     # flake templates from the directories under templates/ that have a flake.nix
     out.templates = builtins.mapAttrs (_: t: t.description) (
       docs.templates {
