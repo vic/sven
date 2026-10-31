@@ -10,6 +10,7 @@
             port
             jump
             vpn
+            labels
             tags
             ;
           channel = host.settings.kernel.channel;

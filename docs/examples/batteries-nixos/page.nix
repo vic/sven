@@ -26,7 +26,7 @@
         | `firewall { from; }` | the NixOS key of a sink of ports (`22` or `{ tcp; udp; }`) | quirks `firewall` |
         | `hosts { from; }` | a NixOS key; /etc/hosts and known_hosts of the other machines (`mesh`) | sini hostsfile |
         | `remote-builders { from; systemOf; }` | a NixOS key; `nix.buildMachines` of the other machines (`mesh`) | sini remote-build-client |
-        | `persist { from; root; }` | the NixOS key of a sink of paths (impermanence) | quirks `persist` |
+        | `persist { from; root; hideMounts; }` | the NixOS key of a sink of paths (impermanence) | quirks `persist` |
         | `facter { report; module; }` | a NixOS key, at hosts that have a report | `den.aspects.facter` |
       ''
       (docs.file "modules/fleet.nix")
@@ -121,6 +121,7 @@
             map (d: d.directory) nas.environment.persistence."/persist".directories
           ))
         );
+        t5 = yes c.environment.persistence."/persist".hideMounts;
       };
       facter = {
         t1 = yes (nas.facter.reportPath != null);

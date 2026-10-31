@@ -287,6 +287,16 @@ let
       check = v: isList v && all (checkOf t) v;
       __of = t; # a list of refs is still a ref field: one fact per element (refKind)
     };
+    #: lib.enum :: [ value ] -> type -- one of the listed values
+    enum = xs: {
+      check = v: elem v xs;
+      description = "one of ${concatStringsSep ", " (map b.toJSON xs)}";
+    };
+    #: lib.attrsOf :: type -> type -- an attrset whose values pass the type
+    attrsOf = t: {
+      check = v: isAttrs v && all (checkOf t) (b.attrValues v);
+      description = "an attrset of values its check accepts";
+    };
     # a secret: checked like t, but no answer (facts, data, scopes, errors, exports) ever states its value, only its
     # sha256; an aspect still reads it
     #: lib.secret :: type -> type -- the type, but every answer states the value only by its sha256

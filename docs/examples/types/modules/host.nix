@@ -15,9 +15,10 @@ in
     jump = maybe lib.types.str; # null by default
     vpn = derive lib.types.str (self: "vpn-${self.name}"); # a default computed from the instance
     tags = opt (is (v: lib.isList v && lib.all lib.isString v)) [ ]; # your own check
-    settings.kernel.channel = opt (lib.types.enum [
+    labels = opt (yen.lib.attrsOf lib.types.str) { }; # an attrset whose values are strings
+    settings.kernel.channel = opt (yen.lib.enum [
       "lts"
       "latest"
-    ]) "lts"; # nested fields
+    ]) "lts"; # one of a list, and a nested field
   };
 }

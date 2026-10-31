@@ -4,7 +4,10 @@ let
   nixos = yen.lib.batteries.nixos;
 in
 {
-  yen.kinds.host.sinks.persist.nixos = nixos.persist { from = yen.kinds.host.sinks.persist; };
+  yen.kinds.host.sinks.persist.nixos = nixos.persist {
+    from = yen.kinds.host.sinks.persist;
+    hideMounts = true;
+  };
   yen.aspects.impermanence = {
     at = yen.kinds.host;
     nixos.imports = [ inputs.impermanence.nixosModules.impermanence ];

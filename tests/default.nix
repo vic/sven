@@ -1218,6 +1218,49 @@ let
       value = [ ];
       errors = [ ];
     };
+    # enum and attrsOf are types: a check, and a description for the error record
+    # enum and attrsOf are types: a check, and a description for the error record
+    type-enum =
+      eq
+        [
+          (
+            (yen.enum [
+              "a"
+              "b"
+            ]).check
+            "a"
+          )
+          (
+            (yen.enum [
+              "a"
+              "b"
+            ]).check
+            "c"
+          )
+          (yen.enum [
+            "a"
+            "b"
+          ]).description
+        ]
+        [
+          true
+          false
+          "one of \"a\", \"b\""
+        ];
+    type-attrsOf =
+      eq
+        [
+          ((yen.attrsOf (yen.is b.isInt)).check { x = 1; })
+          ((yen.attrsOf (yen.is b.isInt)).check { x = "1"; })
+          ((yen.attrsOf (yen.is b.isInt)).check { })
+          ((yen.attrsOf (yen.is b.isInt)).check [ 1 ])
+        ]
+        [
+          true
+          false
+          true
+          false
+        ];
     # reduce errors name their receiver and sink: a strategy cannot know them, the engine sets them
     reduce-error-receiver =
       let
