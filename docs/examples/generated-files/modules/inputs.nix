@@ -8,11 +8,9 @@
       outputs = ''
         inputs:
         inputs.yen.lib.mkFlake {
-          imports = [ (inputs.import-tree ./modules) ];
           inherit inputs;
           inherit (inputs.nixpkgs) lib;
-          yen.sinks = { inputs = { }; lib = { }; };
-        }
+        } (inputs.import-tree ./modules)
       '';
       inputs = {
         yen.url = "github:vic/yen";

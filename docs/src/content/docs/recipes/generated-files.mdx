@@ -100,11 +100,9 @@ Each aspect declares the flake inputs it uses on the `flake-file` sink. The host
       outputs = ''
         inputs:
         inputs.yen.lib.mkFlake {
-          imports = [ (inputs.import-tree ./modules) ];
           inherit inputs;
           inherit (inputs.nixpkgs) lib;
-          yen.sinks = { inputs = { }; lib = { }; };
-        }
+        } (inputs.import-tree ./modules)
       '';
       inputs = {
         yen.url = "github:vic/yen";
@@ -186,14 +184,9 @@ The template's own `flake.nix` is the `flake-file` output. Remove the `web` aspe
   outputs =
     inputs:
     inputs.yen.lib.mkFlake {
-      imports = [ (inputs.import-tree ./modules) ];
       inherit inputs;
       inherit (inputs.nixpkgs) lib;
-      yen.sinks = {
-        inputs = { };
-        lib = { };
-      };
-    };
+    } (inputs.import-tree ./modules);
 
   inputs = {
     files.url = "github:sini/files";

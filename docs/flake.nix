@@ -11,16 +11,11 @@
         inherit (inputs.self.sourceInfo) outPath;
       };
       flake = yen.lib.mkFlake {
-        imports = [ (inputs.import-tree ./modules) ];
         inputs = inputs // {
           inherit yen;
         };
         inherit (inputs.nixpkgs) lib;
-        yen.sinks = {
-          inputs = { };
-          lib = { };
-        };
-      };
+      } (inputs.import-tree ./modules);
     in
     {
       inherit (flake)

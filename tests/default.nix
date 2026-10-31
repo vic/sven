@@ -3418,6 +3418,15 @@ let
       declares = [ ];
       importer = true;
     };
+    # mkFlake sinks module: each key of `sinks` is a module sink, declared for you
+    mkflake-sinks = eq (yen.mkFlake { greeting = "hi"; } (
+      { greeting, ... }:
+      {
+        yen.kinds.world.spawns = { };
+        yen.world.earth = { };
+        yen.flake.hello = greeting;
+      }
+    )) { hello = "hi"; };
     imports-read = {
       addr = eq (hostOf importsRead).addr "kit";
       errors = eq (msgs importsRead) [ ];

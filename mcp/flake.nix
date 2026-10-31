@@ -7,14 +7,9 @@
   outputs =
     inputs:
     inputs.yen.lib.mkFlake {
-      imports = [ ./module.nix ];
       inherit inputs;
       inherit (inputs.nixpkgs) lib;
-      yen.sinks = {
-        inputs = { };
-        lib = { };
-      };
-    };
+    } ./module.nix;
 
   inputs = {
     nixpkgs.url = "https://nixos.org/channels/nixos-25.05/nixexprs.tar.xz";

@@ -45,7 +45,7 @@ that takes a single Yen module.
 ```nix title="flake.nix"
 {
   inputs.yen.url = "github:vic/yen";
-  outputs = inputs: inputs.yen.lib.mkFlake ./modules/hello.nix;
+  outputs = inputs: inputs.yen.lib.mkFlake { } ./modules/hello.nix;
 }
 ```
 
