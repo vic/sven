@@ -1,6 +1,7 @@
 # yen oracles. Run: nix-instantiate --eval --strict vic/tests -A failed   (expect [ ])
 let
   yen = (import ../default.nix).lib;
+  impactOf = (import ../lib/impact.nix).impactOf;
   b = builtins;
   # a fastest test: { expr; expected; }
   eq = expr: expected: { inherit expr expected; };
@@ -113,14 +114,12 @@ let
           at = yen.kinds.host;
           cycle =
             { tree, ... }:
+            let
+              c.nearest = yen.kinds.cluster;
+            in
             {
-              tree = [
-                {
-                  category = "c";
-                  nearest = yen.kinds.cluster;
-                }
-              ];
-              errors = if tree.select "c" == [ ] then [ "no cluster: k3s off" ] else [ ];
+              tree = [ c ];
+              errors = if tree.select c == [ ] then [ "no cluster: k3s off" ] else [ ];
             };
         };
       }
@@ -304,14 +303,12 @@ let
         at = yen.kinds.node;
         cycle =
           { tree, ... }:
+          let
+            c.nearest = yen.kinds.cluster;
+          in
           {
-            tree = [
-              {
-                category = "c";
-                nearest = yen.kinds.cluster;
-              }
-            ];
-            seen = map (c: c.name) (tree.select "c");
+            tree = [ c ];
+            seen = map (c: c.name) (tree.select c);
           };
       };
     }
@@ -337,42 +334,36 @@ let
           at = yen.kinds.node;
           cycle =
             { tree, ... }:
+            let
+              parent.parent = true;
+              none.nearest = yen.kinds.pod; # no pod above a node: no answer
+              kids.children = yen.kinds.pod;
+              same.scopesOf = yen.cluster.c1;
+              holds.holds = yen.kinds.node;
+              all.instances = yen.kinds.cluster;
+              bad = {
+                category = "bad"; # a name: refused, a request is selected by itself
+                holds = yen.kinds.pod;
+              };
+            in
             {
               tree = [
-                {
-                  category = "parent";
-                  parent = true;
-                }
-                {
-                  category = "none";
-                  nearest = yen.kinds.pod;
-                } # no pod above a node: no answer
-                {
-                  category = "kids";
-                  children = yen.kinds.pod;
-                }
-                {
-                  category = "same";
-                  scopesOf = yen.cluster.c1;
-                }
-                {
-                  category = "holds";
-                  holds = yen.kinds.node;
-                }
+                parent
+                none
+                kids
+                same
+                holds
+                all
               ]
-              ++ b.filter (_: bogus) [
-                {
-                  category = "bad";
-                  bogus = true;
-                }
-              ];
+              ++ b.filter (_: bogus) [ bad ];
               seen = {
-                parent = map (s: s.id) (tree.select "parent");
-                none = tree.select "none";
-                kids = map (map (s: s.name)) (tree.select "kids");
-                same = map (map (s: s.id)) (tree.select "same");
-                holds = tree.select "holds";
-                bad = tree.select "bad";
+                parent = map (s: s.id) (tree.select parent);
+                none = tree.select none;
+                kids = map (map (s: s.name)) (tree.select kids);
+                same = map (map (s: s.id)) (tree.select same);
+                holds = tree.select holds;
+                all = map (map (c: c.name)) (tree.select all);
+                bad = tree.select bad; # not asked: no answer
               };
             };
         };
@@ -639,14 +630,27 @@ let
       base = rung1 [ ];
       inherit change grant;
     };
-  r1grant = yen.grant { scopes = [ "top:t/host:web" ]; };
-  r1outside =
-    s: b.sort b.lessThan (map (e: e.got) (b.filter (e: e.code == "outside-grant") s.refused));
-  r1others = [
-    "top:t"
-    "top:t/host:db"
-    "top:t/host:webhook"
+  # a scope by reference, as a caller outside the fleet writes it: its path of identities
+  T = {
+    kind = "top";
+    name = "t";
+  };
+  hostAt = name: [
+    T
+    {
+      kind = "host";
+      inherit name;
+    }
   ];
+  r1grant = yen.grant { scopes = [ (hostAt "web") ]; };
+  # a refused path, joined only to compare it here
+  r1outside =
+    s:
+    b.sort b.lessThan (
+      map (e: b.concatStringsSep "/" (map (x: "${x.kind}:${x.name}") e.got)) (
+        b.filter (e: e.code == "outside-grant") s.refused
+      )
+    );
   # structure from presence (Den #525): a child exists only where an aspect holds at its parent
   presence = yen.eval (
     { yen, ... }:
@@ -1070,7 +1074,12 @@ let
             ];
           }
         );
-        e = r.explain "both" "top:t/host:b" 3;
+        e = r.explain both (host "b") 3;
+        both.aspect = "both";
+        host = name: {
+          kind = "host";
+          inherit name;
+        };
         all' = b.head e.at.kids;
       in
       {
@@ -1081,15 +1090,28 @@ let
           "not"
         ];
         not-value = eq (b.head (b.elemAt all'.kids 1).kids).value false;
-        cut = eq (b.head (r.explain "both" "top:t/host:a" 1).at.kids).kids "cut";
-        near = eq (r.explain "bth" "top:t/host:a" 1).near [ "both" ];
-        unknown-scope = eq (r.explain "both" "top:t/host:z" 1).code "unknown-scope";
-        gives = eq (r.explain "firewall" "top:t/host:a" 2).gives [
+        cut = eq (b.head (r.explain both (host "a") 1).at.kids).kids "cut";
+        near = eq (r.explain { aspect = "bth"; } (host "a") 1).near [ both ];
+        # negative controls: names are no refs; an instance with no scope names none
+        aspect-string = eq (r.explain "both" (host "a") 1).code "unknown-aspect";
+        scope-string = eq (r.explain both "top:t/host:a" 1).code "not-a-scope";
+        unknown-scope = eq (r.explain both (host "z") 1).code "unknown-scope";
+        bad-path = eq (r.explain both [ (host "z") ] 1).code "unknown-scope";
+        kind-node = eq (b.head all'.kids).kind { kind = "host"; };
+        gives = eq (r.explain { aspect = "firewall"; } (host "a") 2).gives [
           {
-            sink = "fw";
-            to = "top:t/host:a";
+            sink.sink = "fw";
+            to = [
+              {
+                kind = "top";
+                name = "t";
+              }
+              (host "a")
+            ];
           }
         ];
+        # the id is the path joined: what an answer prints is what a question takes
+        round-trip = yes (b.all (s: (r.context (r.pathOf s) { }).scope == r.pathOf s) r.scopes);
       };
     stage-ok-and-diff =
       let
@@ -1160,19 +1182,37 @@ let
     grants-narrow =
       let
         g = yen.grant {
-          scopes = [ "top:t/host:a" ];
-          sinks = [ "fw" ];
+          scopes = [ (hostAt "a") ];
+          sinks = [ { sink = "fw"; } ];
         };
-        all' = yen.grant { scopes = [ "top:t" ]; };
-        e = to: sink: { inherit to sink; };
+        all' = yen.grant { scopes = [ [ T ] ]; };
+        e = name: sink: {
+          to = hostAt name;
+          sink.sink = sink;
+        };
+        # an instance entry covers every scope whose path holds it
+        byInstance = yen.grant { scopes = [ (b.elemAt (hostAt "a") 1) ]; };
       in
       {
-        allowed = yes (yen.allowed g (e "top:t/host:a" "fw"));
-        other-scope = no (yen.allowed g (e "top:t/host:b" "fw"));
-        other-sink = no (yen.allowed g (e "top:t/host:a" "nixos"));
+        allowed = yes (yen.allowed g (e "a" "fw"));
+        other-scope = no (yen.allowed g (e "b" "fw"));
+        other-sink = no (yen.allowed g (e "a" "nixos"));
+        instance = yes (yen.allowed byInstance (e "a" "nixos"));
+        instance-other = no (yen.allowed byInstance (e "b" "nixos"));
+        narrow-instance = eq (yen.narrow all' byInstance).scopes [
+          {
+            all = [
+              { path = [ T ]; }
+              { instance = b.elemAt (hostAt "a") 1; }
+            ];
+          }
+        ];
+        narrow-path-instance = eq (yen.narrow g byInstance).scopes g.scopes;
         narrow-left = eq (yen.narrow all' g) g;
         narrow-right = eq (yen.narrow g all') g;
-        narrow-disjoint = eq (yen.narrow g (yen.grant { scopes = [ "top:t/host:b" ]; })).scopes [ ];
+        narrow-disjoint = eq (yen.narrow g (yen.grant { scopes = [ (hostAt "b") ]; })).scopes [ ];
+        # negative control: a scope id string is no ref, and covers nothing
+        string = no (yen.allowed (yen.grant { scopes = [ "top:t/host:a" ]; }) (e "a" "fw"));
         refused = yes (
           (yen.stage {
             base = {
@@ -1224,7 +1264,15 @@ let
             };
           }
         );
-        c = r.context "top:t/host:a" { maxEdges = 1; };
+        c = r.context a { maxEdges = 1; };
+        top = {
+          kind = "top";
+          name = "t";
+        };
+        a = {
+          kind = "host";
+          name = "a";
+        };
       in
       {
         truncated = eq c.received.truncated {
@@ -1233,47 +1281,115 @@ let
         };
         items = eq (b.length c.received.items) 1;
         aspects = eq c.aspects.items [
-          "firewall"
-          "more"
+          { aspect = "firewall"; }
+          { aspect = "more"; }
         ];
-        parent = eq c.parent "top:t";
-        unknown = eq (r.context "top:t/host:q" { }).code "unknown-scope";
-        near = eq (b.length (r.context "top:t/host:q" { }).near) 2;
+        parent = eq c.parent [ top ];
+        scope = eq c.scope [
+          top
+          a
+        ];
+        edge-ends = eq (b.head c.received.items).to [
+          top
+          a
+        ];
+        unknown =
+          eq
+            (r.context [
+              top
+              (a // { name = "q"; })
+            ] { }).code
+            "unknown-scope";
+        near = eq (b.length
+          (r.context [
+            top
+            (a // { name = "q"; })
+          ] { }).near
+        ) 2;
+        near-instance = eq (b.length (r.context (a // { name = "q"; }) { }).near) 2;
+        scope-string = eq (r.context "top:t/host:a" { }).code "not-a-scope";
         json = eq (b.fromJSON (b.toJSON c)) c;
       };
     stored-queries =
       let
-        r = ports {
-          yen.queries = {
-            portOf = { host, result, ... }: (b.head (b.filter (s: s.name == host) result.scopes)).port;
-            count =
-              {
-                kind ? "host",
-                result,
-              }:
-              b.length (b.filter (s: s.kind == kind) result.scopes);
-          };
+        # a parameter is typed; from JSON, a ref is its identity: { kind; name; }, { kind; } or { aspect; }
+        r = ports (
+          { yen, ... }:
+          {
+            yen.queries = {
+              portOf = {
+                params.host = yen.kinds.host;
+                answer = { host, result }: host.port;
+              };
+              count = {
+                params.kind = yen.lib.opt yen.lib.kind yen.kinds.host;
+                answer = { kind, result }: b.length (b.filter (yen.lib.holds kind) result.scopes);
+              };
+              on = {
+                params.aspect = yen.lib.aspect;
+                answer =
+                  { aspect, result }: b.filter (id: result.active.${aspect.__aspect}.${id}) [ "top:t/host:a" ];
+              };
+              untyped = { result }: 1;
+            };
+          }
+        );
+        hostB = {
+          kind = "host";
+          name = "b";
         };
       in
       {
-        catalog = eq r.queries {
+        catalog = eq (removeAttrs r.queries [ "untyped" ]) {
           count = {
             required = [ ];
             optional = [ "kind" ];
+            types.kind = "a kind";
+          };
+          on = {
+            required = [ "aspect" ];
+            optional = [ ];
+            types.aspect = "an aspect";
           };
           portOf = {
             required = [ "host" ];
             optional = [ ];
+            types.host = "a host ref";
           };
         };
-        port = eq (r.ask "portOf" { host = "b"; }) 80;
+        port = eq (r.ask "portOf" { host = hostB; }) 80;
+        # negative controls: a name string, an unknown instance and a ref of another kind are refused, never asked
+        port-string = eq (r.ask "portOf" { host = "b"; }).code "ref";
+        port-unknown =
+          eq
+            (r.ask "portOf" {
+              host = hostB // {
+                name = "c";
+              };
+            }).code
+            "unknown-instance";
+        port-other-kind =
+          eq
+            (r.ask "portOf" {
+              host = hostB // {
+                kind = "top";
+                name = "t";
+              };
+            }).code
+            "ref";
         count = eq (r.ask "count" { }) 2;
-        count-kind = eq (r.ask "count" { kind = "top"; }) 1;
+        count-kind = eq (r.ask "count" { kind.kind = "top"; }) 1;
+        count-string = eq (r.ask "count" { kind = "top"; }).code "check";
+        on = eq (r.ask "on" { aspect.aspect = "firewall"; }) [ "top:t/host:a" ];
+        untyped = eq (r.ask "untyped" { }).code "query-untyped";
+        untyped-error = eq (map (e: e.code) (b.filter (e: e.code == "query-untyped") r.errors)) [
+          "query-untyped"
+        ];
         missing = eq (r.ask "portOf" { }).code "missing-param";
         unknown-param =
           eq
             (r.ask "portOf" {
-              host = "a";
+              host = hostB;
               hots = 1;
             }).code
             "unknown-param";
@@ -1541,23 +1657,34 @@ let
             ./fixtures/without/db.nix
           ];
         };
-        i = r.impact "top:t/host:db" { };
+        db = {
+          kind = "host";
+          name = "db";
+        };
+        i = r.impact db { };
       in
       {
         reached = eq i.reached [
           {
-            scope = "top:t";
+            scope = [
+              {
+                kind = "top";
+                name = "t";
+              }
+            ];
             depth = 1;
-            via = "peers";
+            via.sink = "peers";
           }
         ];
         truncated = eq i.truncated {
           shown = 1;
           of = 1;
         };
-        sinks = eq (r.impact "top:t/host:db" { sinks = [ "nixos" ]; }).reached [ ];
-        unknown-sink = eq (r.impact "top:t/host:db" { sinks = [ "peer" ]; }).code "unknown-sink";
-        unknown-scope = eq (r.impact "top:t/host:dd" { }).code "unknown-scope";
+        sinks = eq (r.impact db { sinks = [ { sink = "nixos"; } ]; }).reached [ ];
+        unknown-sink = eq (r.impact db { sinks = [ { sink = "peer"; } ]; }).code "unknown-sink";
+        # negative controls: a sink or scope written as a string is no ref
+        sink-string = eq (r.impact db { sinks = [ "peers" ]; }).code "unknown-sink";
+        unknown-scope = eq (r.impact (db // { name = "dd"; }) { }).code "unknown-scope";
       };
     # .20: when a fleet has labels, an aspect from an unlabeled file has trust 0 (floor sees it); a prefix is literal,
     # never a regex ("agen./" does not label "agent/")
@@ -1665,44 +1792,62 @@ let
               fw = "on";
             };
             yen.aspects.firewall.at = yen.host.b;
+            # a literal by reference, built where the refs are: the scope term is an instance
+            yen.flake =
+              { ... }:
+              {
+                kindA = yen.facts.kind yen.kinds.host yen.host.a;
+              };
+          }
+        );
+        # an instance as a caller outside the fleet writes it: its identity
+        host = name: {
+          kind = "host";
+          inherit name;
+        };
+        bad = r.check.bad.fw (host "b");
+        twice = ports (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.kinds.second.spawns.host = _: yen.host;
+            yen.second.s = { };
           }
         );
       in
       {
         ok = yes r.check.ok;
-        blocking = yes (
-          b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot (nofw "top:t/host:b"))
-        );
-        proof =
-          eq
-            (r.check.proof [
-              "kind"
-              "host"
-              "top:t/host:a"
-            ]).atom
-            [
-              "kind"
-              "host"
-              "top:t/host:a"
-            ];
-        holds = eq ((ports { }).check.whyNot (nofw "top:t/host:b")) [ ];
+        blocking = yes (b.any (x: x.blocking == [ (hasFw "top:t/host:b") ]) (r.check.whyNot bad));
+        proof = eq (r.check.proof r.flake.kindA).atom [
+          "kind"
+          "host"
+          "top:t/host:a"
+        ];
+        holds = eq ((ports { }).check.whyNot ((ports { }).check.bad.fw (host "b"))) [ ];
+        # a scope record is its own scope
+        scope-record = eq (r.check.whyNot (
+          r.check.bad.fw (b.head (b.filter (s: s.id == "top:t/host:b") r.scopes))
+        )) (r.check.whyNot bad);
+        # negative controls: a hand-written list is no literal; an instance with two scopes names no one scope
+        list = eq (r.check.whyNot (nofw "top:t/host:b")).code "not-a-literal";
+        ambiguous = eq (twice.check.why (twice.check.bad.fw (host "b"))).code "scope-ambiguous";
+        unknown-instance = eq (r.check.why (r.check.bad.fw (host "z"))).code "unknown-scope";
       };
     # D10: explanations and the verdict read one model; a fact no rule mentions is still true
     explain-same-model =
       let
         c = (ports { }).check;
+        a = c.facts.scope {
+          kind = "host";
+          name = "a";
+        };
       in
       {
-        proof = no (
-          (c.proof [
-            "scope"
-            "top:t/host:a"
-          ]) ? status
-        );
-        why-not = eq (c.whyNot [
+        proof = eq (c.proof a).atom [
           "scope"
           "top:t/host:a"
-        ]) [ ];
+        ];
+        why-not = eq (c.whyNot a) [ ];
       };
     program-validate =
       let
@@ -1837,9 +1982,19 @@ let
               }
             ];
       };
-    invariants-why = eq (b.head ((ports { }).check.why (nofw "top:t/host:b"))).neg [
-      (hasFw "top:t/host:b")
-    ];
+    invariants-why =
+      eq
+        (b.head (
+          (ports { }).check.why (
+            (ports { }).check.bad.fw {
+              kind = "host";
+              name = "b";
+            }
+          )
+        )).neg
+        [
+          (hasFw "top:t/host:b")
+        ];
     graphs-reach = {
       app = eq (G.reach dag "app") [
         "cache"
@@ -1916,6 +2071,71 @@ let
         ]
       ];
     };
+    # a graph over refs: G.of nodes next; every answer is a node identity { kind; name; }, never a name string
+    graphs-refs =
+      let
+        r = yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.kinds.host.fields.dependsOn = yen.lib.opt (yen.lib.listOf yen.kinds.host) [ ];
+            yen.top.t = { };
+            yen.host = {
+              db = { };
+              lb.dependsOn = [ yen.host.web ];
+              web.dependsOn = [ yen.host.db ];
+            };
+            yen.flake =
+              { ... }:
+              let
+                g = G.of (b.attrValues yen.host) (h: h.dependsOn);
+              in
+              {
+                layers = G.layers g;
+                reach = G.reach g yen.host.lb;
+                reachers = G.reachers g yen.host.db;
+                shortest = G.shortest g yen.host.lb yen.host.db;
+                topo = (G.topo g).order;
+                transposed = G.reach (G.transpose g) yen.host.db;
+                none = G.shortest g yen.host.db yen.host.lb;
+              };
+          }
+        );
+        h = name: {
+          kind = "host";
+          inherit name;
+        };
+      in
+      {
+        layers = eq r.flake.layers [
+          [ (h "db") ]
+          [ (h "web") ]
+          [ (h "lb") ]
+        ];
+        reach = eq r.flake.reach [
+          (h "db")
+          (h "web")
+        ];
+        reachers = eq r.flake.reachers [
+          (h "lb")
+          (h "web")
+        ];
+        shortest = eq r.flake.shortest [
+          (h "lb")
+          (h "web")
+          (h "db")
+        ];
+        topo = eq r.flake.topo [
+          (h "db")
+          (h "web")
+          (h "lb")
+        ];
+        transposed = eq r.flake.transposed [
+          (h "lb")
+          (h "web")
+        ];
+        none = eq r.flake.none null;
+      };
     datalog-wfs =
       let
         w = D.wfs choice;
@@ -1972,6 +2192,68 @@ let
       s = eq (D.why choice (D.wfs choice) "s") [ { head = "s"; } ];
       t = eq (D.why choice (D.wfs choice) "t") [ ];
     };
+    # ground rules by reference: relations from yen.relations, terms are instances; no name is written as a string
+    datalog-refs =
+      let
+        r = yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.kinds.host.fields.web = yen.lib.opt (yen.lib.is b.isBool) false;
+            yen.top.t = { };
+            yen.host = {
+              a.web = true;
+              c = { };
+            };
+            yen.relations = {
+              web.arity = 1;
+              serves.arity = 1;
+            };
+            yen.flake =
+              { ... }:
+              let
+                inherit (yen.relations) web serves;
+                hosts = b.attrValues yen.host;
+                rules =
+                  map (h: {
+                    head = serves h;
+                    pos = [ (web h) ];
+                  }) hosts
+                  ++ map (h: { head = web h; }) (b.filter (h: h.web) hosts);
+                m = yen.lib.datalog.wfs rules;
+              in
+              {
+                serves = map (h: h.name) (b.filter (h: m.holds (serves h)) hosts);
+                whyNot = map (x: x.missing) (yen.lib.datalog.whyNot rules m (serves yen.host.c));
+                why = b.length (yen.lib.datalog.why rules m (serves yen.host.a));
+                # an instance term is its identity: the same atom whatever its data
+                atom = yen.lib.datalog.atom (serves yen.host.a);
+              };
+          }
+        );
+      in
+      {
+        serves = eq r.flake.serves [ "a" ];
+        why = eq r.flake.why 1;
+        why-not = eq r.flake.whyNot [
+          [
+            [
+              "web"
+              {
+                kind = "host";
+                name = "c";
+              }
+            ]
+          ]
+        ];
+        atom = eq r.flake.atom [
+          "serves"
+          {
+            kind = "host";
+            name = "a";
+          }
+        ];
+      };
     krn-backward = {
       t1 =
         eq
@@ -2564,6 +2846,7 @@ let
           ];
           same = [ [ "top:t/cluster:c1" ] ];
           holds = [ true ];
+          all = [ [ "c1" ] ];
           bad = [ ];
         }
       ]);
@@ -2929,17 +3212,19 @@ let
           "host"
           "a"
         ];
+        F = r.check.facts;
+        hostA = {
+          kind = "host";
+          name = "a";
+        };
       in
       {
         t1 = eq (b.length (b.filter (x: x == a) r.facts)) (1);
-        t2 = eq (b.length (r.check.from a)) (2);
-        t3 = eq (b.length (r.check.from (hasFw "top:t/host:a"))) (1);
-        t4 = eq (r.check.from [
-          "edge"
-          "fw"
-          "top:t/host:a"
-          "top:t/host:a"
-        ]) ([ "aspect firewall" ]);
+        # the question is a literal, by reference: identities from outside the fleet, no scope id written
+        t2 = eq (b.length (r.check.from (F.instance hostA hostA))) (2);
+        t3 = eq (b.length (r.check.from (F.has { aspect = "firewall"; } hostA))) (1);
+        t4 = eq (r.check.from (F.edge { sink = "fw"; } hostA hostA)) ([ "aspect firewall" ]);
+        list = eq (r.check.from a).code "not-a-literal";
       };
     # .42: a seal binds the verdict to its rules, facts and engine; checking it means evaluating again
     r3-seal =
@@ -3212,25 +3497,29 @@ let
     r1-grant-segment = {
       t1 = yes (
         yen.allowed r1grant {
-          to = "top:t/host:web";
-          sink = "fw";
+          to = hostAt "web";
+          sink.sink = "fw";
         }
       );
       t2 = no (
         yen.allowed r1grant {
-          to = "top:t/host:webhook";
-          sink = "fw";
+          to = hostAt "webhook";
+          sink.sink = "fw";
         }
       );
       t3 = yes (
         yen.allowed r1grant {
-          to = "top:t/host:web/user:a";
-          sink = "fw";
+          to = hostAt "web" ++ [
+            {
+              kind = "user";
+              name = "a";
+            }
+          ];
+          sink.sink = "fw";
         }
       );
     };
-    # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
-    # scope: each scope outside the grant is refused, once (vic/quorum/r3-impact.md)
+    # D14 exact (R-yen): a change is refused only where its seeds reach through reads, once per scope (vic/r-yen.md)
     r1-grant-added = eq (r1outside (
       r1stage {
         yen.aspects.extra = {
@@ -3241,52 +3530,186 @@ let
           fw = "x";
         };
       } r1grant
-    )) (r1others);
-    r1-grant-removed = eq (r1outside (r1stage { yen.host.db.bypass = true; } r1grant)) (r1others);
-    r1-grant-changed = eq (r1outside (r1stage { yen.host.db.port = 2222; } r1grant)) (r1others);
-    r1-grant-inside = eq (r1outside (r1stage { yen.host.web.port = 2222; } r1grant)) (r1others);
-    # the closure channel: db reads web's port through `yen`; a change at web reaches db
+    )) ([ "top:t/host:webhook" ]);
+    r1-grant-removed = eq (r1outside (r1stage { yen.host.db.bypass = true; } r1grant)) ([
+      "top:t/host:db"
+    ]);
+    r1-grant-changed = eq (r1outside (r1stage { yen.host.db.port = 2222; } r1grant)) ([
+      "top:t/host:db"
+    ]);
+    r1-grant-inside = eq (r1outside (r1stage { yen.host.web.port = 2222; } r1grant)) ([ ]);
+    # the closure channel is closed: an element that reads another instance through `yen` is an eval error
     r1-grant-closure =
-      let
-        s = yen.stage {
-          base = rung1 [
-            (
-              { yen, ... }:
-              {
-                yen.aspects.peer = {
-                  at = yen.host.db;
-                  fw = "${toString yen.host.web.port}";
-                };
-              }
-            )
-          ];
-          change = {
-            yen.host.web.port = 2222;
-          };
-          grant = r1grant;
-        };
-      in
-      yes (b.elem "top:t/host:db" (r1outside s));
-    r1-grant-whole = eq ((r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ "top:t" ]; }))
-      .refused
-    ) ([ ]);
-    r1-grant-sinks =
-      eq
-        (r1outside (
-          r1stage { yen.host.web.port = 2222; } (
-            yen.grant {
-              scopes = [ "top:t" ];
-              sinks = [ "fw" ];
+      no
+        (b.tryEval (
+          b.deepSeq
+            (yen.eval (rung1 [
+              (
+                { yen, ... }:
+                {
+                  yen.aspects.peer = {
+                    at = yen.host.db;
+                    fw = "${toString yen.host.web.port}";
+                  };
+                }
+              )
+            ])).reduced.fw
+            true
+        )).success;
+    # a read through a cycle request is an edge: a change at web reaches db, which asks for every host
+    r1-grant-request = eq (r1outside (
+      yen.stage {
+        base = rung1 [
+          (
+            { yen, ... }:
+            {
+              yen.aspects.peer = {
+                at = yen.host.db;
+                cycle =
+                  { tree, ... }:
+                  let
+                    hosts.instances = yen.kinds.host;
+                  in
+                  {
+                    tree = [ hosts ];
+                    fw = [ (toString (map (h: h.port) (b.head (tree.select hosts)))) ];
+                  };
+              };
             }
           )
-        ))
-        ([
-          "top:t"
-          "top:t/host:db"
-          "top:t/host:web"
-          "top:t/host:webhook"
-        ]);
+        ];
+        change.yen.host.web.port = 2222;
+        grant = r1grant;
+      }
+    )) ([ "top:t/host:db" ]);
+    r1-grant-whole = eq ((r1stage { yen.host.db.port = 2222; } (yen.grant { scopes = [ [ T ] ]; }))
+      .refused
+    ) ([ ]);
+    r1-grant-sinks = eq (r1outside (
+      r1stage { yen.host.web.port = 2222; } (
+        yen.grant {
+          scopes = [ [ T ] ];
+          sinks = [ { sink = "fw"; } ];
+        }
+      )
+    )) ([ "top:t/host:web" ]); # the port reaches web's nixos, a sink the grant does not name
     r1-grant-noop = eq ((r1stage { } r1grant).refused) ([ ]);
+    # one oracle per read channel, each with the read removed as its negative control (C1-C5, vic/quorum/r3-impact.md)
+    r1-grant-channels =
+      let
+        reach =
+          extra: change:
+          r1outside (
+            yen.stage {
+              base = rung1 (
+                [
+                  (
+                    { yen, ... }:
+                    {
+                      yen.kinds.top.sinks.ports = { };
+                    }
+                  )
+                ]
+                ++ extra
+              );
+              inherit change;
+              grant = r1grant;
+            }
+          );
+        # every host gives its port to top: a cycle reads every sink, so a C3 or C5 reader runs without it
+        up = [
+          (
+            { yen, ... }:
+            {
+              yen.aspects.up = {
+                at = yen.kinds.host;
+                ports = { host, ... }: host.port;
+              };
+            }
+          )
+        ];
+        port.yen.host.web.port = 2222;
+        at-db = el: [
+          (
+            { yen, ... }:
+            {
+              yen.aspects.reader = {
+                at = yen.host.db;
+              }
+              // el yen;
+            }
+          )
+        ];
+        asks =
+          q:
+          at-db (yen: {
+            cycle =
+              { tree, ... }:
+              let
+                r = q yen;
+              in
+              {
+                tree = [ r ];
+                fw = [ (b.length (tree.select r)) ];
+              };
+          });
+      in
+      {
+        # C1: a sink arg reads the reduced value at its receiver
+        c1 =
+          eq
+            (reach (
+              up
+              ++ at-db (_: {
+                fw = { ports, ... }: b.length ports;
+              })
+            ) port)
+            ([
+              "top:t"
+              "top:t/host:db"
+            ]);
+        # C2, and the control of C1: a kind arg reads the nearest instance of the kind: db's own host, never web
+        c2 = eq (reach (
+          up
+          ++ at-db (_: {
+            fw = { host, ... }: host.port;
+          })
+        ) port) ([ "top:t" ]);
+        # C3: a tree request reads what it asks
+        c3 = eq (reach (asks (yen: {
+          scopesOf = yen.host.web;
+        })) port) ([ "top:t/host:db" ]);
+        c3-control = eq (reach (asks (yen: {
+          scopesOf = yen.host.webhook;
+        })) port) ([ ]);
+        # C4: a spawned scope is new data; it reaches what reads it
+        c4 =
+          eq
+            (reach up {
+              yen.host.mail = { };
+            })
+            ([
+              "top:t"
+              "top:t/host:mail"
+            ]);
+        # C5: a whole-fleet reader is reached by every change, and a change that does nothing reaches nothing
+        c5 = eq (reach (asks (_: {
+          graph = true;
+        })) port) ([ "top:t/host:db" ]);
+        c5-control = eq (reach (asks (_: {
+          graph = true;
+        })) { }) ([ ]);
+        # C6: a spawn reads instance data, so a scope's data can change with no declaration of its own
+        c6 = eq (reach [
+          (
+            { yen, ... }:
+            {
+              yen.kinds.mirror = { };
+              yen.kinds.host.spawns.mirror = s: if s.name == "db" then { m.port = yen.host.web.port; } else { };
+            }
+          )
+        ] port) ([ "top:t/host:db/mirror:m" ]);
+      };
     # D9: a change never declares the law
     r1-law-change =
       eq
@@ -3344,7 +3767,7 @@ let
       t2 = eq (configLike.reduced.motd."fleet:main/host:b") ("forced");
     };
     config-other-node = eq configLike.reduced.peers."fleet:main/host:a" { b = "10.0.0.2"; };
-    # a plain element reads the children of its scope through `yen.lib.children`, as the `children` request does
+    # an element asks the tree for the children of its scope: a `children` request, never `yen.lib.children`
     lib-children =
       eq
         ((yen.eval (
@@ -3361,7 +3784,15 @@ let
             yen.top.t = { };
             yen.aspects.k = {
               at = yen.kinds.top;
-              kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+              cycle =
+                { tree, ... }:
+                let
+                  kids.children = yen.kinds.host;
+                in
+                {
+                  tree = [ kids ];
+                  kids = [ (map (c: c.name) (b.head (tree.select kids))) ];
+                };
             };
           }
         )).reduced.kids."top:t"
@@ -3372,6 +3803,31 @@ let
             "b"
           ]
         ]);
+    lib-children-refused =
+      eq
+        (b.tryEval (
+          b.deepSeq
+            (yen.eval (
+              { yen, ... }:
+              {
+                yen.kinds.top = {
+                  spawns.host = _: {
+                    b = { };
+                    a = { };
+                  };
+                  sinks.kids = { };
+                };
+                yen.kinds.host = { };
+                yen.top.t = { };
+                yen.aspects.k = {
+                  at = yen.kinds.top;
+                  kids = { scope, ... }: map (c: c.name) (yen.lib.children yen.kinds.host scope);
+                };
+              }
+            )).reduced.kids
+            true
+        )).success
+        false;
     error-codes = {
       t1 = eq (map (e: e.code) codesFix.errors) ([
         "module"
@@ -3553,5 +4009,82 @@ in
     krn = (import ./krn.nix).tests;
     shacl = (import ./shacl.nix).tests;
     batteries = (import ./batteries.nix).tests;
+    impact-of =
+      let
+        d = id: { data = id; };
+        k = sink: at: { inherit sink at; };
+        chain = [
+          {
+            out = k "s" "B";
+            reads = [ (d "A") ];
+          }
+          {
+            out = k "t" "C";
+            reads = [ (k "s" "B") ];
+          }
+        ];
+      in
+      {
+        # P1: a dirty token dirties every edge that reads it, transitively
+        chain =
+          eq
+            (impactOf {
+              edges = chain;
+              seeds = [ (d "A") ];
+            })
+            ([
+              (k "s" "B")
+              (k "t" "C")
+              (d "A")
+            ]);
+        # negative control: nothing reads Z, so B and C stay clean
+        unread = eq (impactOf {
+          edges = chain;
+          seeds = [ (d "Z") ];
+        }) ([ (d "Z") ]);
+        # a self-loop terminates
+        loop = eq (impactOf {
+          edges = [
+            {
+              out = k "s" "B";
+              reads = [ (k "s" "B") ];
+            }
+          ];
+          seeds = [ (k "s" "B") ];
+        }) ([ (k "s" "B") ]);
+        # a whole-fleet reader is dirty when anything is, and only then
+        whole =
+          eq
+            (impactOf {
+              edges = [ ];
+              whole = [ (k "docs" "F") ];
+              seeds = [ (d "A") ];
+            })
+            ([
+              (k "docs" "F")
+              (d "A")
+            ]);
+        whole-control = eq (impactOf {
+          edges = [ ];
+          whole = [ (k "docs" "F") ];
+          seeds = [ ];
+        }) ([ ]);
+        # scope ids hold `:`, `/` and `@`: a token is data, never parsed
+        ids =
+          eq
+            (impactOf {
+              edges = [
+                {
+                  out = k "out" "fleet:main";
+                  reads = [ (d "fleet:main/host:db@x") ];
+                }
+              ];
+              seeds = [ (d "fleet:main/host:db@x") ];
+            })
+            ([
+              (k "out" "fleet:main")
+              (d "fleet:main/host:db@x")
+            ]);
+      };
   };
 }

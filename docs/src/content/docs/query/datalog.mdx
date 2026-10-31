@@ -6,7 +6,8 @@ import { Aside, Badge, Card, CardGrid, FileTree, LinkButton, LinkCard, Steps, Ta
 
 Some questions are rules: "a host serves when it runs a web server and is not drained; a host is drained when a host
 it depends on is down." `yen.lib.datalog` solves ground rules with negation. Each rule is `{ head; pos; neg; }`.
-You ground the rules with Nix: one set per host.
+You ground the rules with Nix: one set per host. Each atom is a relation of `yen.relations` called by reference,
+and each term an instance: no relation or host is written as a string. In an answer, an instance is `{ kind; name; }`.
 
 
 ```nix title="modules/fleet.nix"
@@ -40,55 +41,86 @@ in
 }
 ```
 
-```nix title="modules/policy.nix" {7-12}
-# Ground rules { head; pos; neg; }, one set per host. You ground them with Nix.
+```nix title="modules/policy.nix" {17-29}
+# Ground rules { head; pos; neg; }, one set per host. Each atom is a relation called by reference, each term an instance.
 { yen, lib, ... }:
 let
   D = yen.lib.datalog;
-  hosts = lib.attrValues yen.host;
+  inherit (yen.relations)
+    web
+    up
+    serves
+    drained
+    primary
+    ;
+  all.instances = yen.kinds.host; # a tree request: every host, with its data
   rules =
+    hosts:
     lib.concatMap (
       h:
-      let
-        n = h.name;
-      in
-      lib.optional h.web { head = "web:${n}"; }
-      ++ lib.optional (!h.maintenance) { head = "up:${n}"; }
+      lib.optional h.web { head = web h; }
+      ++ lib.optional (!h.maintenance) { head = up h; }
       ++ [
         {
-          head = "serves:${n}";
-          pos = [ "web:${n}" ];
-          neg = [ "drained:${n}" ];
+          head = serves h;
+          pos = [ (web h) ];
+          neg = [ (drained h) ];
         }
       ]
       ++ map (d: {
-        head = "drained:${n}";
-        neg = [ "up:${d.name}" ];
+        head = drained h;
+        neg = [ (up d) ];
       }) h.dependsOn
     ) hosts
     # a choice: exactly one primary database, and the policy does not say which
     ++ [
       {
-        head = "primary:db-1";
-        neg = [ "primary:db-2" ];
+        head = primary yen.host.db-1;
+        neg = [ (primary yen.host.db-2) ];
       }
       {
-        head = "primary:db-2";
-        neg = [ "primary:db-1" ];
+        head = primary yen.host.db-2;
+        neg = [ (primary yen.host.db-1) ];
       }
     ];
-  model = D.wfs rules;
+  dbs = [
+    yen.host.db-1
+    yen.host.db-2
+  ];
 in
 {
+  yen.relations = {
+    web.arity = 1;
+    up.arity = 1;
+    serves.arity = 1;
+    drained.arity = 1;
+    primary.arity = 1;
+  };
   yen.aspects.serving = {
     at = yen.kinds.fleet;
-    out.serving = {
-      serves = map (lib.removePrefix "serves:") (lib.filter (lib.hasPrefix "serves:") model.true);
-      undefined = model.undefined; # well-founded: the choice stays open
-      choices = map (m: lib.filter (lib.hasPrefix "primary:") m) (D.stable rules); # stable models: each choice
-      whyNot = D.whyNot rules model "serves:web-2";
-      proof = D.proof rules model "serves:web-1";
-    };
+    cycle =
+      { tree, ... }:
+      let
+        hosts = lib.head (tree.select all);
+        rs = rules hosts;
+        model = D.wfs rs;
+        names = map (h: h.name);
+      in
+      {
+        tree = [ all ];
+        out = [
+          {
+            serving = {
+              serves = names (lib.filter (h: model.holds (serves h)) hosts);
+              undefined = model.undefined; # well-founded: the choice stays open
+              # stable models: each choice
+              choices = map (m: names (lib.filter (d: lib.elem (D.atom (primary d)) m) dbs)) (D.stable rs);
+              whyNot = D.whyNot rs model (serves yen.host.web-2);
+              proof = D.proof rs model (serves yen.host.web-1);
+            };
+          }
+        ];
+      };
   };
 }
 ```
@@ -97,34 +129,76 @@ in
 {
   choices = [
     [
-      "primary:db-1"
+      "db-1"
     ]
     [
-      "primary:db-2"
+      "db-2"
     ]
   ];
   proof = {
-    atom = "serves:web-1";
+    atom = [
+      "serves"
+      {
+        kind = "host";
+        name = "web-1";
+      }
+    ];
     neg = [
-      "drained:web-1"
+      [
+        "drained"
+        {
+          kind = "host";
+          name = "web-1";
+        }
+      ]
     ];
     pos = [
       {
-        atom = "web:web-1";
+        atom = [
+          "web"
+          {
+            kind = "host";
+            name = "web-1";
+          }
+        ];
         neg = [ ];
         pos = [ ];
         rule = {
-          head = "web:web-1";
+          head = [
+            "web"
+            {
+              kind = "host";
+              name = "web-1";
+            }
+          ];
         };
       }
     ];
     rule = {
-      head = "serves:web-1";
+      head = [
+        "serves"
+        {
+          kind = "host";
+          name = "web-1";
+        }
+      ];
       neg = [
-        "drained:web-1"
+        [
+          "drained"
+          {
+            kind = "host";
+            name = "web-1";
+          }
+        ]
       ];
       pos = [
-        "web:web-1"
+        [
+          "web"
+          {
+            kind = "host";
+            name = "web-1";
+          }
+        ]
       ];
     };
   };
@@ -132,22 +206,58 @@ in
     "web-1"
   ];
   undefined = [
-    "primary:db-1"
-    "primary:db-2"
+    [
+      "primary"
+      {
+        kind = "host";
+        name = "db-1";
+      }
+    ]
+    [
+      "primary"
+      {
+        kind = "host";
+        name = "db-2";
+      }
+    ]
   ];
   whyNot = [
     {
       blocking = [
-        "drained:web-2"
+        [
+          "drained"
+          {
+            kind = "host";
+            name = "web-2";
+          }
+        ]
       ];
       missing = [ ];
       rule = {
-        head = "serves:web-2";
+        head = [
+          "serves"
+          {
+            kind = "host";
+            name = "web-2";
+          }
+        ];
         neg = [
-          "drained:web-2"
+          [
+            "drained"
+            {
+              kind = "host";
+              name = "web-2";
+            }
+          ]
         ];
         pos = [
-          "web:web-2"
+          [
+            "web"
+            {
+              kind = "host";
+              name = "web-2";
+            }
+          ]
         ];
       };
       undefinedBody = [ ];

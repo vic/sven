@@ -183,15 +183,15 @@ The keys above give one element each. For 0 to n elements, or to ask the tree fo
 ```nix
 yen.aspects.kernel = {
   at = yen.kinds.host;
-  cycle = { tree, ... }: {
-    tree = [ { category = "env"; nearest = yen.kinds.environment; } ];   # a request
-    nixos = map (env: { boot.kernelParams = [ "env=${env.name}" ]; }) (tree.select "env");
+  cycle = { tree, ... }: let env.nearest = yen.kinds.environment; in {   # a request
+    tree = [ env ];
+    nixos = map (e: { boot.kernelParams = [ "env=${e.name}" ]; }) (tree.select env);   # selected by itself
     errors = [ ];                                                          # a component can report errors
   };
 };
 ```
 
-Tree requests: `nearest = <kind>`, `parent = true`, `children = <predicate>`, `scopesOf = <instance>`, `holds = <predicate>`.
+Tree requests: `nearest = <kind>`, `parent = true`, `children = <predicate>`, `scopesOf = <instance>`, `holds = <predicate>`, `instances = <kind>`. A request has no name: `tree.select request` selects it.
 
 ## Queries
 
@@ -312,7 +312,7 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Shapes.** `yen.lib.rdf.shacl result` gives SHACL shapes from the schema: one node shape per kind with scopes, `yen:name` required, `yen:parent` of the spawning kind, each field at most once, and `sh:class` for ref fields. The pack types every instance, so a ref meets its class. quipu's validator accepts the pack of a fixture fleet and reports one `sh:class` violation for a ref to a missing instance.
 
-**An MCP server.** `mcp/` at the top of the yen repository, a small Rust binary, answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an atom's why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. `nix run .#yen-mcp` from the fleet directory runs it as a flake app ([agent/mcp.nix](modules/agent/mcp.nix)): it serves the fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
+**An MCP server.** `mcp/` at the top of the yen repository, a small Rust binary, answers agents over stdio (JSON-RPC, MCP). Its 14 tools: `yen_schema`, `yen_check`, `yen_context`, `yen_explain`, `yen_errors`, `yen_declared_in`, `yen_export` (the knowledge pack; the agent decides whether to store it), `yen_stage` (a change as JSON, in quarantine), `yen_queries` and `yen_ask` (stored queries, the synthesis ones included), `yen_impact`, `yen_labels` (with `floor`), `yen_why_not` (an invariant at a scope, by reference: its why and why-not) and `yen_program` (a change program, validated and dry-run). Each answer is `{ complete; result }` or `{ complete = false; error }`; a timeout is never an empty answer. Arguments reach Nix through a file and `builtins.fromJSON`, never through string interpolation. `mcp/test.sh` drives it. Its flake (`mcp/flake.nix`, at the top of the yen repository) is the app: `nix run github:vic/yen?dir=mcp` from a fleet's directory serves that fleet in the working directory, and its flake ref comes from the git top (`YEN_FLAKE` overrides it).
 
 **Safe between machines, before deploy.** Field literals such as `yen.facts.machine.dbOn H D` read field values and refs. Invariants over them hold across machines ([agent/invariants.nix](modules/agent/invariants.nix)): a host's database is in its own environment (`db-exists`, `db-same-env`), no two machines share an address (`unique-addr`), and a host never depends on a host in a less trusted environment (`trust-order`). A staged change that breaks one is refused with the atom, and `check.whyNot` / `check.proof` explain an answer.
 
@@ -320,14 +320,14 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Install order.** The stored query `installOrder { assembly }` gives the waves of an assembly: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
 
-**Synthesis, checked.** Stored queries in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
+**Synthesis, checked.** Stored queries (`{ params; answer; }`: each parameter typed, a fleet name given as a ref) in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
 
 ```nix
-result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
-# { safe = [ "stage" ]; refused.studio = [ [ "bad" "attic-on-mac" "fleet:main/environment:staging/mac:studio" ] ]; }
+result.ask "safeHostsFor" { aspect = yen.aspects.attic; env = yen.environment.staging; }
+# { safe = [ "stage" ]; refused.studio = [ [ "bad" "attic" "fleet:main/environment:staging/mac:studio" ] ]; }
 ```
 
-**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may reach. `narrow g h` keeps what both allow. No function makes a grant wider. A module can read the whole fleet through `yen`, so a staged change that declares anything is refused at every scope outside its grant.
+**Grants only narrow.** `yen.lib.grant { scopes = [ yen.host.db or a path [ { kind; name; } … ] ]; sinks ? null; }` says where an agent may reach, by reference: an instance covers every scope that holds it and the scopes under them, a path its scope and the scopes under it. `narrow g h` keeps what both allow. No function makes a grant wider. An element reads other scopes only through its args and tree requests, so a staged change is refused only at the scopes it reaches outside its grant.
 
 ## Patterns in this fleet
 
@@ -532,7 +532,7 @@ Every suite runs on [fastest](https://github.com/denful/fastest), in parallel; e
 ```sh
 nix run github:denful/fastest#fastest -- --flake ".#tests" fleet   # a check for each pattern above
 nix run github:denful/fastest#fastest -- --flake ".#tests" e2e     # real NixOS, darwin and home-manager evaluations
-bash mcp/test.sh                                # PASS for each MCP case, the flake app included
+(cd ../.. && bash mcp/test.sh)                  # PASS for each MCP case, the flake app included
 ```
 
 From the yen repository root, the engine and library oracles, and the cost oracles. A memo is invisible to an eval, so `tests/cost.sh` bounds Nix's own counters (`NIX_SHOW_STATS`): 30 levels of aspect-ref diamonds and a 150-host fan-in must each stay under 200,000 function calls. Without the memos they take 26 million calls (at 16 levels) and 954,000.

@@ -1,5 +1,10 @@
 # Per-system outputs, a VM check, and a check on a realized config (#60).
-{ yen, inputs, ... }:
+{
+  yen,
+  inputs,
+  lib,
+  ...
+}:
 {
   yen.aspects.tools = {
     at = yen.kinds.system;
@@ -30,10 +35,14 @@
   };
   yen.aspects.docs = {
     at = yen.kinds.fleet;
-    out =
-      { ... }:
+    cycle =
+      { tree, ... }:
+      let
+        whole.graph = true; # a tree request: the whole fleet
+      in
       {
-        docs.mermaid = yen.helpers.mermaid yen.lib.graph;
+        tree = [ whole ];
+        out = [ { docs.mermaid = yen.helpers.mermaid (lib.head (tree.select whole)).lib.graph; } ];
       };
   };
 }

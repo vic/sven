@@ -11,14 +11,14 @@
     in
     [
       ''
-        Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary. The reference fleet builds it as `.#yen-mcp`.
-        `mcp/` is also its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
+        Yen ships an MCP server: `mcp/` at the top of the repository, a small Rust binary.
+        `mcp/` is its own flake, written with Yen: `nix run github:vic/yen?dir=mcp` serves the fleet in the working
         directory, and `packages.<system>.yen-mcp` is the package. It answers agents over stdio
         (JSON-RPC 2.0, one message per line) by running yen queries on the fleet. It serves the fleet in its directory.
       ''
       (docs.sh ''
         cd templates/fleet
-        nix run .#yen-mcp
+        nix run github:vic/yen?dir=mcp
       '')
       ''
         ## Tools
@@ -63,9 +63,7 @@
         ]
       )
       (docs.tip "Your own fleet" ''
-        Copy `mcp/` and ${
-          docs.fleet "modules/agent/mcp.nix" null "agent/mcp.nix"
-        } into your fleet. The server needs only
+        Nothing to copy into your fleet. Run the mcp flake from the fleet's directory, as above. The server needs only
         the queries of the other agent pages: `schema`, `check`, `context`, `explain`, stored queries, `stage` and `program`.
         `mcp/test.sh` drives every tool.
       '')

@@ -20,8 +20,8 @@
           each host feature adds its own device to a shared NixOS module. It works, but every host gets every
           contribution, its own included.
 
-        In yen a host's public facts are fields of its instance. Every module can read `yen.host`: it is data, so
-        nothing evaluates a NixOS system to read it.
+        In yen a host's public facts are fields of its instance. An aspect reads the other hosts through a tree request
+        (`instances = yen.kinds.host`): it is data, so nothing evaluates a NixOS system to read it, and `stage` sees the read.
       ''
       (docs.file "modules/fleet.nix")
       (docs.file "modules/mesh.nix")
@@ -34,7 +34,7 @@
       ''
       (docs.file "modules/syncthing.nix")
       (docs.note "Why there is no recursion" ''
-        `yen.host` and the `syncthing-device` sink are yen data. They exist before any NixOS module runs. A NixOS
+        The hosts a tree request gives and the `syncthing-device` sink are yen data. They exist before any NixOS module runs. A NixOS
         module reads them, and never reads another host's NixOS `config`.
       '')
       (docs.tip "As a battery" ''
@@ -57,6 +57,16 @@
         "laptop"
         "nas"
       ]);
+      # fast: the peers the mesh aspect gives laptop, read from its NixOS module values with no NixOS eval
+      peers =
+        eq
+          (builtins.concatMap (
+            m: map (p: p.allowedIPs) (m.networking.wireguard.interfaces.wg0.peers or [ ])
+          ) result.reduced.nixos."fleet:main/host:laptop")
+          ([
+            [ "10.9.0.2/32" ]
+            [ "10.9.0.1/32" ]
+          ]);
     };
 
   e2e =

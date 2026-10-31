@@ -3,7 +3,8 @@
 let
   inherit (yen.lib) maybe same;
   inherit (yen.lib.reduce) entries;
-  clusterOf = h: lib.findFirst (c: lib.any (same h) c.hosts) null (lib.attrValues yen.cluster);
+  clusterOf = h: lib.findFirst (c: lib.any (same h) c.hosts) null (lib.attrValues yen.cluster); # for `at`
+  clusters.instances = yen.kinds.cluster; # a tree request: every cluster, with its data
   members = c: lib.filter (e: lib.any (same e.from) c.hosts);
 in
 {
@@ -37,20 +38,35 @@ in
     at = s: clusterOf s != null;
     k3s-nodes = { host, ... }: host.addr;
     # The first node starts the cluster, the others join it. `at` puts the host among its cluster's nodes, so the list is never empty.
-    nixos =
-      { k3s-nodes, host, ... }:
+    cycle =
+      {
+        tree,
+        scope,
+        k3s-nodes,
+        ...
+      }:
       let
-        first = lib.head (members (clusterOf host) k3s-nodes);
+        host = scope;
+        cluster = lib.findFirst (c: lib.any (same host) c.hosts) null (lib.head (tree.select clusters));
+        first = lib.head (members cluster (lib.head k3s-nodes));
       in
       {
-        services.k3s.enable = true;
-      }
-      // (
-        if same first.from host then
-          { services.k3s.clusterInit = true; }
-        else
-          { services.k3s.serverAddr = "https://${first.value}:6443"; }
-      );
+        tree = [ clusters ];
+        # a list literal: its length is known without reading k3s-nodes, which reduces from these very elements
+        nixos = [
+          (
+            {
+              services.k3s.enable = true;
+            }
+            // (
+              if same first.from host then
+                { services.k3s.clusterInit = true; }
+              else
+                { services.k3s.serverAddr = "https://${first.value}:6443"; }
+            )
+          )
+        ];
+      };
   };
   yen.aspects.k3s-registries = {
     at = yen.kinds.cluster;

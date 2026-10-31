@@ -70,7 +70,8 @@ in
 
 ## What does this scope reach?
 
-`result.impact id { hops; sinks; max; }` follows routed elements from a scope, by depth. `web` gives a backend
+`result.impact scope { hops; sinks; max; }` follows routed elements from a scope, by depth. The scope is a ref (`{ kind; name; }`
+from outside the fleet), each sink a ref or `{ sink; }`, and each scope it reaches is a path of refs. `web` gives a backend
 to its environment, and the environment gives DNS to the fleet:
 
 
@@ -80,13 +81,31 @@ to its environment, and the environment gives DNS to the fleet:
   reached = [
     {
       depth = 1;
-      scope = "fleet:main/environment:prod";
-      via = "backends";
+      scope = [
+        {
+          kind = "fleet";
+          name = "main";
+        }
+        {
+          kind = "environment";
+          name = "prod";
+        }
+      ];
+      via = {
+        sink = "backends";
+      };
     }
     {
       depth = 2;
-      scope = "fleet:main";
-      via = "dns";
+      scope = [
+        {
+          kind = "fleet";
+          name = "main";
+        }
+      ];
+      via = {
+        sink = "dns";
+      };
     }
   ];
   truncated = {

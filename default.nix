@@ -61,7 +61,7 @@ let
   aspectMeta = words "at cycle order __aspect";
   outMeta = words "tree order";
   scopeMeta = words "kind name key parent path id up rup __here";
-  requestKinds = words "nearest parent children scopesOf holds";
+  requestKinds = words "nearest parent children scopesOf holds instances graph";
   # the facts yen extracts, with their arity: no rule derives them
   edbArity = {
     scope = 1;
@@ -286,6 +286,16 @@ let
       check = v: isList v && all (checkOf t) v;
       __of = t; # a list of refs is still a ref field: one fact per element (refKind)
     };
+    #: lib.kind :: type -- a kind: yen.kinds.<kind>
+    kind = {
+      check = v: isAttrs v && v ? __kind;
+      description = "a kind";
+    };
+    #: lib.aspect :: type -- an aspect: yen.aspects.<name>
+    aspect = {
+      check = v: isAttrs v && v ? __aspect;
+      description = "an aspect";
+    };
     #: lib.enum :: [ value ] -> type -- one of the listed values
     enum = xs: {
       check = v: elem v xs;
@@ -502,7 +512,7 @@ let
       asked = keySet ([ "yen" ] ++ concatMap (n: attrNames n.fa) found ++ concatMap declares probed);
       used = keySet (concatMap gives probed ++ concatMap (n: attrNames n.fa) found); # a sink reduces only where it is given or read
       # a source: its sink reduced like a kind sink. `of` checks each module's value; `reduce` defaults to `one`
-      source = c: if c == "yen" then yen else (reduceModules c).value;
+      source = y: c: if c == "yen" then y else (reduceModules c).value;
       # the givers and the declaration come from the module key sets: a sink never waits on every module (`top`)
       reduceModules =
         c:
@@ -541,16 +551,23 @@ let
               }
             ) red.errors;
         };
-      real = listToAttrs (
-        map (n: {
-          name = n.key;
-          value = load n;
-        }) found
-      );
-      load =
-        n:
+      real = realWith yen;
+      # two loads: `yen` with instance data answers data and spawns; aspects and kind sinks get instances as refs
+      realWith =
+        y:
         let
-          parent = if n.at or null == null then null else real.${n.at.parent};
+          r = listToAttrs (
+            map (n: {
+              name = n.key;
+              value = load y r n;
+            }) found
+          );
+        in
+        r;
+      load =
+        y: r: n:
+        let
+          parent = if n.at or null == null then null else r.${n.at.parent};
           f = if parent == null then n.f else b.elemAt parent.mod.imports n.at.i;
           missing = filter (a: !n.fa.${a} && !(moduleSinks ? ${a})) (attrNames n.fa);
         in
@@ -576,10 +593,19 @@ let
           {
             inherit (n) key;
             mod =
-              if isFunction f then f (genAttrs (filter (a: moduleSinks ? ${a}) (attrNames n.fa)) source) else f;
+              if isFunction f then
+                f (genAttrs (filter (a: moduleSinks ? ${a}) (attrNames n.fa)) (source y))
+              else
+                f;
           };
+      loadWith =
+        y:
+        let
+          r = realWith y;
+        in
+        map (n: r.${n.key}) found;
       loaded = map (n: real.${n.key}) found;
-      defs = map (n: n.mod.yen or { }) (filter (n: n ? mod) loaded);
+      defsOf = l: map (n: n.mod.yen or { }) (filter (n: n ? mod) l);
       # the modules (file paths, or positions for inline modules) that answer a declaration path, in file order
       #: result.declaredIn, yen.lib.declaredIn :: [ name ] -> [ file ] -- the modules that answer a declaration path, in file order
       declaredIn =
@@ -619,9 +645,8 @@ let
         vals = vs;
         kids = b.zipAttrsWith (_: zipDefs) (filter (v: isAttrs v && !isLeaf v) vs);
       };
-      index = zipDefs defs;
-      answers =
-        path:
+      answersIn =
+        index: path:
         (foldl' (
           node: n:
           node.kids.${n} or {
@@ -629,19 +654,21 @@ let
             kids = { };
           }
         ) index path).vals;
+      answers = answersIn (zipDefs (defsOf loaded));
+      answersRefs = answersIn (zipDefs (defsOf (loadWith refsYen)));
       atKey = path: path != [ ] && b.elemAt path (length path - 1) == "at";
       sinkKeyOf = path: length path == 3 && head path == "aspects" && elem (b.elemAt path 2) sinkNames; # several files may each give an element
-      decl =
-        path:
+      declIn =
+        ans: path:
         let
-          hs = answers path;
+          hs = ans path;
         in
         if atKey path then
           concatMap toList hs
         else if hs == [ ] then
           null
         else if isAttrs (head hs) && !isLeaf (head hs) then
-          genAttrs (names (attrsIn hs)) (n: decl (path ++ [ n ]))
+          genAttrs (names (attrsIn hs)) (n: declIn ans (path ++ [ n ]))
         else
           head hs;
       declErrors =
@@ -664,7 +691,8 @@ let
               fix = "keep one answer for ${concatStringsSep "." path}: data never overrides data";
             })
           ];
-      top = decl [ ];
+      top = declIn answers [ ];
+      topRefs = declIn answersRefs [ ];
       kinds = mapAttrs (
         k: d:
         d
@@ -672,9 +700,18 @@ let
           __kind = k;
           check = checkOf { __kind = k; };
         }
-        // (if d ? sinks then { sinks = mapAttrs (n: v: v // { __sink = n; }) d.sinks; } else { }) # a sink is a ref: it carries its name
+        // (
+          if d ? sinks then
+            { sinks = mapAttrs (n: v: withAt d.sinks.${n} (v // { __sink = n; })) topRefs.kinds.${k}.sinks; }
+          else
+            { }
+        ) # a sink is a ref: it carries its name
       ) (top.kinds or { }); # a kind is a type: its instances pass
-      aspects = mapAttrs (n: a: a // { __aspect = n; }) (top.aspects or { });
+      # values come from the refs load; `at` reads data: stage diffs where aspects are active and where sinks receive
+      withAt = d: v: v // (if d ? at then { inherit (d) at; } else { });
+      aspects = mapAttrs (n: a: withAt top.aspects.${n} (a // { __aspect = n; })) (
+        topRefs.aspects or { }
+      );
       # a relation is called by reference: `yen.relations.rank e 3` is the atom [ "rank" e 3 ]; one of arity 0 is a literal
       #: yen.relations.<name> :: term… -> literal -- a declared relation called by reference, one term per arity; arity 0 is the literal itself
       relations = mapAttrs (
@@ -696,7 +733,7 @@ let
           k: s:
           lit [
             "kind"
-            k.__kind
+            (k.__kind or k.kind)
             s
           ];
         #: yen.facts.has :: aspect -> scope -> literal -- the aspect is active at the scope (yen.aspects.<name>)
@@ -704,7 +741,7 @@ let
           a: s:
           lit [
             "has"
-            a.__aspect
+            (a.__aspect or a.aspect)
             s
           ];
         #: yen.facts.instance :: scope -> instance -> literal -- the scope holds that instance (yen.<kind>.<name>)
@@ -715,6 +752,22 @@ let
             s
             r.kind
             r.name
+          ];
+        #: yen.facts.scope :: scope -> literal -- the scope exists
+        scope =
+          s:
+          lit [
+            "scope"
+            s
+          ];
+        #: yen.facts.edge :: sink -> scope -> scope -> literal -- an element of the sink goes from the first scope to the second (yen.kinds.<kind>.sinks.<sink>)
+        edge =
+          k: f: t:
+          lit [
+            "edge"
+            (k.__sink or k.sink)
+            f
+            t
           ];
         #: yen.facts.parent :: scope -> scope -> literal -- the second scope is the parent of the first
         parent =
@@ -918,6 +971,54 @@ let
         facts = factLits; # rule literals by reference
         inherit labelTable;
       }; # declarations an agent or the docs read
+      # the `yen` aspects and kind sinks get: an instance is a ref, its fields are not readable; no structure queries.
+      # A value reads the fleet only through its args and cycle `tree` requests, so every read is an edge.
+      refsYen =
+        yen
+        // mapAttrs (
+          k: _:
+          genAttrs (instNames k) (
+            n:
+            {
+              kind = k;
+              name = n;
+            }
+            // mapAttrs (
+              f: _:
+              throw "yen.${k}.${n}.${f}: an aspect reads instance data only through its args: take `${k}` as an arg, or follow a ref field of an arg"
+            ) (kinds.${k}.fields or { })
+          )
+        ) kinds
+        // {
+          lib =
+            lib
+            // genAttrs (words "graph scopesOf children declaredIn labels floor") (
+              q:
+              throw "yen.lib.${q}: an aspect reads the fleet only through its args: ask the cycle `tree` for it"
+            );
+          helpers = topRefs.helpers or { };
+          # a kind, a sink and an aspect are refs here: another declaration's content is no read an edge can record
+          kinds = mapAttrs (
+            k: d:
+            {
+              inherit (d) __kind check;
+            }
+            // (if d ? sinks then { sinks = mapAttrs (n: _: { __sink = n; }) d.sinks; } else { })
+            // mapAttrs (
+              f: _: throw "yen.kinds.${k}.${f}: an aspect reads a kind only as a ref (a type, a request)"
+            ) (removeAttrs d (words "__kind check sinks"))
+          ) kinds;
+          aspects = mapAttrs (
+            n: a:
+            {
+              __aspect = n;
+            }
+            // mapAttrs (
+              k: _:
+              throw "yen.aspects.${n}.${k}: an aspect reads another aspect only as a ref: put shared code in yen.helpers"
+            ) (removeAttrs a [ "__aspect" ])
+          ) aspects;
+        };
 
       # ── the scope tree: nested cycles. key = what the parent spawned; identity = keys from the root ──
       mkScope =
@@ -1190,7 +1291,7 @@ let
             concatMap (
               k:
               let
-                hs = answers [
+                hs = answersRefs [
                   "aspects"
                   n
                   k
@@ -1200,6 +1301,7 @@ let
               # data merges; functions from several files each apply
               b.genList (i: {
                 origin = "aspect ${n}" + (if one then "" else "#${toString i}");
+                aspect = n;
                 key = k;
                 from = s;
                 value = if one then a.${k} else b.elemAt hs i;
@@ -1212,6 +1314,7 @@ let
               in
               b.genList (i: {
                 origin = "aspect ${n}";
+                aspect = n;
                 key = k;
                 from = s;
                 value = b.elemAt vs i;
@@ -1265,13 +1368,38 @@ let
           [ (lib.children q.children s) ]
         else if q ? scopesOf then
           [ (lib.scopesOf q.scopesOf) ]
+        else if q ? instances then
+          [ (b.attrValues instances.${q.instances.__kind}) ]
+        # the whole fleet: a reader of it (docs, diagrams) is reached by every change, and only it
+        else if q ? graph then
+          [ yen ] # instances with their data, and every structure query in yen.lib
         else
           [ (holds q.holds s) ];
+      # a request is selected by itself: the same question on the same refs (kind, sink, aspect, instance), never a name
+      refKey =
+        v:
+        if isAttrs v && v ? __kind then
+          { kind = v.__kind; }
+        else if isAttrs v && v ? __sink then
+          { sink = v.__sink; }
+        else if isAttrs v && v ? __aspect then
+          { aspect = v.__aspect; }
+        else if isRef v then
+          { inherit (v) kind name; }
+        else if isList v then
+          map refKey v
+        else if isFunction v then
+          throw "tree request: a function predicate has no identity: use a kind, an aspect, an instance, or yen.lib combinators of them"
+        else if isAttrs v then
+          mapAttrs (_: refKey) (b.removeAttrs v [ "__functor" ])
+        else
+          v;
+      reqKey = q: b.toJSON (mapAttrs (_: refKey) (intersectAttrs (genAttrs requestKinds (_: null)) q));
       sourcesAt =
         s: requests:
         {
           scope = s;
-          tree.select = c: concatMap (answer s) (filter (q: known q && q.category or null == c) requests);
+          tree.select = q: if any (r: known r && reqKey r == reqKey q) requests then answer s q else [ ];
         }
         // genAttrs sinkNames (
           n:
@@ -1280,14 +1408,18 @@ let
           in
           if r == null then [ ] else [ (memo.${n}.${r.id} or (reduceAt n r)).value ]
         ); # a receiver with no element yet reduces to its empty value
-      known = q: any (k: q ? ${k}) requestKinds;
+      known = q: !(q ? category) && any (k: q ? ${k}) requestKinds; # no category: a request is selected by itself
       requestErrors = concatMap (
         s:
         concatMap (
           n:
-          map (_: errWith s.id "aspect ${n}: unknown tree request" { code = "tree-request"; }) (
-            filter (q: !known q) (toList ((outAt n s).tree or [ ]))
-          )
+          map (
+            _:
+            errWith s.id "aspect ${n}: unknown tree request" {
+              code = "tree-request";
+              fix = "ask one of ${concatStringsSep ", " requestKinds}, with no category, and select it by itself: tree.select request";
+            }
+          ) (filter (q: !known q) (toList ((outAt n s).tree or [ ])))
         ) (attrNames cycleOuts)
       ) unsorted;
 
@@ -1382,10 +1514,13 @@ let
           es = uniqueBy (e: "${idOf e}@${r.id}") (byTo."${k}@${r.id}" or [ ]);
           filled = map (e: fill e.from e.value // { inherit e; }) es;
           okOf = x: x ? ok && (!(d ? of) || checkOf d.of x.ok);
+          # a sink `of` a kind gets refs; it reduces their instances (an element holds a ref, never instance data)
+          resolve =
+            v: if d ? of && isType d.of && d.of ? __kind && isRef v then instances.${v.kind}.${v.name} else v;
           red = (d.reduce or reduce.list) (
             map (x: {
               from = x.e.from;
-              value = x.ok;
+              value = resolve x.ok;
             }) (filter okOf filled)
           );
           bad = map (
@@ -1443,6 +1578,158 @@ let
           inherit (e) origin;
         }) routed;
       }; # origin: "aspect x" or "sink y": who gave it
+      # ── reads: what each routed element reads, as tokens (lib/impact.nix). A value reads the fleet only through its
+      # args and its cycle's sources, so these are all its reads: a staged change follows them, never more ──
+      dataT = id: { data = id; };
+      sinkT = n: id: {
+        sink = n;
+        at = id;
+      };
+      instT = k: n: {
+        instance = k;
+        name = n;
+      };
+      sinkAt = n: s: map (r: sinkT n r.id) (orNull (receiverIn n s.rup));
+      # an aspect ref in a predicate reads where that aspect is active, at the scope and above it (`within`)
+      activeAt =
+        p: x:
+        concatMap (
+          a:
+          map (y: {
+            aspect = a;
+            at = y.id;
+          }) x.up
+        ) (refsOf p);
+      formalReads =
+        s: v:
+        if !isFn v then
+          [ ]
+        else
+          concatMap (
+            n:
+            if n == "scope" then
+              [ (dataT s.id) ]
+            else if n == "sinks" then
+              concatMap (k: sinkAt k s) sinkNames
+            else if kinds ? ${n} then
+              map (x: dataT x.id) (orNull (nearest n s))
+            else
+              sinkAt n s
+          ) (filter isRen (attrNames (fnArgs v)));
+      requestReads =
+        s: q:
+        if q ? nearest then
+          map (x: dataT x.id) (orNull (nearest q.nearest.__kind s))
+        else if q ? parent then
+          map (x: dataT x.id) (orNull s.parent)
+        else if q ? children then
+          concatMap (c: [ (dataT c.id) ] ++ activeAt q.children c) (childrenAt.${s.id} or [ ])
+        else if q ? scopesOf then
+          map (x: dataT x.id) (lib.scopesOf q.scopesOf)
+        else if q ? instances then
+          map (instT q.instances.__kind) (instNames q.instances.__kind)
+        else if q ? graph then
+          [ ]
+        else
+          [ (dataT s.id) ] ++ activeAt q.holds s;
+      requestsOf = e: filter known (toList ((outAt e.aspect e.from).tree or [ ]));
+      isWhole = e: e ? raw && any (q: q ? graph) (requestsOf e); # a whole-fleet reader: every change reaches it
+      edgeReads =
+        e:
+        formalReads e.from e.value
+        ++ (
+          if e ? raw then
+            [ (dataT e.from.id) ]
+            ++ concatMap (k: sinkAt k e.from) sinkNames
+            ++ concatMap (requestReads e.from) (requestsOf e)
+          else
+            [ ]
+        );
+      # a scope's own data, with refs cut to their identity: its fingerprint, the instances it holds, and functions
+      walk =
+        v:
+        let
+          many = ws: {
+            refs = concatMap (w: w.refs) ws;
+            opaque = any (w: w.opaque) ws;
+          };
+        in
+        if isRef v && isString v.kind && isString v.name && (instances.${v.kind} or { }) ? ${v.name} then
+          {
+            fp.__ref = [
+              v.kind
+              v.name
+            ];
+            refs = [ (instT v.kind v.name) ];
+            opaque = false;
+          }
+        else if isAttrs v && v ? __here then
+          {
+            fp.__scope = v.id;
+            refs = [ (dataT v.id) ];
+            opaque = false;
+          } # a scope record: its data is that scope's token (its `up` holds itself)
+        else if isFunction v || isAttrs v && (isLeaf v || v ? outPath) then
+          {
+            fp = null;
+            refs = [ ];
+            opaque = true;
+          }
+        else if isList v then
+          let
+            ws = map walk v;
+          in
+          many ws // { fp = map (w: w.fp) ws; }
+        else if isAttrs v then
+          let
+            ws = mapAttrs (_: walk) v;
+          in
+          many (b.attrValues ws) // { fp = mapAttrs (_: w: w.fp) ws; }
+        else
+          {
+            fp = if isPath v then toString v else v;
+            refs = [ ];
+            opaque = false;
+          };
+      walks = byScope (s: walk (removeAttrs s scopeMeta)) scopes;
+      #: result.reads :: { edges; whole; data; } -- what every element, scope and instance reads, as tokens; whole: reached by any change; data: each scope's data by its sha256
+      reads = {
+        edges =
+          map (e: {
+            out = sinkT e.key e.to.id;
+            reads = edgeReads e;
+          }) (filter (e: !isWhole e) routed)
+          # a scope's record holds its parent's (`up`), its instance and the instances it refs
+          ++ map (s: {
+            out = dataT s.id;
+            reads = [ (instT s.kind s.name) ] ++ walks.${s.id}.refs ++ map (p: dataT p.id) (orNull s.parent);
+          }) scopes
+          ++ concatMap (
+            k:
+            map (n: {
+              out = instT k n;
+              reads = (walk (removeAttrs instances.${k}.${n} (words "kind name"))).refs;
+            }) (instNames k)
+          ) kindNames
+          # a sink `of` a kind reduces the instances its refs name
+          ++ concatMap (
+            n:
+            concatMap (
+              r:
+              let
+                d = sinkOf r n;
+              in
+              optional (d ? of && isType d.of && d.of ? __kind) {
+                out = sinkT n r.id;
+                reads = map (instT d.of.__kind) (instNames d.of.__kind);
+              }
+            ) (receivers n)
+          ) sinkNames;
+        whole =
+          map (e: sinkT e.key e.to.id) (filter isWhole routed)
+          ++ map (s: dataT s.id) (filter (s: walks.${s.id}.opaque) scopes); # a function in the data: no fingerprint
+        data = mapAttrs (_: w: b.hashString "sha256" (b.toJSON w.fp)) walks; # by hash: a secret field stays unstated
+      };
       # ── facts and invariants: the fleet as typed atoms `[ rel t… ]`; `yen.invariants.<name>` gives Datalog rules over them.
       # A true `bad` atom is a violation; an undefined one (a cycle through `not`) is an incomplete answer, never a pass.
       # a field value: `[ "ref" FIELD ID KIND NAME ]` for a ref, `[ "val" FIELD ID VALUE ]` for a string, int or bool, one
@@ -1836,8 +2123,8 @@ let
               { ok = true; };
           # .43: where a fact comes from, beside the fact, never in it: an edge's origin, or the files that declare its
           # instance, its field, or its aspect
-          #: result.check.from :: atom -> [ origin ] -- where a fact comes from: the edge origin, or the files that declare its instance, field or aspect
-          from =
+          #: result.check.from :: literal -> [ origin ] -- where a fact comes from: the edge origin, or the files that declare its instance, field or aspect
+          from = question (
             a:
             let
               r = head a;
@@ -1875,7 +2162,8 @@ let
             else if r == "error" then
               [ (b.elemAt a 2) ]
             else
-              inst [ ];
+              inst [ ]
+          );
           program = ground ++ D.facts facts;
           # the verdict's model plus the facts no rule body reads: they change no other atom, so it is the model of `program`
           model = m // {
@@ -1904,12 +2192,27 @@ let
           };
           #: result.check.ok :: bool -- no violation, no incomplete atom, no opaque field
           ok = violations == [ ] && incomplete == [ ] && opaque == [ ];
-          #: result.check.why :: atom -> [ rule ] -- the rules that make the atom true
-          why = D.why program model;
-          #: result.check.whyNot :: atom -> [ { rule; missing; blocking; undefinedBody; } ] -- why the atom is not true
-          whyNot = D.whyNot program model;
-          #: result.check.proof :: atom -> tree -- the proof tree of a true atom
-          proof = D.proof program model;
+          # the literals of yen.facts and yen.relations, for a question from outside the fleet: a ref or its identity
+          #: result.check.facts, result.check.relations :: … -> literal -- yen.facts and yen.relations; a kind, aspect or sink may be its identity { kind; }, { aspect; }, { sink; }
+          facts = factLits;
+          inherit relations;
+          #: result.check.bad :: { invariant = term or [ term ] -> literal; } -- the violation of an invariant, by reference: a scope record, or an instance with one scope
+          bad = mapAttrs (
+            n: _: t:
+            lit (
+              [
+                "bad"
+                n
+              ]
+              ++ (if isList t then t else [ t ])
+            )
+          ) invs;
+          #: result.check.why :: literal -> [ rule ] -- the rules that make the literal true
+          why = question (D.why program model);
+          #: result.check.whyNot :: literal -> [ { rule; missing; blocking; undefinedBody; } ] -- why the literal is not true
+          whyNot = question (D.whyNot program model);
+          #: result.check.proof :: literal -> tree -- the proof tree of a true literal
+          proof = question (D.proof program model);
           #: result.check.invariants :: [ name ] -- the names of the invariants
           invariants = attrNames invs;
         };
@@ -1995,6 +2298,77 @@ let
       };
       # ── explain: why an aspect is (not) active at a scope, as a three-valued trace of its `at`, cut at a depth ──
       byId = byScope (s: s) unsorted;
+      # a scope by reference: its record, its path of identities, or an instance (a ref or { kind; name; }) with one
+      # scope. The id string stays inside, a key: two scope records compare by sharing, never by value
+      #: result.pathOf :: scope -> [ { kind; name; } ] -- the scope as a path of identities, from the root: what an answer prints and a question takes
+      pathOf = s: (if s.parent == null then [ ] else pathOf s.parent) ++ [ { inherit (s) kind name; } ];
+      idOfPath = p: concatStringsSep "/" (map (x: "${x.kind}:${x.name}") p);
+      scopeIn =
+        from: t:
+        let
+          ss = filter (s: s.kind == t.kind && s.name == t.name) unsorted;
+        in
+        if isAttrs t && t ? id && byId ? ${t.id} then
+          { ok = byId.${t.id}; }
+        else if isList t && t != [ ] && all isRef t then
+          if byId ? ${idOfPath t} then
+            { ok = byId.${idOfPath t}; }
+          else
+            errWith from "no scope at this path" {
+              code = "unknown-scope";
+              got = t;
+              near = map (i: pathOf byId.${i}) (near (idOfPath t) (attrNames byId));
+              fix = "pass the path of a scope of result.scopes (result.pathOf s)";
+            }
+        else if !isRef t then
+          errWith from "a scope is a scope record, its path, or an instance" {
+            code = "not-a-scope";
+            fix = "pass yen.<kind>.<name> or { kind; name; } (one scope), or a path [ { kind; name; } … ]";
+          }
+        else if length ss == 1 then
+          { ok = head ss; }
+        else if ss == [ ] then
+          errWith from "no scope holds ${t.kind} ${t.name}" {
+            code = "unknown-scope";
+            near = map pathOf (
+              filter (s: elem s.key (near "${t.kind}:${t.name}" (map (s: s.key) unsorted))) unsorted
+            );
+            fix = "pass an instance that has a scope, or a path of result.scopes";
+          }
+        else
+          errWith from "${t.kind} ${t.name} has ${toString (length ss)} scopes, not one" {
+            code = "scope-ambiguous";
+            want = "one scope";
+            scopes = map pathOf ss;
+            fix = "pass one of these paths";
+          };
+      # a check term: a scope by reference is its id; a constant is itself
+      termIn =
+        t:
+        let
+          r = scopeIn "check" t;
+        in
+        if !(isAttrs t && (t ? id || isRef t) || isList t) then
+          { ok = t; }
+        else if r ? ok then
+          { ok = r.ok.id; }
+        else
+          r;
+      question =
+        f: l:
+        let
+          ts = map termIn l.atom;
+          bad = first (x: !(x ? ok)) ts;
+        in
+        if !(isAttrs l && isList (l.atom or null)) then
+          errWith "check" "a check question is a literal, not a list" {
+            code = "not-a-literal";
+            fix = "use result.check.bad.<invariant> term, or a literal of yen.facts or yen.relations";
+          }
+        else if bad != null then
+          bad
+        else
+          f (map (x: x.ok) ts);
       noScope = from: id: unknown from id (attrNames byId) { code = "unknown-scope"; };
       trace =
         d: p: s:
@@ -2009,7 +2383,7 @@ let
             // x;
           kids = f: if d == 0 then "cut" else f (d - 1);
           sub = ps: { kids = kids (d': map (q: trace d' q s) ps); }; # the same scope
-          at = ss: q: { kids = kids (d': map (x: { scope = x.id; } // trace d' q x) ss); }; # other scopes
+          at = ss: q: { kids = kids (d': map (x: { scope = pathOf x; } // trace d' q x) ss); }; # other scopes
         in
         if isFunction p then
           node "function" { }
@@ -2026,33 +2400,73 @@ let
         else if p ? __functor then
           node "function" { }
         else if p ? __kind then
-          node "kind" { kind = p.__kind; }
+          node "kind" {
+            kind = {
+              kind = p.__kind;
+            };
+          }
         else if p ? __aspect then
-          node "aspect" ({ aspect = p.__aspect; } // sub [ (aspects.${p.__aspect}.at or [ ]) ])
+          node "aspect" (
+            {
+              aspect = {
+                aspect = p.__aspect;
+              };
+            }
+            // sub [ (aspects.${p.__aspect}.at or [ ]) ]
+          )
+        else if isRef p then
+          node "instance" { instance = { inherit (p) kind name; }; }
         else
-          node "instance" { instance = "${p.kind or "?"}:${p.name or "?"}"; };
-      #: result.explain :: aspect -> scope id -> depth -> tree -- why an aspect is active or not at a scope, as a three-valued trace of its at
+          node "bad-predicate" {
+            fix = "a predicate is a kind, an instance, an aspect, a function, a list, or a yen.lib combinator of them";
+          };
+      #: result.explain :: aspect -> scope -> depth -> tree -- why an aspect is active or not at a scope, as a three-valued trace of its at; refs in, identities out
       explain =
-        n: id: depth:
+        a: t: depth:
         let
-          s = byId.${id};
-          v = s.__here.${n};
+          n = aspectIn "explain" a;
+          sc = scopeIn "explain" t;
+          s = sc.ok;
+          v = s.__here.${n.ok};
         in
-        if !(aspects ? ${n}) then
-          unknown "explain" n aspectNames { code = "unknown-aspect"; }
-        else if !(byId ? ${id}) then
-          noScope "explain" id
+        if !(n ? ok) then
+          n
+        else if !(sc ? ok) then
+          sc
         else
           {
-            aspect = n;
-            scope = id;
+            aspect.aspect = n.ok;
+            scope = pathOf s;
             active = if v == null then "undefined" else v;
-            at = trace depth (aspects.${n}.at or [ ]) s;
-            gives = map (e: { inherit (e) sink to; }) (
-              filter (e: e.origin == "aspect ${n}" && e.from == id) graph.edges
+            at = trace depth (aspects.${n.ok}.at or [ ]) s;
+            gives = map (e: { inherit (edgeOut e) sink to; }) (
+              filter (e: e.origin == "aspect ${n.ok}" && e.from == s.id) graph.edges
             );
-            files = filesOf n;
+            files = filesOf n.ok;
           };
+      # an aspect by reference: yen.aspects.<name>, or { aspect; } from outside the fleet
+      aspectIn =
+        from: a:
+        let
+          n = if isAttrs a then a.__aspect or a.aspect or null else null;
+          x = if isString n then n else "";
+        in
+        if n != null && aspects ? ${n} then
+          { ok = n; }
+        else
+          unknown from x aspectNames { code = "unknown-aspect"; }
+          // {
+            near = map (y: { aspect = y; }) (near x aspectNames);
+          };
+      # a routed element as an answer prints it: its sink and both ends by reference
+      edgeOut =
+        e:
+        e
+        // {
+          sink.sink = e.sink;
+          from = pathOf byId.${e.from};
+          to = pathOf byId.${e.to};
+        };
       # ── the agent surface: JSON-safe answers, every list says when it was cut ──
       cut =
         max: xs:
@@ -2066,28 +2480,31 @@ let
             of = length xs;
           };
         };
-      #: result.context :: scope id -> { maxEdges ? ; maxAspects ? ; } -> { scope; kind; name; parent; children; aspects; undefined; given; received; errors; } -- one scope for an agent, cut to size
+      #: result.context :: scope -> { maxEdges ? ; maxAspects ? ; } -> { scope; kind; name; parent; children; aspects; undefined; given; received; errors; } -- one scope for an agent, cut to size; refs in, identities out
       context =
-        id:
+        t:
         {
           maxEdges ? 20,
           maxAspects ? 50,
         }:
         let
-          s = byId.${id};
+          sc = scopeIn "context" t;
+          s = sc.ok;
+          id = s.id;
+          edges = es: cut maxEdges (map edgeOut es);
         in
-        if !(byId ? ${id}) then
-          noScope "context" id
+        if !(sc ? ok) then
+          sc
         else
           static.jsonSafe {
-            scope = id;
+            scope = pathOf s;
             inherit (s) kind name;
-            parent = if s.parent == null then null else s.parent.id;
-            children = map (c: c.id) (below s);
-            aspects = cut maxAspects (filter (n: active.${n}.${id}) aspectNames);
-            undefined = map (x: x.aspect) (filter (x: x.scope == id) undefined);
-            given = cut maxEdges (filter (e: e.from == id) graph.edges);
-            received = cut maxEdges (filter (e: e.to == id) graph.edges);
+            parent = if s.parent == null then null else pathOf s.parent;
+            children = map pathOf (below s);
+            aspects = cut maxAspects (map (n: { aspect = n; }) (filter (n: active.${n}.${id}) aspectNames));
+            undefined = map (x: { inherit (x) aspect; }) (filter (x: x.scope == id) undefined);
+            given = edges (filter (e: e.from == id) graph.edges);
+            received = edges (filter (e: e.to == id) graph.edges);
             errors = filter (e: e.from == id) errorsAll;
           };
       #: result.agent :: { schema; undefined; errors; check; counts; } -- the fleet summary an agent reads first
@@ -2103,17 +2520,25 @@ let
         };
       };
       # ── impact: the scopes an element of `id` reaches, transitively over routed elements, by depth ──
-      #: result.impact :: scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth -- the scopes an element of the scope reaches, transitively
+      #: result.impact :: scope -> { hops ? ; sinks ? ; max ? ; } -> by depth -- the scopes an element of the scope reaches, transitively; a sink is a ref or { sink; }
       impact =
-        id:
+        t:
         {
           hops ? 3,
           sinks ? null,
           max ? 50,
         }:
         let
-          bad = if sinks == null then [ ] else filter (k: !elem k sinkNames) sinks;
-          step = from: filter (e: e.from == from && (sinks == null || elem e.sink sinks)) graph.edges;
+          sc = scopeIn "impact" t;
+          id = sc.ok.id;
+          # a sink by reference: yen.kinds.<kind>.sinks.<sink>, or { sink; } from outside the fleet
+          names =
+            if sinks == null then
+              null
+            else
+              map (k: if isAttrs k then k.__sink or k.sink or null else null) sinks;
+          bad = if sinks == null then [ ] else filter (k: !isString k || !elem k sinkNames) names;
+          step = from: filter (e: e.from == from && (sinks == null || elem e.sink names)) graph.edges;
           reached = genericClosure {
             startSet = [
               {
@@ -2135,8 +2560,9 @@ let
           c = cut max (
             map
               (x: {
-                scope = x.key;
-                inherit (x) depth via;
+                scope = pathOf byId.${x.key};
+                inherit (x) depth;
+                via.sink = x.via;
               })
               (
                 b.sort (p: q: p.depth < q.depth || p.depth == q.depth && p.key < q.key) (
@@ -2145,10 +2571,13 @@ let
               )
           );
         in
-        if !(byId ? ${id}) then
-          noScope "impact" id
+        if !(sc ? ok) then
+          sc
         else if bad != [ ] then
-          unknown "impact" (head bad) sinkNames { code = "unknown-sink"; }
+          unknown "impact" (if isString (head bad) then head bad else "") sinkNames { code = "unknown-sink"; }
+          // {
+            near = map (k: { sink = k; }) (near (if isString (head bad) then head bad else "") sinkNames);
+          }
         else
           {
             reached = c.items;
@@ -2281,9 +2710,34 @@ let
         ++ requestErrors
         ++ reduceErrors
         ++ emitted
+        ++ map queryUntyped untypedQueries
         ++ optional (!(flakeFill ? ok)) flakeFill
         ++ concatMap (x: if x ? error then [ x.error ] else [ ]) fieldAtoms;
       errorsAll = errorsFleet ++ check.errors;
+      # a query is { params; answer; }: a bare function has untyped parameters, so `ask` could not check them; no answer, nothing to ask
+      untypedQueries = filter (n: !isFunction (yen.queries.${n}.answer or null)) (attrNames yen.queries);
+      queryUntyped =
+        n:
+        errWith "queries" "query ${n} is not { params; answer; }: ask cannot check its parameters" {
+          code = "query-untyped";
+          fix = "write yen.queries.${n} = { params = { <name> = <type>; }; answer = { result, <name> }: …; }";
+        };
+      # a ref from JSON is its identity (refKey): { kind; name; } an instance (null when there is none), { kind; } a kind,
+      # { aspect; } an aspect; a Nix ref resolves the same way, any other value stays
+      fromEdge =
+        v:
+        if isList v then
+          map fromEdge v
+        else if !isAttrs v || v ? __kind || v ? __aspect then
+          v
+        else if isRef v then
+          instances.${v.kind}.${v.name} or null
+        else if attrNames v == [ "kind" ] then
+          kinds.${v.kind} or v
+        else if attrNames v == [ "aspect" ] then
+          aspects.${v.aspect} or v
+        else
+          v;
       flakeFill = if top ? flake && scopes != [ ] then fill (head scopes) top.flake else { ok = null; };
       clean = errorsAll == [ ] && check.ok;
       self = {
@@ -2296,6 +2750,7 @@ let
         inherit
           active
           graph
+          pathOf
           undefined
           declaredIn
           modules
@@ -2306,6 +2761,7 @@ let
           context
           agent
           impact
+          reads
           labels
           floor
           ;
@@ -2342,31 +2798,37 @@ let
                 inherit (check) violations incomplete;
               };
             };
-        # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
-        # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
-        # parameter, or an unknown query, is an error record.
-        #: result.queries :: { name = args -> answer; } -- the stored queries of yen.queries
+        # stored queries: `yen.queries.<name> = { params = { host = yen.kinds.host; }; answer = { host, result }: …; }`.
+        # `result` is this eval result; each param has a type, and is optional when the type has a default. `ask name args`
+        # never throws: an unknown query, a missing, unknown or ill-typed parameter is an error record.
+        #: result.queries :: { name = { required; optional; types; }; } -- the stored queries of yen.queries, each with its parameters and their types
         queries = mapAttrs (
-          n: f:
+          _: q:
           let
-            fa = functionArgs f;
-            ps = filter (a: a != "result") (attrNames fa);
+            ps = q.params or { };
           in
           {
-            required = filter (a: !fa.${a}) ps;
-            optional = filter (a: fa.${a}) ps;
+            required = filter (p: !(ps.${p} ? default)) (attrNames ps);
+            optional = filter (p: ps.${p} ? default) (attrNames ps);
+            types = mapAttrs (_: typeName) ps;
           }
-        ) yen.queries;
-        #: result.ask :: name -> args -> answer -- a stored query by name; an unknown query or parameter is an error record
+        ) (b.removeAttrs yen.queries untypedQueries);
+        #: result.ask :: name -> args -> answer -- a stored query by name; a ref from JSON is { kind; name; }, { kind; } or { aspect; }
         ask =
           n: args:
           if !(yen.queries ? ${n}) then
             unknown "ask" n (attrNames yen.queries) { code = "unknown-query"; }
+          else if elem n untypedQueries then
+            queryUntyped n
           else
             let
               q = self.queries.${n};
+              ps = yen.queries.${n}.params or { };
               missing = filter (a: !(args ? ${a})) q.required;
               extra = filter (a: !elem a (q.required ++ q.optional)) (attrNames args);
+              vals = mapAttrs (p: t: if args ? ${p} then fromEdge args.${p} else t.default) ps;
+              lost = first (p: isRef args.${p} && vals.${p} == null) (attrNames args);
+              bad = first (p: !checkOf ps.${p} vals.${p}) (attrNames ps);
             in
             if missing != [ ] then
               errWith "ask" "query ${n}: missing ${head missing}" {
@@ -2379,41 +2841,88 @@ let
                 code = "unknown-param";
                 near = near (head extra) (q.required ++ q.optional);
               }
+            else if lost != null then
+              unknown "ask" args.${lost}.name (instNames args.${lost}.kind) { code = "unknown-instance"; }
+            else if bad != null then
+              errWith "ask" "query ${n}: ${bad} wants ${q.types.${bad}}" {
+                code = if refKind ps.${bad} != null then "ref" else "check";
+                want = q.types.${bad};
+                fix =
+                  if refKind ps.${bad} != null then
+                    "give ${bad} a ${refKind ps.${bad}} ref: yen.${refKind ps.${bad}}.<name>, or { kind; name; } from JSON"
+                  else
+                    "give ${bad} ${q.types.${bad}}";
+              }
             else
-              static.jsonSafe (yen.queries.${n} (args // { result = self; }));
+              static.jsonSafe (yen.queries.${n}.answer (vals // { result = self; }));
       };
     in
     self;
-  # grants that only narrow: a grant names scope ids and sinks (null: every sink). A scope id covers itself and the
-  # scopes under it, by path segment (`host:web` covers `host:web/user:a`, never `host:webhook`). Two grants meet: a
-  # scope stays when one covers the other (the deeper is kept), sinks intersect. There is no way to widen.
-  covers = p: s: s == p || b.substring 0 (b.stringLength p + 1) s == "${p}/";
+  # grants that only narrow, by reference. A scope entry is a path [ { kind; name; } … ] (its scope and the scopes under
+  # it) or an instance (every scope whose path holds it, and the scopes under them). A sink is a ref or { sink; }.
+  # Identities hold only strings, so they compare as data. Two grants meet entry by entry: the deeper path when one
+  # path holds the other, else both must hold ({ all }). There is no way to widen; a non-ref entry covers nothing.
+  ident = x: { inherit (x) kind name; };
+  entryOf =
+    t:
+    if isList t && t != [ ] && all isRef t then
+      { path = map ident t; }
+    else if isRef t then
+      { instance = ident t; }
+    else
+      { invalid = t; };
+  prefixOf = p: s: length p <= length s && b.genList (b.elemAt s) (length p) == p;
+  covers =
+    e: s:
+    if e ? path then
+      prefixOf e.path s
+    else if e ? instance then
+      elem e.instance s
+    else if e ? all then
+      all (x: covers x s) e.all
+    else
+      false;
+  meet =
+    e: f:
+    if e ? invalid || f ? invalid then
+      [ ]
+    else if e == f then
+      [ e ]
+    else if e ? path && f ? path then
+      if prefixOf e.path f.path then
+        [ f ]
+      else if prefixOf f.path e.path then
+        [ e ]
+      else
+        [ ]
+    else if e ? path && covers f e.path then
+      [ e ]
+    else if f ? path && covers e f.path then
+      [ f ]
+    else
+      [
+        {
+          all = [
+            e
+            f
+          ];
+        }
+      ];
+  sinkOf = k: if isAttrs k then k.__sink or k.sink or null else null;
   grants = {
-    #: lib.grant, lib.grants.grant :: { scopes; sinks ? null; } -> grant -- the scope ids and sinks a change may reach (null: every sink)
+    #: lib.grant, lib.grants.grant :: { scopes; sinks ? null; } -> grant -- where a change may reach, by reference: scope paths or instances, sink refs (null: every sink)
     grant =
       {
         scopes,
         sinks ? null,
       }:
       {
-        inherit scopes sinks;
+        scopes = map entryOf scopes;
+        sinks = if sinks == null then null else map sinkOf sinks;
       };
     #: lib.narrow, lib.grants.narrow :: grant -> grant -> grant -- two grants met: the scopes both cover, the sinks both allow; never wider
     narrow = g: h: {
-      scopes = uniq (
-        concatMap (
-          p:
-          concatMap (
-            q:
-            if covers p q then
-              [ q ]
-            else if covers q p then
-              [ p ]
-            else
-              [ ]
-          ) h.scopes
-        ) g.scopes
-      );
+      scopes = uniq (concatMap (e: concatMap (meet e) h.scopes) g.scopes);
       sinks =
         if g.sinks == null then
           h.sinks
@@ -2422,8 +2931,10 @@ let
         else
           filter (x: elem x h.sinks) g.sinks;
     };
-    #: lib.allowed, lib.grants.allowed :: grant -> { to; sink; } -> bool -- the grant covers the target scope and the sink
-    allowed = g: e: any (p: covers p e.to) g.scopes && (g.sinks == null || elem e.sink g.sinks);
+    #: lib.allowed, lib.grants.allowed :: grant -> { to; sink; } -> bool -- the grant covers the scope path `to` and the sink (a ref or { sink; })
+    allowed =
+      g: e:
+      any (p: covers p (map ident e.to)) g.scopes && (g.sinks == null || elem (sinkOf e.sink) g.sinks);
   };
   # data with no functions: it can be hashed, rendered as JSON and read back
   isData =
@@ -2487,8 +2998,6 @@ let
       };
       # what the change itself declares: no value comparison (reduced values can hold functions and cycles)
       declared = eval change;
-      # D14-A: every module reads the whole fleet through `yen`, so a change that declares anything can reach every
-      # scope and every sink. shortcut: sound but coarse; R-yen (yen-704.27) makes reads visible, then grants narrow again
       # .20 .13: every aspect the change declares carries its submitter's label, whatever file (or inline program op)
       # holds it, so a floor sees the agent
       labels =
@@ -2508,16 +3017,155 @@ let
               prefix = null;
               file = null;
             });
-      reaches = any (k: declared.declaredIn [ k ] != [ ]) (
-        yenKeys ++ attrNames changedResult.schema.kinds
+      # D14 exact: a change reaches what its seeds reach through reads, in either eval (lib/impact.nix, vic/r-yen.md)
+      declares = path: declared.declaredIn path != [ ];
+      impactOf = (import ./lib/impact.nix).impactOf;
+      instT = k: n: {
+        instance = k;
+        name = n;
+      };
+      both = f: f baseResult ++ f changedResult;
+      edgesBoth = both (r: r.graph.edges);
+      outOf = e: {
+        inherit (e) sink;
+        at = e.to;
+      };
+      # origin "aspect n#1": an element of aspect n; "sink k": no aspect
+      aspectOf = o: b.head (b.concatLists (orNull (b.match "aspect ([^#]*).*" o)) ++ [ null ]);
+      kindAt = listToAttrs (
+        map (s: {
+          name = s.id;
+          value = s.kind;
+        }) (both (r: r.graph.scopes))
       );
+      kindsBoth = names (both (r: attrNames r.schema.kinds));
+      instancesOf = k: names (both (r: attrNames (r.data.${k} or { })));
+      activePairs =
+        r:
+        concatMap (
+          n:
+          map (id: {
+            aspect = n;
+            at = id;
+          }) (filter (id: r.active.${n}.${id}) (attrNames r.active.${n}))
+        ) (attrNames r.active);
+      activeDelta = delta b.toJSON activePairs;
+      inBoth = filter (id: elem id (ids baseResult)) (ids changedResult);
+      # S8: the same edges into one receiver, in another order (a list reduction sees the order)
+      orderOf =
+        r: other:
+        mapAttrs (_: map keyG) (
+          groupBy (e: b.toJSON (outOf e)) (
+            filter (e: elem (keyG e) (map keyG other.graph.edges)) r.graph.edges
+          )
+        );
+      ordered = orderOf baseResult changedResult;
+      reordered = orderOf changedResult baseResult;
+      seeds =
+        map outOf (diff.edges.added ++ diff.edges.removed) # S1
+        ++ concatMap (
+          k:
+          map (n: instT k n) (
+            filter (
+              n:
+              declares [
+                k
+                n
+              ]
+            ) (instancesOf k)
+          )
+        ) kindsBoth # S2
+        ++ map outOf (
+          filter (
+            e:
+            aspectOf e.origin != null
+            && declares [
+              "aspects"
+              (aspectOf e.origin)
+            ]
+          ) edgesBoth
+        ) # S3
+        ++ map (id: { data = id; }) (diff.scopes.added ++ diff.scopes.removed) # S4
+        ++ concatMap (
+          p: [ p ] ++ map outOf (filter (e: e.from == p.at && aspectOf e.origin == p.aspect) edgesBoth)
+        ) (activeDelta.added ++ activeDelta.removed) # S5
+        ++ concatMap (
+          k:
+          if
+            declares [
+              "kinds"
+              k
+            ]
+          then
+            map (id: { data = id; }) (filter (id: kindAt.${id} == k) (attrNames kindAt))
+            ++ map (instT k) (instancesOf k)
+            ++ map outOf (filter (e: kindAt.${e.to} == k || kindAt.${e.from} == k) edgesBoth)
+          else
+            [ ]
+        ) kindsBoth # S6
+        ++ map (id: { data = id; }) (
+          filter (id: baseResult.reads.data.${id} != changedResult.reads.data.${id}) inBoth
+        ) # S7: a scope's data, spawned or declared
+        ++ map b.fromJSON (filter (k: ordered.${k} != reordered.${k} or [ ]) (attrNames ordered)); # S8
+      dirty = impactOf {
+        edges = both (r: r.reads.edges);
+        whole = both (r: r.reads.whole);
+        inherit seeds;
+      };
+      # helpers and queries are code every module can call: a change to them reaches every scope
+      everywhere = any (k: declares [ k ]) (words "helpers queries");
+      # a scope id of either eval as its path of identities: the grant compares paths, never id strings
+      pathById = listToAttrs (
+        concatMap
+          (
+            r:
+            map (s: {
+              name = s.id;
+              value = r.pathOf s;
+            }) r.scopes
+          )
+          [
+            baseResult
+            changedResult
+          ]
+      );
+      allowedT =
+        t:
+        if t ? sink then
+          grants.allowed grant {
+            sink.sink = t.sink;
+            to = pathById.${t.at};
+          }
+        else
+          any (p: covers p pathById.${t.data or t.at}) grant.scopes;
+      reached =
+        if everywhere then
+          filter (id: !any (p: covers p pathById.${id}) grant.scopes) (
+            attrNames (keySet (ids baseResult ++ ids changedResult))
+          )
+        else
+          names (map (t: t.data or t.at) (filter (t: !(t ? instance) && !allowedT t) dirty));
       outside =
         id:
-        errWith "stage" "the change can reach ${id}, outside the grant" {
-          code = "outside-grant";
+        errWith "stage"
+          "the change can reach ${
+            concatStringsSep "/" (map (x: "${x.kind} ${x.name}") pathById.${id})
+          }, outside the grant"
+          {
+            code = "outside-grant";
+            class = "authority";
+            got = pathById.${id};
+          };
+      # a grant entry that is no ref covers nothing; say so, so a typo is never a silent refusal
+      notScope = map (
+        e:
+        errWith "stage" "a grant scope is no ref" {
+          code = "not-a-scope";
           class = "authority";
-          got = id;
-        };
+          got = e.invalid;
+          fix = "grant { scopes = [ yen.<kind>.<name> or { kind; name; } or a path [ { kind; name; } … ] ]; }";
+        }
+      ) (filter (e: e ? invalid) (if grant == null then [ ] else grant.scopes));
       lawKeys = words "invariants relations labels flake";
       law = filter (k: declared.declaredIn [ k ] != [ ]) lawKeys;
       errors = minus keyE changedResult.errors baseResult.errors;
@@ -2539,18 +3187,9 @@ let
             path = [ k ];
           }
         ) law
-        # one refusal per scope, before or after the change, that the grant does not cover for every sink
-        ++ map outside (
-          filter (
-            id:
-            grant != null
-            && reaches
-            && !grants.allowed grant {
-              to = id;
-              sink = null;
-            }
-          ) (attrNames (keySet (ids baseResult ++ ids changedResult)))
-        );
+        # one refusal per scope, before or after the change, where it reaches outside the grant
+        ++ map outside (if grant == null then [ ] else reached)
+        ++ notScope;
     in
     {
       inherit

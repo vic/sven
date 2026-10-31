@@ -27,6 +27,15 @@ in
     spawns.host = _: yen.host;
     sinks.out.reduce = yen.lib.reduce.merge;
   };
+  # the sharing hosts, at the fleet: a host reads its group through this sink, so the read is an edge
+  yen.kinds.fleet.sinks.shared-pkgs.reduce = yen.lib.reduce.entries;
+  yen.aspects.shared-pkgs = {
+    at = yen.lib.all [
+      yen.kinds.host
+      (s: s.sharedPkgs)
+    ];
+    shared-pkgs = { host, ... }: host.name;
+  };
   yen.kinds.host = {
     fields = {
       system = yen.lib.opt lib.types.str "x86_64-linux";
@@ -37,12 +46,13 @@ in
         host,
         nixos,
         out,
+        shared-pkgs,
         ...
       }:
       let
         group = lib.sort (a: b: a < b) (
-          lib.attrNames (lib.filterAttrs (_: h: h.sharedPkgs && h.system == host.system) yen.host)
-        ); # one group per system
+          map (e: e.from.name) (lib.filter (e: e.from.system == host.system) shared-pkgs)
+        ); # one group per system: `system` is data, so `==`; `same` compares refs only
         leader = lib.head group;
         follower = host.sharedPkgs && leader != host.name;
         shared = out.nixosConfigurations.${leader}.pkgs; # the `out` arg: the leader's built pkgs, lazily
@@ -57,6 +67,7 @@ in
           inherit (host) system;
           modules = nixos ++ lib.optionals follower readOnly;
         };
+        sharedLeader.${host.name} = if follower then leader else null; # whose pkgs this host reuses
         ownPkgs.${host.name} = np.lib.nixosSystem {
           inherit (host) system;
           modules = nixos;

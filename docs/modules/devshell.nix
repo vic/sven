@@ -117,7 +117,7 @@ in
       (cmd "fleet" "fleet-cost" "the trimmed-module-list cost oracle"
         "cd templates/fleet && bash cost.sh"
       )
-      (cmd "fleet" "fleet-mcp" "the MCP server tests" "bash templates/fleet/mcp/test.sh")
+      (cmd "fleet" "fleet-mcp" "the MCP server tests" "bash mcp/test.sh")
       (cmd "fleet" "fleet-check" "nix flake check of the fleet (VM tests are vmTests, not checks)"
         "nix flake check -L \"${fleet}\""
       )

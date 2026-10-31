@@ -50,6 +50,17 @@
       '')
     ];
 
+  # fast: the group and its leader, with no NixOS eval (the e2e checks below build the systems)
+  checks =
+    { result, eq, ... }:
+    {
+      leader = eq result.flake.sharedLeader {
+        app-1 = null;
+        app-2 = "app-1";
+        app-3 = "app-1";
+      };
+    };
+
   e2e =
     { flake, eq, ... }:
     let

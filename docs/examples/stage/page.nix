@@ -23,7 +23,11 @@
           // args
         );
       desktop = S { change = "changes/desktop-on-web.json"; };
-      grant = engine.grant { scopes = [ "fleet:main/host:db" ]; };
+      db = {
+        kind = "host";
+        name = "db";
+      }; # the host `db`, as a caller outside the fleet names it
+      grant = engine.grant { scopes = [ db ]; };
     in
     [
       ''
@@ -42,12 +46,15 @@
 
         ## Grants only narrow
 
-        `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where a change may reach. A prefix covers a scope
-        and the scopes under it, by path segment. `narrow g h` keeps what both allow. No function makes a grant wider.
+        `yen.lib.grant { scopes; sinks ? null; }` says where a change may reach, by reference. A scope entry is an instance
+        (`yen.host.db`, or `{ kind; name; }` from outside the fleet): every scope that holds it and the scopes under them. Or
+        it is a path `[ { kind; name; } … ]`: that scope and the scopes under it. A sink is a ref or `{ sink; }`. `narrow g h`
+        keeps what both allow. No function makes a grant wider, and a scope written as a string covers nothing.
 
-        Every yen module can read the whole fleet through `yen`, so a change that declares anything can reach every scope
-        and every sink. yen refuses each scope the grant does not cover, with `class = "authority"`: no edit by this
-        author can fix it. This is coarse, and it is sound: a value that one scope reads from another never escapes the grant.
+        An element reads other scopes only through its args and cycle `tree` requests, and yen records each of these reads.
+        So `stage` knows the scopes a change reaches: the scopes whose reads get a changed value. yen refuses each of them
+        that the grant does not cover, with `class = "authority"`: no edit by this author can fix it. A scope that the
+        change does not reach is not refused.
       ''
       (docs.file "changes/postgres-on-thinkpad.json")
       (docs.value
@@ -123,13 +130,31 @@
           r =
             (S {
               change = "changes/postgres-on-thinkpad.json";
-              grant = engine.grant { scopes = [ "fleet:main/host:db" ]; };
+              grant = engine.grant {
+                scopes = [
+                  {
+                    kind = "host";
+                    name = "db";
+                  }
+                ];
+              };
             }).refused;
+          last = map (e: builtins.elemAt e.got (builtins.length e.got - 1)) r;
         in
         {
           t1 = yes (builtins.all (e: e.code == "outside-grant") r);
-          t2 = yes (builtins.elem "fleet:main/host:thinkpad" (map (e: e.got) r));
-          t3 = no ((builtins.elem "fleet:main/host:db" (map (e: e.got) r)));
+          t2 = yes (
+            builtins.elem {
+              kind = "host";
+              name = "thinkpad";
+            } last
+          );
+          t3 = no (
+            builtins.elem {
+              kind = "host";
+              name = "db";
+            } last
+          );
         };
       rejected = eq (map (e: e.code)
         (S {
