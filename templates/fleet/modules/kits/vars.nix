@@ -15,21 +15,21 @@ let
   machineOf = s: if yen.lib.holds yen.kinds.member s then s.parent else s;
   publicValue = yen.lib.batteries.vars.public-value { root = ../../vars/per-machine; };
   machineNames = lib.attrNames yen.host ++ lib.attrNames yen.mac;
+  # tree requests: every host and mac, with their data
+  hosts.instances = yen.kinds.host;
+  macs.instances = yen.kinds.mac;
 in
 {
   yen.kinds.fleet.sinks.generators = {
     reduce = yen.lib.batteries.vars.generators { inherit machineOf; };
     # the plan per machine: secret files with their path, and the order to generate in (dependencies first)
-    out = yen.lib.batteries.vars.vars-plan {
-      from = yen.kinds.fleet.sinks.generators;
-      machines = machineNames;
-      recipientsOf =
-        m:
-        let
-          r = yen.fleet.main.recipients;
-        in
-        r.hosts.${m} or r.default; # a host list replaces the default, never adds to it
-    };
+    out =
+      { fleet, sinks, ... }@args:
+      yen.lib.batteries.vars.vars-plan {
+        from = yen.kinds.fleet.sinks.generators;
+        machines = machineNames;
+        recipientsOf = m: fleet.recipients.hosts.${m} or fleet.recipients.default; # a host list replaces the default, never adds to it
+      } args;
   };
   yen.kinds.fleet.sinks.public-reads.reduce = yen.lib.reduce.entries;
   yen.kinds.fleet.fields.secretStore = opt (yen.helpers.enum [
@@ -65,20 +65,40 @@ in
   };
   yen.aspects.vars-guard = {
     at = yen.kinds.fleet;
-    errors =
-      { fleet, generators, ... }:
-      map (m: "vars: ${m.name} uses secret store ${m.secretStore}, the fleet uses ${fleet.secretStore}") (
-        lib.filter (m: m.secretStore != null && m.secretStore != fleet.secretStore) (
-          lib.attrValues yen.host ++ lib.attrValues yen.mac
-        )
-      )
-      ++ lib.concatMap (
-        g:
-        lib.optional (
-          lib.any (m: yen.mac ? ${m}) g.machines
-          && lib.any (d: d ? restartUnits) (lib.attrValues (g.files or { }))
-        ) "vars: ${g.name}: restartUnits is NixOS only, a darwin machine uses it"
-      ) (lib.attrValues generators);
+    cycle =
+      {
+        tree,
+        scope,
+        generators,
+        ...
+      }:
+      let
+        fleet = scope;
+        machines = lib.concatMap (q: lib.head (tree.select q)) [
+          hosts
+          macs
+        ];
+      in
+      {
+        tree = [
+          hosts
+          macs
+        ];
+        errors = [
+          (
+            map (m: "vars: ${m.name} uses secret store ${m.secretStore}, the fleet uses ${fleet.secretStore}") (
+              lib.filter (m: m.secretStore != null && m.secretStore != fleet.secretStore) machines
+            )
+            ++ lib.concatMap (
+              g:
+              lib.optional (
+                lib.any (m: yen.mac ? ${m}) g.machines
+                && lib.any (d: d ? restartUnits) (lib.attrValues (g.files or { }))
+              ) "vars: ${g.name}: restartUnits is NixOS only, a darwin machine uses it"
+            ) (lib.attrValues (lib.head generators))
+          )
+        ];
+      };
   };
 
   yen.aspects.vars-openssh = {

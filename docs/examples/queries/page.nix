@@ -1,3 +1,10 @@
+let
+  # the host `web`, as a caller outside the fleet names it: its identity
+  web = {
+    kind = "host";
+    name = "web";
+  };
+in
 {
   title = "Queries";
   description = "`yen.lib.eval` gives queries, not one value: errors, graph, scopes, active, reduced, facts, and more.";
@@ -92,10 +99,11 @@
       ''
         ## One scope in context
 
-        `result.context id { maxEdges; maxAspects; }` is what an agent or a person reads first about a scope.
+        `result.context scope { maxEdges; maxAspects; }` is what an agent or a person reads first about a scope. The scope is a ref,
+        `{ kind; name; }` from outside the fleet; the answer names parent, children, aspects and edges as refs too.
         Each list says how much it shows of how much there is:
       ''
-      (docs.value (result.context "fleet:main/host:web" { }))
+      (docs.value (result.context web { }))
       ''
         ## Which aspects reach this host?
 
@@ -105,7 +113,7 @@
       (docs.sh ''
         nix eval --impure --file query.nix errors
         nix eval --impure --json --file query.nix graph
-        nix eval --impure --expr '(import ./query.nix).context "fleet:main/host:web" { }'
+        nix eval --impure --expr '(import ./query.nix).context { kind = "host"; name = "web"; } { }'
       '')
       (docs.note "query.nix" ''
         The commands above use a `query.nix` that returns `eval` of your modules. See [Project layout](/start/project-layout/).
@@ -113,8 +121,8 @@
       ''
         ## Inside the fleet
 
-        A module never gets `result`: the fleet is what `result` is computed from. An element reads results through its args
-        and `yen.lib`, where it runs:
+        A module never gets `result`: the fleet is what `result` is computed from. An element reads results through its args.
+        A `cycle` asks the tree for the rest:
       ''
       (docs.table
         [ "To read" "Inside the fleet" ]
@@ -133,7 +141,7 @@
           ]
           [
             "the children where a predicate holds"
-            "`yen.lib.children p scope`"
+            "a tree request in a `cycle`: `children = p`"
           ]
           [
             "whether a predicate holds here"
@@ -141,11 +149,11 @@
           ]
           [
             "the scopes of an instance"
-            "`yen.lib.scopesOf instance`"
+            "a tree request in a `cycle`: `scopesOf = instance`"
           ]
           [
             "the whole fleet"
-            "`yen.lib.graph`, `yen.lib.schema`, `yen.lib.declaredIn`, `yen.lib.labels`"
+            "a tree request in a `cycle`: `graph = true`. `yen.lib.schema` stays direct"
           ]
         ]
       )

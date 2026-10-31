@@ -1,3 +1,10 @@
+let
+  # the host `web`, as a caller outside the fleet names it: its identity
+  web = {
+    kind = "host";
+    name = "web";
+  };
+in
 {
   title = "Impact, without, and time";
   description = "What a scope's elements reach, the fleet without the files of one declaration, and instances valid at a date.";
@@ -37,10 +44,11 @@
       ''
         ## What does this scope reach?
 
-        `result.impact id { hops; sinks; max; }` follows routed elements from a scope, by depth. `web` gives a backend
+        `result.impact scope { hops; sinks; max; }` follows routed elements from a scope, by depth. The scope is a ref (`{ kind; name; }`
+        from outside the fleet), each sink a ref or `{ sink; }`, and each scope it reaches is a path of refs. `web` gives a backend
         to its environment, and the environment gives DNS to the fleet:
       ''
-      (docs.value (result.impact "fleet:main/environment:prod/host:web" { }))
+      (docs.value (result.impact web { }))
       ''
         ## What if it were gone?
 
@@ -94,9 +102,23 @@
       };
     in
     {
-      impact = eq (map (x: x.scope) (result.impact "fleet:main/environment:prod/host:web" { }).reached) ([
-        "fleet:main/environment:prod"
-        "fleet:main"
+      impact = eq (map (x: x.scope) (result.impact web { }).reached) ([
+        [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "environment";
+            name = "prod";
+          }
+        ]
+        [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+        ]
       ]);
       valid = {
         t1 = yes (builtins.filter (s: s.kind == "host") result.scopes != [ ]);

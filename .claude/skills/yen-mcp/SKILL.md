@@ -10,10 +10,11 @@ you stage, and only then you write files.
 
 ## Start the server
 
-From the fleet directory: `nix run .#yen-mcp`. In an MCP client config:
+From the fleet directory: `nix run github:vic/yen?dir=mcp`. The server serves the fleet in its working directory, so
+start it there. In an MCP client config:
 
 ```json
-{ "mcpServers": { "yen": { "command": "nix", "args": [ "run", "/path/to/fleet#yen-mcp" ] } } }
+{ "mcpServers": { "yen": { "command": "nix", "args": [ "run", "github:vic/yen?dir=mcp" ] } } }
 ```
 
 `YEN_TIMEOUT` sets the seconds per call (default 120).
@@ -47,15 +48,20 @@ An error record in a result has `code`, `path`, `got`, `want`, `fix` and, for ty
 
    An `incomplete` atom is undecided, and an `opaque` field is one a rule cannot see. Neither is a pass.
 3. **Explain what you see.**
-   - `yen_context` with a scope id: one scope, its parent, children, aspects, elements and errors.
-   - `yen_explain` with an aspect and a scope: why the aspect is active, inactive or undefined there.
-   - `yen_why_not` with an atom: whether it holds, and the rules for and against it.
+   - `yen_context` with a scope (`{"kind":"host","name":"lb"}`, or a path `[{"kind":"fleet","name":"main"},…]` when the
+     instance has two scopes): one scope, its parent, children, aspects, elements and errors, all as refs.
+   - `yen_explain` with `{"aspect":"attic"}` and a scope: why the aspect is active, inactive or undefined there.
+   - `yen_why_not` with an invariant and a scope (`{"invariant":"attic","scope":{"kind":"mac","name":"studio"}}`):
+     whether it is violated there, and the rules for and against it. Never a hand-written atom.
    - `yen_declared_in` with a declaration path: the files that answer it.
-   - `yen_impact` with a scope id: the scopes its elements reach, by depth.
+   - `yen_impact` with a scope (and `sinks` as `[{"sink":"nixos"}]`): the scopes its elements reach, by depth.
+   - Every ref an answer prints (scope paths, `{aspect}`, `{sink}`) goes back in as it is. Never build a string.
    - `yen_errors`, optionally with one `code`.
    - `yen_labels`: the trust of each aspect's files. With `floor`, the edges below that trust.
-4. **Use stored queries.** `yen_queries` lists them with their parameters. `yen_ask` runs one with `name` and `args`.
-   A missing parameter comes back as an error record (`missing-param`), not as an evaluation failure.
+4. **Use stored queries.** `yen_queries` lists them with their parameters and types. `yen_ask` runs one with `name`
+   and `args`. A ref parameter is its identity: `{"kind":"host","name":"lb"}` an instance, `{"kind":"host"}` a kind,
+   `{"aspect":"attic"}` an aspect. A name string where a ref belongs comes back as an error record (`ref`), and so
+   does a missing parameter (`missing-param`): never an evaluation failure.
 5. **Stage every change before you write it.**
    - `yen_program` with a list of ops is the safest form of a change. It gives `valid`, `errors`, `ok`,
      `violations` and the diff.

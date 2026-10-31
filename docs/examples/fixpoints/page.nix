@@ -87,8 +87,8 @@
 
         Because the edges are the dependencies, these questions are queries, not a search:
 
-        - `result.impact id { }`: the scopes a scope's elements reach, by depth. See [History](/agents/history/).
-        - `result.explain aspect id depth`: why an aspect is or is not active at a scope.
+        - `result.impact scope { }`: the scopes a scope's elements reach, by depth. See [History](/agents/history/).
+        - `result.explain aspect scope depth`: why an aspect is or is not active at a scope.
         - A grant limits the scopes and sinks a change may give to. It can check a change because every new
           dependency is a new edge. See [Stage a change](/agents/stage/).
         - Labels: an element carries the trust of the files that declare its aspect. See

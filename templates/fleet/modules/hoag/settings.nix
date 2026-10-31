@@ -61,23 +61,16 @@ in
       set.nginx.workers = 8;
     };
   };
-  # a projector: onto every aspect present here that declares settings (its own schema-rank layer)
+  # a projector: onto the schema-rank aspect nginx, when present here (an aspect reads another only as a ref)
   yen.aspects.no-gzip = {
     at = yen.host.stage;
     aspect-settings =
       { scope, ... }:
       {
         rank = rank.policy;
-        set =
-          lib.genAttrs
-            (lib.filter (
-              n:
-              (yen.aspects.${n}.aspect-settings.rank or null) == rank.schema
-              && yen.lib.holds yen.aspects.${n} scope
-            ) (lib.attrNames yen.aspects))
-            (_: {
-              gzip = false;
-            });
+        set = lib.optionalAttrs (yen.lib.holds yen.aspects.nginx scope) {
+          nginx.gzip = false;
+        };
       };
   };
   yen.aspects.nginx-tuned = {

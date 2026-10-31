@@ -50,11 +50,11 @@ let
         b.concatLists (b.genList (i: entries i (b.elemAt ls i)) (b.length ls));
     in
     b.listToAttrs (b.concatMap fileDocs ([ (root + "/default.nix") ] ++ files (root + "/lib")));
-  # the APIs: every function of `(import yen).lib`, nested sets walked; the fleet-bound extras of `yen.lib`; the
+  # the APIs: every function and type of `(import yen).lib`, nested sets walked; the fleet-bound extras of `yen.lib`; the
   # queries of an eval result, and those of `result.check`
   leaves =
     p: v:
-    if b.isAttrs v && !(v ? __functor) && b.attrNames v != [ ] then
+    if b.isAttrs v && !(v ? __functor) && !(v ? check) && b.attrNames v != [ ] then
       b.concatMap (n: leaves (p ++ [ n ]) v.${n}) (b.attrNames v)
     else
       [ (b.concatStringsSep "." p) ];

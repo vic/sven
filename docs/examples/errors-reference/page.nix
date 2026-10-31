@@ -27,7 +27,7 @@ let
     arg = "an element asks for an arg that has no answer";
     at = "`at` holds a value that is not a predicate";
     bare-function = "an element is a function without named args (`x: …`): wrap it as `{ ... }:`";
-    check = "a field value fails its type";
+    check = "a field value or a stored query parameter fails its type";
     cycle = "an instance appears twice on its own scope path: `spawns` loops";
     error = "a message from an aspect's `errors` key";
     module = "a module asks for an arg no module gives or declares, or its `imports` or key names read an arg";
@@ -49,21 +49,26 @@ let
     merge = "`merge`: two different leaves at one path";
     missing = "a required field has no value";
     missing-param = "a stored query is asked without a required parameter";
+    not-a-literal = "a check question (`why`, `whyNot`, `proof`, `from`) is a hand-written list, not a literal by reference";
+    not-a-scope = "a query takes a scope as a string or another value: pass an instance ref, `{ kind; name; }`, or a path of them";
     one = "`one`: 0 or 2+ elements";
     outside-grant = "a staged change can reach a scope outside its grant";
     program = "a change program op is not valid";
-    ref = "a field wants an instance ref and got something else";
+    query-untyped = "a stored query is not `{ params; answer; }`: `ask` cannot check its parameters";
+    ref = "a field or a stored query parameter wants a ref (an instance, a kind, an aspect) and got something else";
     rejected = "a staged change was rejected before (its sha is in `rejected`)";
     two-answers = "one declaration leaf has two different values";
     reserved = "a sink is named `scope` or `sinks`: those names are fixed args of every element";
+    scope-ambiguous = "a query names an instance with two or more scopes: pass one of the paths in `scopes`";
     unknown-aspect = "a query names an aspect that does not exist";
     unknown-key = "`yen`, a kind or a `yen.sinks` declaration has a key yen does not read (yen modules are not NixOS modules)";
     unread-sink = "a module gives a sink that no module reads or declares in `yen.sinks`";
     import-loop = "the `imports` of a module asks a sink that a module below it gives: a cycle in `result.modules`";
     unknown-field = "an instance sets a field its kind does not declare";
+    unknown-instance = "a ref from JSON names an instance that does not exist";
     unknown-param = "a stored query is asked with a parameter it does not take";
     unknown-query = "`result.ask` names a stored query that does not exist";
-    unknown-scope = "a query names a scope id that does not exist";
+    unknown-scope = "a query names a scope that does not exist: an instance with no scope, or a path no scope has (`near` lists the closest)";
     unknown-sink = "a query names a sink that does not exist";
   };
 in

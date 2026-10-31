@@ -240,7 +240,8 @@ Every answer is plain data, so `builtins.toJSON` prints it. This small fleet ans
 
 ## One scope in context
 
-`result.context id { maxEdges; maxAspects; }` is what an agent or a person reads first about a scope.
+`result.context scope { maxEdges; maxAspects; }` is what an agent or a person reads first about a scope. The scope is a ref,
+`{ kind; name; }` from outside the fleet; the answer names parent, children, aspects and edges as refs too.
 Each list says how much it shows of how much there is:
 
 
@@ -248,8 +249,12 @@ Each list says how much it shows of how much there is:
 {
   aspects = {
     items = [
-      "git"
-      "nginx"
+      {
+        aspect = "git";
+      }
+      {
+        aspect = "nginx";
+      }
     ];
     truncated = {
       of = 2;
@@ -257,28 +262,97 @@ Each list says how much it shows of how much there is:
     };
   };
   children = [
-    "fleet:main/host:web/user:ana"
+    [
+      {
+        kind = "fleet";
+        name = "main";
+      }
+      {
+        kind = "host";
+        name = "web";
+      }
+      {
+        kind = "user";
+        name = "ana";
+      }
+    ]
   ];
   errors = [ ];
   given = {
     items = [
       {
-        from = "fleet:main/host:web";
+        from = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
         origin = "aspect git";
-        sink = "packages";
-        to = "fleet:main/host:web";
+        sink = {
+          sink = "packages";
+        };
+        to = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
       }
       {
-        from = "fleet:main/host:web";
+        from = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
         origin = "aspect nginx";
-        sink = "packages";
-        to = "fleet:main/host:web";
+        sink = {
+          sink = "packages";
+        };
+        to = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
       }
       {
-        from = "fleet:main/host:web";
+        from = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
         origin = "sink packages";
-        sink = "out";
-        to = "fleet:main";
+        sink = {
+          sink = "out";
+        };
+        to = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+        ];
       }
     ];
     truncated = {
@@ -288,26 +362,95 @@ Each list says how much it shows of how much there is:
   };
   kind = "host";
   name = "web";
-  parent = "fleet:main";
+  parent = [
+    {
+      kind = "fleet";
+      name = "main";
+    }
+  ];
   received = {
     items = [
       {
-        from = "fleet:main/host:web";
+        from = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
         origin = "aspect git";
-        sink = "packages";
-        to = "fleet:main/host:web";
+        sink = {
+          sink = "packages";
+        };
+        to = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
       }
       {
-        from = "fleet:main/host:web";
+        from = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
         origin = "aspect nginx";
-        sink = "packages";
-        to = "fleet:main/host:web";
+        sink = {
+          sink = "packages";
+        };
+        to = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
       }
       {
-        from = "fleet:main/host:web/user:ana";
+        from = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+          {
+            kind = "user";
+            name = "ana";
+          }
+        ];
         origin = "aspect git";
-        sink = "packages";
-        to = "fleet:main/host:web";
+        sink = {
+          sink = "packages";
+        };
+        to = [
+          {
+            kind = "fleet";
+            name = "main";
+          }
+          {
+            kind = "host";
+            name = "web";
+          }
+        ];
       }
     ];
     truncated = {
@@ -315,7 +458,16 @@ Each list says how much it shows of how much there is:
       shown = 3;
     };
   };
-  scope = "fleet:main/host:web";
+  scope = [
+    {
+      kind = "fleet";
+      name = "main";
+    }
+    {
+      kind = "host";
+      name = "web";
+    }
+  ];
   undefined = [ ];
 }
 ```
@@ -329,7 +481,7 @@ not a registry: `map (e: e.origin) (filter (e: e.to == "fleet:main/host:web") re
 ```sh frame="terminal"
 nix eval --impure --file query.nix errors
 nix eval --impure --json --file query.nix graph
-nix eval --impure --expr '(import ./query.nix).context "fleet:main/host:web" { }'
+nix eval --impure --expr '(import ./query.nix).context { kind = "host"; name = "web"; } { }'
 ```
 
 :::note[query.nix]
@@ -338,8 +490,8 @@ The commands above use a `query.nix` that returns `eval` of your modules. See [P
 
 ## Inside the fleet
 
-A module never gets `result`: the fleet is what `result` is computed from. An element reads results through its args
-and `yen.lib`, where it runs:
+A module never gets `result`: the fleet is what `result` is computed from. An element reads results through its args.
+A `cycle` asks the tree for the rest:
 
 
 | To read | Inside the fleet |
@@ -347,31 +499,39 @@ and `yen.lib`, where it runs:
 | a sink's reduced value | a sink arg: `{ packages, ... }:` gets the value at the nearest receiver of `packages` |
 | the nearest scope of a kind | a kind arg: `{ host, ... }:` |
 | this scope, its parent | `{ scope, ... }:`, then `scope.parent` |
-| the children where a predicate holds | `yen.lib.children p scope` |
+| the children where a predicate holds | a tree request in a `cycle`: `children = p` |
 | whether a predicate holds here | `yen.lib.holds p scope` |
-| the scopes of an instance | `yen.lib.scopesOf instance` |
-| the whole fleet | `yen.lib.graph`, `yen.lib.schema`, `yen.lib.declaredIn`, `yen.lib.labels` |
+| the scopes of an instance | a tree request in a `cycle`: `scopesOf = instance` |
+| the whole fleet | a tree request in a `cycle`: `graph = true`. `yen.lib.schema` stays direct |
 
 ```nix title="variants/inside.nix"
-# Inside the fleet there is no `result`. An element reads results through its args and `yen.lib`.
+# Inside the fleet there is no `result`. An element reads results through its args; a cycle asks the tree for the rest.
 { yen, ... }:
 {
   yen.aspects.inside = {
     at = yen.kinds.host;
-    out =
+    cycle =
       {
+        tree,
         scope,
-        host,
         packages,
         ...
       }:
+      let
+        users.children = yen.kinds.user; # a tree request: the users under this host
+      in
       {
-        inside.${host.name} = {
-          inherit packages; # a sink arg: the reduced value of `packages` at its receiver
-          parent = scope.parent.id;
-          users = map (u: u.name) (yen.lib.children yen.kinds.user scope);
-          nginx = yen.lib.holds yen.aspects.nginx scope;
-        };
+        tree = [ users ];
+        out = [
+          {
+            inside.${scope.name} = {
+              packages = builtins.head packages; # a sink arg: the reduced value of `packages` at its receiver
+              parent = scope.parent.id;
+              users = map (u: u.name) (builtins.head (tree.select users));
+              nginx = yen.lib.holds yen.aspects.nginx scope;
+            };
+          }
+        ];
       };
   };
 }

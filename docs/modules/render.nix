@@ -145,8 +145,11 @@ let
 
       ${d.tree}
     '';
-  # every page as data, in site order: for landing pages and indexes
-  pages =
+  # every page as data, in site order: for landing pages and indexes. Tree requests give the instances with their data.
+  allPages.instances = yen.kinds.page; # a tree request: every page, with its data
+  allSections.instances = yen.kinds.section; # a tree request: every section, with its data
+  pagesOf =
+    instances:
     map
       (p: {
         inherit (p)
@@ -162,12 +165,10 @@ let
         lib.sort (
           a: b:
           if a.section.order == b.section.order then a.order < b.order else a.section.order < b.section.order
-        ) (lib.attrValues yen.page)
+        ) instances
       );
-  # the devshell commands, as data: pages list them (modules/devshell.nix)
-  commands = lib.concatMap (a: a.commands or [ ]) (lib.attrValues yen.aspects);
   bodyOf =
-    page:
+    commands: pages: page:
     let
       x = yen.helpers.example page.dir;
     in
@@ -186,7 +187,7 @@ let
       inherit lib pages commands;
     };
   render =
-    page:
+    commands: pages: page:
     let
       x = yen.helpers.example page.dir;
       d = docs page.dir;
@@ -196,19 +197,19 @@ let
         (frontmatter page x.page d)
         imports
       ]
-      ++ bodyOf page
+      ++ bodyOf commands pages page
       ++ lib.optional x.template (runIt page d)
     )
     + "\n";
   # a page can also be a plain markdown repo file (CONTRIBUTING.md): its body only, so it must not use MDX components
   plain =
-    page:
+    commands: pages: page:
     lib.concatStringsSep "\n\n" (
       [
         "# ${(yen.helpers.example page.dir).page.plainTitle or page.title}"
         "<!-- Generated from docs/examples/${page.name}/page.nix. Edit there, then run `nix run .#write-files` in docs/. -->"
       ]
-      ++ bodyOf page
+      ++ bodyOf commands pages page
     )
     + "\n";
   # a fastest test: { expr; expected; }
@@ -216,7 +217,7 @@ let
   yes = x: eq x true;
   no = x: eq x false;
   testsOf =
-    page:
+    commands: pages: page:
     let
       x = yen.helpers.example page.dir;
       args = {
@@ -256,81 +257,110 @@ let
 in
 {
   yen.helpers.docs = docs;
+  # a page renders the other pages (its lists, its links), so it is a cycle: a tree request gives every page with its data
   yen.aspects.page = {
     at = yen.kinds.page;
-    files =
-      { page, ... }:
+    cycle =
       {
-        files.file = {
-          "src/content/docs/${page.route}.mdx".text = render page;
-        }
-        // lib.optionalAttrs ((yen.helpers.example page.dir).page ? alsoAt) {
-          ${(yen.helpers.example page.dir).page.alsoAt}.text = plain page;
-        };
-      };
-    sidebar =
-      { page, ... }:
+        scope,
+        tree,
+        commands,
+        ...
+      }:
+      let
+        page = scope;
+        pages = pagesOf (lib.head (tree.select allPages));
+        cmds = lib.concatLists (lib.head commands); # the reduced `commands` sink: each aspect gives a list
+      in
       {
-        section = page.section;
-        inherit (page) order;
-        item = {
-          label = page.title;
-          slug = page.route;
-        }
-        // lib.optionalAttrs (page.badge != null) { badge = page.badge; };
-      };
-    tests =
-      { page, ... }:
-      {
-        ${page.name} = testsOf page;
+        tree = [ allPages ];
+        files = [
+          {
+            files.file = {
+              "src/content/docs/${page.route}.mdx".text = render cmds pages page;
+            }
+            // lib.optionalAttrs ((yen.helpers.example page.dir).page ? alsoAt) {
+              ${(yen.helpers.example page.dir).page.alsoAt}.text = plain cmds pages page;
+            };
+          }
+        ];
+        sidebar = [
+          {
+            section = page.section;
+            inherit (page) order;
+            item = {
+              label = page.title;
+              slug = page.route;
+            }
+            // lib.optionalAttrs (page.badge != null) { badge = page.badge; };
+          }
+        ];
+        tests = [
+          {
+            ${page.name} = testsOf cmds pages page;
+          }
+        ];
       };
   };
   # every internal link of every page resolves to a page: `/route/` or `/route/#anchor`
   yen.aspects.links = {
     at = yen.kinds.site;
-    tests =
-      { ... }:
+    cycle =
+      { tree, commands, ... }:
       let
+        instances = lib.head (tree.select allPages);
+        pages = pagesOf instances;
+        cmds = lib.concatLists (lib.head commands);
         routes = map (p: if p.route == "index" then "/" else "/${p.route}/") pages;
         linksIn =
           t:
           lib.concatMap (x: if lib.isList x then x else [ ]) (builtins.split ''([]][(]|href=")(/[^)"#]*)'' t);
         found = lib.unique (
-          lib.filter (l: lib.hasPrefix "/" l) (
-            lib.concatMap (p: linksIn (render p)) (lib.attrValues yen.page)
-          )
+          lib.filter (l: lib.hasPrefix "/" l) (lib.concatMap (p: linksIn (render cmds pages p)) instances)
         );
         broken = lib.filter (l: !lib.elem l routes && !lib.hasPrefix "/yen.png" l) found;
       in
       {
-        site = {
-          fast = {
-            links-resolve = eq broken [ ];
-          };
-          e2e = { };
-          inherit broken;
-        };
+        tree = [ allPages ];
+        tests = [
+          {
+            site = {
+              fast = {
+                links-resolve = eq broken [ ];
+              };
+              e2e = { };
+              inherit broken;
+            };
+          }
+        ];
       };
   };
   # the sidebar: sections in order, pages in order; the home page (path "index") is the splash, not in the sidebar
   yen.aspects.sidebar = {
     at = yen.kinds.site;
-    files =
-      { sidebar, ... }:
+    cycle =
+      { sidebar, tree, ... }:
       let
-        shown = lib.filter (e: e.item.slug != "index") sidebar;
+        shown = lib.filter (e: e.item.slug != "index") (lib.head sidebar);
         bySection = lib.groupBy (e: e.section.name) shown;
-        sections = lib.sort (a: b: a.order < b.order) (map (n: yen.section.${n}) (lib.attrNames bySection));
+        sections = lib.sort (a: b: a.order < b.order) (
+          lib.filter (s: bySection ? ${s.name}) (lib.head (tree.select allSections))
+        );
       in
       {
-        files.file."src/sidebar.json".text =
-          builtins.toJSON (
-            map (s: {
-              label = s.title;
-              items = map (e: e.item) (lib.sort (a: b: a.order < b.order) bySection.${s.name});
-            }) sections
-          )
-          + "\n";
+        tree = [ allSections ];
+        files = [
+          {
+            files.file."src/sidebar.json".text =
+              builtins.toJSON (
+                map (s: {
+                  label = s.title;
+                  items = map (e: e.item) (lib.sort (a: b: a.order < b.order) bySection.${s.name});
+                }) sections
+              )
+              + "\n";
+          }
+        ];
       };
   };
 }

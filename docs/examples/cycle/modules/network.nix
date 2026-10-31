@@ -5,14 +5,12 @@
     at = yen.lib.has yen.kinds.guest; # every host with a guest
     cycle =
       { tree, ... }:
+      let
+        vms.children = yen.kinds.guest; # a request: the guest children
+      in
       {
-        tree = [
-          {
-            category = "vms";
-            children = yen.kinds.guest;
-          }
-        ]; # a request: the guest children
-        bridges = map (g: "br-${g.name}") (builtins.head (tree.select "vms")); # one element per guest
+        tree = [ vms ];
+        bridges = map (g: "br-${g.name}") (builtins.head (tree.select vms)); # one element per guest
         errors = [ ];
       };
   };

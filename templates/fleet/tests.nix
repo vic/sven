@@ -8,6 +8,8 @@ let
   inherit (inputs.nixpkgs) lib;
   yen = inputs.yen.lib;
   b = builtins;
+  # a ref as a JSON caller writes it (an agent, the MCP server): its identity
+  ref = kind: name: { inherit kind name; };
   # a fastest test: { expr; expected; }
   eq = expr: expected: { inherit expr expected; };
   yes = x: eq x true;
@@ -1708,7 +1710,11 @@ let
       };
     agent-grant =
       let
-        g = yen.grant { scopes = [ S ]; };
+        staging = [
+          (ref "fleet" "main")
+          (ref "environment" "staging")
+        ];
+        g = yen.grant { scopes = [ staging ]; };
         st =
           to:
           yen.stage {
@@ -1719,10 +1725,10 @@ let
             grant = g;
           };
       in
-      # D14-A: a change can reach every scope, so each scope outside the grant is refused, never one inside it
+      # a refusal names each scope it reaches outside the grant, by path; never one inside it
       {
         outside-only = yes (
-          lib.all (e: e.code == "outside-grant" && !(lib.hasPrefix "${S}/" e.got) && e.got != S)
+          lib.all (e: e.code == "outside-grant" && lib.take 2 e.got != staging)
             (st {
               kind = "host";
               name = "stage";
@@ -1735,7 +1741,7 @@ let
           }).refused != [ ]
         );
         web-1 = yes (
-          lib.any (e: lib.hasSuffix "/host:web-1" e.got)
+          lib.any (e: lib.last e.got == ref "host" "web-1")
             (st {
               kind = "host";
               name = "web-1";
@@ -1744,7 +1750,7 @@ let
       };
     agent-explain =
       let
-        e = r.explain "attic" lb 2;
+        e = r.explain { aspect = "attic"; } (ref "host" "lb") 2;
       in
       {
         t1 = yes (e.active);
@@ -1753,7 +1759,7 @@ let
       };
     agent-context =
       let
-        c = r.context lb { maxEdges = 5; };
+        c = r.context (ref "host" "lb") { maxEdges = 5; };
       in
       {
         t1 = eq (c.received.truncated.shown) (5);
@@ -1814,20 +1820,19 @@ let
       t1 = eq (r.queries.hostsIn) ({
         required = [ "env" ];
         optional = [ ];
+        types.env = "a environment ref";
       });
-      t2 = eq (r.ask "hostsIn" { env = "prod"; }) ([
+      t2 = eq (r.ask "hostsIn" { env = ref "environment" "prod"; }) ([
         "lb"
         "lb-minimal"
         "web-1"
         "web-2"
       ]);
-      t3 = yes (lib.elem "attic" (r.ask "aspectsOn" { host = "lb"; }));
+      t3 = yes (lib.elem "attic" (r.ask "aspectsOn" { host = ref "host" "lb"; }));
       t4 = eq ((r.ask "hostsIn" { }).code) ("missing-param");
       t5 = eq (r.ask "errorsBy" { }) ([ ]);
-    };
-    agent-mcp-app = {
-      t1 = eq (out.apps.x86_64-linux.yen-mcp.type) ("app");
-      t2 = yes (lib.hasSuffix "/bin/yen-mcp" out.apps.x86_64-linux.yen-mcp.program);
+      # negative control: a name string is no ref
+      t6 = eq ((r.ask "hostsIn" { env = "prod"; }).code) ("ref");
     };
     agent-labels = {
       t1 = eq (r.labels.rdf-pack.trust) (1);
@@ -1839,7 +1844,6 @@ let
             "rdf-pack"
             "serving-explain"
             "retire-notice"
-            "mcp-app"
           ]
         ) (r.floor 3)
       );
@@ -1851,11 +1855,15 @@ let
     };
     agent-impact =
       let
-        i = r.impact lb { hops = 1; };
+        i = r.impact (ref "host" "lb") { hops = 1; };
+        prod = [
+          (ref "fleet" "main")
+          (ref "environment" "prod")
+        ];
       in
       {
-        t1 = yes (lib.any (x: x.scope == P && x.depth == 1) i.reached);
-        t2 = eq ((r.impact lb { sinks = [ "nixos" ]; }).reached) ([ ]);
+        t1 = yes (lib.any (x: x.scope == prod && x.depth == 1) i.reached);
+        t2 = eq ((r.impact (ref "host" "lb") { sinks = [ { sink = "nixos"; } ]; }).reached) ([ ]);
       };
     agent-without =
       let
@@ -1927,19 +1935,12 @@ let
             "fleet:main/environment:lab/host:app-4"
           ]
         ]);
-        t3 =
-          eq
-            (r.check.whyNot [
-              "bad"
-              "db-same-env"
-              "fleet:main/environment:lab/host:app-4"
-            ])
-            ([
-              {
-                rule = null;
-                reason = "no rule has this head";
-              }
-            ]); # not even a candidate today
+        t3 = eq (r.check.whyNot (r.check.bad.db-same-env (ref "host" "app-4"))) ([
+          {
+            rule = null;
+            reason = "no rule has this head";
+          }
+        ]); # not even a candidate today
       };
     safety-addr-clash =
       let
@@ -2000,7 +2001,7 @@ let
       };
     synth-free-port =
       let
-        a = r.ask "freePort" { host = "lb"; };
+        a = r.ask "freePort" { host = ref "host" "lb"; };
       in
       {
         t1 = eq (a.port) (8083);
@@ -2009,17 +2010,17 @@ let
           8081
           8082
         ]);
-        t3 = eq ((r.ask "freePort" { host = "web-1"; }).port) (8080);
+        t3 = eq ((r.ask "freePort" { host = ref "host" "web-1"; }).port) (8080);
       };
     synth-place-db = {
-      t1 = eq (r.ask "placeDb" { host = "web-1"; }) ([ "lb" ]);
-      t2 = eq (r.ask "placeDb" { host = "stage"; }) ([ "stage" ]);
+      t1 = eq (r.ask "placeDb" { host = ref "host" "web-1"; }) ([ "lb" ]);
+      t2 = eq (r.ask "placeDb" { host = ref "host" "stage"; }) ([ "stage" ]);
     };
     synth-safe-hosts =
       eq
         (r.ask "safeHostsFor" {
-          aspect = "attic";
-          env = "staging";
+          aspect.aspect = "attic";
+          env = ref "environment" "staging";
         })
         ({
           safe = [ "stage" ];
@@ -2033,7 +2034,7 @@ let
         });
     kits-install-order =
       let
-        w = r.ask "installOrder" { assembly = "backup"; };
+        w = r.ask "installOrder" { assembly = ref "assembly" "backup"; };
       in
       {
         t1 = eq (lib.head w) ([ "lb" ]);

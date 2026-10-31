@@ -14,7 +14,8 @@
     [
       ''
         Fleet data is plain Nix, so a question about it is a function. `yen.lib.graphs` answers graph questions.
-        It works on `succ`, an attrset from a node to its successors. Every function sorts, so the order the data is
+        It works on `succ`, an attrset from a node to its successors, or on `of nodes next`, a graph over instances whose
+        answers are refs `{ kind; name; }`: a host is never named by a string. Every function sorts, so the order the data is
         written in never changes an answer.
       ''
       (docs.table
@@ -47,6 +48,10 @@
           [
             "`shortest succ a b`, `paths succ a b`"
             "the shortest path, all paths"
+          ]
+          [
+            "`of nodes next`"
+            "a graph over instances: every function above takes it, and answers with refs"
           ]
           [
             "`fromEdges es`"

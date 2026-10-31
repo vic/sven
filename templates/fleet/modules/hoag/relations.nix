@@ -1,11 +1,12 @@
-# den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it.
-# `deployWaves`: a host deploys after what it depends on (layers). `dependents`: the reverse read (transpose).
+# den-hoag relations + query calculus: a relation is a ref field; queries are yen.lib.graphs over it (`G.of`, by ref).
+# `deployWaves`: a host deploys after what it depends on (layers). `dependents`: the hosts that depend on each host.
 # `impact`: everything that breaks, transitively, when a host goes down (reachers). A dependency cycle is an error.
 { yen, lib, ... }:
 let
   G = yen.lib.graphs;
-  hosts = lib.filterAttrs (_: h: h ? addr) yen.host;
-  dependsOn = lib.mapAttrs (_: h: map (d: d.name) (h.dependsOn or [ ])) hosts;
+  all.instances = yen.kinds.host; # a tree request: every host, with its data
+  names = map (h: h.name);
+  byName = hs: f: lib.listToAttrs (map (h: lib.nameValuePair h.name (names (f h))) hs);
 in
 {
   yen.kinds.machine.fields.dependsOn = yen.lib.opt (yen.helpers.listOf yen.kinds.host) [ ];
@@ -14,17 +15,24 @@ in
   yen.host.stage.dependsOn = [ yen.host.web-1 ];
   yen.aspects.deploy-waves = {
     at = yen.fleet.main;
-    out =
-      { ... }:
+    cycle =
+      { tree, ... }:
+      let
+        hs = lib.filter (h: h ? addr) (lib.head (tree.select all));
+        g = G.of hs (h: h.dependsOn);
+      in
       {
-        deployWaves = G.layers dependsOn;
-        dependents = G.transpose dependsOn;
-        impact = lib.genAttrs (lib.attrNames hosts) (G.reachers dependsOn);
+        tree = [ all ];
+        out = {
+          deployWaves = map names (G.layers g);
+          dependents = byName hs (h: lib.filter (x: lib.any (yen.lib.same h) x.dependsOn) hs);
+          impact = byName hs (G.reachers g);
+        };
+        errors = [
+          (map (
+            c: "deploy: hosts depend on each other in a cycle: ${lib.concatStringsSep " -> " (names c)}"
+          ) (G.sccs g))
+        ]; # one element: the list, as before
       };
-    errors =
-      { ... }:
-      map (c: "deploy: hosts depend on each other in a cycle: ${lib.concatStringsSep " -> " c}") (
-        G.sccs dependsOn
-      );
   };
 }

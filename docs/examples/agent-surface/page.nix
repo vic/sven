@@ -1,3 +1,10 @@
+let
+  # the host `web`, as a caller outside the fleet names it: its identity
+  web = {
+    kind = "host";
+    name = "web";
+  };
+in
 {
   title = "The agent surface";
   description = "What an agent reads first: `agent`, `schema`, `context`, `explain`, and trust labels by file path.";
@@ -19,12 +26,15 @@
       ''
         ## Why is an aspect active, or not?
 
-        `result.explain aspect id depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
-        there, and its files. Past the depth, `kids = "cut"`.
+        `result.explain aspect scope depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
+        there, and its files. Past the depth, `kids = "cut"`. Both are refs: `yen.aspects.postgres` and `yen.host.web` in the fleet,
+        `{ aspect; }` and `{ kind; name; }` from outside it. The answer names every aspect, kind, instance and scope the same way,
+        so you can pass any of them back.
       ''
-      (docs.value (result.explain "postgres" "fleet:main/host:web" 2))
+      (docs.value (result.explain { aspect = "postgres"; } web 2))
       ''
-        An unknown aspect or scope is an error record with `near`: the names it was probably meant to be.
+        An unknown aspect or scope is an error record with `near`: the refs it was probably meant to be. A name string is no ref:
+        it is an error too.
 
         ## Trust labels
 
@@ -96,7 +106,7 @@
         kinds = 2;
         scopes = 4;
       });
-      explain = no ((result.explain "postgres" "fleet:main/host:web" 2).active);
+      explain = no ((result.explain { aspect = "postgres"; } web 2).active);
       floor = {
         t1 = eq (builtins.length (result.floor 3)) (3);
         t2 = eq ((builtins.head (result.floor 3)).trust) (1);

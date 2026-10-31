@@ -31,19 +31,17 @@ in
     at = yen.kinds.host;
     cycle =
       { tree, ... }:
+      let
+        users.children = yen.kinds.user;
+        pets.children = yen.kinds.pet;
+      in
       {
         tree = [
-          {
-            category = "u";
-            children = yen.kinds.user;
-          }
-          {
-            category = "p";
-            children = yen.kinds.pet;
-          }
+          users
+          pets
         ];
-        pairs = lib.concatMap (u: map (p: "${u.name}-${p.name}") (lib.head (tree.select "p"))) (
-          lib.head (tree.select "u")
+        pairs = lib.concatMap (u: map (p: "${u.name}-${p.name}") (lib.head (tree.select pets))) (
+          lib.head (tree.select users)
         ); # one response per request
       };
   };

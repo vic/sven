@@ -117,18 +117,25 @@ so a tool, a script or a model reads it the same way.
 
 ## Why is an aspect active, or not?
 
-`result.explain aspect id depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
-there, and its files. Past the depth, `kids = "cut"`.
+`result.explain aspect scope depth` traces `at` at one scope: the value of each node of the predicate, what the aspect gives
+there, and its files. Past the depth, `kids = "cut"`. Both are refs: `yen.aspects.postgres` and `yen.host.web` in the fleet,
+`{ aspect; }` and `{ kind; name; }` from outside it. The answer names every aspect, kind, instance and scope the same way,
+so you can pass any of them back.
 
 
 ```nix title="result"
 {
   active = false;
-  aspect = "postgres";
+  aspect = {
+    aspect = "postgres";
+  };
   at = {
     kids = [
       {
-        instance = "host:db";
+        instance = {
+          kind = "host";
+          name = "db";
+        };
         op = "instance";
         value = false;
       }
@@ -140,11 +147,21 @@ there, and its files. Past the depth, `kids = "cut"`.
     "modules/fleet.nix"
   ];
   gives = [ ];
-  scope = "fleet:main/host:web";
+  scope = [
+    {
+      kind = "fleet";
+      name = "main";
+    }
+    {
+      kind = "host";
+      name = "web";
+    }
+  ];
 }
 ```
 
-An unknown aspect or scope is an error record with `near`: the names it was probably meant to be.
+An unknown aspect or scope is an error record with `near`: the refs it was probably meant to be. A name string is no ref:
+it is an error too.
 
 ## Trust labels
 
