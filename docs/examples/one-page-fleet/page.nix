@@ -20,10 +20,8 @@ in
     let
       base = {
         imports = [ (inputs.import-tree (dir + "/modules")) ];
-        _module.args = {
-          inherit inputs;
-          inherit (inputs.nixpkgs) lib;
-        };
+        inherit inputs;
+        inherit (inputs.nixpkgs) lib;
       };
       staged = engine.stage {
         inherit base;
@@ -118,10 +116,8 @@ in
       s = engine.stage {
         base = {
           imports = [ (inputs.import-tree (dir + "/modules")) ];
-          _module.args = {
-            inherit inputs;
-            inherit (inputs.nixpkgs) lib;
-          };
+          inherit inputs;
+          inherit (inputs.nixpkgs) lib;
         };
         change = dir + "/changes/api-in-lab.nix";
       };

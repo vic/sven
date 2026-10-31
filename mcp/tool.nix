@@ -7,10 +7,8 @@ let
   yen = inputs.yen;
   base = {
     imports = [ (inputs.import-tree (fleet + "/modules")) ];
-    _module.args = {
-      inherit inputs;
-      inherit (inputs.nixpkgs) lib;
-    };
+    inherit inputs;
+    inherit (inputs.nixpkgs) lib;
   };
   r = yen.lib.eval base;
   safe = yen.lib.jsonSafe;

@@ -5,10 +5,8 @@
     inputs:
     (import inputs.yen).lib.mkFlake {
       imports = [ (inputs.import-tree ./modules) ];
-      _module.args = {
-        inherit inputs;
-        inherit (inputs.nixpkgs) lib;
-      };
+      inherit inputs;
+      inherit (inputs.nixpkgs) lib;
     };
 
   inputs = {

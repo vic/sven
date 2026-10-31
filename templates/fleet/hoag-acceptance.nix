@@ -271,7 +271,7 @@ let
     ms:
     yen.eval {
       imports = ms;
-      _module.args = { inherit lib; };
+      inherit lib;
     };
   r = mk modules;
   rp = mk (lib.reverseList modules);

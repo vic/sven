@@ -11,9 +11,7 @@
 (import yen).lib.program.dryRun {
   base = {
     imports = [ (import-tree ./modules) ];
-    _module.args = {
-      lib = import "${nixpkgs}/lib";
-    };
+    lib = import "${nixpkgs}/lib";
   };
   prog = builtins.fromJSON (builtins.readFile (./. + "/${program}"));
 }

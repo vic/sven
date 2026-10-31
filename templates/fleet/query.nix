@@ -5,8 +5,6 @@ let
 in
 inputs.yen.lib.eval {
   imports = [ (inputs.import-tree ./modules) ];
-  _module.args = {
-    inherit inputs;
-    inherit (inputs.nixpkgs) lib;
-  };
+  inherit inputs;
+  inherit (inputs.nixpkgs) lib;
 }

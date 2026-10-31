@@ -27,7 +27,7 @@ let
       ) xs;
   fleet = extra: {
     imports = [ (inputs.import-tree ./modules) ] ++ extra;
-    _module.args = { inherit inputs lib; };
+    inherit inputs lib;
   };
   r = yen.eval (fleet [ ]);
   with' = m: yen.eval (fleet [ m ]);
@@ -958,7 +958,7 @@ let
       let
         rev = yen.eval {
           imports = lib.reverseList (import ./_modules-list.nix);
-          _module.args = { inherit inputs lib; };
+          inherit inputs lib;
         };
         j =
           q:
