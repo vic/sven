@@ -29,8 +29,7 @@ let
           ls = b.filter b.isString (b.split "\n" (b.readFile f));
           rel = b.substring (b.stringLength root + 1) (b.stringLength f) f;
           isComment = l: b.match " *#.*" l != null;
-          defAt =
-            i: if i + 1 < b.length ls && isComment (b.elemAt ls (i + 1)) then defAt (i + 1) else i + 1;
+          defAt = i: if i + 1 < b.length ls && isComment (b.elemAt ls (i + 1)) then defAt (i + 1) else i + 1;
           entries =
             i: l:
             let
@@ -50,9 +49,7 @@ let
         in
         b.concatLists (b.genList (i: entries i (b.elemAt ls i)) (b.length ls));
     in
-    b.listToAttrs (
-      b.concatMap fileDocs ([ (root + "/default.nix") ] ++ files (root + "/lib"))
-    );
+    b.listToAttrs (b.concatMap fileDocs ([ (root + "/default.nix") ] ++ files (root + "/lib")));
   # the APIs: every function of `(import yen).lib`, nested sets walked; the fleet-bound extras of `yen.lib`; the
   # queries of an eval result, and those of `result.check`
   leaves =
