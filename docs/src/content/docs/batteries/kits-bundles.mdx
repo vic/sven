@@ -259,6 +259,9 @@ What the members export:
   "kits: assembly lab2-borg role server: 2 machines, at most 1"
   "kits: assembly lab2-monitoring role server: 2 machines, at most 1"
   "kits: assembly lab2-wg role controller: 2 machines, at most 1"
+  "wireguard: lb has no wg-lab2-wg.pub public key"
+  "wireguard: nas has no wg-lab2-wg.pub public key"
+  "wireguard: web has no wg-lab2-wg.pub public key"
 ]
 ```
 
@@ -292,6 +295,7 @@ And none:
   "kits: assembly lab0-borg-sshd role server: 0 machines, at least 1"
   "kits: assembly lab0-monitoring role server: 0 machines, at least 1"
   "kits: assembly lab0-wg role controller: 0 machines, at least 1"
+  "wireguard: web has no wg-lab0-wg.pub public key"
 ]
 ```
 
@@ -314,6 +318,19 @@ nix flake init -t github:vic/yen#kits-bundles
 - variants/
   - no-server.nix
   - two-servers.nix
+- vars/
+  - lb/
+    - from-exports/
+      - wg-lab-wg.pub/
+        - value
+  - nas/
+    - from-exports/
+      - wg-lab-wg.pub/
+        - value
+  - web/
+    - from-exports/
+      - wg-lab-wg.pub/
+        - value
 
 </FileTree>
 :::
