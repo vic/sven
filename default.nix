@@ -2352,7 +2352,7 @@ let
         # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
         # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
         # parameter, or an unknown query, is an error record.
-        #: result.queries :: { name = args -> answer; } -- the stored queries of yen.queries
+        #: result.queries :: { name = { required; optional; }; } -- the stored queries of yen.queries, each with its parameter names
         queries = mapAttrs (
           n: f:
           let

@@ -1827,7 +1827,6 @@ let
             "rdf-pack"
             "serving-explain"
             "retire-notice"
-            "mcp-app"
           ]
         ) (r.floor 3)
       );

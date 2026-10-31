@@ -309,7 +309,7 @@ from these references, never from strings. See [Invariants](/query/invariants/).
 | [`result.graph`](https://github.com/vic/yen/blob/main/default.nix#L1311) | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
 | [`result.impact`](https://github.com/vic/yen/blob/main/default.nix#L2133) | `scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth` | the scopes an element of the scope reaches, transitively |
 | [`result.labels`](https://github.com/vic/yen/blob/main/default.nix#L2210) | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
-| [`result.queries`](https://github.com/vic/yen/blob/main/default.nix#L2356) | `{ name = args -> answer; }` | the stored queries of yen.queries |
+| [`result.queries`](https://github.com/vic/yen/blob/main/default.nix#L2356) | `{ name = { required; optional; }; }` | the stored queries of yen.queries, each with its parameter names |
 | [`result.reads`](https://github.com/vic/yen/blob/main/default.nix#L1435) | `{ edges; whole; data; }` | what every element, scope and instance reads, as tokens; whole: reached by any change; data: each scope's data by its sha256 |
 | [`result.reduced`](https://github.com/vic/yen/blob/main/default.nix#L2339) | `{ sink = { scope id = value; }; } or null` | each sink reduced at each receiver; null when the fleet is not clean |
 | [`result.root`](https://github.com/vic/yen/blob/main/default.nix#L2320) | `module` | the module this result came from |
