@@ -18,31 +18,40 @@ let
         ) (b.readDir dir)
       )
     );
+  # the GitHub source of a definition: the first line after its `#:` line that is not a comment
+  githubBase = "https://github.com/vic/yen/blob/main/";
   docsOf =
     root:
+    let
+      fileDocs =
+        f:
+        let
+          ls = b.filter b.isString (b.split "\n" (b.readFile f));
+          rel = b.substring (b.stringLength root + 1) (b.stringLength f) f;
+          isComment = l: b.match " *#.*" l != null;
+          defAt =
+            i: if i + 1 < b.length ls && isComment (b.elemAt ls (i + 1)) then defAt (i + 1) else i + 1;
+          entries =
+            i: l:
+            let
+              m = b.match " *#: ([^ ]+(, [^ ]+)*) :: (.*) -- (.*)" l;
+            in
+            if m == null then
+              [ ]
+            else
+              map (n: {
+                name = n;
+                value = {
+                  sig = b.elemAt m 2;
+                  does = b.elemAt m 3;
+                  url = "${githubBase}${rel}#L${toString (defAt i + 1)}";
+                };
+              }) (b.filter b.isString (b.split ", " (b.elemAt m 0)));
+        in
+        b.concatLists (b.genList (i: entries i (b.elemAt ls i)) (b.length ls));
+    in
     b.listToAttrs (
-      b.concatMap
-        (
-          l:
-          let
-            m = b.match " *#: ([^ ]+(, [^ ]+)*) :: (.*) -- (.*)" l;
-          in
-          if m == null then
-            [ ]
-          else
-            map (n: {
-              name = n;
-              value = {
-                sig = b.elemAt m 2;
-                does = b.elemAt m 3;
-              };
-            }) (b.filter b.isString (b.split ", " (b.elemAt m 0)))
-        )
-        (
-          b.concatMap (f: b.filter b.isString (b.split "\n" (b.readFile f))) (
-            [ (root + "/default.nix") ] ++ files (root + "/lib")
-          )
-        )
+      b.concatMap fileDocs ([ (root + "/default.nix") ] ++ files (root + "/lib"))
     );
   # the APIs: every function of `(import yen).lib`, nested sets walked; the fleet-bound extras of `yen.lib`; the
   # queries of an eval result, and those of `result.check`
@@ -112,7 +121,7 @@ in
         names:
         docs.table [ "API" "Takes and returns" "Purpose" ] (
           map (n: [
-            "`${n}`"
+            "[`${n}`](${d.${n}.url})"
             "`${cell d.${n}.sig}`"
             (prose d.${n}.does)
           ]) (b.filter (n: d ? ${n}) names)
@@ -124,7 +133,7 @@ in
       ''
         This page is extracted from the source when the docs are written. Each API has one line above its
         definition: `#: <where> :: <takes> -> <returns> -- <purpose>`. A check fails when an API has no line, so the
-        page always lists every function.
+        page always lists every function. Each API name links to its definition on GitHub.
 
         Words in the signatures: a *key value* is the value of a sink key, `{ scope, sinks, ... }: …`; an *out value*
         is the value of a sink's `out` key, which gives flake outputs; a *reduce* is a sink's `reduce`; a *module* is a
