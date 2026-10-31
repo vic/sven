@@ -1892,6 +1892,68 @@ let
       s = eq (D.why choice (D.wfs choice) "s") [ { head = "s"; } ];
       t = eq (D.why choice (D.wfs choice) "t") [ ];
     };
+    # ground rules by reference: relations from yen.relations, terms are instances; no name is written as a string
+    datalog-refs =
+      let
+        r = yen.eval (
+          { yen, ... }:
+          {
+            yen.kinds.top.spawns.host = _: yen.host;
+            yen.kinds.host.fields.web = yen.lib.opt (yen.lib.is b.isBool) false;
+            yen.top.t = { };
+            yen.host = {
+              a.web = true;
+              c = { };
+            };
+            yen.relations = {
+              web.arity = 1;
+              serves.arity = 1;
+            };
+            yen.flake =
+              { ... }:
+              let
+                inherit (yen.relations) web serves;
+                hosts = b.attrValues yen.host;
+                rules =
+                  map (h: {
+                    head = serves h;
+                    pos = [ (web h) ];
+                  }) hosts
+                  ++ map (h: { head = web h; }) (b.filter (h: h.web) hosts);
+                m = yen.lib.datalog.wfs rules;
+              in
+              {
+                serves = map (h: h.name) (b.filter (h: m.holds (serves h)) hosts);
+                whyNot = map (x: x.missing) (yen.lib.datalog.whyNot rules m (serves yen.host.c));
+                why = b.length (yen.lib.datalog.why rules m (serves yen.host.a));
+                # an instance term is its identity: the same atom whatever its data
+                atom = yen.lib.datalog.atom (serves yen.host.a);
+              };
+          }
+        );
+      in
+      {
+        serves = eq r.flake.serves [ "a" ];
+        why = eq r.flake.why 1;
+        why-not = eq r.flake.whyNot [
+          [
+            [
+              "web"
+              {
+                kind = "host";
+                name = "c";
+              }
+            ]
+          ]
+        ];
+        atom = eq r.flake.atom [
+          "serves"
+          {
+            kind = "host";
+            name = "a";
+          }
+        ];
+      };
     krn-backward = {
       t1 =
         eq

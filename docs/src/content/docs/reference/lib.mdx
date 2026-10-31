@@ -142,20 +142,21 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.datalog.certify`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L255) | `[ rule ] -> { true = [ { atom; stage; rule; } ]; false = [ { atom; stage; } ]; }` | the stages of the well-founded model, a certificate of each decided atom |
-| [`lib.datalog.checkCertificate`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L333) | `[ rule ] -> certificate -> { valid; }` | the small trusted checker of a certificate |
+| [`lib.datalog.atom`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L450) | `literal -> atom` | the atom of a literal, its instance terms as &#123; kind; name; &#125; |
+| [`lib.datalog.certify`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L272) | `[ rule ] -> { true = [ { atom; stage; rule; } ]; false = [ { atom; stage; } ]; }` | the stages of the well-founded model, a certificate of each decided atom |
+| [`lib.datalog.checkCertificate`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L350) | `[ rule ] -> certificate -> { valid; }` | the small trusted checker of a certificate |
 | [`lib.datalog.comparisons.lt`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L52) | `[ a b ] -> bool` | a &lt; b, for two ints or two strings; false on terms of two types |
 | [`lib.datalog.comparisons.neq`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L50) | `[ a b ] -> bool` | the two bound terms differ |
-| [`lib.datalog.facts`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L424) | `[ atom ] -> [ rule ]` | each atom as a rule with no body |
-| [`lib.datalog.ground`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L172) | `[ rule ] -> [ atom ] -> [ rule ]` | groundWith the comparisons |
-| [`lib.datalog.groundWith`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L147) | `{ name = terms -> bool; } -> [ rule ] -> [ atom ] -> { rules; faults; }` | the ground instances whose positive atoms may hold; external atoms decided, then dropped |
+| [`lib.datalog.facts`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L441) | `[ atom ] -> [ rule ]` | each atom as a rule with no body |
+| [`lib.datalog.ground`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L189) | `[ rule ] -> [ atom ] -> [ rule ]` | groundWith the comparisons |
+| [`lib.datalog.groundWith`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L164) | `{ name = terms -> bool; } -> [ rule ] -> [ atom ] -> { rules; faults; }` | the ground instances whose positive atoms may hold; external atoms decided, then dropped |
 | [`lib.datalog.isVar`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L45) | `term -> bool` | the term is a variable &#123; var = "X"; &#125; |
-| [`lib.datalog.judge`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L404) | `[ rule ] -> atomFor -> atomAgainst -> string` | "supported", "refuted", "both", "neither" or "unknown" in the well-founded model |
-| [`lib.datalog.proof`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L224) | `[ rule ] -> model -> atom -> tree` | the proof tree of a true atom; &#123; status; &#125; for a false or undefined one |
-| [`lib.datalog.stable`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L197) | `[ rule ] -> [ [ atom ] ]` | the stable models, each a sorted list of true atoms |
-| [`lib.datalog.wfs`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L174) | `[ rule ] -> { true; undefined; false; holds; }` | the well-founded model of ground rules (three values) |
-| [`lib.datalog.why`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L212) | `[ rule ] -> model -> atom -> [ rule ]` | the rules that make the atom true in the model |
-| [`lib.datalog.whyNot`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L376) | `[ rule ] -> model -> atom -> [ { rule; missing; blocking; undefinedBody; } ]` | per rule with that head, the body atoms that stop it |
+| [`lib.datalog.judge`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L421) | `[ rule ] -> atomFor -> atomAgainst -> string` | "supported", "refuted", "both", "neither" or "unknown" in the well-founded model |
+| [`lib.datalog.proof`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L241) | `[ rule ] -> model -> atom -> tree` | the proof tree of a true atom; &#123; status; &#125; for a false or undefined one |
+| [`lib.datalog.stable`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L214) | `[ rule ] -> [ [ atom ] ]` | the stable models, each a sorted list of true atoms |
+| [`lib.datalog.wfs`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L191) | `[ rule ] -> { true; undefined; false; holds; }` | the well-founded model of ground rules (three values) |
+| [`lib.datalog.why`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L229) | `[ rule ] -> model -> atom -> [ rule ]` | the rules that make the atom true in the model |
+| [`lib.datalog.whyNot`](https://github.com/vic/yen/blob/main/lib/datalog.nix#L393) | `[ rule ] -> model -> atom -> [ { rule; missing; blocking; undefinedBody; } ]` | per rule with that head, the body atoms that stop it |
 
 ## `lib.grants`
 
