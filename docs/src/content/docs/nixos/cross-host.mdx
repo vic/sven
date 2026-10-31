@@ -15,8 +15,8 @@ backup targets. The usual answers:
   each host feature adds its own device to a shared NixOS module. It works, but every host gets every
   contribution, its own included.
 
-In yen a host's public facts are fields of its instance. Every module can read `yen.host`: it is data, so
-nothing evaluates a NixOS system to read it.
+In yen a host's public facts are fields of its instance. An aspect reads the other hosts through a tree request
+(`instances = yen.kinds.host`): it is data, so nothing evaluates a NixOS system to read it, and `stage` sees the read.
 
 
 ```nix title="modules/fleet.nix"
@@ -87,28 +87,42 @@ in
 
 ```nix title="modules/mesh.nix"
 # known_hosts and WireGuard peers: every other host, from its fields. No hosts list to keep in sync.
+# Other hosts' data comes through a tree request, so each read is an edge `stage` can see.
 { yen, lib, ... }:
 let
-  others = host: lib.filterAttrs (n: _: n != host.name) yen.host;
+  all.instances = yen.kinds.host; # a tree request: every host, with its data
 in
 {
   yen.aspects.mesh = {
     at = yen.kinds.host;
-    nixos =
-      { host, ... }:
+    cycle =
+      { tree, scope, ... }:
+      let
+        others = lib.filter (h: !yen.lib.same h scope) (lib.head (tree.select all));
+      in
       {
-        programs.ssh.knownHosts = lib.mapAttrs (n: h: {
-          hostNames = [ n ];
-          publicKey = h.sshKey;
-        }) (others host);
-        networking.wireguard.interfaces.wg0 = {
-          ips = [ "${host.wgIp}/24" ];
-          privateKeyFile = "/var/lib/wireguard/private.key";
-          peers = lib.mapAttrsToList (_: h: {
-            publicKey = h.wgKey;
-            allowedIPs = [ "${h.wgIp}/32" ];
-          }) (others host);
-        };
+        tree = [ all ];
+        nixos = [
+          {
+            programs.ssh.knownHosts = lib.listToAttrs (
+              map (h: {
+                name = h.name;
+                value = {
+                  hostNames = [ h.name ];
+                  publicKey = h.sshKey;
+                };
+              }) others
+            );
+            networking.wireguard.interfaces.wg0 = {
+              ips = [ "${scope.wgIp}/24" ];
+              privateKeyFile = "/var/lib/wireguard/private.key";
+              peers = map (h: {
+                publicKey = h.wgKey;
+                allowedIPs = [ "${h.wgIp}/32" ];
+              }) others;
+            };
+          }
+        ];
       };
   };
 }
@@ -159,7 +173,7 @@ host then reads the sink as an arg. `entries` keeps who gave each id, so a host 
 ```
 
 :::note[Why there is no recursion]
-`yen.host` and the `syncthing-device` sink are yen data. They exist before any NixOS module runs. A NixOS
+The hosts a tree request gives and the `syncthing-device` sink are yen data. They exist before any NixOS module runs. A NixOS
 module reads them, and never reads another host's NixOS `config`.
 :::
 

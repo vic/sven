@@ -6,7 +6,6 @@
   ...
 }:
 let
-  inherit (yen.lib) same;
   np = inputs.nixpkgs;
 in
 {
@@ -38,8 +37,8 @@ in
       }:
       let
         group = lib.sort (a: b: a < b) (
-          map (e: e.from.name) (lib.filter (e: same e.from.system host.system) shared-pkgs)
-        ); # one group per system
+          map (e: e.from.name) (lib.filter (e: e.from.system == host.system) shared-pkgs)
+        ); # one group per system: `system` is data, so `==`; `same` compares refs only
         leader = lib.head group;
         follower = host.sharedPkgs && leader != host.name;
         shared = out.nixosConfigurations.${leader}.pkgs; # the `out` arg: the leader's built pkgs, lazily
@@ -54,6 +53,7 @@ in
           inherit (host) system;
           modules = nixos ++ lib.optionals follower readOnly;
         };
+        sharedLeader.${host.name} = if follower then leader else null; # whose pkgs this host reuses
         ownPkgs.${host.name} = np.lib.nixosSystem {
           inherit (host) system;
           modules = nixos;
