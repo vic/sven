@@ -55,8 +55,10 @@ An error record in a result has `code`, `path`, `got`, `want`, `fix` and, for ty
    - `yen_impact` with a scope id: the scopes its elements reach, by depth.
    - `yen_errors`, optionally with one `code`.
    - `yen_labels`: the trust of each aspect's files. With `floor`, the edges below that trust.
-4. **Use stored queries.** `yen_queries` lists them with their parameters. `yen_ask` runs one with `name` and `args`.
-   A missing parameter comes back as an error record (`missing-param`), not as an evaluation failure.
+4. **Use stored queries.** `yen_queries` lists them with their parameters and types. `yen_ask` runs one with `name`
+   and `args`. A ref parameter is its identity: `{"kind":"host","name":"lb"}` an instance, `{"kind":"host"}` a kind,
+   `{"aspect":"attic"}` an aspect. A name string where a ref belongs comes back as an error record (`ref`), and so
+   does a missing parameter (`missing-param`): never an evaluation failure.
 5. **Stage every change before you write it.**
    - `yen_program` with a list of ops is the safest form of a change. It gives `valid`, `errors`, `ok`,
      `violations` and the diff.

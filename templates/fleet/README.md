@@ -324,14 +324,14 @@ SELECT ?name WHERE { ?s rdf:type <https://yen.dev/fleet/kind/host> ; <https://ye
 
 **Install order.** The stored query `installOrder { assembly }` gives the waves of an assembly: the servers first, then the clients ([agent/queries.nix](modules/agent/queries.nix), `yen.lib.graphs.layers`). For the backup instance: `[ [ "lb" ] [ … every client … ] ]`.
 
-**Synthesis, checked.** Stored queries in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
+**Synthesis, checked.** Stored queries (`{ params; answer; }`: each parameter typed, a fleet name given as a ref) in [agent/synthesis.nix](modules/agent/synthesis.nix) answer with values that already meet the rules. `freePort { host }` lets krn pick a port no app on the host uses. `placeDb { host }` joins host records to find the database hosts of its environment. `safeHostsFor { aspect; env }` stages the aspect on each machine of the environment and returns where it is safe, and why the others are refused:
 
 ```nix
-result.ask "safeHostsFor" { aspect = "attic"; env = "staging"; }
-# { safe = [ "stage" ]; refused.studio = [ [ "bad" "attic-on-mac" "fleet:main/environment:staging/mac:studio" ] ]; }
+result.ask "safeHostsFor" { aspect = yen.aspects.attic; env = yen.environment.staging; }
+# { safe = [ "stage" ]; refused.studio = [ [ "bad" "attic" "fleet:main/environment:staging/mac:studio" ] ]; }
 ```
 
-**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may reach. `narrow g h` keeps what both allow. No function makes a grant wider. A module can read the whole fleet through `yen`, so a staged change that declares anything is refused at every scope outside its grant.
+**Grants only narrow.** `yen.lib.grant { scopes = [ id prefixes ]; sinks ? null; }` says where an agent may reach. `narrow g h` keeps what both allow. No function makes a grant wider. An element reads other scopes only through its args and tree requests, so a staged change is refused only at the scopes it reaches outside its grant.
 
 ## Patterns in this fleet
 
@@ -1332,7 +1332,7 @@ Every list below is computed from the engine and this fleet when the README is w
 
 **Queries on an eval result** (`result = yen.lib.eval module`): `active`, `ask`, `check`, `context`, `data`, `declaredIn`, `errors`, `explain`, `facts`, `flake`, `floor`, `graph`, `impact`, `labels`, `queries`, `reduced`, `root`, `schema`, `scopes`, `undefined`.
 
-**Engine library** (`yen.lib`): `agent`, `allowed`, `asOf`, `attrsOf`, `batteries`, `derive`, `diffData`, `enum`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `listOf`, `maybe`, `mkFlake`, `narrow`, `opt`, `secret`, `stage`, `validAt`, `without`.
+**Engine library** (`yen.lib`): `agent`, `allowed`, `asOf`, `aspect`, `attrsOf`, `batteries`, `derive`, `diffData`, `enum`, `eval`, `grant`, `history`, `is`, `jsonSafe`, `kind`, `listOf`, `maybe`, `mkFlake`, `narrow`, `opt`, `secret`, `stage`, `validAt`, `without`.
 Reduce strategies: `entries`, `flat`, `list`, `merge`, `one`, `set`. Change programs (`yen.lib.program`): `dryRun`, `opErrors`, `render`, `toModule`, `validate`. Grants: `allowed`, `grant`, `narrow`.
 
 | Library | Functions |

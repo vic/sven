@@ -435,10 +435,10 @@ let
       queryRow =
         n:
         let
-          fa = builtins.functionArgs yen.queries.${n};
-          ps = lib.filter (a: a != "result") (lib.attrNames fa);
+          ps = yen.queries.${n}.params;
+          opt = lib.filter (p: ps.${p} ? default) (lib.attrNames ps);
         in
-        "| `${n}` | ${fnList (lib.filter (a: !fa.${a}) ps)} | ${fnList (lib.filter (a: fa.${a}) ps)} | ${
+        "| `${n}` | ${fnList (lib.subtractLists opt (lib.attrNames ps))} | ${fnList opt} | ${
           lib.concatStringsSep ", " (
             map baseNameOf (
               yen.lib.declaredIn [

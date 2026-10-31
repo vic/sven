@@ -1,41 +1,54 @@
 # Stored queries, labels and valid time for agents.
-# - `yen.queries.<name>`: named questions with parameters; an agent lists them (`queries`) and calls `ask name args`.
+# - `yen.queries.<name> = { params; answer; }`: named questions with typed parameters; an agent lists them (`queries`)
+#   and calls `ask name args`; a fleet name is a ref (from JSON: { kind; name; }).
 # - `yen.labels`: trust by file path prefix. Content declared under modules/agent/ is trust 1 (written by agents),
 #   the rest trust 3. `floor 3` lists every routed element an agent-written aspect gives.
 # - valid time: a machine can have `validTo`; `retire-notice` marks machines past it at the fleet's review date.
 { yen, lib, ... }:
 {
   yen.queries = {
-    hostsIn =
-      { env, result }:
-      map (s: s.name) (
-        lib.filter (
-          s: yen.lib.holds yen.kinds.host s && lib.hasInfix "/environment:${env}/" s.id
-        ) result.scopes
-      );
-    aspectsOn =
-      { host, result }:
-      let
-        s = lib.findFirst (x: yen.lib.holds yen.kinds.host x && x.name == host) null result.scopes;
-      in
-      if s == null then [ ] else lib.filter (n: result.active.${n}.${s.id}) (lib.attrNames result.active);
-    errorsBy =
-      {
-        code ? null,
-        result,
-      }:
-      lib.filter (e: code == null || e.code == code) result.errors;
+    hostsIn = {
+      params.env = yen.kinds.environment;
+      answer =
+        { env, result }:
+        map (s: s.name) (
+          lib.filter (yen.lib.holds (
+            yen.lib.all [
+              yen.kinds.host
+              (yen.lib.within env)
+            ]
+          )) result.scopes
+        );
+    };
+    aspectsOn = {
+      params.host = yen.kinds.host;
+      answer =
+        { host, result }:
+        let
+          s = lib.findFirst (yen.lib.same host) null result.scopes;
+        in
+        if s == null then [ ] else lib.filter (n: result.active.${n}.${s.id}) (lib.attrNames result.active);
+    };
+    errorsBy = {
+      params.code = yen.lib.maybe (yen.lib.is builtins.isString); # an error code is data, not a fleet name
+      answer = { code, result }: lib.filter (e: code == null || e.code == code) result.errors;
+    };
     # install order: in an assembly, each client machine waits for the servers (yen.lib.graphs.layers)
-    installOrder =
-      { assembly, result }:
-      let
-        ms = lib.filter (s: yen.lib.holds yen.kinds.member s && s.assembly.name == assembly) result.scopes;
-        role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: s.role == rl) ms));
-        servers = role "server";
-      in
-      yen.lib.graphs.layers (
-        lib.genAttrs (role "client" ++ servers) (m: if lib.elem m servers then [ ] else servers)
-      );
+    installOrder = {
+      params.assembly = yen.kinds.assembly;
+      answer =
+        { assembly, result }:
+        let
+          ms = lib.filter (
+            s: yen.lib.holds yen.kinds.member s && yen.lib.same s.assembly assembly
+          ) result.scopes;
+          role = rl: lib.unique (map (s: s.parent.name) (lib.filter (s: s.role == rl) ms));
+          servers = role "server";
+        in
+        yen.lib.graphs.layers (
+          lib.genAttrs (role "client" ++ servers) (m: if lib.elem m servers then [ ] else servers)
+        );
+    };
   };
   yen.labels = {
     "modules/" = {

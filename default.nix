@@ -287,6 +287,16 @@ let
       check = v: isList v && all (checkOf t) v;
       __of = t; # a list of refs is still a ref field: one fact per element (refKind)
     };
+    #: lib.kind :: type -- a kind: yen.kinds.<kind>
+    kind = {
+      check = v: isAttrs v && v ? __kind;
+      description = "a kind";
+    };
+    #: lib.aspect :: type -- an aspect: yen.aspects.<name>
+    aspect = {
+      check = v: isAttrs v && v ? __aspect;
+      description = "an aspect";
+    };
     #: lib.enum :: [ value ] -> type -- one of the listed values
     enum = xs: {
       check = v: elem v xs;
@@ -2288,9 +2298,34 @@ let
         ++ requestErrors
         ++ reduceErrors
         ++ emitted
+        ++ map queryUntyped untypedQueries
         ++ optional (!(flakeFill ? ok)) flakeFill
         ++ concatMap (x: if x ? error then [ x.error ] else [ ]) fieldAtoms;
       errorsAll = errorsFleet ++ check.errors;
+      # a query is { params; answer; }: a bare function has untyped parameters, so `ask` could not check them; no answer, nothing to ask
+      untypedQueries = filter (n: !isFunction (yen.queries.${n}.answer or null)) (attrNames yen.queries);
+      queryUntyped =
+        n:
+        errWith "queries" "query ${n} is not { params; answer; }: ask cannot check its parameters" {
+          code = "query-untyped";
+          fix = "write yen.queries.${n} = { params = { <name> = <type>; }; answer = { result, <name> }: …; }";
+        };
+      # a ref from JSON is its identity (refKey): { kind; name; } an instance (null when there is none), { kind; } a kind,
+      # { aspect; } an aspect; a Nix ref resolves the same way, any other value stays
+      fromEdge =
+        v:
+        if isList v then
+          map fromEdge v
+        else if !isAttrs v || v ? __kind || v ? __aspect then
+          v
+        else if isRef v then
+          instances.${v.kind}.${v.name} or null
+        else if attrNames v == [ "kind" ] then
+          kinds.${v.kind} or v
+        else if attrNames v == [ "aspect" ] then
+          aspects.${v.aspect} or v
+        else
+          v;
       flakeFill = if top ? flake && scopes != [ ] then fill (head scopes) top.flake else { ok = null; };
       clean = errorsAll == [ ] && check.ok;
       self = {
@@ -2349,31 +2384,37 @@ let
                 inherit (check) violations incomplete;
               };
             };
-        # stored queries: `yen.queries.<name> = { host, result, ... }: …`. `result` is this eval result; the other formals are the
-        # query's parameters, required unless they have a default. `ask name args` never throws: a missing or unknown
-        # parameter, or an unknown query, is an error record.
-        #: result.queries :: { name = { required; optional; }; } -- the stored queries of yen.queries, each with its parameter names
+        # stored queries: `yen.queries.<name> = { params = { host = yen.kinds.host; }; answer = { host, result }: …; }`.
+        # `result` is this eval result; each param has a type, and is optional when the type has a default. `ask name args`
+        # never throws: an unknown query, a missing, unknown or ill-typed parameter is an error record.
+        #: result.queries :: { name = { required; optional; types; }; } -- the stored queries of yen.queries, each with its parameters and their types
         queries = mapAttrs (
-          n: f:
+          _: q:
           let
-            fa = functionArgs f;
-            ps = filter (a: a != "result") (attrNames fa);
+            ps = q.params or { };
           in
           {
-            required = filter (a: !fa.${a}) ps;
-            optional = filter (a: fa.${a}) ps;
+            required = filter (p: !(ps.${p} ? default)) (attrNames ps);
+            optional = filter (p: ps.${p} ? default) (attrNames ps);
+            types = mapAttrs (_: typeName) ps;
           }
-        ) yen.queries;
-        #: result.ask :: name -> args -> answer -- a stored query by name; an unknown query or parameter is an error record
+        ) (b.removeAttrs yen.queries untypedQueries);
+        #: result.ask :: name -> args -> answer -- a stored query by name; a ref from JSON is { kind; name; }, { kind; } or { aspect; }
         ask =
           n: args:
           if !(yen.queries ? ${n}) then
             unknown "ask" n (attrNames yen.queries) { code = "unknown-query"; }
+          else if elem n untypedQueries then
+            queryUntyped n
           else
             let
               q = self.queries.${n};
+              ps = yen.queries.${n}.params or { };
               missing = filter (a: !(args ? ${a})) q.required;
               extra = filter (a: !elem a (q.required ++ q.optional)) (attrNames args);
+              vals = mapAttrs (p: t: if args ? ${p} then fromEdge args.${p} else t.default) ps;
+              lost = first (p: isRef args.${p} && vals.${p} == null) (attrNames args);
+              bad = first (p: !checkOf ps.${p} vals.${p}) (attrNames ps);
             in
             if missing != [ ] then
               errWith "ask" "query ${n}: missing ${head missing}" {
@@ -2386,8 +2427,20 @@ let
                 code = "unknown-param";
                 near = near (head extra) (q.required ++ q.optional);
               }
+            else if lost != null then
+              unknown "ask" args.${lost}.name (instNames args.${lost}.kind) { code = "unknown-instance"; }
+            else if bad != null then
+              errWith "ask" "query ${n}: ${bad} wants ${q.types.${bad}}" {
+                code = if refKind ps.${bad} != null then "ref" else "check";
+                want = q.types.${bad};
+                fix =
+                  if refKind ps.${bad} != null then
+                    "give ${bad} a ${refKind ps.${bad}} ref: yen.${refKind ps.${bad}}.<name>, or { kind; name; } from JSON"
+                  else
+                    "give ${bad} ${q.types.${bad}}";
+              }
             else
-              static.jsonSafe (yen.queries.${n} (args // { result = self; }));
+              static.jsonSafe (yen.queries.${n}.answer (vals // { result = self; }));
       };
     in
     self;

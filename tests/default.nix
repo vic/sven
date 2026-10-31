@@ -1116,37 +1116,84 @@ let
       };
     stored-queries =
       let
-        r = ports {
-          yen.queries = {
-            portOf = { host, result, ... }: (b.head (b.filter (s: s.name == host) result.scopes)).port;
-            count =
-              {
-                kind ? "host",
-                result,
-              }:
-              b.length (b.filter (s: s.kind == kind) result.scopes);
-          };
+        # a parameter is typed; from JSON, a ref is its identity: { kind; name; }, { kind; } or { aspect; }
+        r = ports (
+          { yen, ... }:
+          {
+            yen.queries = {
+              portOf = {
+                params.host = yen.kinds.host;
+                answer = { host, result }: host.port;
+              };
+              count = {
+                params.kind = yen.lib.opt yen.lib.kind yen.kinds.host;
+                answer = { kind, result }: b.length (b.filter (yen.lib.holds kind) result.scopes);
+              };
+              on = {
+                params.aspect = yen.lib.aspect;
+                answer =
+                  { aspect, result }: b.filter (id: result.active.${aspect.__aspect}.${id}) [ "top:t/host:a" ];
+              };
+              untyped = { result }: 1;
+            };
+          }
+        );
+        hostB = {
+          kind = "host";
+          name = "b";
         };
       in
       {
-        catalog = eq r.queries {
+        catalog = eq (removeAttrs r.queries [ "untyped" ]) {
           count = {
             required = [ ];
             optional = [ "kind" ];
+            types.kind = "a kind";
+          };
+          on = {
+            required = [ "aspect" ];
+            optional = [ ];
+            types.aspect = "an aspect";
           };
           portOf = {
             required = [ "host" ];
             optional = [ ];
+            types.host = "a host ref";
           };
         };
-        port = eq (r.ask "portOf" { host = "b"; }) 80;
+        port = eq (r.ask "portOf" { host = hostB; }) 80;
+        # negative controls: a name string, an unknown instance and a ref of another kind are refused, never asked
+        port-string = eq (r.ask "portOf" { host = "b"; }).code "ref";
+        port-unknown =
+          eq
+            (r.ask "portOf" {
+              host = hostB // {
+                name = "c";
+              };
+            }).code
+            "unknown-instance";
+        port-other-kind =
+          eq
+            (r.ask "portOf" {
+              host = hostB // {
+                kind = "top";
+                name = "t";
+              };
+            }).code
+            "ref";
         count = eq (r.ask "count" { }) 2;
-        count-kind = eq (r.ask "count" { kind = "top"; }) 1;
+        count-kind = eq (r.ask "count" { kind.kind = "top"; }) 1;
+        count-string = eq (r.ask "count" { kind = "top"; }).code "check";
+        on = eq (r.ask "on" { aspect.aspect = "firewall"; }) [ "top:t/host:a" ];
+        untyped = eq (r.ask "untyped" { }).code "query-untyped";
+        untyped-error = eq (map (e: e.code) (b.filter (e: e.code == "query-untyped") r.errors)) [
+          "query-untyped"
+        ];
         missing = eq (r.ask "portOf" { }).code "missing-param";
         unknown-param =
           eq
             (r.ask "portOf" {
-              host = "a";
+              host = hostB;
               hots = 1;
             }).code
             "unknown-param";

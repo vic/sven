@@ -30,8 +30,8 @@ This table is read from the tool list the server embeds (`mcp/src/tools.json`) (
 | `yen_declared_in` | The files that answer a declaration path. |
 | `yen_export` | The fleet as sorted N-Triples with sha256 and count. The agent decides whether to store it. |
 | `yen_stage` | Evaluate a change (a module as JSON) without applying it: ok, errors, violations, diff, refused, sha. |
-| `yen_queries` | The stored-query catalog: each query with its required and optional parameters. |
-| `yen_ask` | Run a stored query by name with an args object. Errors (missing-param, unknown query) come back as the result. |
+| `yen_queries` | The stored-query catalog: each query with its required and optional parameters and their types. |
+| `yen_ask` | Run a stored query by name with an args object. A ref is its identity: {kind,name} an instance, {kind} a kind, {aspect} an aspect. Errors (missing-param, ref, unknown query) come back as the result. |
 | `yen_impact` | The scopes an element of a scope reaches over routed elements, by depth. |
 | `yen_labels` | Trust labels per aspect; with floor n, the edges whose aspect has trust below n. |
 | `yen_why_not` | Whether an invariant atom (a tuple, ["bad", …]) is violated, and the why/whyNot rules for it. |

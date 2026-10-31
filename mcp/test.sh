@@ -34,13 +34,16 @@ out=$(call yen_stage '{"change":{"yen":{"aspects":{"attic":{"at":[{"kind":"mac",
 check stage-attic '.result.ok == false and (.result.violations | map(.[1] == "attic") | any)' "$out"
 
 out=$(call yen_queries '{}' | text)
-check queries-freeport '.result.freePort.required == ["host"]' "$out"
+check queries-freeport '.result.freePort.required == ["host"] and .result.freePort.types.host == "a host ref"' "$out"
 
-out=$(call yen_ask '{"name":"freePort","args":{"host":"lb"}}' | text)
+out=$(call yen_ask '{"name":"freePort","args":{"host":{"kind":"host","name":"lb"}}}' | text)
 check ask-freeport '.result.port == 8083' "$out"
 
 out=$(call yen_ask '{"name":"freePort","args":{}}' | text)
 check ask-missing-param '.result.code == "missing-param"' "$out"
+
+out=$(call yen_ask '{"name":"freePort","args":{"host":"lb"}}' | text)
+check ask-name-not-ref '.result.code == "ref"' "$out"
 
 out=$(call yen_impact '{"id":"fleet:main/environment:prod/host:lb","hops":1}' | text)
 check impact-reached '(.result.reached | length) > 0' "$out"
