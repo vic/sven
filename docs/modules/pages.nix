@@ -32,9 +32,11 @@ in
       has = f: builtins.pathExists (dir + "/${f}");
       module = {
         imports = [ (inputs.import-tree (dir + "/modules")) ];
-        _module.args = {
-          inherit inputs;
-          inherit (inputs.nixpkgs) lib;
+        inherit inputs;
+        inherit (inputs.nixpkgs) lib;
+        yen.sinks = {
+          inputs = { };
+          lib = { };
         };
       };
     in
@@ -58,7 +60,7 @@ in
         fs:
         inputs.yen.lib.eval {
           imports = map (f: dir + "/${f}") fs;
-          _module.args = module._module.args;
+          inherit (module) inputs lib yen;
         };
       # the example's flake outputs, from its own flake.nix
       flake =

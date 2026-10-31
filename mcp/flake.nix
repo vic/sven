@@ -8,9 +8,11 @@
     inputs:
     inputs.yen.lib.mkFlake {
       imports = [ ./module.nix ];
-      _module.args = {
-        inherit inputs;
-        inherit (inputs.nixpkgs) lib;
+      inherit inputs;
+      inherit (inputs.nixpkgs) lib;
+      yen.sinks = {
+        inputs = { };
+        lib = { };
       };
     };
 

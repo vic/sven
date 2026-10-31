@@ -1,6 +1,6 @@
 {
   title = "Yen modules are not NixOS modules";
-  description = "A yen module has `imports`, `_module.args` and `yen`. yen does not use nixpkgs. Each NixOS pattern, and how to write it in yen.";
+  description = "A yen module has `imports`, `yen` and sinks. yen does not use nixpkgs. Each NixOS pattern, and how to write it in yen.";
   section = "principles";
   order = 4;
 
@@ -19,18 +19,55 @@
       ''
         A yen module looks like a NixOS module: a path, a function or an attrset, with `imports`. It is not one.
         yen does not use the NixOS module system and does not depend on nixpkgs: it uses Nix builtins only.
-        A yen module has three keys:
+        A module is a function `sources -> sinks`, as in Cycle. Its keys:
 
         - `imports`: more yen modules.
-        - `_module.args`: args for the modules below, such as `lib` or `inputs`.
         - `yen`: every declaration.
+        - any other key: a module sink, such as `lib` or `inputs`. Any module reads a sink as an arg.
 
-        There is no `options`, no `config` and no free-form key. A key that yen does not read is an error,
-        at the top of a module, inside `yen` and inside a kind:
+        There is no `options` and no `config`. A sink that no module reads or declares is an error. So is a
+        key that yen does not read inside `yen` or inside a kind:
       ''
       (docs.file "variants/nixos-style.nix")
       (docs.value (map (e: { inherit (e) code error path; }) (variant "variants/nixos-style.nix").errors))
       ''
+        ## Module sinks: the options of a module
+
+        `yen.sinks.<name>` declares a module sink, as a top-level `options` does in NixOS. Its keys are the
+        keys of a kind's sink: `of` is the type that checks each module's value, and `reduce` is the merge
+        strategy. A sink with no `reduce` takes `one` value, which an arg gets as it is. A declared sink that
+        no module gives reduces to its empty value.
+      ''
+      (docs.file "variants/module-sinks.nix")
+      (docs.value (variant "variants/module-sinks.nix").reduced.nixos."fleet:main/host:web".users)
+      ''
+        Key names load before any arg has an answer: a key name that reads an arg is an error record. `imports` can read
+        a sink, such as `inputs`, when modules outside its own imports give it. yen loads such imports in rounds.
+        `result.modules` shows what each module asks, gives and declares. A cycle in it is `import-loop`, an error record,
+        not an infinite recursion.
+      ''
+      ''
+        ## What yen gets from not using nixpkgs modules
+
+        - **A loop is data.** In nixpkgs, a module whose `imports` reads `config` stops the evaluation with
+          `infinite recursion encountered`. In yen, an `imports` that asks a sink that its own imports give is an
+          `import-loop` error record, and the rest of the fleet still evaluates.
+        - **A type error is data, and it names the file.** In nixpkgs, a wrong value throws, and only the first throw
+          shows. In yen, a value that fails `of` is an error record with the module that gave it, and yen drops that value
+          and continues. You see every error in one pass.
+        - **Validation is apart from merging.** `of` only checks and `reduce` only merges. A nixpkgs type does both,
+          and a composite type checks its items only in `merge` (see the caution below).
+        - **No priorities.** There is no `mkDefault` or `mkForce`. Two different answers are an error with a `fix`:
+          data never overrides data.
+        - **One concept for args and options.** `specialArgs`, `_module.args` and `options` are all module sinks. A sink
+          without a declaration gives its value as it is, such as `lib` or `inputs`.
+        - **The loader is data.** `result.modules` shows what each module asks, gives and declares, and which module
+          imports it. Yen queries and graphs read it.
+        - **No dependency.** yen modules use Nix builtins only. They do not need nixpkgs `lib`.
+
+        nixpkgs modules still have more: NixOS, home-manager and nix-darwin are written for them, and yen uses those
+        modules inside sink elements. nixpkgs also has `mkIf` on `config`, where yen has the `at` of an aspect.
+
         ## Types: anything with `check`
 
         A field type is any value with `check = v: bool`. yen does not ship its own type library, and it needs no
@@ -111,6 +148,10 @@
             "`yen.kinds.K.fields.x = yen.lib.opt type default`"
           ]
           [
+            "a top-level option that many modules set, such as `flake.lib`"
+            "a module sink: `yen.sinks.x = { of = type; reduce = …; }`, then `x = v;` in each module"
+          ]
+          [
             "`mkEnableOption`"
             "a nested field: `fields.firewall.enable = yen.lib.opt lib.types.bool false`"
           ]
@@ -140,7 +181,7 @@
           ]
           [
             "`imports`, `specialArgs`"
-            "`imports`, `_module.args`"
+            "`imports`, and the sinks of the root module: `inherit inputs lib;`"
           ]
           [
             "`attrsOf (submodule { … })`"
@@ -186,9 +227,19 @@
     in
     {
       nixos-style = eq (map (e: e.code) (variant "variants/nixos-style.nix").errors) ([
-        "unknown-key"
-        "unknown-key"
+        "unread-sink"
+        "unread-sink"
       ]);
+      module-sinks = {
+        value =
+          eq
+            (variant "variants/module-sinks.nix").reduced.nixos."fleet:main/host:web".users.groups.wheel.members
+            [
+              "ana"
+              "bo"
+            ];
+        errors = eq (variant "variants/module-sinks.nix").errors [ ];
+      };
       mkif = {
         t1 = yes (result.active.firewall."fleet:main/host:web");
         t2 = no (result.active.firewall."fleet:main/host:db");

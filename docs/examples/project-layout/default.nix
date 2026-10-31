@@ -8,8 +8,10 @@
 }:
 (import yen).lib.eval {
   imports = [ (import-tree ./modules) ];
-  _module.args = {
-    inputs = { inherit nixpkgs; };
-    lib = import "${nixpkgs}/lib";
+  inputs = { inherit nixpkgs; };
+  lib = import "${nixpkgs}/lib";
+  yen.sinks = {
+    inputs = { };
+    lib = { };
   };
 }

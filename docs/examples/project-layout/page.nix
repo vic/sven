@@ -8,9 +8,9 @@
     { docs, ... }:
     [
       ''
-        yen reads one module. A module is a path, a function or an attrset with three keys: `imports`, `_module.args`
-        and `yen`. yen does not know what `inputs` or `lib` are. You give them as args, and they flow down the
-        `imports` tree to every file below.
+        yen reads one module. A module is a path, a function or an attrset. Its keys are `imports`, `yen` and sinks.
+        yen does not know what `inputs` or `lib` are. The root module gives them as sinks, and declares them in `yen.sinks`.
+        Any file asks for them as args.
       ''
       docs.tree
       ''
@@ -46,7 +46,7 @@
       ''
       (docs.fileWith "{7}" "modules/host.nix")
       (docs.caution "Args are explicit" ''
-        yen gives a module only `yen` and the `_module.args` above it. A file that asks for `pkgs` at the top level gets an error record:
+        yen gives a module only `yen` and the sinks that modules give or declare. A file that asks for `pkgs` at the top level gets an error record:
         `pkgs` belongs to NixOS. Ask for it inside a `nixos` element.
       '')
     ];

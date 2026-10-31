@@ -32,7 +32,8 @@ in
 
         Yen is designed around [Cycle.js](https://cycle.js.org) and other functional reactive programming principles.
         As in Cycle, an aspect (a behavior) is a function `sources -> sinks`. It sends requests through its `sinks` to its parent cycles
-        to observe the world, and it gets their answers back through `sources`.
+        to observe the world, and it gets their answers back through `sources`. A yen module follows the same model: its args are
+        `sources`, and every key it gives, other than `imports` and `yen`, is a module sink that any module can read.
 
         For example, a user aspect can ask which host it lives on, or whether a service is enabled somewhere else in the fleet.
         Most of the time, aspects are simple and look like plain Nix configurations. They need no knowledge of the underlying query model.

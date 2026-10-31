@@ -18,27 +18,27 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.agent`](https://github.com/vic/yen/blob/main/default.nix#L325) | `result -> agent` | the summary of an eval result for an agent: counts, check, schema, errors, undefined |
-| [`lib.allowed`](https://github.com/vic/yen/blob/main/default.nix#L2183) | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
-| [`lib.asOf`](https://github.com/vic/yen/blob/main/default.nix#L2350) | `{ url; rev; module; } -> result` | the fleet at a git revision |
-| [`lib.attrsOf`](https://github.com/vic/yen/blob/main/default.nix#L296) | `type -> type` | an attrset whose values pass the type |
-| [`lib.derive`](https://github.com/vic/yen/blob/main/default.nix#L278) | `type -> (instance -> value) -> type` | the type, with a default computed from the instance itself |
-| [`lib.diffData`](https://github.com/vic/yen/blob/main/default.nix#L2328) | `data -> data -> [ { path; old; new; } ]` | the field changes between two data answers, sorted by path |
-| [`lib.enum`](https://github.com/vic/yen/blob/main/default.nix#L291) | `[ value ] -> type` | one of the listed values |
-| [`lib.eval`](https://github.com/vic/yen/blob/main/default.nix#L338) | `module -> result` | evaluate a fleet module; the result answers every query |
-| [`lib.grant`](https://github.com/vic/yen/blob/main/default.nix#L2150) | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
-| [`lib.history`](https://github.com/vic/yen/blob/main/default.nix#L2358) | `{ url; revs; module; } -> [ { rev; errors; scopes; changes; } ]` | the fleet at each revision, with the field changes from the one before |
-| [`lib.is`](https://github.com/vic/yen/blob/main/default.nix#L274) | `(v -> bool) -> type` | a type from a check |
-| [`lib.jsonSafe`](https://github.com/vic/yen/blob/main/default.nix#L310) | `value -> value` | the value with functions and derivations as strings, so toJSON never fails |
-| [`lib.listOf`](https://github.com/vic/yen/blob/main/default.nix#L286) | `type -> type` | a list whose elements pass the type; a list of refs is still a ref field |
-| [`lib.maybe`](https://github.com/vic/yen/blob/main/default.nix#L280) | `type -> type` | the type, or null (a maybe-ref is still a ref field) |
-| [`lib.mkFlake`](https://github.com/vic/yen/blob/main/default.nix#L2514) | `module -> flake` | the flake outputs of the fleet, or &#123; invalid-flake-errors &#125; when it has an error or a violation |
-| [`lib.narrow`](https://github.com/vic/yen/blob/main/default.nix#L2159) | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
-| [`lib.opt`](https://github.com/vic/yen/blob/main/default.nix#L276) | `type -> default -> type` | the type, with a default when the field has no answer |
-| [`lib.secret`](https://github.com/vic/yen/blob/main/default.nix#L303) | `type -> type` | the type, but every answer states the value only by its sha256 |
-| [`lib.stage`](https://github.com/vic/yen/blob/main/default.nix#L2196) | `{ base; change; rejected ? [ ]; grant ? null; by ? null; id ? null; baseResult ? eval base; } -> { ok; errors; violations; incomplete; refused; diff; labels; floor; sha; render; }` | a change evaluated with the base and applied nowhere; ok only when nothing new is wrong |
-| [`lib.validAt`](https://github.com/vic/yen/blob/main/default.nix#L328) | `date -> scope -> bool` | the scope instance holds at the ISO date (validFrom, validTo; absent is open) |
-| [`lib.without`](https://github.com/vic/yen/blob/main/default.nix#L2375) | `{ files; path; args ? { }; } -> { dropped; result; }` | the fleet without the files that declare path |
+| [`lib.agent`](https://github.com/vic/yen/blob/main/default.nix#L324) | `result -> agent` | the summary of an eval result for an agent: counts, check, schema, errors, undefined |
+| [`lib.allowed`](https://github.com/vic/yen/blob/main/default.nix#L2427) | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
+| [`lib.asOf`](https://github.com/vic/yen/blob/main/default.nix#L2594) | `{ url; rev; module; } -> result` | the fleet at a git revision |
+| [`lib.attrsOf`](https://github.com/vic/yen/blob/main/default.nix#L295) | `type -> type` | an attrset whose values pass the type |
+| [`lib.derive`](https://github.com/vic/yen/blob/main/default.nix#L277) | `type -> (instance -> value) -> type` | the type, with a default computed from the instance itself |
+| [`lib.diffData`](https://github.com/vic/yen/blob/main/default.nix#L2572) | `data -> data -> [ { path; old; new; } ]` | the field changes between two data answers, sorted by path |
+| [`lib.enum`](https://github.com/vic/yen/blob/main/default.nix#L290) | `[ value ] -> type` | one of the listed values |
+| [`lib.eval`](https://github.com/vic/yen/blob/main/default.nix#L337) | `module -> result` | evaluate a fleet module; the result answers every query |
+| [`lib.grant`](https://github.com/vic/yen/blob/main/default.nix#L2394) | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
+| [`lib.history`](https://github.com/vic/yen/blob/main/default.nix#L2602) | `{ url; revs; module; } -> [ { rev; errors; scopes; changes; } ]` | the fleet at each revision, with the field changes from the one before |
+| [`lib.is`](https://github.com/vic/yen/blob/main/default.nix#L273) | `(v -> bool) -> type` | a type from a check |
+| [`lib.jsonSafe`](https://github.com/vic/yen/blob/main/default.nix#L309) | `value -> value` | the value with functions and derivations as strings, so toJSON never fails |
+| [`lib.listOf`](https://github.com/vic/yen/blob/main/default.nix#L285) | `type -> type` | a list whose elements pass the type; a list of refs is still a ref field |
+| [`lib.maybe`](https://github.com/vic/yen/blob/main/default.nix#L279) | `type -> type` | the type, or null (a maybe-ref is still a ref field) |
+| [`lib.mkFlake`](https://github.com/vic/yen/blob/main/default.nix#L2755) | `module -> flake` | the flake outputs of the fleet, or &#123; invalid-flake-errors &#125; when it has an error or a violation |
+| [`lib.narrow`](https://github.com/vic/yen/blob/main/default.nix#L2403) | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
+| [`lib.opt`](https://github.com/vic/yen/blob/main/default.nix#L275) | `type -> default -> type` | the type, with a default when the field has no answer |
+| [`lib.secret`](https://github.com/vic/yen/blob/main/default.nix#L302) | `type -> type` | the type, but every answer states the value only by its sha256 |
+| [`lib.stage`](https://github.com/vic/yen/blob/main/default.nix#L2440) | `{ base; change; rejected ? [ ]; grant ? null; by ? null; id ? null; baseResult ? eval base; } -> { ok; errors; violations; incomplete; refused; diff; labels; floor; sha; render; }` | a change evaluated with the base and applied nowhere; ok only when nothing new is wrong |
+| [`lib.validAt`](https://github.com/vic/yen/blob/main/default.nix#L327) | `date -> scope -> bool` | the scope instance holds at the ISO date (validFrom, validTo; absent is open) |
+| [`lib.without`](https://github.com/vic/yen/blob/main/default.nix#L2619) | `{ files; path; args ? { }; } -> { dropped; result; }` | the fleet without the files that declare path; args = sinks the root gives |
 
 ## `lib.batteries`
 
@@ -129,7 +129,7 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.change.set`](https://github.com/vic/yen/blob/main/default.nix#L2495) | `[ name ] -> value -> module` | a module that gives one declaration path a value |
+| [`lib.change.set`](https://github.com/vic/yen/blob/main/default.nix#L2736) | `[ name ] -> value -> module` | a module that gives one declaration path a value |
 
 ## `lib.datalog`
 
@@ -154,9 +154,9 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.grants.allowed`](https://github.com/vic/yen/blob/main/default.nix#L2183) | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
-| [`lib.grants.grant`](https://github.com/vic/yen/blob/main/default.nix#L2150) | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
-| [`lib.grants.narrow`](https://github.com/vic/yen/blob/main/default.nix#L2159) | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
+| [`lib.grants.allowed`](https://github.com/vic/yen/blob/main/default.nix#L2427) | `grant -> { to; sink; } -> bool` | the grant covers the target scope and the sink |
+| [`lib.grants.grant`](https://github.com/vic/yen/blob/main/default.nix#L2394) | `{ scopes; sinks ? null; } -> grant` | the scope ids and sinks a change may reach (null: every sink) |
+| [`lib.grants.narrow`](https://github.com/vic/yen/blob/main/default.nix#L2403) | `grant -> grant -> grant` | two grants met: the scopes both cover, the sinks both allow; never wider |
 
 ## `lib.graphs`
 
@@ -221,11 +221,11 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.program.dryRun`](https://github.com/vic/yen/blob/main/default.nix#L2458) | `{ base; prog; grant ? null; rejected ? [ ]; by ? null; result ? eval base; } -> stage answer // { valid; }` | validate the program, then stage it |
-| [`lib.program.opErrors`](https://github.com/vic/yen/blob/main/default.nix#L2400) | `result -> index -> op -> [ error ]` | the errors of one program op against the fleet |
-| [`lib.program.render`](https://github.com/vic/yen/blob/main/default.nix#L2490) | `[ op ] -> string` | the program as JSON, to read back with fromJSON |
-| [`lib.program.toModule`](https://github.com/vic/yen/blob/main/default.nix#L2438) | `[ op ] -> module` | the program as one yen module |
-| [`lib.program.validate`](https://github.com/vic/yen/blob/main/default.nix#L2435) | `result -> [ op ] -> [ error ]` | the errors of every op of a program |
+| [`lib.program.dryRun`](https://github.com/vic/yen/blob/main/default.nix#L2699) | `{ base; prog; grant ? null; rejected ? [ ]; by ? null; result ? eval base; } -> stage answer // { valid; }` | validate the program, then stage it |
+| [`lib.program.opErrors`](https://github.com/vic/yen/blob/main/default.nix#L2641) | `result -> index -> op -> [ error ]` | the errors of one program op against the fleet |
+| [`lib.program.render`](https://github.com/vic/yen/blob/main/default.nix#L2731) | `[ op ] -> string` | the program as JSON, to read back with fromJSON |
+| [`lib.program.toModule`](https://github.com/vic/yen/blob/main/default.nix#L2679) | `[ op ] -> module` | the program as one yen module |
+| [`lib.program.validate`](https://github.com/vic/yen/blob/main/default.nix#L2676) | `result -> [ op ] -> [ error ]` | the errors of every op of a program |
 
 ## `lib.rdf`
 
@@ -240,12 +240,12 @@ module of the target system; a *predicate* is what `at` takes; a *view* is `{ no
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`lib.reduce.entries`](https://github.com/vic/yen/blob/main/default.nix#L264) | `[ element ] -> { value = [ element ]; errors; }` | the elements themselves, each with its value and where it came from |
-| [`lib.reduce.flat`](https://github.com/vic/yen/blob/main/default.nix#L243) | `[ element ] -> { value = [ v ]; errors; }` | the element values joined: a list element gives its items, any other value itself; without duplicates, in first-seen order |
-| [`lib.reduce.list`](https://github.com/vic/yen/blob/main/default.nix#L239) | `[ element ] -> { value = [ v ]; errors; }` | every element value, in the order the elements arrive |
-| [`lib.reduce.merge`](https://github.com/vic/yen/blob/main/default.nix#L256) | `[ element ] -> { value = attrs; errors; }` | the element values merged as attrsets; two different answers at one path are an error |
-| [`lib.reduce.one`](https://github.com/vic/yen/blob/main/default.nix#L245) | `[ element ] -> { value; errors; }` | the one element value; zero or two or more elements is the error one |
-| [`lib.reduce.set`](https://github.com/vic/yen/blob/main/default.nix#L241) | `[ element ] -> { value = [ v ]; errors; }` | the element values without duplicates |
+| [`lib.reduce.entries`](https://github.com/vic/yen/blob/main/default.nix#L263) | `[ element ] -> { value = [ element ]; errors; }` | the elements themselves, each with its value and where it came from |
+| [`lib.reduce.flat`](https://github.com/vic/yen/blob/main/default.nix#L242) | `[ element ] -> { value = [ v ]; errors; }` | the element values joined: a list element gives its items, any other value itself; without duplicates, in first-seen order |
+| [`lib.reduce.list`](https://github.com/vic/yen/blob/main/default.nix#L238) | `[ element ] -> { value = [ v ]; errors; }` | every element value, in the order the elements arrive |
+| [`lib.reduce.merge`](https://github.com/vic/yen/blob/main/default.nix#L255) | `[ element ] -> { value = attrs; errors; }` | the element values merged as attrsets; two different answers at one path are an error |
+| [`lib.reduce.one`](https://github.com/vic/yen/blob/main/default.nix#L244) | `[ element ] -> { value; errors; }` | the one element value; zero or two or more elements is the error one |
+| [`lib.reduce.set`](https://github.com/vic/yen/blob/main/default.nix#L240) | `[ element ] -> { value = [ v ]; errors; }` | the element values without duplicates |
 
 ## Inside a fleet: `yen.lib`
 
@@ -255,21 +255,21 @@ Modules get the same lib, plus these predicates and queries bound to the fleet. 
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`yen.lib.all`](https://github.com/vic/yen/blob/main/default.nix#L1699) | `[ predicate ] -> predicate` | every predicate holds |
-| [`yen.lib.cascade`](https://github.com/vic/yen/blob/main/default.nix#L1723) | `[ name ] -> [ scope ] -> value or null` | the first answer for path along a list of scopes |
-| [`yen.lib.children`](https://github.com/vic/yen/blob/main/default.nix#L1721) | `predicate -> scope -> [ scope ]` | the children of the scope where the predicate holds, sorted |
-| [`yen.lib.declaredIn`](https://github.com/vic/yen/blob/main/default.nix#L374) | `[ name ] -> [ file ]` | the modules that answer a declaration path, in file order |
-| [`yen.lib.floor`](https://github.com/vic/yen/blob/main/default.nix#L1967) | `trust -> [ edge ]` | the routed elements whose aspect trust is below trust |
-| [`yen.lib.graph`](https://github.com/vic/yen/blob/main/default.nix#L1214) | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
-| [`yen.lib.has`](https://github.com/vic/yen/blob/main/default.nix#L1699) | `predicate -> predicate` | the predicate holds at a child scope |
-| [`yen.lib.holds`](https://github.com/vic/yen/blob/main/default.nix#L854) | `predicate -> scope -> bool` | the predicate holds at the scope (a kind, an instance, an aspect, a function, a list: any of them, or a combinator) |
-| [`yen.lib.labels`](https://github.com/vic/yen/blob/main/default.nix#L1961) | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
-| [`yen.lib.nearest`](https://github.com/vic/yen/blob/main/default.nix#L1717) | `kind -> scope -> scope or null` | the nearest scope of that kind, the scope itself first, then up |
-| [`yen.lib.not`](https://github.com/vic/yen/blob/main/default.nix#L1699) | `predicate -> predicate` | the predicate does not hold |
-| [`yen.lib.same`](https://github.com/vic/yen/blob/main/default.nix#L1715) | `x -> y -> bool` | x and y are the same instance; a non-instance is never the same |
-| [`yen.lib.schema`](https://github.com/vic/yen/blob/main/default.nix#L1756) | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |
-| [`yen.lib.scopesOf`](https://github.com/vic/yen/blob/main/default.nix#L1719) | `instance -> [ scope ]` | the scopes of an instance |
-| [`yen.lib.within`](https://github.com/vic/yen/blob/main/default.nix#L1699) | `predicate -> predicate` | the predicate holds at a scope above |
+| [`yen.lib.all`](https://github.com/vic/yen/blob/main/default.nix#L1923) | `[ predicate ] -> predicate` | every predicate holds |
+| [`yen.lib.cascade`](https://github.com/vic/yen/blob/main/default.nix#L1947) | `[ name ] -> [ scope ] -> value or null` | the first answer for path along a list of scopes |
+| [`yen.lib.children`](https://github.com/vic/yen/blob/main/default.nix#L1945) | `predicate -> scope -> [ scope ]` | the children of the scope where the predicate holds, sorted |
+| [`yen.lib.declaredIn`](https://github.com/vic/yen/blob/main/default.nix#L586) | `[ name ] -> [ file ]` | the modules that answer a declaration path, in file order |
+| [`yen.lib.floor`](https://github.com/vic/yen/blob/main/default.nix#L2191) | `trust -> [ edge ]` | the routed elements whose aspect trust is below trust |
+| [`yen.lib.graph`](https://github.com/vic/yen/blob/main/default.nix#L1438) | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
+| [`yen.lib.has`](https://github.com/vic/yen/blob/main/default.nix#L1923) | `predicate -> predicate` | the predicate holds at a child scope |
+| [`yen.lib.holds`](https://github.com/vic/yen/blob/main/default.nix#L1078) | `predicate -> scope -> bool` | the predicate holds at the scope (a kind, an instance, an aspect, a function, a list: any of them, or a combinator) |
+| [`yen.lib.labels`](https://github.com/vic/yen/blob/main/default.nix#L2185) | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
+| [`yen.lib.nearest`](https://github.com/vic/yen/blob/main/default.nix#L1941) | `kind -> scope -> scope or null` | the nearest scope of that kind, the scope itself first, then up |
+| [`yen.lib.not`](https://github.com/vic/yen/blob/main/default.nix#L1923) | `predicate -> predicate` | the predicate does not hold |
+| [`yen.lib.same`](https://github.com/vic/yen/blob/main/default.nix#L1939) | `x -> y -> bool` | x and y are the same instance; a non-instance is never the same |
+| [`yen.lib.schema`](https://github.com/vic/yen/blob/main/default.nix#L1980) | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |
+| [`yen.lib.scopesOf`](https://github.com/vic/yen/blob/main/default.nix#L1943) | `instance -> [ scope ]` | the scopes of an instance |
+| [`yen.lib.within`](https://github.com/vic/yen/blob/main/default.nix#L1923) | `predicate -> predicate` | the predicate holds at a scope above |
 
 ## Rules: `yen.facts` and `yen.relations`
 
@@ -279,56 +279,57 @@ from these references, never from strings. See [Invariants](/query/invariants/).
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`yen.facts.has`](https://github.com/vic/yen/blob/main/default.nix#L480) | `aspect -> scope -> literal` | the aspect is active at the scope (yen.aspects.&lt;name&gt;) |
-| [`yen.facts.instance`](https://github.com/vic/yen/blob/main/default.nix#L488) | `scope -> instance -> literal` | the scope holds that instance (yen.&lt;kind&gt;.&lt;name&gt;) |
-| [`yen.facts.kind`](https://github.com/vic/yen/blob/main/default.nix#L472) | `kind -> scope -> literal` | the scope is of that kind (yen.kinds.&lt;kind&gt;) |
-| [`yen.facts.lt`](https://github.com/vic/yen/blob/main/default.nix#L506) | `term -> term -> literal` | a comparison of two bound terms |
-| [`yen.facts.neq`](https://github.com/vic/yen/blob/main/default.nix#L506) | `term -> term -> literal` | a comparison of two bound terms |
-| [`yen.facts.parent`](https://github.com/vic/yen/blob/main/default.nix#L497) | `scope -> scope -> literal` | the second scope is the parent of the first |
-| [`yen.facts.<kind>.<field>`](https://github.com/vic/yen/blob/main/default.nix#L517) | `scope -> term -> literal` | the field of the scope holds the term; for a ref field, the term is a scope of the instance it refers to, or a ref constant |
-| [`yen.facts.<kind>.<field>.set`](https://github.com/vic/yen/blob/main/default.nix#L517) | `scope -> literal` | the field of the scope holds a value |
-| [`yen.relations.<name>`](https://github.com/vic/yen/blob/main/default.nix#L457) | `term… -> literal` | a declared relation called by reference, one term per arity; arity 0 is the literal itself |
+| [`yen.facts.has`](https://github.com/vic/yen/blob/main/default.nix#L704) | `aspect -> scope -> literal` | the aspect is active at the scope (yen.aspects.&lt;name&gt;) |
+| [`yen.facts.instance`](https://github.com/vic/yen/blob/main/default.nix#L712) | `scope -> instance -> literal` | the scope holds that instance (yen.&lt;kind&gt;.&lt;name&gt;) |
+| [`yen.facts.kind`](https://github.com/vic/yen/blob/main/default.nix#L696) | `kind -> scope -> literal` | the scope is of that kind (yen.kinds.&lt;kind&gt;) |
+| [`yen.facts.lt`](https://github.com/vic/yen/blob/main/default.nix#L730) | `term -> term -> literal` | a comparison of two bound terms |
+| [`yen.facts.neq`](https://github.com/vic/yen/blob/main/default.nix#L730) | `term -> term -> literal` | a comparison of two bound terms |
+| [`yen.facts.parent`](https://github.com/vic/yen/blob/main/default.nix#L721) | `scope -> scope -> literal` | the second scope is the parent of the first |
+| [`yen.facts.<kind>.<field>`](https://github.com/vic/yen/blob/main/default.nix#L741) | `scope -> term -> literal` | the field of the scope holds the term; for a ref field, the term is a scope of the instance it refers to, or a ref constant |
+| [`yen.facts.<kind>.<field>.set`](https://github.com/vic/yen/blob/main/default.nix#L741) | `scope -> literal` | the field of the scope holds a value |
+| [`yen.relations.<name>`](https://github.com/vic/yen/blob/main/default.nix#L681) | `term… -> literal` | a declared relation called by reference, one term per arity; arity 0 is the literal itself |
 
 ## Queries of an eval result: `result = yen.lib.eval module`
 
 
 | API | Takes and returns | Purpose |
 |---|---|---|
-| [`result.active`](https://github.com/vic/yen/blob/main/default.nix#L875) | `{ aspect = { scope id = bool; }; }` | where each aspect is active |
-| [`result.agent`](https://github.com/vic/yen/blob/main/default.nix#L1871) | `{ schema; undefined; errors; check; counts; }` | the fleet summary an agent reads first |
-| [`result.ask`](https://github.com/vic/yen/blob/main/default.nix#L2118) | `name -> args -> answer` | a stored query by name; an unknown query or parameter is an error record |
-| [`result.check`](https://github.com/vic/yen/blob/main/default.nix#L1338) | `{ … }` | the invariants verdict, with its certificate, seal and explanations (below) |
-| [`result.context`](https://github.com/vic/yen/blob/main/default.nix#L1847) | `scope id -> { maxEdges ? ; maxAspects ? ; } -> { scope; kind; name; parent; children; aspects; undefined; given; received; errors; }` | one scope for an agent, cut to size |
-| [`result.data`](https://github.com/vic/yen/blob/main/default.nix#L2073) | `{ kind = { name = fields; }; }` | every instance field value, JSON-safe, refs as kind:name |
-| [`result.declaredIn`](https://github.com/vic/yen/blob/main/default.nix#L374) | `[ name ] -> [ file ]` | the modules that answer a declaration path, in file order |
-| [`result.errors`](https://github.com/vic/yen/blob/main/default.nix#L2085) | `[ error ]` | every error record: where, what was expected, how to fix it |
-| [`result.explain`](https://github.com/vic/yen/blob/main/default.nix#L1812) | `aspect -> scope id -> depth -> tree` | why an aspect is active or not at a scope, as a three-valued trace of its at |
-| [`result.facts`](https://github.com/vic/yen/blob/main/default.nix#L1296) | `[ atom ]` | the fleet as typed atoms that rules read |
-| [`result.flake`](https://github.com/vic/yen/blob/main/default.nix#L2092) | `flake or { invalid-flake-errors = { errors; violations; incomplete; }; }` | the flake outputs; the reason instead when the fleet is not clean |
-| [`result.floor`](https://github.com/vic/yen/blob/main/default.nix#L1967) | `trust -> [ edge ]` | the routed elements whose aspect trust is below trust |
-| [`result.graph`](https://github.com/vic/yen/blob/main/default.nix#L1214) | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
-| [`result.impact`](https://github.com/vic/yen/blob/main/default.nix#L1884) | `scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth` | the scopes an element of the scope reaches, transitively |
-| [`result.labels`](https://github.com/vic/yen/blob/main/default.nix#L1961) | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
-| [`result.queries`](https://github.com/vic/yen/blob/main/default.nix#L2106) | `{ name = args -> answer; }` | the stored queries of yen.queries |
-| [`result.reduced`](https://github.com/vic/yen/blob/main/default.nix#L2089) | `{ sink = { scope id = value; }; } or null` | each sink reduced at each receiver; null when the fleet is not clean |
-| [`result.root`](https://github.com/vic/yen/blob/main/default.nix#L2070) | `module` | the module this result came from |
-| [`result.schema`](https://github.com/vic/yen/blob/main/default.nix#L1756) | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |
-| [`result.scopes`](https://github.com/vic/yen/blob/main/default.nix#L2050) | `[ scope ]` | every scope, a secret field stated by its hash |
-| [`result.undefined`](https://github.com/vic/yen/blob/main/default.nix#L879) | `[ { aspect; scope; } ]` | the aspects whose at is neither true nor false at a scope (a cycle through not) |
-| [`result.check.certificate`](https://github.com/vic/yen/blob/main/default.nix#L1533) | `{ true; false; }` | each decided atom with its stage; each true atom with the rule that proves it |
-| [`result.check.certified`](https://github.com/vic/yen/blob/main/default.nix#L1536) | `bool` | the small checker accepts the certificate and it states the same verdict |
-| [`result.check.errors`](https://github.com/vic/yen/blob/main/default.nix#L1479) | `[ error ]` | the errors of the invariants themselves: shapes, relations, unsafe rules |
-| [`result.check.from`](https://github.com/vic/yen/blob/main/default.nix#L1617) | `atom -> [ origin ]` | where a fact comes from: the edge origin, or the files that declare its instance, field or aspect |
-| [`result.check.incomplete`](https://github.com/vic/yen/blob/main/default.nix#L1544) | `[ atom ]` | the undefined bad atoms: an incomplete answer, never a pass |
-| [`result.check.invariants`](https://github.com/vic/yen/blob/main/default.nix#L1691) | `[ name ]` | the names of the invariants |
-| [`result.check.ok`](https://github.com/vic/yen/blob/main/default.nix#L1683) | `bool` | no violation, no incomplete atom, no opaque field |
-| [`result.check.opaque`](https://github.com/vic/yen/blob/main/default.nix#L1578) | `[ { field; scopes; } ]` | fields a rule reads where no fact can state the value (an attrset): the verdict is not ok |
-| [`result.check.proof`](https://github.com/vic/yen/blob/main/default.nix#L1689) | `atom -> tree` | the proof tree of a true atom |
-| [`result.check.seal`](https://github.com/vic/yen/blob/main/default.nix#L1674) | `{ binding; certificate; violations; incomplete; }` | the verdict bound to the hashes of the engine, the rules and the facts |
-| [`result.check.verify`](https://github.com/vic/yen/blob/main/default.nix#L1600) | `seal -> { ok; why ? ; }` | evaluate again and compare: engine, rules, facts and certificate |
-| [`result.check.violations`](https://github.com/vic/yen/blob/main/default.nix#L1542) | `[ atom ]` | the true bad atoms |
-| [`result.check.why`](https://github.com/vic/yen/blob/main/default.nix#L1685) | `atom -> [ rule ]` | the rules that make the atom true |
-| [`result.check.whyNot`](https://github.com/vic/yen/blob/main/default.nix#L1687) | `atom -> [ { rule; missing; blocking; undefinedBody; } ]` | why the atom is not true |
+| [`result.active`](https://github.com/vic/yen/blob/main/default.nix#L1099) | `{ aspect = { scope id = bool; }; }` | where each aspect is active |
+| [`result.agent`](https://github.com/vic/yen/blob/main/default.nix#L2095) | `{ schema; undefined; errors; check; counts; }` | the fleet summary an agent reads first |
+| [`result.ask`](https://github.com/vic/yen/blob/main/default.nix#L2362) | `name -> args -> answer` | a stored query by name; an unknown query or parameter is an error record |
+| [`result.check`](https://github.com/vic/yen/blob/main/default.nix#L1562) | `{ … }` | the invariants verdict, with its certificate, seal and explanations (below) |
+| [`result.context`](https://github.com/vic/yen/blob/main/default.nix#L2071) | `scope id -> { maxEdges ? ; maxAspects ? ; } -> { scope; kind; name; parent; children; aspects; undefined; given; received; errors; }` | one scope for an agent, cut to size |
+| [`result.data`](https://github.com/vic/yen/blob/main/default.nix#L2317) | `{ kind = { name = fields; }; }` | every instance field value, JSON-safe, refs as kind:name |
+| [`result.declaredIn`](https://github.com/vic/yen/blob/main/default.nix#L586) | `[ name ] -> [ file ]` | the modules that answer a declaration path, in file order |
+| [`result.errors`](https://github.com/vic/yen/blob/main/default.nix#L2329) | `[ error ]` | every error record: where, what was expected, how to fix it |
+| [`result.explain`](https://github.com/vic/yen/blob/main/default.nix#L2036) | `aspect -> scope id -> depth -> tree` | why an aspect is active or not at a scope, as a three-valued trace of its at |
+| [`result.facts`](https://github.com/vic/yen/blob/main/default.nix#L1520) | `[ atom ]` | the fleet as typed atoms that rules read |
+| [`result.flake`](https://github.com/vic/yen/blob/main/default.nix#L2336) | `flake or { invalid-flake-errors = { errors; violations; incomplete; }; }` | the flake outputs; the reason instead when the fleet is not clean |
+| [`result.floor`](https://github.com/vic/yen/blob/main/default.nix#L2191) | `trust -> [ edge ]` | the routed elements whose aspect trust is below trust |
+| [`result.graph`](https://github.com/vic/yen/blob/main/default.nix#L1438) | `{ scopes; edges; }` | the scope tree and the routed elements: who gives what to whom |
+| [`result.impact`](https://github.com/vic/yen/blob/main/default.nix#L2108) | `scope id -> { hops ? ; sinks ? ; max ? ; } -> by depth` | the scopes an element of the scope reaches, transitively |
+| [`result.labels`](https://github.com/vic/yen/blob/main/default.nix#L2185) | `{ aspect = label; }` | the trust label of each aspect, from yen.labels |
+| [`result.modules`](https://github.com/vic/yen/blob/main/default.nix#L455) | `{ key = { parent; asks; gives; declares; importer; }; }` | every module, as the loader sees it |
+| [`result.queries`](https://github.com/vic/yen/blob/main/default.nix#L2350) | `{ name = args -> answer; }` | the stored queries of yen.queries |
+| [`result.reduced`](https://github.com/vic/yen/blob/main/default.nix#L2333) | `{ sink = { scope id = value; }; } or null` | each sink reduced at each receiver; null when the fleet is not clean |
+| [`result.root`](https://github.com/vic/yen/blob/main/default.nix#L2314) | `module` | the module this result came from |
+| [`result.schema`](https://github.com/vic/yen/blob/main/default.nix#L1980) | `{ kinds; aspects; invariants; queries; }` | what the fleet declares, as JSON-safe data |
+| [`result.scopes`](https://github.com/vic/yen/blob/main/default.nix#L2293) | `[ scope ]` | every scope, a secret field stated by its hash |
+| [`result.undefined`](https://github.com/vic/yen/blob/main/default.nix#L1103) | `[ { aspect; scope; } ]` | the aspects whose at is neither true nor false at a scope (a cycle through not) |
+| [`result.check.certificate`](https://github.com/vic/yen/blob/main/default.nix#L1757) | `{ true; false; }` | each decided atom with its stage; each true atom with the rule that proves it |
+| [`result.check.certified`](https://github.com/vic/yen/blob/main/default.nix#L1760) | `bool` | the small checker accepts the certificate and it states the same verdict |
+| [`result.check.errors`](https://github.com/vic/yen/blob/main/default.nix#L1703) | `[ error ]` | the errors of the invariants themselves: shapes, relations, unsafe rules |
+| [`result.check.from`](https://github.com/vic/yen/blob/main/default.nix#L1841) | `atom -> [ origin ]` | where a fact comes from: the edge origin, or the files that declare its instance, field or aspect |
+| [`result.check.incomplete`](https://github.com/vic/yen/blob/main/default.nix#L1768) | `[ atom ]` | the undefined bad atoms: an incomplete answer, never a pass |
+| [`result.check.invariants`](https://github.com/vic/yen/blob/main/default.nix#L1915) | `[ name ]` | the names of the invariants |
+| [`result.check.ok`](https://github.com/vic/yen/blob/main/default.nix#L1907) | `bool` | no violation, no incomplete atom, no opaque field |
+| [`result.check.opaque`](https://github.com/vic/yen/blob/main/default.nix#L1802) | `[ { field; scopes; } ]` | fields a rule reads where no fact can state the value (an attrset): the verdict is not ok |
+| [`result.check.proof`](https://github.com/vic/yen/blob/main/default.nix#L1913) | `atom -> tree` | the proof tree of a true atom |
+| [`result.check.seal`](https://github.com/vic/yen/blob/main/default.nix#L1898) | `{ binding; certificate; violations; incomplete; }` | the verdict bound to the hashes of the engine, the rules and the facts |
+| [`result.check.verify`](https://github.com/vic/yen/blob/main/default.nix#L1824) | `seal -> { ok; why ? ; }` | evaluate again and compare: engine, rules, facts and certificate |
+| [`result.check.violations`](https://github.com/vic/yen/blob/main/default.nix#L1766) | `[ atom ]` | the true bad atoms |
+| [`result.check.why`](https://github.com/vic/yen/blob/main/default.nix#L1909) | `atom -> [ rule ]` | the rules that make the atom true |
+| [`result.check.whyNot`](https://github.com/vic/yen/blob/main/default.nix#L1911) | `atom -> [ { rule; missing; blocking; undefinedBody; } ]` | why the atom is not true |
 
 <CardGrid>
 <LinkCard title="Queries" href="/query/queries/" description="What each query answers, with examples." />

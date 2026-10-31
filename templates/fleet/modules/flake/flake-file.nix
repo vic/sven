@@ -30,10 +30,9 @@ in
         inputs:
         inputs.yen.lib.mkFlake {
           imports = [ (inputs.import-tree ./modules) ];
-          _module.args = {
-            inherit inputs;
-            inherit (inputs.nixpkgs) lib;
-          };
+          inherit inputs;
+          inherit (inputs.nixpkgs) lib;
+          yen.sinks = { inputs = { }; lib = { }; };
         }
       '';
       do-not-edit = ''

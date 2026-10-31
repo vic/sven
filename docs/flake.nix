@@ -12,11 +12,13 @@
       };
       flake = yen.lib.mkFlake {
         imports = [ (inputs.import-tree ./modules) ];
-        _module.args = {
-          inputs = inputs // {
-            inherit yen;
-          };
-          inherit (inputs.nixpkgs) lib;
+        inputs = inputs // {
+          inherit yen;
+        };
+        inherit (inputs.nixpkgs) lib;
+        yen.sinks = {
+          inputs = { };
+          lib = { };
         };
       };
     in
